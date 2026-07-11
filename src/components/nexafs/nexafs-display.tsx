@@ -47,7 +47,6 @@ import {
   resolveCitationCreatorDisplayName,
 } from "~/lib/dataset-citation";
 import { contributorCitationSortKey } from "~/lib/datacite-contributor-types";
-import { site } from "~/app/brand";
 
 function trpcKeyMatchesExperimentsProcedure(
   queryKey: readonly unknown[],
@@ -393,7 +392,9 @@ export function NexafsExperimentCompactCard({
     .filter((name): name is string => name !== null);
   const citationYearResolved = citationYear ?? new Date().getUTCFullYear();
   const atlasCitationUrl = atlasDatasetId
-    ? `${site.url.replace(/\/$/, "")}${atlasDatasetCitationHref(atlasDatasetId)}`
+    ? typeof window !== "undefined"
+      ? `${window.location.origin}${atlasDatasetCitationHref(atlasDatasetId)}`
+      : atlasDatasetCitationHref(atlasDatasetId)
     : null;
   const citationTitle = buildNexafsDatasetCitationTitle({
     moleculeDisplayName: displayName,

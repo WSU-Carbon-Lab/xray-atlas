@@ -321,6 +321,16 @@ export async function setAttributionPreferencesForUser(
     parseAttributionDisplayPreferences(updated.attributionDisplayPreferences),
     caps.roleSlugs,
   );
+
+  const contributedExperiments = await db.experimentcontributors.findMany({
+    where: { orcidid: userId },
+    select: { experimentid: true },
+    distinct: ["experimentid"],
+  });
+  for (const row of contributedExperiments) {
+    scheduleZenodoDepositSync(db, row.experimentid, { mode: "metadata" });
+  }
+
   return {
     autoAcceptMode: parseAutoAcceptMode(updated.autoAcceptMode),
     displayPreferences,

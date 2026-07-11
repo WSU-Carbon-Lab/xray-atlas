@@ -35,8 +35,8 @@ import {
 import { Quote } from "lucide-react";
 import { Accordion, Button, Spinner } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { site } from "~/app/brand";
 import { trpc } from "~/trpc/client";
+import { SimpleDialog } from "~/components/ui/dialog";
 import { ToastContainer, useToast } from "~/components/ui/toast";
 import {
   buildDatasetCitationBundle,
@@ -54,6 +54,18 @@ import type { NexafsBrowseSourcePublication } from "~/types/nexafs-browse";
 
 /** Official Zotero mark (white-backed PNG) served from `public/brand`. */
 const ZOTERO_LOGO_SRC = "/brand/zotero-logo.png";
+
+/**
+ * Builds an absolute Atlas `/d/{id}` URL using the current browser origin when
+ * available so preview hosts match the page the user is on.
+ */
+function resolveClientAtlasCitationUrl(atlasDatasetId: string): string {
+  const path = atlasDatasetCitationHref(atlasDatasetId.trim());
+  if (typeof window !== "undefined" && window.location?.origin) {
+    return `${window.location.origin}${path}`;
+  }
+  return path;
+}
 
 const shellClassName =
   "inline-flex h-6 shrink-0 items-stretch overflow-hidden rounded-md border border-border/70 bg-surface/60 text-[11px] leading-none shadow-sm";
@@ -264,6 +276,7 @@ function CardPressPopover({
   const isOpen = openId === id;
   const triggerRef = useRef<HTMLButtonElement>(null);
   const contentRef = useRef<HTMLDivElement>(null);
+  const previouslyFocusedRef = useRef<HTMLElement | null>(null);
   const { position, updatePosition } = useCardPressPopoverPosition(
     triggerRef,
     contentRef,
@@ -272,6 +285,21 @@ function CardPressPopover({
 
   useEffect(() => {
     if (!isOpen) return;
+
+    previouslyFocusedRef.current =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+
+    const focusables = () => {
+      const root = contentRef.current;
+      if (!root) return [] as HTMLElement[];
+      return [
+        ...root.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((el) => !el.hasAttribute("disabled") && el.tabIndex !== -1);
+    };
 
     const handlePointerDown = (event: PointerEvent) => {
       const target = event.target;
@@ -287,15 +315,44 @@ function CardPressPopover({
 
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape") {
+        event.preventDefault();
         onOpenChange(null);
+        return;
+      }
+      if (event.key !== "Tab") return;
+      const nodes = focusables();
+      if (nodes.length === 0) {
+        event.preventDefault();
+        contentRef.current?.focus();
+        return;
+      }
+      const first = nodes[0]!;
+      const last = nodes[nodes.length - 1]!;
+      const active = document.activeElement;
+      if (event.shiftKey) {
+        if (active === first || !contentRef.current?.contains(active)) {
+          event.preventDefault();
+          last.focus();
+        }
+      } else if (active === last) {
+        event.preventDefault();
+        first.focus();
       }
     };
 
+    const triggerEl = triggerRef.current;
     document.addEventListener("pointerdown", handlePointerDown, true);
     document.addEventListener("keydown", handleKeyDown);
+    queueMicrotask(() => {
+      const nodes = focusables();
+      (nodes[0] ?? contentRef.current)?.focus();
+    });
+
     return () => {
       document.removeEventListener("pointerdown", handlePointerDown, true);
       document.removeEventListener("keydown", handleKeyDown);
+      const restore = previouslyFocusedRef.current ?? triggerEl;
+      restore?.focus();
     };
   }, [isOpen, onOpenChange]);
 
@@ -312,6 +369,7 @@ function CardPressPopover({
         aria-label={ariaLabel}
         aria-haspopup="dialog"
         aria-expanded={isOpen}
+        aria-controls={isOpen ? `${id}-popover` : undefined}
         title={title}
         className={cn(triggerClassName, isOpen && "bg-foreground/5")}
         onPointerDown={stopCardToggle}
@@ -329,9 +387,12 @@ function CardPressPopover({
               style={{ top: position.top, left: position.left }}
             >
               <div
+                id={`${id}-popover`}
                 ref={contentRef}
                 role="dialog"
+                aria-modal="true"
                 aria-label={ariaLabel}
+                tabIndex={-1}
                 className={popoverShellClassName}
                 onPointerDown={stopCardToggle}
                 onClick={stopCardToggle}
@@ -563,6 +624,7 @@ export function NexafsDatasetDoiCiteControl({
   const [mintingEnabled, setMintingEnabled] = useState<boolean | null>(null);
   const [pollExhausted, setPollExhausted] = useState(false);
   const [openPopover, setOpenPopover] = useState<OpenPopoverId>(null);
+  const [mintConfirmOpen, setMintConfirmOpen] = useState(false);
   const pollCountRef = useRef(0);
   const lastStatusDataUpdatedAtRef = useRef(0);
   const toastedTerminalRef = useRef<string | null>(null);
@@ -693,7 +755,7 @@ export function NexafsDatasetDoiCiteControl({
   });
 
   const atlasCitationUrl = atlasDatasetId?.trim()
-    ? `${site.url.replace(/\/$/, "")}${atlasDatasetCitationHref(atlasDatasetId.trim())}`
+    ? resolveClientAtlasCitationUrl(atlasDatasetId.trim())
     : null;
 
   const citationBundle = buildDatasetCitationBundle({
@@ -932,7 +994,7 @@ export function NexafsDatasetDoiCiteControl({
           onClick={(event) => {
             stopCardToggle(event);
             if (!mode.enabled) return;
-            void runMint();
+            setMintConfirmOpen(true);
           }}
           className={cn(
             doiSegmentClassName,
@@ -981,6 +1043,67 @@ export function NexafsDatasetDoiCiteControl({
           }
         >
           <div className="space-y-3">
+            {(normalizedDoi ?? atlasCitationUrl) ? (
+              <div className="space-y-3">
+                {normalizedDoi ? (
+                  <div className="min-w-0">
+                    <h4 className={sectionLabelClassName}>Zenodo DOI</h4>
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                      <p
+                        className={cn(
+                          sectionBodyClassName,
+                          "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
+                        )}
+                      >
+                        {normalizedDoi}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isIconOnly
+                        className={copyIconButtonClassName}
+                        aria-label="Copy Zenodo DOI"
+                        onPress={() => {
+                          void handleCopy(normalizedDoi, "DOI");
+                        }}
+                      >
+                        <Square2StackIcon className="size-3.5" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+                {atlasCitationUrl ? (
+                  <div className="min-w-0">
+                    <h4 className={sectionLabelClassName}>Atlas data tag</h4>
+                    <div className="mt-2 flex min-w-0 items-center gap-2">
+                      <p
+                        className={cn(
+                          sectionBodyClassName,
+                          "mt-0 max-h-none min-w-0 flex-1 overflow-x-auto whitespace-nowrap",
+                        )}
+                      >
+                        {atlasCitationUrl.replace(/^https?:\/\//, "")}
+                      </p>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        isIconOnly
+                        className={copyIconButtonClassName}
+                        aria-label="Copy Atlas data tag"
+                        onPress={() => {
+                          void handleCopy(
+                            atlasCitationUrl.replace(/^https?:\/\//, ""),
+                            "Atlas data tag",
+                          );
+                        }}
+                      >
+                        <Square2StackIcon className="size-3.5" aria-hidden />
+                      </Button>
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+            ) : null}
             <ReferenceManagerLinks
               experimentId={experimentId}
               datasetDoi={localDoi}
@@ -1020,6 +1143,39 @@ export function NexafsDatasetDoiCiteControl({
         <span className={segmentDividerClassName} aria-hidden />
         {doiSegment}
       </span>
+
+      <SimpleDialog
+        isOpen={mintConfirmOpen}
+        onClose={() => {
+          setMintConfirmOpen(false);
+        }}
+        title="Mint Zenodo dataset DOI?"
+      >
+        <p className="text-muted text-sm leading-relaxed">
+          Publishing to Zenodo creates a permanent DOI for this dataset. This
+          cannot be undone. Continue only when the spectrum and attribution are
+          ready to cite.
+        </p>
+        <div className="mt-4 flex justify-end gap-2">
+          <Button
+            variant="secondary"
+            onPress={() => {
+              setMintConfirmOpen(false);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            variant="primary"
+            onPress={() => {
+              setMintConfirmOpen(false);
+              void runMint();
+            }}
+          >
+            Mint DOI
+          </Button>
+        </div>
+      </SimpleDialog>
 
       <ToastContainer toasts={toasts} onRemove={removeToast} />
     </span>

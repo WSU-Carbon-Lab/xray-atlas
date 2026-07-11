@@ -80,6 +80,52 @@ function createMockDb(options?: {
   const db = {
     experimentzenododeposits: {
       findUnique: async () => depositRow.current,
+      create: async ({ data }: { data: Record<string, unknown> }) => {
+        if (depositRow.current) {
+          throw new Error("unique violation");
+        }
+        depositRow.current = {
+          state:
+            (data.state as NonNullable<typeof depositRow.current>["state"]) ??
+            "depositing",
+          doi: (data.doi as string | null | undefined) ?? null,
+          recordurl: (data.recordurl as string | null | undefined) ?? null,
+          zenododepositionid:
+            (data.zenododepositionid as number | null | undefined) ?? null,
+        };
+        return depositRow.current;
+      },
+      updateMany: async ({
+        data,
+      }: {
+        where: Record<string, unknown>;
+        data: Record<string, unknown>;
+      }) => {
+        if (!depositRow.current) return { count: 0 };
+        const state = depositRow.current.state;
+        if (state !== "pending" && state !== "failed" && state !== "depositing") {
+          return { count: 0 };
+        }
+        depositRow.current = {
+          ...depositRow.current,
+          state:
+            (data.state as typeof depositRow.current.state) ??
+            depositRow.current.state,
+          doi:
+            data.doi === undefined
+              ? depositRow.current.doi
+              : (data.doi as string | null),
+          recordurl:
+            data.recordurl === undefined
+              ? depositRow.current.recordurl
+              : (data.recordurl as string | null),
+          zenododepositionid:
+            data.zenododepositionid === undefined
+              ? depositRow.current.zenododepositionid
+              : (data.zenododepositionid as number | null),
+        };
+        return { count: 1 };
+      },
       upsert: async ({
         create,
         update,
@@ -168,6 +214,28 @@ function createMockDb(options?: {
         }
         return experimentGraph();
       },
+      updateMany: async ({
+        where,
+        data,
+      }: {
+        where: { id: string; atlasdatasetid?: null };
+        data: { atlasdatasetid?: string | null };
+      }) => {
+        if (where.id !== EXPERIMENT_ID) return { count: 0 };
+        if (
+          where.atlasdatasetid === null &&
+          experimentRow.atlasdatasetid != null
+        ) {
+          return { count: 0 };
+        }
+        if (data.atlasdatasetid !== undefined) {
+          experimentRow.atlasdatasetid = data.atlasdatasetid;
+        }
+        return { count: 1 };
+      },
+    },
+    user: {
+      findMany: async () => [],
     },
     experimentmetrics: {
       upsert: async ({
@@ -434,5 +502,58 @@ describe("syncZenodoDepositForExperiment", () => {
       "publish",
       "get",
     ]);
+  });
+
+  it("restores the prior published deposition id when files sync fails", async () => {
+    const { db, depositRow } = createMockDb({
+      existingDeposit: {
+        state: "published",
+        doi: "10.5072/zenodo.55",
+        recordurl: "https://sandbox.zenodo.org/records/55",
+        zenododepositionid: 55,
+      },
+    });
+
+    const client = {
+      newVersionDeposition: async () =>
+        ({
+          id: 99,
+          links: {
+            self: "https://sandbox.zenodo.org/api/deposit/depositions/99",
+            bucket: "https://sandbox.zenodo.org/api/files/bucket-99",
+          },
+        }) satisfies ZenodoDeposition,
+      updateDepositionMetadata: async () => {
+        throw new Error("metadata update failed");
+      },
+      editDeposition: async () => {
+        throw new Error("unused");
+      },
+      createDeposition: async () => {
+        throw new Error("unused");
+      },
+      uploadBucketFile: async () => undefined,
+      listDepositionFiles: async () => [],
+      deleteDepositionFile: async () => undefined,
+      publishDeposition: async () => {
+        throw new Error("unused");
+      },
+      getDeposition: async () => {
+        throw new Error("unused");
+      },
+    } as unknown as ZenodoClient;
+
+    const result = await syncZenodoDepositForExperiment(db, EXPERIMENT_ID, {
+      client,
+      mode: "files",
+      sleep: async () => undefined,
+    });
+
+    expect(result.state).toBe("published");
+    expect(result.doi).toBe("10.5072/zenodo.55");
+    expect(result.zenodoDepositionId).toBe(55);
+    expect(depositRow.current?.state).toBe("published");
+    expect(depositRow.current?.zenododepositionid).toBe(55);
+    expect(depositRow.current?.doi).toBe("10.5072/zenodo.55");
   });
 });

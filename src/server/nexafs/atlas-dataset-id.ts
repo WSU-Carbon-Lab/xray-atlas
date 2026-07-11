@@ -13,6 +13,10 @@ const MAX_ASSIGN_ATTEMPTS = 12;
 /**
  * Returns the experiment’s Atlas dataset id, assigning one when missing.
  *
+ * Assignment is compare-and-set only (`atlas_dataset_id IS NULL`). Concurrent
+ * callers never overwrite a non-null id, so published `/d/{id}` and Zenodo
+ * `isIdenticalTo` links stay stable.
+ *
  * @param db - Prisma client.
  * @param experimentId - Experiment UUID.
  * @returns Normalized 8-character id.
@@ -35,20 +39,44 @@ export async function ensureAtlasDatasetId(
   for (let attempt = 0; attempt < MAX_ASSIGN_ATTEMPTS; attempt += 1) {
     const candidate = generateAtlasDatasetId();
     try {
-      const updated = await db.experiments.update({
-        where: { id: experimentId },
+      const assigned = await db.experiments.updateMany({
+        where: { id: experimentId, atlasdatasetid: null },
         data: { atlasdatasetid: candidate },
+      });
+      if (assigned.count === 1) {
+        return candidate;
+      }
+      const raced = await db.experiments.findUnique({
+        where: { id: experimentId },
         select: { atlasdatasetid: true },
       });
-      const assigned = normalizeAtlasDatasetId(updated.atlasdatasetid);
-      if (assigned) return assigned;
+      const won = normalizeAtlasDatasetId(raced?.atlasdatasetid);
+      if (won) return won;
     } catch {
-      // Unique violation — retry with a new candidate.
+      // Unique violation on candidate — retry with a new id.
     }
   }
   throw new Error(
     `Could not assign atlas_dataset_id for experiment ${experimentId}`,
   );
+}
+
+/**
+ * Reads an experiment’s Atlas dataset id without assigning one.
+ *
+ * @param db - Prisma client.
+ * @param experimentId - Experiment UUID.
+ * @returns Normalized id, or `null` when missing / unknown experiment.
+ */
+export async function readAtlasDatasetId(
+  db: PrismaClient,
+  experimentId: string,
+): Promise<string | null> {
+  const row = await db.experiments.findUnique({
+    where: { id: experimentId },
+    select: { atlasdatasetid: true },
+  });
+  return normalizeAtlasDatasetId(row?.atlasdatasetid ?? null);
 }
 
 /**

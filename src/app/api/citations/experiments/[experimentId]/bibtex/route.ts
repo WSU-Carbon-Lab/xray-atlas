@@ -4,15 +4,19 @@
  * Primary Zotero import path: authors (attribution display preferences),
  * separate experiment / sample / identifier notes, Zenodo DOI, and Atlas
  * `/d/{id}` URL in one `@dataset` entry.
+ *
+ * Read-only: does not assign `atlas_dataset_id`. Experiments without an id yet
+ * omit the Atlas citation URL until mint/create assigns one.
  */
 
 import { NextResponse } from "next/server";
+import { z } from "zod";
 import { resolveCitationCreatorLabelFromPreferences } from "~/lib/dataset-attribution-claim";
 import { buildDatasetCitationBundle } from "~/lib/dataset-citation";
 import { contributorCitationSortKey } from "~/lib/datacite-contributor-types";
 import { normalizeDoi } from "~/lib/doi";
 import { formatExperimentType } from "~/components/browse/nexafs-browse-experiment-utils";
-import { ensureAtlasDatasetId } from "~/server/nexafs/atlas-dataset-id";
+import { readAtlasDatasetId } from "~/server/nexafs/atlas-dataset-id";
 import { loadContributorUserContextByOrcid } from "~/server/nexafs/datasetAttributionClaiming";
 import { buildAtlasDatasetCitationUrl } from "~/server/zenodo/atlas-public-site-origin";
 import { db } from "~/server/db";
@@ -20,6 +24,8 @@ import { db } from "~/server/db";
 interface RouteContext {
   params: Promise<{ experimentId: string }>;
 }
+
+const experimentIdSchema = z.string().uuid();
 
 /**
  * Returns a `@dataset` BibTeX attachment for the given experiment UUID.
@@ -29,13 +35,14 @@ export async function GET(
   context: RouteContext,
 ): Promise<Response> {
   const { experimentId } = await context.params;
-  const id = experimentId?.trim();
-  if (!id) {
+  const parsedId = experimentIdSchema.safeParse(experimentId?.trim());
+  if (!parsedId.success) {
     return NextResponse.json(
-      { error: "Missing experiment id" },
+      { error: "Invalid experiment id" },
       { status: 400 },
     );
   }
+  const id = parsedId.data;
 
   const experiment = await db.experiments.findUnique({
     where: { id },
@@ -94,8 +101,10 @@ export async function GET(
   const datasetDoi =
     normalizeDoi(experiment.experimentzenododeposit?.doi) ??
     normalizeDoi(experiment.experimentmetrics?.datasetdoi);
-  const atlasDatasetId = await ensureAtlasDatasetId(db, experiment.id);
-  const atlasCitationUrl = buildAtlasDatasetCitationUrl(atlasDatasetId);
+  const atlasDatasetId = await readAtlasDatasetId(db, experiment.id);
+  const atlasCitationUrl = atlasDatasetId
+    ? buildAtlasDatasetCitationUrl(atlasDatasetId)
+    : null;
 
   const userContextByOrcid = await loadContributorUserContextByOrcid(
     db,
@@ -151,7 +160,9 @@ export async function GET(
 
   const filename = datasetDoi
     ? `atlas_${datasetDoi.replace(/[^a-zA-Z0-9]+/g, "_")}.bib`
-    : `atlas_${atlasDatasetId}.bib`;
+    : atlasDatasetId
+      ? `atlas_${atlasDatasetId}.bib`
+      : `atlas_${id}.bib`;
 
   return new Response(bibtex, {
     status: 200,

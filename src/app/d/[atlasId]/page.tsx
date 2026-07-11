@@ -1,14 +1,15 @@
 /**
  * Short Atlas dataset citation URL (`/d/{atlasDatasetId}`).
  *
- * Resolves the opaque id and permanently redirects to the molecule page with
- * `?nexafsExperiment=` so the matching dataset card expands. Citation metadata
- * for scrapers that do not follow redirects remains on this route via
- * `generateMetadata`.
+ * Resolves the opaque id and temporarily redirects (307) to the molecule page
+ * with `?nexafsExperiment=` so the matching dataset card expands. Temporary
+ * redirects avoid caching a mutable synonym slug as a permanent target.
+ * Citation metadata for scrapers that do not follow redirects remains on this
+ * route via `generateMetadata`.
  */
 
 import type { Metadata } from "next";
-import { notFound, permanentRedirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { site } from "~/app/brand";
 import { db } from "~/server/db";
 import { loadAtlasDatasetCitationPage } from "~/server/nexafs/load-atlas-dataset-citation";
@@ -73,7 +74,7 @@ export async function generateMetadata({
 }
 
 /**
- * Permanently redirects `/d/{id}` to the molecule spectrum card deep-link.
+ * Temporarily redirects `/d/{id}` to the molecule spectrum card deep-link.
  */
 export default async function AtlasDatasetCitationPage({
   params,
@@ -81,5 +82,5 @@ export default async function AtlasDatasetCitationPage({
   const { atlasId } = await params;
   const model = await loadAtlasDatasetCitationPage(db, atlasId);
   if (!model) notFound();
-  permanentRedirect(model.spectrumHref);
+  redirect(model.spectrumHref);
 }

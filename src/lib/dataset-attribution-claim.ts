@@ -276,7 +276,7 @@ export function resolveAttributionPublicDisplay(
  */
 export function resolveCitationCreatorLabelFromPreferences(input: {
   orcid: string;
-  claimStatus: ExperimentContributorClaimStatus | null | undefined;
+  claimStatus: string | null | undefined;
   userName?: string | null;
   displayPreferences?: AttributionDisplayPreferences | null;
   roleSlugs?: readonly string[];

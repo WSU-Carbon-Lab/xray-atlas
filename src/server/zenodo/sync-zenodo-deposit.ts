@@ -118,17 +118,20 @@ async function markSyncFailed(
   priorPublished: {
     doi: string;
     recordurl: string | null;
+    zenododepositionid: number | null;
   } | null,
 ): Promise<MintZenodoDatasetDoiResult> {
   const message = truncateError(errorMessage);
   if (priorPublished) {
+    const restoredDepositionId =
+      priorPublished.zenododepositionid ?? depositionId;
     await db.experimentzenododeposits.update({
       where: { experimentid: experimentId },
       data: {
         state: "published",
         doi: priorPublished.doi,
         recordurl: priorPublished.recordurl,
-        zenododepositionid: depositionId ?? undefined,
+        zenododepositionid: restoredDepositionId ?? undefined,
         errormessage: message,
         lastattemptat: new Date(),
       },
@@ -138,7 +141,7 @@ async function markSyncFailed(
       doi: priorPublished.doi,
       recordUrl: priorPublished.recordurl,
       error: message,
-      zenodoDepositionId: depositionId,
+      zenodoDepositionId: restoredDepositionId,
     };
   }
   await db.experimentzenododeposits.upsert({
@@ -277,8 +280,7 @@ export async function syncZenodoDepositForExperiment(
   });
 
   if (
-    !existing ||
-    existing.state !== "published" ||
+    existing?.state !== "published" ||
     existing.zenododepositionid == null ||
     !existing.doi
   ) {
@@ -314,6 +316,7 @@ export async function syncZenodoDepositForExperiment(
   const priorPublished = {
     doi: existing.doi,
     recordurl: existing.recordurl,
+    zenododepositionid: existing.zenododepositionid,
   };
 
   const assertWithinBudget = (): void => {
@@ -382,10 +385,6 @@ export async function syncZenodoDepositForExperiment(
       });
       deposition = await client.newVersionDeposition(depositionId);
       depositionId = deposition.id;
-      await db.experimentzenododeposits.update({
-        where: { experimentid: experimentId },
-        data: { zenododepositionid: depositionId },
-      });
       assertWithinBudget();
 
       deposition = await client.updateDepositionMetadata(

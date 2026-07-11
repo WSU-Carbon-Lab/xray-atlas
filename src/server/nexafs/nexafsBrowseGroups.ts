@@ -344,10 +344,9 @@ function parseContributorUsers(raw: unknown): NexafsBrowseContributorUser[] {
       id: orcid,
       userId,
       orcid,
-      name:
-        typeof o.name === "string" && isPublicProfileVisible ? o.name : null,
+      name: typeof o.name === "string" && o.name.trim() ? o.name.trim() : null,
       image:
-        typeof o.image === "string" && isPublicProfileVisible ? o.image : null,
+        typeof o.image === "string" && o.image.trim() ? o.image.trim() : null,
       isClaimed,
       isPublicProfileVisible,
       roles: role ? [role] : [],
