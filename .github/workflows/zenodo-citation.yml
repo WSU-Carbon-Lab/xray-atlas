@@ -1,0 +1,165 @@
+name: Zenodo citation
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_dispatch:
+    inputs:
+      action:
+        description: audit lists required Zenodo updates; apply syncs failing deposits
+        type: choice
+        options:
+          - audit
+          - apply
+        default: audit
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  audit:
+    name: Audit Zenodo citation parity
+    if: >
+      github.event_name == 'pull_request' ||
+      (github.event_name == 'workflow_dispatch' && inputs.action == 'audit')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      ZENODO_ACCESS_TOKEN: ${{ secrets.ZENODO_ACCESS_TOKEN }}
+      ATLAS_PUBLIC_SITE_URL: ${{ secrets.ATLAS_PUBLIC_SITE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Prisma client
+        run: bunx prisma generate
+
+      - name: Require database secret
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::DATABASE_URL secret is required for Zenodo citation audit"
+            exit 1
+          fi
+
+      - name: Run Zenodo citation audit
+        id: audit
+        run: |
+          set +e
+          bun run zenodo:audit > zenodo-citation-audit.json
+          status=$?
+          set -e
+          if [ ! -s zenodo-citation-audit.json ]; then
+            echo "::error::Audit produced no JSON output"
+            exit 1
+          fi
+          # 0 = clean, 1 = updates required (expected), other = hard failure
+          if [ "$status" -gt 1 ]; then
+            echo "::error::Zenodo audit failed with exit $status"
+            exit "$status"
+          fi
+          required=$(bun -e 'const r=require("./zenodo-citation-audit.json"); console.log(r.requiredUpdateCount ?? 0)')
+          echo "required_updates=$required" >> "$GITHUB_OUTPUT"
+          echo "exit_code=$status" >> "$GITHUB_OUTPUT"
+          echo "Required updates: $required (audit exit $status)"
+
+      - name: Upload audit artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenodo-citation-audit
+          path: zenodo-citation-audit.json
+          if-no-files-found: error
+
+      - name: Render markdown summary
+        run: |
+          bun <<'EOF'
+          import { readFileSync, writeFileSync } from "node:fs";
+          import { formatZenodoCitationAuditMarkdown } from "./src/server/zenodo/zenodo-citation-audit-report.ts";
+          const report = JSON.parse(readFileSync("zenodo-citation-audit.json", "utf8"));
+          const md = formatZenodoCitationAuditMarkdown(report);
+          writeFileSync("zenodo-citation-audit.md", md);
+          console.log(md);
+          EOF
+
+      - name: Comment audit on pull request
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          body="$(cat zenodo-citation-audit.md)"
+          gh pr comment "${{ github.event.pull_request.number }}" --body "$body"
+
+      - name: Notice when updates are required
+        if: steps.audit.outputs.required_updates != '0'
+        run: |
+          echo "::notice::Zenodo citation audit found ${{ steps.audit.outputs.required_updates }} deposit(s) needing updates."
+          echo "Run Actions → Zenodo citation → Run workflow → action=apply on branch ${{ github.head_ref || github.ref_name }} to sync them."
+
+  apply:
+    name: Apply Zenodo citation updates
+    if: github.event_name == 'workflow_dispatch' && inputs.action == 'apply'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: zenodo-apply
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+      ZENODO_ACCESS_TOKEN: ${{ secrets.ZENODO_ACCESS_TOKEN }}
+      ATLAS_PUBLIC_SITE_URL: ${{ secrets.ATLAS_PUBLIC_SITE_URL }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile --ignore-scripts
+
+      - name: Generate Prisma client
+        run: bunx prisma generate
+
+      - name: Require secrets for apply
+        run: |
+          if [ -z "${DATABASE_URL:-}" ]; then
+            echo "::error::DATABASE_URL secret is required"
+            exit 1
+          fi
+          if [ -z "${ZENODO_ACCESS_TOKEN:-}" ]; then
+            echo "::error::ZENODO_ACCESS_TOKEN secret is required to apply Zenodo updates"
+            exit 1
+          fi
+
+      - name: Apply failing Zenodo metadata syncs
+        run: bun run zenodo:apply > zenodo-citation-apply.json
+
+      - name: Upload apply artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: zenodo-citation-apply
+          path: zenodo-citation-apply.json
+          if-no-files-found: error
+
+      - name: Summarize apply result
+        run: |
+          bun -e '
+            const r = require("./zenodo-citation-apply.json");
+            const remaining = r.after?.requiredUpdateCount ?? "?";
+            const applied = Array.isArray(r.applied) ? r.applied.length : 0;
+            console.log(`Applied ${applied} sync(s); remaining required updates: ${remaining}`);
+            if (Number(remaining) > 0) process.exit(1);
+          '

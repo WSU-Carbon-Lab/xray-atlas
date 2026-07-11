@@ -22,6 +22,7 @@ export interface ZenodoDatasetValidationIssue {
     | "missing_related_atlas_url"
     | "doi_mismatch"
     | "empty_title"
+    | "title_drift"
     | "wrong_upload_type";
   message: string;
 }

@@ -1,20 +1,35 @@
 /**
  * Refreshes Zenodo deposit metadata for Atlas datasets and validates `/d/` citation parity.
  *
+ * This is the primary ops entrypoint for Zenodo deposit repair. Prefer it over the
+ * narrower legacy scripts (`sync-zenodo-deposit`, `backfill-zenodo-dataset-dois`,
+ * `retry-zenodo-dataset-mints`, `repair-zenodo-dataset-titles`,
+ * `repair-zenodo-localhost-urls`) unless you need a one-off specialized repair.
+ *
  * Run:
  *   bun scripts/refresh-zenodo-dataset.ts --doi=10.5281/zenodo.21299145
  *   bun scripts/refresh-zenodo-dataset.ts --experiment-id=<uuid>
  *   bun scripts/refresh-zenodo-dataset.ts --atlas-id=k7m2xq4n
- *   bun scripts/refresh-zenodo-dataset.ts --all
+ *   bun scripts/refresh-zenodo-dataset.ts --all --validate-only --json
+ *   bun scripts/refresh-zenodo-dataset.ts --all --apply-failing
  *   bun scripts/refresh-zenodo-dataset.ts --all --dry-run
  *
- * Requires `DATABASE_URL` and `ZENODO_ACCESS_TOKEN` (unless `--dry-run` / `--validate-only`).
+ * Package scripts:
+ *   bun run zenodo:audit   (validate-only JSON report for CI)
+ *   bun run zenodo:apply   (sync deposits that fail audit)
+ *   bun run zenodo:refresh (full refresh helper)
+ *
+ * Requires `DATABASE_URL`. Apply / live refresh also need `ZENODO_ACCESS_TOKEN`.
+ * Validate-only can run with DB alone (remote checks skipped when token unset).
  */
 
 import { db } from "~/server/db";
 import { normalizeDoi } from "~/lib/doi";
 import { normalizeAtlasDatasetId } from "~/lib/atlas-dataset-id";
-import { ensureAtlasDatasetId } from "~/server/nexafs/atlas-dataset-id";
+import {
+  ensureAtlasDatasetId,
+  readAtlasDatasetId,
+} from "~/server/nexafs/atlas-dataset-id";
 import {
   createZenodoClient,
   isZenodoMintingEnabled,
@@ -24,6 +39,11 @@ import {
   type ZenodoSyncMode,
 } from "~/server/zenodo";
 import { validateZenodoDatasetMetadata } from "~/server/zenodo/validate-zenodo-dataset-metadata";
+import {
+  formatZenodoCitationAuditMarkdown,
+  type ZenodoCitationAuditEntry,
+  type ZenodoCitationAuditReport,
+} from "~/server/zenodo/zenodo-citation-audit-report";
 
 function flagValue(name: string): string | null {
   const flag = process.argv.find((arg) => arg.startsWith(`${name}=`));
@@ -93,12 +113,10 @@ async function resolveExperimentIds(): Promise<string[]> {
   throw new Error(`No Atlas experiment found for DOI ${doi}`);
 }
 
-async function validateOne(experimentId: string): Promise<{
-  experimentId: string;
-  atlasDatasetId: string | null;
-  doi: string | null;
-  issues: ReturnType<typeof validateZenodoDatasetMetadata>;
-}> {
+async function validateOne(
+  experimentId: string,
+  options: { assignMissingAtlasId: boolean },
+): Promise<ZenodoCitationAuditEntry> {
   const deposit = await db.experimentzenododeposits.findUnique({
     where: { experimentid: experimentId },
     select: {
@@ -107,19 +125,25 @@ async function validateOne(experimentId: string): Promise<{
       state: true,
     },
   });
-  const atlasDatasetId = await ensureAtlasDatasetId(db, experimentId);
+  const atlasDatasetId = options.assignMissingAtlasId
+    ? await ensureAtlasDatasetId(db, experimentId)
+    : await readAtlasDatasetId(db, experimentId);
   const snapshot = await loadZenodoMetadataSnapshot(db, experimentId);
   if (!snapshot) {
     return {
       experimentId,
       atlasDatasetId,
       doi: deposit?.doi ?? null,
+      zenodoDepositionId: deposit?.zenododepositionid ?? null,
       issues: [
         {
           code: "missing_atlas_dataset_id",
           message: `Experiment snapshot not found for ${experimentId}`,
         },
       ],
+      plannedAction: "none",
+      expectedTitle: null,
+      remoteTitle: null,
     };
   }
   const expected = buildZenodoDepositMetadata(snapshot);
@@ -165,17 +189,64 @@ async function validateOne(experimentId: string): Promise<{
     },
   });
 
-  return { experimentId, atlasDatasetId, doi: remoteDoi, issues };
+  if (
+    expected.title.trim() &&
+    remoteTitle.trim() &&
+    expected.title.trim() !== remoteTitle.trim()
+  ) {
+    issues.push({
+      code: "title_drift",
+      message: `Title drift: Zenodo has "${remoteTitle.trim()}" but Atlas expects "${expected.title.trim()}"`,
+    });
+  }
+
+  return {
+    experimentId,
+    atlasDatasetId,
+    doi: remoteDoi,
+    zenodoDepositionId: deposit?.zenododepositionid ?? null,
+    issues,
+    plannedAction: issues.length > 0 ? "metadata_sync" : "none",
+    expectedTitle: expected.title,
+    remoteTitle,
+  };
+}
+
+async function buildAuditReport(
+  experimentIds: string[],
+  assignMissingAtlasId: boolean,
+): Promise<ZenodoCitationAuditReport> {
+  const requiredUpdates: ZenodoCitationAuditEntry[] = [];
+  const passed: ZenodoCitationAuditEntry[] = [];
+  for (const experimentId of experimentIds) {
+    const entry = await validateOne(experimentId, { assignMissingAtlasId });
+    if (entry.issues.length > 0) requiredUpdates.push(entry);
+    else passed.push(entry);
+  }
+  return {
+    generatedAt: new Date().toISOString(),
+    mode: "audit",
+    totalPublished: experimentIds.length,
+    requiredUpdateCount: requiredUpdates.length,
+    requiredUpdates,
+    passed,
+  };
 }
 
 async function main(): Promise<void> {
   const dryRun = hasFlag("--dry-run");
   const validateOnly = hasFlag("--validate-only");
+  const applyFailing = hasFlag("--apply-failing");
+  const jsonOut = hasFlag("--json");
   const modeRaw = flagValue("--mode") ?? "metadata";
   if (modeRaw !== "metadata" && modeRaw !== "files") {
     throw new Error(`Invalid --mode=${modeRaw} (expected metadata|files)`);
   }
   const mode: ZenodoSyncMode = modeRaw;
+
+  if (applyFailing && (validateOnly || dryRun)) {
+    throw new Error("Do not combine --apply-failing with --validate-only/--dry-run");
+  }
 
   if (!dryRun && !validateOnly && !isZenodoMintingEnabled()) {
     console.error(
@@ -186,60 +257,117 @@ async function main(): Promise<void> {
   }
 
   const experimentIds = await resolveExperimentIds();
-  console.info("[zenodo-refresh] targets", {
-    count: experimentIds.length,
-    dryRun,
-    validateOnly,
-    mode,
-  });
+  if (!jsonOut) {
+    console.info("[zenodo-refresh] targets", {
+      count: experimentIds.length,
+      dryRun,
+      validateOnly,
+      applyFailing,
+      mode,
+    });
+  }
+
+  const assignMissingAtlasId = !validateOnly;
+  const audit = await buildAuditReport(experimentIds, assignMissingAtlasId);
+  audit.mode = applyFailing ? "apply" : validateOnly || dryRun ? "audit" : "refresh";
+
+  if (validateOnly || dryRun) {
+    if (jsonOut) {
+      console.log(JSON.stringify(audit, null, 2));
+    } else {
+      for (const entry of audit.requiredUpdates) {
+        console.info("[zenodo-refresh] required update", entry);
+      }
+      console.info(formatZenodoCitationAuditMarkdown(audit));
+    }
+    if (audit.requiredUpdateCount > 0) {
+      process.exitCode = 1;
+    }
+    return;
+  }
+
+  const targets = applyFailing
+    ? audit.requiredUpdates.map((entry) => entry.experimentId)
+    : experimentIds;
+
+  if (applyFailing && targets.length === 0) {
+    if (jsonOut) {
+      console.log(JSON.stringify({ ...audit, applied: [] }, null, 2));
+    } else {
+      console.info("[zenodo-refresh] no failing deposits to apply");
+    }
+    return;
+  }
 
   let failed = 0;
-  for (const experimentId of experimentIds) {
-    const before = await validateOne(experimentId);
-    console.info("[zenodo-refresh] before", {
-      experimentId,
-      atlasDatasetId: before.atlasDatasetId,
-      doi: before.doi,
-      issueCount: before.issues.length,
-      issues: before.issues,
-    });
+  const applied: Array<{
+    experimentId: string;
+    resultState: string;
+    doi: string | null;
+    remainingIssues: number;
+  }> = [];
 
-    if (validateOnly || dryRun) {
-      if (before.issues.length > 0) failed += 1;
-      continue;
+  for (const experimentId of targets) {
+    if (!jsonOut) {
+      const before = audit.requiredUpdates.find(
+        (entry) => entry.experimentId === experimentId,
+      ) ?? audit.passed.find((entry) => entry.experimentId === experimentId);
+      console.info("[zenodo-refresh] before", before);
     }
 
     const result = await syncZenodoDepositForExperiment(db, experimentId, {
       mode,
     });
-    console.info("[zenodo-refresh] sync", { experimentId, result });
-
-    const after = await validateOne(experimentId);
-    console.info("[zenodo-refresh] after", {
-      experimentId,
-      atlasDatasetId: after.atlasDatasetId,
-      doi: after.doi,
-      issueCount: after.issues.length,
-      issues: after.issues,
+    const after = await validateOne(experimentId, {
+      assignMissingAtlasId: true,
     });
+    applied.push({
+      experimentId,
+      resultState: result.state,
+      doi: result.doi,
+      remainingIssues: after.issues.length,
+    });
+    if (!jsonOut) {
+      console.info("[zenodo-refresh] sync", { experimentId, result });
+      console.info("[zenodo-refresh] after", after);
+    }
     if (after.issues.length > 0 || result.state === "failed") {
       failed += 1;
     }
   }
 
-  if (failed > 0) {
+  if (jsonOut) {
+    const afterAudit = await buildAuditReport(experimentIds, true);
+    afterAudit.mode = "apply";
+    console.log(
+      JSON.stringify(
+        {
+          before: audit,
+          applied,
+          after: afterAudit,
+        },
+        null,
+        2,
+      ),
+    );
+  } else if (failed > 0) {
     console.error(`[zenodo-refresh] ${failed} dataset(s) failed validation`);
-    process.exitCode = 1;
   } else {
     console.info("[zenodo-refresh] all datasets passed validation");
   }
+
+  if (failed > 0) {
+    process.exitCode = 1;
+  }
 }
 
-main()
-  .catch((error: unknown) => {
-    console.error(error);
-    process.exitCode = 1;
-  })
-  .finally(async () => {
-    await db.$disconnect();
-  });
+if (import.meta.main) {
+  main()
+    .catch((error: unknown) => {
+      console.error(error);
+      process.exitCode = 1;
+    })
+    .finally(async () => {
+      await db.$disconnect();
+    });
+}
