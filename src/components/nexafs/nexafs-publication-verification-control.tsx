@@ -1,5 +1,6 @@
 "use client";
 
+import { useSession } from "next-auth/react";
 import {
   useCallback,
   useEffect,
@@ -678,9 +679,20 @@ export function NexafsPublicationVerificationControl({
   const hasSource = localSourcePublications.length > 0;
   const hasAtlas = localIngestVerified;
 
+  const triggerRef = useRef<HTMLButtonElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
+  const [isOpen, setIsOpen] = useState(false);
+  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const { data: session, status: sessionStatus } = useSession();
+  const isSignedIn =
+    sessionStatus === "authenticated" && Boolean(session?.user);
+
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
     { experimentId: experimentId ?? "" },
-    { enabled: Boolean(experimentId) },
+    {
+      enabled: Boolean(experimentId) && isSignedIn && isOpen,
+    },
   );
   const canEditSourcePublications = canEditQuery.data?.canEdit === true;
   const canManageAtlasVerification =
@@ -689,10 +701,6 @@ export function NexafsPublicationVerificationControl({
     Boolean(experimentId) &&
     (canEditSourcePublications || canManageAtlasVerification);
 
-  const triggerRef = useRef<HTMLButtonElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const { position, updatePosition } = useVerificationPopoverPosition(
     triggerRef,
     contentRef,

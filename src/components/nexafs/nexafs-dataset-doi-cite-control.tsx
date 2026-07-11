@@ -17,6 +17,7 @@
  * is unreliable inside overflow-clipped, click-to-expand browse cards.
  */
 
+import { useSession } from "next-auth/react";
 import {
   useCallback,
   useEffect,
@@ -613,12 +614,14 @@ export function NexafsDatasetDoiCiteControl({
   const [pollExhausted, setPollExhausted] = useState(false);
   const [openPopover, setOpenPopover] = useState<OpenPopoverId>(null);
   const [mintConfirmOpen, setMintConfirmOpen] = useState(false);
+  const [userInitiatedMint, setUserInitiatedMint] = useState(false);
   const pollCountRef = useRef(0);
   const lastStatusDataUpdatedAtRef = useRef(0);
   const toastedTerminalRef = useRef<string | null>(null);
-  const userInitiatedMintRef = useRef(false);
   const { toasts, removeToast, showToast } = useToast();
   const utils = trpc.useUtils();
+  const { data: session, status: sessionStatus } = useSession();
+  const isSignedIn = sessionStatus === "authenticated" && Boolean(session?.user);
 
   useEffect(() => {
     setLocalDoi(datasetDoi);
@@ -626,15 +629,23 @@ export function NexafsDatasetDoiCiteControl({
     setLocalState(zenodoDepositState);
     setPollExhausted(false);
     setOpenPopover(null);
+    setUserInitiatedMint(false);
     pollCountRef.current = 0;
     lastStatusDataUpdatedAtRef.current = 0;
     toastedTerminalRef.current = null;
-    userInitiatedMintRef.current = false;
   }, [experimentId, datasetDoi, zenodoRecordUrl, zenodoDepositState]);
+
+  const needsEditCapability =
+    isSignedIn &&
+    Boolean(experimentId) &&
+    (!normalizeDoi(localDoi) ||
+      isInFlightState(localState) ||
+      localState === "failed" ||
+      openPopover === "doi");
 
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
     { experimentId },
-    { enabled: Boolean(experimentId) },
+    { enabled: needsEditCapability },
   );
   const canMint = canEditQuery.data?.canEdit === true;
 
@@ -643,7 +654,11 @@ export function NexafsDatasetDoiCiteControl({
   const shouldPollStatus =
     Boolean(experimentId) &&
     !pollExhausted &&
-    (mintMutation.isPending || isInFlightState(localState));
+    (mintMutation.isPending ||
+      (userInitiatedMint && isInFlightState(localState)) ||
+      (isSignedIn &&
+        openPopover === "doi" &&
+        isInFlightState(localState)));
 
   const statusQuery = trpc.experiments.getZenodoDepositStatus.useQuery(
     { experimentId },
@@ -688,7 +703,7 @@ export function NexafsDatasetDoiCiteControl({
     ) {
       setPollExhausted(true);
       setLocalState("failed");
-      if (userInitiatedMintRef.current) {
+      if (userInitiatedMint) {
         showToast(
           "Zenodo mint is taking too long. You can retry from the DOI control.",
           "warning",
@@ -707,27 +722,32 @@ export function NexafsDatasetDoiCiteControl({
         toastedTerminalRef.current = key;
         void utils.experiments.browseList.invalidate();
         void utils.experiments.browseSearch.invalidate();
-        if (userInitiatedMintRef.current) {
+        if (userInitiatedMint) {
           showToast(`Dataset DOI minted: ${data.doi}`, "success");
         }
       }
-    } else if (coerced === "failed" && userInitiatedMintRef.current) {
-      const key = `failed:${data.error ?? "stale"}`;
-      if (toastedTerminalRef.current !== key) {
-        toastedTerminalRef.current = key;
-        showToast(
-          data.error?.trim()
-            ? `Zenodo mint failed: ${data.error}`
-            : "Zenodo mint failed or stalled",
-          "error",
-        );
+      setUserInitiatedMint(false);
+    } else if (coerced === "failed") {
+      if (userInitiatedMint) {
+        const key = `failed:${data.error ?? "stale"}`;
+        if (toastedTerminalRef.current !== key) {
+          toastedTerminalRef.current = key;
+          showToast(
+            data.error?.trim()
+              ? `Zenodo mint failed: ${data.error}`
+              : "Zenodo mint failed or stalled",
+            "error",
+          );
+        }
       }
+      setUserInitiatedMint(false);
     }
   }, [
     mintMutation.isPending,
     showToast,
     statusQuery.data,
     statusQuery.dataUpdatedAt,
+    userInitiatedMint,
     utils.experiments.browseList,
     utils.experiments.browseSearch,
   ]);
@@ -784,7 +804,7 @@ export function NexafsDatasetDoiCiteControl({
   const runMint = useCallback(async () => {
     if (!canMint || mintMutation.isPending) return;
     toastedTerminalRef.current = null;
-    userInitiatedMintRef.current = true;
+    setUserInitiatedMint(true);
     setPollExhausted(false);
     pollCountRef.current = 0;
     setLocalState("depositing");

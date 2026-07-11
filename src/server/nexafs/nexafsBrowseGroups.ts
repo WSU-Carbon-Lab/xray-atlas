@@ -240,8 +240,6 @@ export type NexafsBrowseGroupRow = {
   iupacname: string;
   chemicalformula: string;
   imageurl: string | null;
-  inchi: string;
-  smiles: string;
   cas_number: string | null;
   pubchem_cid: string | null;
   molecule_favorite_count: bigint;
@@ -301,8 +299,6 @@ export type NexafsBrowseGroupDto = {
     iupacname: string;
     chemicalformula: string;
     imageurl: string | null;
-    inchi: string;
-    smiles: string;
     casNumber: string | null;
     pubChemCid: string | null;
     favoriteCount: number;
@@ -429,8 +425,6 @@ export function mapNexafsBrowseGroupRow(
       iupacname: row.iupacname,
       chemicalformula: row.chemicalformula,
       imageurl: row.imageurl,
-      inchi: row.inchi,
-      smiles: row.smiles,
       casNumber: row.cas_number,
       pubChemCid: row.pubchem_cid,
       favoriteCount: Number.isFinite(fav) ? fav : 0,
@@ -529,8 +523,6 @@ export async function fetchNexafsBrowseGrouped(
         m.iupacname,
         m.chemicalformula,
         m.imageurl,
-        m.inchi,
-        m.smiles,
         m.casnumber AS cas_number,
         m.pubchemcid AS pubchem_cid,
         m.favorite_count AS molecule_favorite_count,
@@ -579,8 +571,6 @@ export async function fetchNexafsBrowseGrouped(
         b.iupacname,
         b.chemicalformula,
         b.imageurl,
-        b.inchi,
-        b.smiles,
         b.cas_number,
         b.pubchem_cid,
         b.molecule_favorite_count,

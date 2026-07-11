@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,6 +9,7 @@ import { Atom, Heart, TriangleRight } from "lucide-react";
 import { ChevronRightIcon } from "@heroicons/react/24/outline";
 import { Chip, Tooltip } from "@heroui/react";
 import { cn } from "@heroui/styles";
+import dynamic from "next/dynamic";
 import { trpc } from "~/trpc/client";
 import {
   CompactCardMetricsColumn,
@@ -33,7 +34,6 @@ import type { MoleculeView } from "~/types/molecule";
 import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
 import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/experiment-attribution-edit-section";
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
-import { NexafsDatasetDoiCiteControl } from "~/components/nexafs/nexafs-dataset-doi-cite-control";
 import { NexafsDatasetCitationHead } from "~/components/nexafs/nexafs-dataset-citation-head";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
@@ -47,6 +47,22 @@ import {
   resolveCitationCreatorDisplayName,
 } from "~/lib/dataset-citation";
 import { contributorCitationSortKey } from "~/lib/datacite-contributor-types";
+
+const NexafsDatasetDoiCiteControl = dynamic(
+  () =>
+    import("~/components/nexafs/nexafs-dataset-doi-cite-control").then(
+      (m) => m.NexafsDatasetDoiCiteControl,
+    ),
+  {
+    ssr: false,
+    loading: () => (
+      <span
+        className="border-border bg-surface inline-flex h-8 min-w-[7.5rem] shrink-0 rounded-full border"
+        aria-hidden
+      />
+    ),
+  },
+);
 
 function trpcKeyMatchesExperimentsProcedure(
   queryKey: readonly unknown[],
@@ -264,20 +280,66 @@ export function NexafsExperimentCompactCard({
   const searchParams = useSearchParams();
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [spectrumExpanded, setSpectrumExpanded] = useState(false);
+  const [spectrumFetchEnabled, setSpectrumFetchEnabled] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
   const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
     boolean | null
   >(null);
 
+  const deepLinkTargetId = parseNexafsExperimentSearchParam(
+    searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
+  );
+  const isDeepLinkTarget =
+    deepLinkTargetId !== null && deepLinkTargetId === experimentId;
+
   useLayoutEffect(() => {
-    const targetId = parseNexafsExperimentSearchParam(
-      searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
-    );
-    const shouldExpand =
-      defaultExpanded || (targetId !== null && targetId === experimentId);
+    const shouldExpand = defaultExpanded || isDeepLinkTarget;
     if (!shouldExpand) return;
     setSpectrumExpanded(true);
-  }, [defaultExpanded, experimentId, searchParams]);
+  }, [defaultExpanded, isDeepLinkTarget]);
+
+  useEffect(() => {
+    if (!spectrumExpanded) {
+      setSpectrumFetchEnabled(false);
+      return;
+    }
+    if (!isDeepLinkTarget && !defaultExpanded) {
+      setSpectrumFetchEnabled(true);
+      return;
+    }
+    let idleHandle: number | undefined;
+    const frame = window.requestAnimationFrame(() => {
+      const ric = (
+        window as Window & {
+          requestIdleCallback?: (
+            cb: () => void,
+            opts?: { timeout: number },
+          ) => number;
+        }
+      ).requestIdleCallback;
+      if (typeof ric === "function") {
+        idleHandle = ric(() => setSpectrumFetchEnabled(true), {
+          timeout: 400,
+        });
+      } else {
+        idleHandle = window.setTimeout(() => setSpectrumFetchEnabled(true), 0);
+      }
+    });
+    return () => {
+      window.cancelAnimationFrame(frame);
+      if (idleHandle === undefined) return;
+      const cic = (
+        window as Window & {
+          cancelIdleCallback?: (id: number) => void;
+        }
+      ).cancelIdleCallback;
+      if (typeof cic === "function") {
+        cic(idleHandle);
+      } else {
+        window.clearTimeout(idleHandle);
+      }
+    };
+  }, [spectrumExpanded, isDeepLinkTarget, defaultExpanded]);
 
   const {
     favoriteCount: realtimeFavoriteCount,
@@ -684,7 +746,7 @@ export function NexafsExperimentCompactCard({
           <div className="w-full min-w-0 border-t border-zinc-200 px-3 pt-3 pb-3 dark:border-zinc-600">
             <NexafsExperimentDatasetPanel
               experimentId={experimentId}
-              enabled={spectrumExpanded}
+              enabled={spectrumFetchEnabled}
             />
           </div>
         </div>

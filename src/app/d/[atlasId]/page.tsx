@@ -9,6 +9,7 @@
  */
 
 import type { Metadata } from "next";
+import { cache } from "react";
 import { notFound, redirect } from "next/navigation";
 import { site } from "~/app/brand";
 import { db } from "~/server/db";
@@ -19,6 +20,14 @@ interface AtlasDatasetPageProps {
 }
 
 /**
+ * Per-request memo of citation page load so `generateMetadata` and the page
+ * share one DB round-trip for the same `/d/{id}` request.
+ */
+const getCachedAtlasDatasetCitationPage = cache(async (atlasId: string) =>
+  loadAtlasDatasetCitationPage(db, atlasId),
+);
+
+/**
  * Builds HTML head metadata for Connector scrapers and social previews that
  * request `/d/{id}` without following the redirect.
  */
@@ -26,7 +35,7 @@ export async function generateMetadata({
   params,
 }: AtlasDatasetPageProps): Promise<Metadata> {
   const { atlasId } = await params;
-  const model = await loadAtlasDatasetCitationPage(db, atlasId);
+  const model = await getCachedAtlasDatasetCitationPage(atlasId);
   if (!model) {
     return { title: `Dataset not found | ${site.name}` };
   }
@@ -80,7 +89,7 @@ export default async function AtlasDatasetCitationPage({
   params,
 }: AtlasDatasetPageProps) {
   const { atlasId } = await params;
-  const model = await loadAtlasDatasetCitationPage(db, atlasId);
+  const model = await getCachedAtlasDatasetCitationPage(atlasId);
   if (!model) notFound();
   redirect(model.spectrumHref);
 }

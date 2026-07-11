@@ -93,6 +93,11 @@ export async function loadAtlasDatasetCitationPage(
   });
   if (!experiment) return null;
 
+  const userContextByOrcidPromise = loadContributorUserContextByOrcid(
+    db,
+    experiment.experimentcontributors.map((row) => row.orcidid),
+  );
+
   const molecule = experiment.samples.molecules;
   const primary = molecule.moleculesynonyms[0];
   const moleculeDisplayName =
@@ -109,22 +114,6 @@ export async function loadAtlasDatasetCitationPage(
     normalizeDoi(experiment.experimentzenododeposit?.doi) ??
     normalizeDoi(experiment.experimentmetrics?.datasetdoi);
   const year = experiment.createdat.getUTCFullYear();
-  const userContextByOrcid = await loadContributorUserContextByOrcid(
-    db,
-    experiment.experimentcontributors.map((row) => row.orcidid),
-  );
-  const authors = normalizeCitationCreatorNames(
-    experiment.experimentcontributors.map((row) => {
-      const userContext = userContextByOrcid.get(row.orcidid);
-      return resolveCitationCreatorLabelFromPreferences({
-        orcid: row.orcidid,
-        claimStatus: row.claimstatus,
-        userName: row.user?.name,
-        displayPreferences: userContext?.displayPreferences,
-        roleSlugs: userContext?.roleSlugs,
-      });
-    }),
-  );
   const title = buildNexafsDatasetCitationTitle({
     moleculeDisplayName,
     edgeLabel,
@@ -141,6 +130,20 @@ export async function loadAtlasDatasetCitationPage(
   ]
     .filter(Boolean)
     .join(" ");
+
+  const userContextByOrcid = await userContextByOrcidPromise;
+  const authors = normalizeCitationCreatorNames(
+    experiment.experimentcontributors.map((row) => {
+      const userContext = userContextByOrcid.get(row.orcidid);
+      return resolveCitationCreatorLabelFromPreferences({
+        orcid: row.orcidid,
+        claimStatus: row.claimstatus,
+        userName: row.user?.name,
+        displayPreferences: userContext?.displayPreferences,
+        roleSlugs: userContext?.roleSlugs,
+      });
+    }),
+  );
 
   return {
     atlasDatasetId,

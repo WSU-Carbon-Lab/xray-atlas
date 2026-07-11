@@ -101,15 +101,18 @@ export async function GET(
   const datasetDoi =
     normalizeDoi(experiment.experimentzenododeposit?.doi) ??
     normalizeDoi(experiment.experimentmetrics?.datasetdoi);
-  const atlasDatasetId = await readAtlasDatasetId(db, experiment.id);
-  const atlasCitationUrl = atlasDatasetId
-    ? buildAtlasDatasetCitationUrl(atlasDatasetId)
-    : null;
-
-  const userContextByOrcid = await loadContributorUserContextByOrcid(
+  const atlasDatasetIdPromise = readAtlasDatasetId(db, experiment.id);
+  const userContextPromise = loadContributorUserContextByOrcid(
     db,
     experiment.experimentcontributors.map((row) => row.orcidid),
   );
+  const [atlasDatasetId, userContextByOrcid] = await Promise.all([
+    atlasDatasetIdPromise,
+    userContextPromise,
+  ]);
+  const atlasCitationUrl = atlasDatasetId
+    ? buildAtlasDatasetCitationUrl(atlasDatasetId)
+    : null;
 
   const creators = [...experiment.experimentcontributors]
     .sort((a, b) => {

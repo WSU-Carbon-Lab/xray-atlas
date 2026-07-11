@@ -121,7 +121,10 @@ export function NexafsBrowseExperimentSection({
     searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
   );
 
+  const skipGlobalFacets = variant === "embedded" && Boolean(lockedMoleculeId);
+
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
+    enabled: !skipGlobalFacets,
     staleTime: 120_000,
     gcTime: 300_000,
   });
@@ -180,6 +183,7 @@ export function NexafsBrowseExperimentSection({
   }, [searchEntitiesQuery.data]);
 
   const edgesQuery = trpc.experiments.listEdges.useQuery(undefined, {
+    enabled: !skipGlobalFacets,
     staleTime: 300_000,
     gcTime: 600_000,
   });
@@ -190,6 +194,11 @@ export function NexafsBrowseExperimentSection({
   );
 
   const hasSearchQuery = debouncedQuery.trim().length > 0;
+
+  const listQueryReady =
+    urlSynced ||
+    Boolean(lockedMoleculeId) ||
+    Boolean(deepLinkExperimentId);
 
   const effectiveMoleculeIds: string[] = lockedMoleculeId
     ? [lockedMoleculeId]
@@ -222,7 +231,7 @@ export function NexafsBrowseExperimentSection({
       ...commonFilters,
     },
     {
-      enabled: urlSynced && hasSearchQuery,
+      enabled: listQueryReady && hasSearchQuery,
       staleTime: 30_000,
       gcTime: 300_000,
     },
@@ -236,7 +245,7 @@ export function NexafsBrowseExperimentSection({
       ...browseListFilters,
     },
     {
-      enabled: urlSynced && !hasSearchQuery,
+      enabled: listQueryReady && !hasSearchQuery,
       staleTime: 30_000,
       gcTime: 300_000,
     },
@@ -250,7 +259,8 @@ export function NexafsBrowseExperimentSection({
     : { groups: allData.data?.groups ?? [], total: allData.data?.total ?? 0 };
 
   const isLoading =
-    !urlSynced || (hasSearchQuery ? searchData.isLoading : allData.isLoading);
+    !listQueryReady ||
+    (hasSearchQuery ? searchData.isLoading : allData.isLoading);
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;
   const refetchResults = hasSearchQuery ? searchData.refetch : allData.refetch;
