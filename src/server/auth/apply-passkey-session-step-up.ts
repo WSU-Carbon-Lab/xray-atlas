@@ -2,6 +2,7 @@ import { TRPCError } from "@trpc/server";
 import type { PrismaClient } from "~/prisma/client";
 import {
   evaluateSessionWriteAssurance,
+  SessionAalRequiredError,
   type SessionWriteAssuranceEvaluation,
 } from "~/server/auth/mfa-access";
 import { consumePendingPasskeyAssurance } from "~/server/auth/passkey-ceremony-bridge";
@@ -18,7 +19,8 @@ export interface ApplyPasskeySessionStepUpResult {
  * active database session for the incoming request.
  *
  * Use after Auth.js passkey authentication when the user is already signed in and
- * `createSession` does not run (session step-up for privileged writes).
+ * `createSession` does not run (session step-up for destructive self-service writes
+ * and administrator / Labs write gates).
  */
 export async function applyPasskeySessionStepUpForRequest(
   db: PrismaClient,
@@ -63,11 +65,15 @@ export async function applyPasskeySessionStepUpForRequest(
 
   const evaluation = await evaluateSessionWriteAssurance(db, userId, req);
   if (!evaluation.satisfied) {
+    const detail = !pendingPasskey
+      ? "Complete passkey sign-in, then confirm again while this page is open."
+      : !evaluation.enrolled
+        ? "Register a passkey from your profile before deleting or transferring data."
+        : "Passkey verified but this session still lacks passkey assurance for destructive actions. Try again with an enrolled passkey.";
     throw new TRPCError({
       code: "BAD_REQUEST",
-      message: pendingPasskey
-        ? "Passkey verified but this session still lacks the required assurance level. Try a hardware security key if your role requires one."
-        : "Complete passkey sign-in, then confirm again while this page is open.",
+      message: detail,
+      cause: new SessionAalRequiredError(detail, "SESSION_AAL_REQUIRED"),
     });
   }
 

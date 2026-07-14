@@ -36,7 +36,7 @@ describe("sessionMeetsRequiredAal", () => {
     expect(sessionMeetsRequiredAal(AAL2, null)).toBe(false);
   });
 
-  it("rejects ORCID-only aal1 for AAL2 privileged writes", () => {
+  it("rejects ORCID-only aal1 for AAL2 destructive writes", () => {
     expect(
       sessionMeetsRequiredAal(
         AAL2,
@@ -45,7 +45,7 @@ describe("sessionMeetsRequiredAal", () => {
     ).toBe(false);
   });
 
-  it("accepts passkey aal2 for AAL2 privileged writes", () => {
+  it("accepts passkey aal2 for AAL2 destructive writes", () => {
     expect(
       sessionMeetsRequiredAal(
         AAL2,
@@ -69,7 +69,7 @@ describe("sessionMeetsRequiredAal", () => {
     ).toBe(true);
   });
 
-  it("requires aal3 on session for AAL3 privileged writes", () => {
+  it("requires aal3 on session for AAL3 admin writes", () => {
     expect(
       sessionMeetsRequiredAal(
         AAL3,

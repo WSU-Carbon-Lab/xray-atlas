@@ -87,10 +87,11 @@ function handlePrivilegedWriteError(
   onSessionAalRequired: (() => void) | undefined,
   fallbackMessage: string,
 ): void {
-  showToast(getErrorMessage(error, fallbackMessage), "error", 0);
   if (getSessionAalRequiredAppCode(error) && onSessionAalRequired) {
     onSessionAalRequired();
+    return;
   }
+  showToast(getErrorMessage(error, fallbackMessage), "error", 0);
 }
 
 function getErrorMessage(error: unknown, fallbackMessage: string): string {
@@ -682,6 +683,27 @@ function sessionStepUpDescription(
   return "Deleting or transferring your data requires a passkey-established session. Sign in with a passkey to continue.";
 }
 
+function resolveSessionStepUpAppCode(
+  sessionWriteAssurance: SessionWriteAssuranceEvaluation | undefined,
+  passkeyRequiredRedirect: boolean,
+): SessionWriteAssuranceAppCode {
+  if (!sessionWriteAssurance) {
+    return passkeyRequiredRedirect
+      ? "SESSION_AAL3_REQUIRED"
+      : "SESSION_AAL_REQUIRED";
+  }
+  if (
+    sessionWriteAssurance.adminRequiredAal === "aal3" &&
+    !sessionWriteAssurance.adminSatisfied
+  ) {
+    return "SESSION_AAL3_REQUIRED";
+  }
+  if (passkeyRequiredRedirect) {
+    return "SESSION_AAL3_REQUIRED";
+  }
+  return "SESSION_AAL_REQUIRED";
+}
+
 export function ProfilePasskeysSection({
   passkeys,
   passkeyEnrollment,
@@ -726,15 +748,21 @@ export function ProfilePasskeysSection({
     (passkeyRequiredRedirect || passkeyEnrollment?.enrolled === false) &&
     passkeyEnrollment?.enrolled !== true;
 
+  const needsDestructiveStepUp =
+    sessionWriteAssurance !== undefined && !sessionWriteAssurance.satisfied;
+  const needsAdminStepUp =
+    passkeyRequiredRedirect ||
+    (sessionWriteAssurance?.adminRequiredAal === "aal3" &&
+      sessionWriteAssurance.adminSatisfied === false);
+
   const showSessionStepUp =
     passkeyEnrollment?.enrolled === true &&
-    (passkeyRequiredRedirect ||
-      (sessionWriteAssurance !== undefined && !sessionWriteAssurance.satisfied));
+    (needsDestructiveStepUp || needsAdminStepUp);
 
-  const sessionStepUpAppCode: SessionWriteAssuranceAppCode | null =
-    sessionWriteAssurance?.requiredAal === "aal3"
-      ? "SESSION_AAL3_REQUIRED"
-      : "SESSION_AAL_REQUIRED";
+  const sessionStepUpAppCode = resolveSessionStepUpAppCode(
+    sessionWriteAssurance,
+    passkeyRequiredRedirect,
+  );
 
   const showAal3Callout =
     passkeyEnrollment?.requiresAal3Hardware &&

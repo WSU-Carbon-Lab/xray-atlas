@@ -78,7 +78,8 @@ function readSessionAalAppCode(data: unknown): SessionWriteAssuranceAppCode | nu
 }
 
 /**
- * Returns whether `error` is a privileged-write FORBIDDEN that requires passkey session step-up.
+ * Returns the session write-assurance app code when `error` is a FORBIDDEN from a
+ * destructive or admin write gate that requires passkey session step-up.
  */
 export function getSessionAalRequiredAppCode(
   error: unknown,
@@ -94,7 +95,7 @@ export function getSessionAalRequiredAppCode(
 }
 
 /**
- * Returns whether `error` is a privileged-write FORBIDDEN that requires passkey session step-up.
+ * Returns whether `error` is a write-assurance FORBIDDEN that requires passkey session step-up.
  */
 export function isSessionAalRequiredError(error: unknown): boolean {
   return getSessionAalRequiredAppCode(error) !== null;
