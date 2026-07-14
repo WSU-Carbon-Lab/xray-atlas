@@ -289,6 +289,56 @@ export async function countPendingAttributionsForOrcid(
 }
 
 /**
+ * Accepts every pending dataset attribution for the signed-in ORCID in one explicit
+ * mutation. Does not run on login; callers must invoke this only after the user
+ * chooses bulk accept. Honors ownership by matching `orcidid` to `sessionOrcid`.
+ *
+ * @param db - Prisma client.
+ * @param sessionOrcid - Bare ORCID iD of the signed-in user (`user.id`).
+ * @returns Number of rows updated to `accepted` and distinct experiment ids touched.
+ */
+export async function acceptAllPendingAttributionsForOrcid(
+  db: PrismaClient,
+  sessionOrcid: string,
+): Promise<{ acceptedCount: number; experimentIds: string[] }> {
+  const pending = await db.experimentcontributors.findMany({
+    where: {
+      orcidid: sessionOrcid,
+      claimstatus: "pending",
+    },
+    select: { id: true, experimentid: true },
+  });
+  if (pending.length === 0) {
+    return { acceptedCount: 0, experimentIds: [] };
+  }
+
+  const flags = contributorFlagsForClaimStatus("accepted", sessionOrcid);
+  await db.experimentcontributors.updateMany({
+    where: {
+      id: { in: pending.map((row) => row.id) },
+      orcidid: sessionOrcid,
+      claimstatus: "pending",
+    },
+    data: {
+      claimstatus: "accepted",
+      isclaimed: flags.isclaimed,
+      ispublicprofilevisible: flags.ispublicprofilevisible,
+      userid: flags.userid,
+      detachedat: flags.detachedat,
+      claimedat: flags.claimedat,
+    },
+  });
+
+  const experimentIds = [
+    ...new Set(pending.map((row) => row.experimentid)),
+  ];
+  for (const experimentId of experimentIds) {
+    scheduleZenodoDepositSync(db, experimentId, { mode: "metadata" });
+  }
+  return { acceptedCount: pending.length, experimentIds };
+}
+
+/**
  * Reads attribution preference fields for the session user.
  */
 export async function getAttributionPreferencesForUser(

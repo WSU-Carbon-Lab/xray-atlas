@@ -4,7 +4,8 @@ import { db } from "~/server/db";
 import {
   assertPasskeyEnrolledForContribute,
   SessionAalRequiredError,
-  assertSessionAalForPrivilegedWrites,
+  assertSessionAalForAdminWrites,
+  assertSessionAalForDestructiveWrites,
 } from "~/server/auth/mfa-access";
 import { hasManageUsersCapability } from "~/server/auth/privileged-role";
 
@@ -135,11 +136,11 @@ const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-const enforcePrivilegedSessionAal = t.middleware(async ({ ctx, next }) => {
+const enforceDestructiveSessionAal = t.middleware(async ({ ctx, next }) => {
   if (!ctx.userId) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
   }
-  await assertSessionAalForPrivilegedWrites(ctx.db, ctx.userId, ctx.req);
+  await assertSessionAalForDestructiveWrites(ctx.db, ctx.userId, ctx.req);
   return next({
     ctx: {
       userId: ctx.userId,
@@ -147,9 +148,27 @@ const enforcePrivilegedSessionAal = t.middleware(async ({ ctx, next }) => {
   });
 });
 
-/** Destructive or ownership-changing writes require passkey enrollment and session AAL. */
+const enforceAdminSessionAal = t.middleware(async ({ ctx, next }) => {
+  if (!ctx.userId) {
+    throw new TRPCError({ code: "UNAUTHORIZED" });
+  }
+  await assertSessionAalForAdminWrites(ctx.db, ctx.userId, ctx.req);
+  return next({
+    ctx: {
+      userId: ctx.userId,
+    },
+  });
+});
+
+/**
+ * Destructive or ownership-changing self-service writes require passkey enrollment and AAL2
+ * (passkey-established session). Role-based AAL3 is not applied here; use {@link adminProcedure}
+ * for administrator console mutations.
+ *
+ * The export name is historical (`privilegedWriteProcedure`); behavior is destructive-write AAL2 only.
+ */
 export const privilegedWriteProcedure =
-  protectedProcedure.use(enforcePrivilegedSessionAal);
+  protectedProcedure.use(enforceDestructiveSessionAal);
 
 /**
  * Authenticated writes that require user-administration permission but not passkey session AAL.
@@ -159,4 +178,4 @@ export const manageUsersProcedure = protectedProcedure.use(enforceManageUsers);
 
 export const adminProcedure = protectedProcedure
   .use(enforceManageUsers)
-  .use(enforcePrivilegedSessionAal);
+  .use(enforceAdminSessionAal);

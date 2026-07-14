@@ -3,6 +3,9 @@ import { Prisma, PrismaClient } from "~/prisma/client";
 
 import { env } from "~/env";
 
+const DEV_POOL_MAX_CONNECTIONS = 3;
+const PROD_POOL_MAX_CONNECTIONS = 10;
+
 /**
  * Builds a Prisma 7 client backed by the `pg` driver via `@prisma/adapter-pg`, using the pooled
  * `DATABASE_URL` from validated env (Supabase pooler). Prisma CLI migrations use `DIRECT_URL`
@@ -11,7 +14,12 @@ import { env } from "~/env";
 const createPrismaClient = () => {
   const adapter = new PrismaPg({
     connectionString: env.DATABASE_URL,
-    connectionTimeoutMillis: 5000,
+    connectionTimeoutMillis: 10_000,
+    max:
+      env.NODE_ENV === "development"
+        ? DEV_POOL_MAX_CONNECTIONS
+        : PROD_POOL_MAX_CONNECTIONS,
+    idleTimeoutMillis: 20_000,
   });
   return new PrismaClient({
     adapter,
@@ -38,6 +46,13 @@ function prismaSchemaSignature(): string {
 }
 
 const schemaSignature = prismaSchemaSignature();
+
+if (
+  globalForPrisma.prisma &&
+  globalForPrisma.prismaSchemaSignature !== schemaSignature
+) {
+  void globalForPrisma.prisma.$disconnect();
+}
 
 export const db =
   globalForPrisma.prisma &&

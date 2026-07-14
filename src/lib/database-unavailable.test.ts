@@ -75,6 +75,17 @@ describe("isDatabaseUnavailableError", () => {
     ).toBe(true);
   });
 
+  it("detects Supabase pooler circuit breaker messages", () => {
+    expect(
+      isDatabaseUnavailableError(
+        trpcError(
+          "(ECIRCUITBREAKER) too many authentication failures, new connections are temporarily blocked",
+          "INTERNAL_SERVER_ERROR",
+        ),
+      ),
+    ).toBe(true);
+  });
+
   it("does not classify NOT_FOUND as database unavailable", () => {
     expect(
       isDatabaseUnavailableError(

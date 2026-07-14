@@ -4,8 +4,24 @@
  */
 import { z } from "zod";
 
+/**
+ * Uppercases a trailing ORCID checksum `x`.
+ *
+ * Auth.js lowercases OAuth `email` before adapter calls; ORCID iDs use checksum `X`,
+ * so carriers that round-trip through Auth.js email must be restored to canonical form.
+ */
+function canonicalizeOrcidChecksum(orcidId: string): string {
+  if (orcidId.length === 19 && orcidId.endsWith("x")) {
+    return `${orcidId.slice(0, 18)}X`;
+  }
+  if (orcidId.length === 19 && orcidId.endsWith("X")) {
+    return orcidId;
+  }
+  return orcidId;
+}
+
 /** Bare ORCID iD format used as `next_auth.user.id` and in public `/users/<id>` routes. */
-export const ORCID_USER_ID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/;
+export const ORCID_USER_ID_REGEX = /^\d{4}-\d{4}-\d{4}-\d{3}[\dXx]$/;
 
 /**
  * Validates a stored user primary key or route segment that must be a bare ORCID iD.
@@ -15,7 +31,8 @@ export const orcidUserIdSchema = z
   .regex(
     ORCID_USER_ID_REGEX,
     "Invalid ORCID iD format. Expected format: XXXX-XXXX-XXXX-XXXX",
-  );
+  )
+  .transform(canonicalizeOrcidChecksum);
 
 /**
  * Accepts a bare ORCID iD (`0000-0001-2345-6789`) or a full `orcid.org` / `sandbox.orcid.org` URL.
@@ -27,6 +44,7 @@ export const orcidIdSchema = z
     ORCID_USER_ID_REGEX,
     "Invalid ORCID iD format. Expected format: XXXX-XXXX-XXXX-XXXX",
   )
+  .transform(canonicalizeOrcidChecksum)
   .or(
     z
       .string()
@@ -38,7 +56,7 @@ export const orcidIdSchema = z
  * Trims the input and strips common `http(s)://(sandbox.)orcid.org/` prefixes so callers can validate a single canonical form.
  *
  * @param raw - Raw user-entered ORCID or URL; may be empty after trim.
- * @returns The same string with leading/trailing whitespace removed and URL prefix removed when present; empty string if `raw` is only whitespace.
+ * @returns The same string with leading/trailing whitespace removed and URL prefix removed when present; empty string if `raw` is only whitespace. Trailing checksum `x` is uppercased.
  */
 export function normalizeOrcidUserInput(raw: string): string {
   let orcidId = raw.trim();
@@ -52,7 +70,7 @@ export function normalizeOrcidUserInput(raw: string): string {
       .replace("http://orcid.org/", "")
       .replace("http://sandbox.orcid.org/", "");
   }
-  return orcidId.trim();
+  return canonicalizeOrcidChecksum(orcidId.trim());
 }
 
 /**

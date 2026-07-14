@@ -925,6 +925,35 @@ export const usersRouter = createTRPCRouter({
       return { image: updatedUser.image };
     }),
 
+  /**
+   * Updates the signed-in user's display name (ORCID-sourced or user-edited).
+   * Empty trimmed input clears the stored name.
+   */
+  updateDisplayName: protectedProcedure
+    .input(
+      z.object({
+        name: z.string().max(200),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new Error("User not authenticated");
+      }
+
+      const trimmed = input.name.trim();
+      const updatedUser = await ctx.db.user.update({
+        where: { id: ctx.userId },
+        data: { name: trimmed.length > 0 ? trimmed : null },
+        select: { id: true, name: true, image: true },
+      });
+
+      return {
+        id: updatedUser.id,
+        name: updatedUser.name,
+        image: updatedUser.image,
+      };
+    }),
+
   deleteAccount: privilegedWriteProcedure.mutation(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");

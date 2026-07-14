@@ -21,10 +21,11 @@ import {
   type UserSessionCapabilities,
 } from "~/server/auth/privileged-role";
 import { PrismaAdapterOrcid } from "~/server/auth/prisma-adapter-orcid";
-import { parseOrcidForStorage } from "~/lib/orcid";
+import { isLegacyUserUuidSegment, isValidOrcidUserId, parseOrcidForStorage } from "~/lib/orcid";
 import { emitAuditEvent } from "~/server/audit";
 import { orcidOidcBaseUrl } from "~/server/auth/orcid-oidc-config";
 import { enrichUserProfileFromOrcidUserinfo } from "~/server/auth/orcid-userinfo";
+import { getSessionUserIdFromCookies } from "~/server/auth/session-token";
 import { resolveWebAuthnRelayingParty } from "~/server/auth/webauthn-relaying-party";
 
 const emptySessionCapabilities: UserSessionCapabilities = {
@@ -58,6 +59,14 @@ function resolveGitHubCredentials(): {
   };
 }
 
+/**
+ * Builds the ORCID OAuth provider. Profile sets `email` to the bare ORCID iD so
+ * Auth.js createUser can recover the ORCID after it replaces `profile.id` with a UUID.
+ *
+ * `allowDangerousEmailAccountLinking` is required because Auth.js treats that ORCID
+ * carrier as `email`. It is safe only while the carrier is the bare ORCID iD (never a
+ * mailbox). Do not enable the same flag on GitHub or any real-email provider.
+ */
 function ORCID(
   options: OAuthUserConfig<ORCIDProfile>,
 ): OAuthConfig<ORCIDProfile> {
@@ -85,6 +94,7 @@ function ORCID(
       const orcidId = parseOrcidForStorage(profile.sub);
       return {
         id: orcidId,
+        email: orcidId,
         name: profile.name ?? (fullName || undefined),
       };
     },
@@ -107,6 +117,7 @@ if (env.ORCID_CLIENT_ID && env.ORCID_CLIENT_SECRET) {
     ORCID({
       clientId: env.ORCID_CLIENT_ID,
       clientSecret: env.ORCID_CLIENT_SECRET,
+      allowDangerousEmailAccountLinking: true,
     }),
   );
 }
@@ -149,9 +160,9 @@ providers.push(
         const verification = await verifyRegistrationResponse(options);
         if (verification.verified && verification.registrationInfo) {
           const { registrationInfo } = verification;
-          const credentialId = Buffer.from(registrationInfo.credentialID).toString(
-            "base64",
-          );
+          const credentialId = Buffer.from(
+            registrationInfo.credentialID,
+          ).toString("base64");
           await setPendingPasskeyEnrollmentMeta({
             credentialId,
             aaguid: registrationInfo.aaguid ?? null,
@@ -205,6 +216,40 @@ function resolveNextAuthPublicUrl(): string | undefined {
 
 const nextAuthPublicUrl = resolveNextAuthPublicUrl();
 
+type LinkAccountCookieStore = {
+  get: (name: string) => { value: string } | undefined;
+  delete: (name: string) => void;
+};
+
+function clearLinkAccountCookies(cookieStore: LinkAccountCookieStore): void {
+  cookieStore.delete("linkAccountUserId");
+  cookieStore.delete("linkAccountProvider");
+}
+
+/**
+ * Resolves the durable Atlas user id for Auth.js `signIn` DB work.
+ *
+ * For ORCID, Auth.js may still expose a temporary UUID on `user.id` before adapter
+ * persistence; prefer `account.providerAccountId` (the ORCID sub) for lookups and merges.
+ *
+ * @param account - OAuth account from the Auth.js `signIn` callback.
+ * @param user - Auth.js user object (may carry a non-ORCID id for ORCID).
+ * @returns Bare ORCID iD for ORCID, otherwise `user.id` when present.
+ */
+function resolveSignInUserId(
+  account: { provider: string; providerAccountId: string },
+  user: { id?: string | null },
+): string | undefined {
+  if (account.provider === "orcid") {
+    try {
+      return parseOrcidForStorage(account.providerAccountId);
+    } catch {
+      return undefined;
+    }
+  }
+  return user.id ?? undefined;
+}
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
   adapter: PrismaAdapterOrcid(db),
   providers,
@@ -257,6 +302,25 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
     },
   },
   callbacks: {
+    /**
+     * Same-origin Auth.js redirect gate. First-login pending-attribution divert is
+     * owned by `src/proxy.ts` after `createUser` sets the review cookie — do not
+     * consume that cookie here (`createCallbackUrl` runs before `createUser` and
+     * previously polluted `authjs.callback-url` as `?welcome%3D1`).
+     */
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) {
+        return `${baseUrl}${url}`;
+      }
+      try {
+        if (new URL(url).origin === baseUrl) {
+          return url;
+        }
+      } catch {
+        return baseUrl;
+      }
+      return baseUrl;
+    },
     async signIn({ user, account }) {
       try {
         if (!account) {
@@ -264,8 +328,16 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         }
 
         const cookieStore = await cookies();
-        const linkingUserId = cookieStore.get("linkAccountUserId")?.value;
+        const rawLinkingUserId = cookieStore.get("linkAccountUserId")?.value;
+        const linkingUserId =
+          rawLinkingUserId && isValidOrcidUserId(rawLinkingUserId)
+            ? rawLinkingUserId
+            : undefined;
         const linkingProvider = cookieStore.get("linkAccountProvider")?.value;
+
+        if (rawLinkingUserId && !linkingUserId) {
+          clearLinkAccountCookies(cookieStore);
+        }
 
         if (account.provider === "github") {
           const existingAccount = await db.account.findUnique({
@@ -278,143 +350,149 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           });
 
           if (existingAccount) {
-            cookieStore.delete("linkAccountUserId");
-            cookieStore.delete("linkAccountProvider");
-            return true;
-          }
-
-          if (
-            linkingUserId &&
-            linkingProvider === "github" &&
-            user.id === linkingUserId
-          ) {
-            cookieStore.delete("linkAccountUserId");
-            cookieStore.delete("linkAccountProvider");
+            clearLinkAccountCookies(cookieStore);
             return true;
           }
 
           if (linkingUserId && linkingProvider === "github") {
-            const targetUser = await db.user.findUnique({
-              where: { id: linkingUserId },
-              select: { id: true },
-            });
-            if (targetUser) {
-              cookieStore.delete("linkAccountUserId");
-              cookieStore.delete("linkAccountProvider");
-              return true;
+            const sessionUserId = await getSessionUserIdFromCookies(db);
+            if (sessionUserId === linkingUserId) {
+              const targetUser = await db.user.findUnique({
+                where: { id: linkingUserId },
+                select: { id: true },
+              });
+              if (targetUser) {
+                clearLinkAccountCookies(cookieStore);
+                return true;
+              }
             }
           }
 
-          cookieStore.delete("linkAccountUserId");
-          cookieStore.delete("linkAccountProvider");
+          clearLinkAccountCookies(cookieStore);
           return "/sign-in?error=GitHubRequiresOrcid";
         }
 
+        const resolvedUserId = resolveSignInUserId(account, user);
+
         if (account.provider === "orcid") {
-          try {
-            parseOrcidForStorage(account.providerAccountId);
-          } catch {
+          if (!resolvedUserId) {
+            clearLinkAccountCookies(cookieStore);
             return "/sign-in?error=InvalidOrcid";
           }
 
-          if (user.id && account.access_token) {
-            try {
-              await enrichUserProfileFromOrcidUserinfo(
-                db,
-                user.id,
-                account.access_token,
-              );
-            } catch (err) {
-              console.error(
-                "[NextAuth] ORCID userinfo enrichment failed; sign-in continues.",
-                err,
-              );
+          if (account.access_token) {
+            const existingUser = await db.user.findUnique({
+              where: { id: resolvedUserId },
+              select: { id: true },
+            });
+            if (existingUser) {
+              try {
+                await enrichUserProfileFromOrcidUserinfo(
+                  db,
+                  resolvedUserId,
+                  account.access_token,
+                );
+              } catch (err) {
+                console.error(
+                  "[NextAuth] ORCID userinfo enrichment failed; sign-in continues.",
+                  err,
+                );
+              }
             }
           }
         }
 
         if (linkingUserId && linkingProvider === account.provider) {
-          const currentUserId = linkingUserId;
+          const sessionUserId = await getSessionUserIdFromCookies(db);
+          if (sessionUserId !== linkingUserId) {
+            clearLinkAccountCookies(cookieStore);
+          } else {
+            const currentUserId = linkingUserId;
 
-          if (currentUserId === user.id) {
-            cookieStore.delete("linkAccountUserId");
-            cookieStore.delete("linkAccountProvider");
-            return true;
-          }
-
-          const existingAccount = await db.account.findUnique({
-            where: {
-              provider_providerAccountId: {
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
-              },
-            },
-          });
-
-          if (existingAccount) {
-            if (existingAccount.userId === currentUserId) {
-              cookieStore.delete("linkAccountUserId");
-              cookieStore.delete("linkAccountProvider");
+            if (currentUserId === resolvedUserId) {
+              clearLinkAccountCookies(cookieStore);
               return true;
             }
-            await db.account.update({
-              where: { id: existingAccount.id },
-              data: { userId: currentUserId },
-            });
-            await emitAuditEvent({
-              eventType: "account.link.complete",
-              eventScope: "auth.account",
-              actorUserId: currentUserId,
-              subjectUserId: currentUserId,
-              payload: {
-                provider: account.provider,
-                providerAccountId: account.providerAccountId,
+
+            const existingAccount = await db.account.findUnique({
+              where: {
+                provider_providerAccountId: {
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                },
               },
-              failSilent: true,
             });
-            cookieStore.delete("linkAccountUserId");
-            cookieStore.delete("linkAccountProvider");
+
+            if (existingAccount) {
+              if (existingAccount.userId === currentUserId) {
+                clearLinkAccountCookies(cookieStore);
+                return true;
+              }
+              await db.account.update({
+                where: { id: existingAccount.id },
+                data: { userId: currentUserId },
+              });
+              await emitAuditEvent({
+                eventType: "account.link.complete",
+                eventScope: "auth.account",
+                actorUserId: currentUserId,
+                subjectUserId: currentUserId,
+                payload: {
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                },
+                failSilent: true,
+              });
+              clearLinkAccountCookies(cookieStore);
+              return true;
+            }
+
+            const orphanUserId =
+              typeof user.id === "string" &&
+              isLegacyUserUuidSegment(user.id) &&
+              user.id !== currentUserId
+                ? user.id
+                : undefined;
+
+            if (orphanUserId) {
+              await db.account.updateMany({
+                where: { userId: orphanUserId },
+                data: { userId: currentUserId },
+              });
+
+              const orphanedAccounts = await db.account.findMany({
+                where: { userId: orphanUserId },
+              });
+
+              if (orphanedAccounts.length === 0) {
+                await db.user.delete({
+                  where: { id: orphanUserId },
+                });
+                await emitAuditEvent({
+                  eventType: "user.delete",
+                  eventScope: "account.link.merge",
+                  actorUserId: currentUserId,
+                  subjectUserId: orphanUserId,
+                  failSilent: true,
+                });
+              }
+
+              await emitAuditEvent({
+                eventType: "account.link.complete",
+                eventScope: "auth.account.merge",
+                actorUserId: currentUserId,
+                subjectUserId: currentUserId,
+                payload: {
+                  provider: account.provider,
+                  providerAccountId: account.providerAccountId,
+                },
+                failSilent: true,
+              });
+            }
+
+            clearLinkAccountCookies(cookieStore);
             return true;
           }
-
-          await db.account.updateMany({
-            where: { userId: user.id },
-            data: { userId: currentUserId },
-          });
-
-          const orphanedAccounts = await db.account.findMany({
-            where: { userId: user.id },
-          });
-
-          if (orphanedAccounts.length === 0) {
-            const orphanUserId = user.id;
-            await db.user.delete({
-              where: { id: orphanUserId },
-            });
-            await emitAuditEvent({
-              eventType: "user.delete",
-              eventScope: "account.link.merge",
-              actorUserId: currentUserId,
-              subjectUserId: orphanUserId,
-              failSilent: true,
-            });
-          }
-
-          await emitAuditEvent({
-            eventType: "account.link.complete",
-            eventScope: "auth.account.merge",
-            actorUserId: currentUserId,
-            subjectUserId: currentUserId,
-            payload: {
-              provider: account.provider,
-              providerAccountId: account.providerAccountId,
-            },
-            failSilent: true,
-          });
-
-          cookieStore.delete("linkAccountUserId");
-          cookieStore.delete("linkAccountProvider");
-          return true;
         }
 
         const existingAccount = await db.account.findUnique({
@@ -426,45 +504,37 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           },
         });
 
-        if (existingAccount && existingAccount.userId !== user.id) {
-          const currentSession = await auth();
-          const currentUserId = currentSession?.user?.id;
-
-          if (currentUserId && currentUserId === existingAccount.userId) {
-            cookieStore.delete("linkAccountUserId");
-            cookieStore.delete("linkAccountProvider");
+        if (
+          existingAccount &&
+          resolvedUserId &&
+          existingAccount.userId !== resolvedUserId
+        ) {
+          const sessionUserId = await getSessionUserIdFromCookies(db);
+          if (sessionUserId && sessionUserId === existingAccount.userId) {
+            clearLinkAccountCookies(cookieStore);
             return true;
           }
 
-          if (linkingUserId && linkingUserId === existingAccount.userId) {
-            cookieStore.delete("linkAccountUserId");
-            cookieStore.delete("linkAccountProvider");
-            return true;
-          }
-
-          cookieStore.delete("linkAccountUserId");
-          cookieStore.delete("linkAccountProvider");
+          clearLinkAccountCookies(cookieStore);
           throw new Error("ACCOUNT_EXISTS");
         }
 
-        cookieStore.delete("linkAccountUserId");
-        cookieStore.delete("linkAccountProvider");
+        clearLinkAccountCookies(cookieStore);
         return true;
       } catch (error) {
         const cookieStore = await cookies();
-        cookieStore.delete("linkAccountUserId");
-        cookieStore.delete("linkAccountProvider");
+        clearLinkAccountCookies(cookieStore);
 
         const errorMessage =
           error instanceof Error ? error.message : "Unknown error";
         if (errorMessage === "ACCOUNT_EXISTS") {
-          throw error;
+          return "/sign-in?error=ACCOUNT_EXISTS";
         }
         console.error(
           "[NextAuth] Fatal error in signIn callback:",
           errorMessage,
         );
-        return true;
+        return "/sign-in?error=Configuration";
       }
     },
     async session({ session, user }) {
@@ -494,6 +564,7 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   },
   pages: {
     signIn: "/sign-in",
+    error: "/sign-in",
   },
 });
 

@@ -20,7 +20,7 @@ export interface UserSessionCapabilities {
  * projections across all assigned roles.
  *
  * @param db - Prisma client (pooled app DB).
- * @param userId - `next_auth.user.id` (UUID).
+ * @param userId - `next_auth.user.id` (bare ORCID iD).
  */
 export async function getUserSessionCapabilities(
   db: PrismaClient,
@@ -115,7 +115,7 @@ export async function countUsersWithManageUsersCapability(
 /**
  * Counts distinct users (other than `excludeUserId`) who have a role that grants admin-console access.
  *
- * @param excludeUserId - `next_auth.user.id` to omit from the count (UUID string).
+ * @param excludeUserId - `next_auth.user.id` to omit from the count (bare ORCID iD).
  */
 export async function countUsersWithManageCapabilityExcluding(
   db: PrismaClient,

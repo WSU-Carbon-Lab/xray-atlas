@@ -8,6 +8,7 @@ import {
   autoAcceptModeSchema,
 } from "~/lib/dataset-attribution-claim";
 import {
+  acceptAllPendingAttributionsForOrcid,
   countPendingAttributionsForOrcid,
   getAttributionPreferencesForUser,
   listPendingAttributionsForOrcid,
@@ -39,6 +40,14 @@ export const datasetAttributionsRouter = createTRPCRouter({
         nextStatus: "accepted",
       });
     }),
+
+  /**
+   * Explicitly accepts every pending attribution for the session ORCID.
+   * Does not run automatically on sign-in; `auto_accept_mode=off` remains the default.
+   */
+  acceptAllPending: protectedProcedure.mutation(async ({ ctx }) => {
+    return acceptAllPendingAttributionsForOrcid(ctx.db, ctx.userId);
+  }),
 
   declineAttribution: protectedProcedure
     .input(z.object({ contributorId: z.string().uuid() }))

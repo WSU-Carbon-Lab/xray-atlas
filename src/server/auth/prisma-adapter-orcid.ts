@@ -1,7 +1,6 @@
 import { PrismaAdapter } from "@auth/prisma-adapter";
 import type { AdapterAuthenticator } from "@auth/core/adapters";
-import type { PrismaClient } from "~/prisma/client";
-import { parseOrcidForStorage } from "~/lib/orcid";
+import { Prisma, type PrismaClient } from "~/prisma/client";
 import { emitAuditEvent } from "~/server/audit";
 import { encryptOAuthToken } from "~/server/auth/oauth-token-crypto";
 import {
@@ -14,12 +13,15 @@ import {
   setPendingPasskeyAssurance,
 } from "~/server/auth/passkey-ceremony-bridge";
 import { markPasskeyEnrollmentComplete } from "~/server/auth/passkey-enrollment";
+import { resolveOrcidIdForCreateUser } from "~/server/auth/resolve-orcid-id-for-create-user";
+import { setPendingAttributionReviewCookie } from "~/server/auth/pending-attribution-review-bridge";
 import {
   resolveAssertedAalForCredential,
   upsertOrcidSessionAssurance,
   upsertWebAuthnSessionAssurance,
 } from "~/server/auth/session-assurance";
 import { webAuthnUserNameFromOrcidUserId } from "~/server/auth/webauthn-relaying-party";
+import { countPendingAttributionsForOrcid } from "~/server/nexafs/datasetAttributionClaiming";
 
 function toAdapterAuthenticator(row: {
   credentialID: string;
@@ -49,7 +51,10 @@ function toAdapterAuthenticator(row: {
 
 /**
  * Prisma adapter that sets `user.id` to the bare ORCID iD on first ORCID sign-in.
- * GitHub-only user creation is blocked in the NextAuth `signIn` callback instead.
+ * Auth.js replaces OAuth `profile.id` with a UUID before `createUser`; the ORCID
+ * provider carries the iD in `email`, and this adapter resolves it via
+ * {@link resolveOrcidIdForCreateUser}. GitHub-only user creation is blocked in the
+ * NextAuth `signIn` callback instead.
  */
 export function PrismaAdapterOrcid(db: PrismaClient) {
   const base = PrismaAdapter(db);
@@ -133,6 +138,34 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
         },
       };
     },
+    /**
+     * Looks up Atlas users by ORCID iD carried in Auth.js `email` (not a mailbox).
+     * Non-ORCID strings return null so GitHub or other providers cannot email-link
+     * into an ORCID primary key.
+     */
+    getUserByEmail: async (email: string) => {
+      const trimmed = email.trim();
+      if (trimmed.length === 0) {
+        return null;
+      }
+      let orcidId: string;
+      try {
+        orcidId = resolveOrcidIdForCreateUser({ email: trimmed, id: null });
+      } catch {
+        return null;
+      }
+      const row = await db.user.findUnique({ where: { id: orcidId } });
+      if (!row) {
+        return null;
+      }
+      return {
+        id: row.id,
+        name: row.name,
+        email: webAuthnUserNameFromOrcidUserId(row.id),
+        emailVerified: null,
+        image: row.image,
+      };
+    },
     createUser: async (data: {
       id?: string;
       name?: string | null;
@@ -140,24 +173,38 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
       emailVerified?: Date | null;
       image?: string | null;
     }) => {
-      let id = data.id;
-      if (id) {
-        try {
-          id = parseOrcidForStorage(id);
-        } catch {
-          throw new Error("ORCID_SIGN_IN_INVALID_ID");
-        }
-      } else {
-        throw new Error("ORCID_SIGN_IN_MISSING_ID");
-      }
-
-      const created = await db.user.create({
-        data: {
-          id,
-          name: data.name ?? null,
-          image: data.image ?? null,
-        },
+      const id = resolveOrcidIdForCreateUser({
+        id: data.id,
+        email: data.email,
       });
+
+      let created;
+      try {
+        created = await db.user.create({
+          data: {
+            id,
+            name: data.name ?? null,
+            image: data.image ?? null,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          const existing = await db.user.findUnique({ where: { id } });
+          if (existing) {
+            return {
+              id: existing.id,
+              name: existing.name,
+              email: webAuthnUserNameFromOrcidUserId(existing.id),
+              emailVerified: data.emailVerified ?? null,
+              image: existing.image,
+            };
+          }
+        }
+        throw error;
+      }
 
       await emitAuditEvent({
         eventType: "user.create",
@@ -166,6 +213,24 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
         subjectUserId: created.id,
         failSilent: true,
       });
+
+      try {
+        const pendingCount = await countPendingAttributionsForOrcid(
+          db,
+          created.id,
+        );
+        if (pendingCount > 0) {
+          await setPendingAttributionReviewCookie({
+            orcid: created.id,
+            pendingCount,
+          });
+        }
+      } catch (err) {
+        console.error(
+          "[PrismaAdapterOrcid] pending attribution review cookie failed; sign-in continues.",
+          err,
+        );
+      }
 
       return {
         id: created.id,
@@ -253,7 +318,8 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
         db,
         authenticator.userId,
       );
-      const enrollmentAal3Eligible = enrollmentMeetsAal3HardwarePolicy(aalFields);
+      const enrollmentAal3Eligible =
+        enrollmentMeetsAal3HardwarePolicy(aalFields);
 
       const created = await db.authenticator.create({
         data: {
@@ -312,7 +378,10 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
         throw new Error("AUTHENTICATOR_UPDATE_MISSING_USER_ID");
       }
 
-      const assertedAal = await resolveAssertedAalForCredential(db, credentialID);
+      const assertedAal = await resolveAssertedAalForCredential(
+        db,
+        credentialID,
+      );
       await setPendingPasskeyAssurance({
         credentialId: credentialID,
         assertedAal,
@@ -346,7 +415,9 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
         where: { userId, revokedAt: null },
       });
       return rows
-        .filter((row): row is typeof row & { userId: string } => row.userId !== null)
+        .filter(
+          (row): row is typeof row & { userId: string } => row.userId !== null,
+        )
         .map((row) => toAdapterAuthenticator(row));
     },
   };

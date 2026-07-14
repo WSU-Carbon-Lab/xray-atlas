@@ -119,12 +119,22 @@ export function ProfilePageClient({
       }
 
       if (sessionStatus === "authenticated") {
-        await confirmPasskeySessionStepUp.mutateAsync();
+        const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
         await Promise.all([
           utils.users.getSessionWriteAssurance.invalidate(),
           utils.users.getPasskeys.invalidate(),
         ]);
-        showToast("Passkey confirmed for this session", "success");
+        if (
+          stepUp.evaluation.adminRequiredAal === "aal3" &&
+          !stepUp.evaluation.adminSatisfied
+        ) {
+          showToast(
+            "Passkey confirmed for deleting and transferring data. Administrator and Labs tools still need a hardware security key.",
+            "success",
+          );
+        } else {
+          showToast("Passkey confirmed for this session", "success");
+        }
         return;
       }
 
@@ -203,14 +213,20 @@ export function ProfilePageClient({
         showToast("Passkey revoked", "success");
       } catch (deleteError) {
         console.error("Failed to delete passkey:", deleteError);
+        if (getSessionAalRequiredAppCode(deleteError)) {
+          showToast(
+            "Confirm with a passkey, then revoke again.",
+            "error",
+            0,
+          );
+          void handlePasskeySignIn();
+          return;
+        }
         showToast(
           getErrorMessage(deleteError, "Failed to revoke passkey"),
           "error",
           0,
         );
-        if (getSessionAalRequiredAppCode(deleteError)) {
-          void handlePasskeySignIn();
-        }
       }
     },
     [
