@@ -1,6 +1,8 @@
+const SIGN_IN_CONFIGURATION_MESSAGE =
+  "Sign-in could not be completed due to an account configuration problem. Try ORCID again; if you use a passkey, sign in with ORCID first and register a passkey from your profile.";
+
 const WEB_AUTHN_SIGN_IN_ERROR_MESSAGES: Record<string, string> = {
-  Configuration:
-    "Passkey sign-in or registration could not be completed. If you use a security key, try again; otherwise sign in with ORCID and register a passkey from your profile.",
+  Configuration: SIGN_IN_CONFIGURATION_MESSAGE,
   AccessDenied:
     "Passkey access was denied. Sign in with ORCID first, then register a passkey from your profile.",
   Verification:
@@ -10,13 +12,31 @@ const WEB_AUTHN_SIGN_IN_ERROR_MESSAGES: Record<string, string> = {
   OAuthCreateAccount: "Could not create an account with this passkey.",
   EmailCreateAccount: "Could not create an account with this passkey.",
   CallbackRouteError: "Passkey sign-in was interrupted. Try again.",
-  CredentialsSignin: "Passkey sign-in failed. Check your passkey and try again.",
+  CredentialsSignin:
+    "Passkey sign-in failed. Check your passkey and try again.",
   SessionRequired: "Sign in with ORCID or a passkey to continue.",
 };
 
 const KNOWN_PASSKEY_ADAPTER_MESSAGES: Record<string, string> = {
   "Privileged roles require a hardware security key with direct attestation. Use a cross-platform FIDO2 key, then try again.":
     "Platform passkeys (Touch ID, Windows Hello, 1Password) are saved for sign-in and contribution. Administrator and Labs tools still need a hardware security key (cross-platform FIDO2, e.g. YubiKey). Add one with Create Passkey and choose your security key.",
+};
+
+const SIGN_IN_PAGE_ERROR_MESSAGES: Record<string, string> = {
+  Configuration: SIGN_IN_CONFIGURATION_MESSAGE,
+  GitHubRequiresOrcid:
+    "Sign in with ORCID first to create your account, then link GitHub from your profile.",
+  InvalidOrcid:
+    "ORCID sign-in failed. Check your ORCID credentials and try again.",
+  ORCID_SIGN_IN_MISSING_ID: SIGN_IN_CONFIGURATION_MESSAGE,
+  ORCID_SIGN_IN_INVALID_ID:
+    "ORCID sign-in failed. Check your ORCID credentials and try again.",
+  ACCOUNT_EXISTS:
+    "This sign-in method is already linked to another Atlas account.",
+  OAuthAccountNotLinked:
+    "This sign-in method is not linked to your Atlas account yet. Sign in with ORCID first, then link it from your profile.",
+  AccessDenied:
+    "Sign-in was denied. Try ORCID again, or sign in with ORCID before using a passkey.",
 };
 
 /**
@@ -36,9 +56,7 @@ export function mapWebAuthnSignInError(
   return resolveWebAuthnSignInMessage(trimmed) ?? fallback;
 }
 
-function resolveWebAuthnSignInMessage(
-  errorCode: string,
-): string | null {
+function resolveWebAuthnSignInMessage(errorCode: string): string | null {
   const knownAdapter = KNOWN_PASSKEY_ADAPTER_MESSAGES[errorCode];
   if (knownAdapter) {
     return knownAdapter;
@@ -62,14 +80,8 @@ export function mapSignInPageError(
   if (!errorCode) {
     return null;
   }
-  const signInPageMessages: Record<string, string> = {
-    GitHubRequiresOrcid:
-      "Sign in with ORCID first to create your account, then link GitHub from your profile.",
-    InvalidOrcid:
-      "ORCID sign-in failed. Check your ORCID credentials and try again.",
-  };
-  if (signInPageMessages[errorCode]) {
-    return signInPageMessages[errorCode];
+  if (SIGN_IN_PAGE_ERROR_MESSAGES[errorCode]) {
+    return SIGN_IN_PAGE_ERROR_MESSAGES[errorCode];
   }
   return resolveWebAuthnSignInMessage(errorCode);
 }
