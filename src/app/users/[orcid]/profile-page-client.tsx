@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { Tabs } from "@heroui/react";
@@ -10,6 +10,9 @@ import { ToastContainer, useToast } from "@/components/ui/toast";
 import {
   applyPasskeyClientRedirect,
   getSessionAalRequiredAppCode,
+  isPasskeyClientCancelled,
+  PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE,
+  PASSKEY_STEP_UP_CANCELLED_MESSAGE,
   runPasskeyClientAuth,
 } from "~/lib/passkey-client-auth";
 import { ProfileAttributionPreferencesSection } from "~/features/account/attributions/attribution-preferences-panel";
@@ -62,6 +65,7 @@ export function ProfilePageClient({
 
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const [selectedTab, setSelectedTab] = useState<ProfileTabId>("contributions");
+  const stepUpInFlightRef = useRef(false);
 
   const isOwnProfile =
     sessionStatus === "loading"
@@ -102,66 +106,164 @@ export function ProfilePageClient({
     }
   }, [isOwnProfile, passkeyRequiredRedirect]);
 
-  const handlePasskeySignIn = useCallback(async () => {
-    setIsPasskeySigningIn(true);
-    try {
-      const result = await runPasskeyClientAuth({
-        action: "sign-in",
-        callbackUrl: window.location.href,
-        errorFallback: "Passkey sign-in failed. Please try again.",
-        incompleteFallback: "Passkey sign-in did not complete",
-      });
+  const confirmSessionStepUpQuiet = useCallback(async (): Promise<{
+    satisfied: boolean;
+    adminSatisfied: boolean;
+    adminRequiredAal: string;
+  }> => {
+    const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
+    await Promise.all([
+      utils.users.getSessionWriteAssurance.invalidate(),
+      utils.users.getPasskeys.invalidate(),
+    ]);
+    return {
+      satisfied: stepUp.evaluation.satisfied,
+      adminSatisfied: stepUp.evaluation.adminSatisfied,
+      adminRequiredAal: stepUp.evaluation.adminRequiredAal,
+    };
+  }, [confirmPasskeySessionStepUp, utils.users.getPasskeys, utils.users.getSessionWriteAssurance]);
 
-      if (!result.ok) {
-        throw new Error(
-          result.errorMessage ?? "Passkey sign-in failed. Please try again.",
+  const performPasskeySessionStepUp = useCallback(
+    async (options?: {
+      quietSuccess?: boolean;
+    }): Promise<"satisfied" | "cancelled" | "failed"> => {
+      if (stepUpInFlightRef.current) {
+        return "failed";
+      }
+      stepUpInFlightRef.current = true;
+      setIsPasskeySigningIn(true);
+      try {
+        const result = await runPasskeyClientAuth({
+          action: "sign-in",
+          callbackUrl: window.location.href,
+          errorFallback: "Passkey confirmation failed. Please try again.",
+          incompleteFallback: "Passkey confirmation did not complete",
+        });
+
+        if (!result.ok) {
+          const message =
+            result.errorMessage ?? "Passkey confirmation failed. Please try again.";
+          if (
+            isPasskeyClientCancelled(new Error(message)) ||
+            message.toLowerCase().includes("interrupted") ||
+            message.toLowerCase().includes("denied")
+          ) {
+            showToast(PASSKEY_STEP_UP_CANCELLED_MESSAGE, "error", 0);
+            return "cancelled";
+          }
+          showToast(message, "error", 0);
+          return "failed";
+        }
+
+        if (sessionStatus === "authenticated") {
+          const evaluation = await confirmSessionStepUpQuiet();
+          if (!options?.quietSuccess) {
+            if (
+              evaluation.adminRequiredAal === "aal3" &&
+              !evaluation.adminSatisfied
+            ) {
+              showToast(
+                "Passkey confirmed for deleting and transferring data. Administrator and Labs tools still need a hardware security key.",
+                "success",
+              );
+            } else {
+              showToast("Passkey confirmed for this session", "success");
+            }
+          }
+          return evaluation.satisfied ? "satisfied" : "failed";
+        }
+
+        if (result.redirectUrl) {
+          applyPasskeyClientRedirect(result);
+          return "satisfied";
+        }
+
+        await utils.users.getSessionWriteAssurance.invalidate();
+        if (!options?.quietSuccess) {
+          showToast("Signed in with passkey", "success");
+        }
+        return "satisfied";
+      } catch (signInError) {
+        console.error("Failed passkey sign-in:", signInError);
+        if (isPasskeyClientCancelled(signInError)) {
+          showToast(PASSKEY_STEP_UP_CANCELLED_MESSAGE, "error", 0);
+          return "cancelled";
+        }
+        showToast(
+          getErrorMessage(signInError, "Passkey confirmation failed"),
+          "error",
+          0,
+        );
+        return "failed";
+      } finally {
+        stepUpInFlightRef.current = false;
+        setIsPasskeySigningIn(false);
+      }
+    },
+    [
+      confirmSessionStepUpQuiet,
+      sessionStatus,
+      showToast,
+      utils.users.getSessionWriteAssurance,
+    ],
+  );
+
+  const handlePasskeySignIn = useCallback(async () => {
+    await performPasskeySessionStepUp();
+  }, [performPasskeySessionStepUp]);
+
+  const runWithDestructiveSessionAal = useCallback(
+    async (action: () => Promise<void>): Promise<void> => {
+      const assurance = await utils.users.getSessionWriteAssurance.fetch();
+
+      if (!assurance.enrolled) {
+        showToast(PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE, "error", 0);
+        setSelectedTab("security");
+        return;
+      }
+
+      if (!assurance.satisfied) {
+        const stepResult = await performPasskeySessionStepUp({
+          quietSuccess: true,
+        });
+        if (stepResult !== "satisfied") {
+          return;
+        }
+      }
+
+      try {
+        await action();
+      } catch (error) {
+        if (getSessionAalRequiredAppCode(error)) {
+          const stepResult = await performPasskeySessionStepUp({
+            quietSuccess: true,
+          });
+          if (stepResult !== "satisfied") {
+            return;
+          }
+          try {
+            await action();
+          } catch (retryError) {
+            showToast(
+              getErrorMessage(
+                retryError,
+                "Action failed after passkey confirmation",
+              ),
+              "error",
+              0,
+            );
+          }
+          return;
+        }
+        showToast(
+          getErrorMessage(error, "Action failed"),
+          "error",
+          0,
         );
       }
-
-      if (sessionStatus === "authenticated") {
-        const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
-        await Promise.all([
-          utils.users.getSessionWriteAssurance.invalidate(),
-          utils.users.getPasskeys.invalidate(),
-        ]);
-        if (
-          stepUp.evaluation.adminRequiredAal === "aal3" &&
-          !stepUp.evaluation.adminSatisfied
-        ) {
-          showToast(
-            "Passkey confirmed for deleting and transferring data. Administrator and Labs tools still need a hardware security key.",
-            "success",
-          );
-        } else {
-          showToast("Passkey confirmed for this session", "success");
-        }
-        return;
-      }
-
-      if (result.redirectUrl) {
-        applyPasskeyClientRedirect(result);
-        return;
-      }
-
-      await utils.users.getSessionWriteAssurance.invalidate();
-      showToast("Signed in with passkey", "success");
-    } catch (signInError) {
-      console.error("Failed passkey sign-in:", signInError);
-      showToast(
-        getErrorMessage(signInError, "Passkey sign-in failed"),
-        "error",
-        0,
-      );
-    } finally {
-      setIsPasskeySigningIn(false);
-    }
-  }, [
-    confirmPasskeySessionStepUp,
-    sessionStatus,
-    showToast,
-    utils.users.getPasskeys,
-    utils.users.getSessionWriteAssurance,
-  ]);
+    },
+    [performPasskeySessionStepUp, showToast, utils.users.getSessionWriteAssurance],
+  );
 
   const handleRegisterPasskey = useCallback(async () => {
     setIsRegisteringPasskey(true);
@@ -186,6 +288,10 @@ export function ProfilePageClient({
       showToast("Passkey added", "success");
     } catch (registerError) {
       console.error("Failed to register passkey:", registerError);
+      if (isPasskeyClientCancelled(registerError)) {
+        showToast("Passkey registration was cancelled.", "error", 0);
+        return;
+      }
       showToast(
         getErrorMessage(registerError, "Failed to register passkey"),
         "error",
@@ -203,7 +309,7 @@ export function ProfilePageClient({
 
   const handleDeletePasskey = useCallback(
     async (passkeyId: string) => {
-      try {
+      await runWithDestructiveSessionAal(async () => {
         await deletePasskey.mutateAsync({ passkeyId });
         await Promise.all([
           utils.users.getPasskeys.invalidate(),
@@ -211,27 +317,11 @@ export function ProfilePageClient({
           utils.users.getSessionWriteAssurance.invalidate(),
         ]);
         showToast("Passkey revoked", "success");
-      } catch (deleteError) {
-        console.error("Failed to delete passkey:", deleteError);
-        if (getSessionAalRequiredAppCode(deleteError)) {
-          showToast(
-            "Confirm with a passkey, then revoke again.",
-            "error",
-            0,
-          );
-          void handlePasskeySignIn();
-          return;
-        }
-        showToast(
-          getErrorMessage(deleteError, "Failed to revoke passkey"),
-          "error",
-          0,
-        );
-      }
+      });
     },
     [
       deletePasskey,
-      handlePasskeySignIn,
+      runWithDestructiveSessionAal,
       showToast,
       utils.users.getPasskeyEnrollmentStatus,
       utils.users.getPasskeys,
@@ -344,9 +434,7 @@ export function ProfilePageClient({
             <ProfileContributionsSection
               userId={user.id}
               isOwnProfile={isOwnProfile}
-              onSessionAalRequired={() => {
-                void handlePasskeySignIn();
-              }}
+              onRunWithDestructiveSessionAal={runWithDestructiveSessionAal}
             />
           </Tabs.Panel>
 

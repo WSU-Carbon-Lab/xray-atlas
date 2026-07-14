@@ -2707,7 +2707,7 @@ export const experimentsRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  getDeleteDataPointImpact: privilegedWriteProcedure
+  getDeleteDataPointImpact: protectedProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const experiment = await ctx.db.experiments.findUnique({

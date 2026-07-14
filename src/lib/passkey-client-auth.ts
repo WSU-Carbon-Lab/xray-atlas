@@ -100,3 +100,35 @@ export function getSessionAalRequiredAppCode(
 export function isSessionAalRequiredError(error: unknown): boolean {
   return getSessionAalRequiredAppCode(error) !== null;
 }
+
+/**
+ * Returns whether a passkey client failure is a user cancel / dismiss of the WebAuthn prompt.
+ */
+export function isPasskeyClientCancelled(error: unknown): boolean {
+  if (!(error instanceof Error)) {
+    return false;
+  }
+  if (error.name === "AbortError" || error.name === "NotAllowedError") {
+    return true;
+  }
+  const message = error.message.toLowerCase();
+  return (
+    message.includes("abort") ||
+    message.includes("cancel") ||
+    message.includes("not allowed") ||
+    message.includes("denied by the user") ||
+    message.includes("was interrupted")
+  );
+}
+
+/**
+ * User-facing copy when the browser WebAuthn prompt is cancelled during destructive step-up.
+ */
+export const PASSKEY_STEP_UP_CANCELLED_MESSAGE =
+  "Passkey confirmation was cancelled. Confirm again when you are ready to delete or transfer.";
+
+/**
+ * User-facing copy when destructive writes are blocked because no passkey is enrolled.
+ */
+export const PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE =
+  "Register a passkey from your Security tab before deleting or transferring data.";

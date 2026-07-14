@@ -30,6 +30,8 @@ import {
   findMoleculeFavorite,
   upsertMoleculeContributor,
 } from "~/server/db/engagement-queries";
+import { getUserSessionCapabilities } from "~/server/auth/privileged-role";
+import { userHasAdminOrMaintainerLineageRole } from "~/lib/dataset-attribution-claim";
 import {
   moleculeBrowseFiltersSchema,
   normalizeMoleculeBrowseFilters,
@@ -1571,9 +1573,51 @@ export const moleculesRouter = createTRPCRouter({
         color: z
           .string()
           .regex(/^#[0-9A-Fa-f]{6}$/, "Color must be a 6-digit hex value"),
+        moleculeId: z.string().uuid().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({
+          code: "UNAUTHORIZED",
+          message: "User not authenticated",
+        });
+      }
+      const caps = await getUserSessionCapabilities(ctx.db, ctx.userId);
+      const isPrivilegedEditor = userHasAdminOrMaintainerLineageRole(
+        caps.roleSlugs,
+      );
+      if (!isPrivilegedEditor) {
+        if (!input.moleculeId) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message:
+              "You do not have permission to change this tag color without a molecule context",
+          });
+        }
+        const molecule = await ctx.db.molecules.findUnique({
+          where: { id: input.moleculeId },
+          select: { createdby: true },
+        });
+        if (!molecule) {
+          throw new TRPCError({
+            code: "NOT_FOUND",
+            message: "Molecule not found",
+          });
+        }
+        const allowed = await checkCanEdit(
+          ctx.db,
+          input.moleculeId,
+          ctx.userId,
+          molecule.createdby,
+        );
+        if (!allowed) {
+          throw new TRPCError({
+            code: "FORBIDDEN",
+            message: "You do not have permission to edit this molecule",
+          });
+        }
+      }
       const normalized = input.color.toLowerCase();
       await ctx.db.tags.update({
         where: { id: input.tagId },
@@ -2008,7 +2052,7 @@ export const moleculesRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  getDeleteDataPointImpact: privilegedWriteProcedure
+  getDeleteDataPointImpact: protectedProcedure
     .input(z.object({ moleculeId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       if (!ctx.userId) {
