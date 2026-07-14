@@ -50,10 +50,6 @@ import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
 import { moleculeContributionTypeLabel } from "~/lib/molecule-contribution-types";
 import { ToastContainer, useToast } from "@/components/ui/toast";
 import { ProfileDangerZoneRail } from "@/components/profile/profile-danger-zone-rail";
-import {
-  getSessionAalRequiredAppCode,
-  type SessionWriteAssuranceAppCode,
-} from "~/lib/passkey-client-auth";
 import type { SessionWriteAssuranceEvaluation } from "~/server/auth/mfa-access";
 type ProfileUser = {
   id: string;
@@ -81,16 +77,11 @@ const GITHUB_LINK_URL = "/api/auth/link-account?provider=github";
 const profileIdentityRowClassName =
   "inline-flex min-h-10 items-center gap-2 text-sm transition-colors";
 
-function handlePrivilegedWriteError(
+function handleWriteError(
   error: unknown,
   showToast: (message: string, type: "error" | "success", duration?: number) => void,
-  onSessionAalRequired: (() => void) | undefined,
   fallbackMessage: string,
 ): void {
-  if (getSessionAalRequiredAppCode(error) && onSessionAalRequired) {
-    onSessionAalRequired();
-    return;
-  }
   showToast(getErrorMessage(error, fallbackMessage), "error", 0);
 }
 
@@ -674,35 +665,11 @@ export function ProfileApiKeysSection() {
   );
 }
 
-function sessionStepUpDescription(
-  appCode: SessionWriteAssuranceAppCode | null,
-): string {
-  if (appCode === "SESSION_AAL3_REQUIRED") {
-    return "Administrator and Labs actions require signing in with your hardware security key passkey on this device.";
-  }
-  return "Deleting or transferring your data requires a passkey-established session. Sign in with a passkey to continue.";
-}
+const DESTRUCTIVE_SESSION_STEP_UP_DESCRIPTION =
+  "Deleting or transferring your data requires a passkey-confirmed session. Sign in with a passkey once to unlock those actions for this browser session.";
 
-function resolveSessionStepUpAppCode(
-  sessionWriteAssurance: SessionWriteAssuranceEvaluation | undefined,
-  passkeyRequiredRedirect: boolean,
-): SessionWriteAssuranceAppCode {
-  if (!sessionWriteAssurance) {
-    return passkeyRequiredRedirect
-      ? "SESSION_AAL3_REQUIRED"
-      : "SESSION_AAL_REQUIRED";
-  }
-  if (
-    sessionWriteAssurance.adminRequiredAal === "aal3" &&
-    !sessionWriteAssurance.adminSatisfied
-  ) {
-    return "SESSION_AAL3_REQUIRED";
-  }
-  if (passkeyRequiredRedirect) {
-    return "SESSION_AAL3_REQUIRED";
-  }
-  return "SESSION_AAL_REQUIRED";
-}
+const ADMIN_SESSION_STEP_UP_DESCRIPTION =
+  "Administrator and Labs actions require signing in with your hardware security key passkey on this device.";
 
 export function ProfilePasskeysSection({
   passkeys,
@@ -749,20 +716,15 @@ export function ProfilePasskeysSection({
     passkeyEnrollment?.enrolled !== true;
 
   const needsDestructiveStepUp =
-    sessionWriteAssurance !== undefined && !sessionWriteAssurance.satisfied;
-  const needsAdminStepUp =
-    passkeyRequiredRedirect ||
-    (sessionWriteAssurance?.adminRequiredAal === "aal3" &&
-      sessionWriteAssurance.adminSatisfied === false);
-
-  const showSessionStepUp =
     passkeyEnrollment?.enrolled === true &&
-    (needsDestructiveStepUp || needsAdminStepUp);
+    sessionWriteAssurance !== undefined &&
+    !sessionWriteAssurance.satisfied;
 
-  const sessionStepUpAppCode = resolveSessionStepUpAppCode(
-    sessionWriteAssurance,
-    passkeyRequiredRedirect,
-  );
+  const needsAdminStepUp =
+    passkeyEnrollment?.enrolled === true &&
+    (passkeyRequiredRedirect ||
+      (sessionWriteAssurance?.adminRequiredAal === "aal3" &&
+        sessionWriteAssurance.adminSatisfied === false));
 
   const showAal3Callout =
     passkeyEnrollment?.requiresAal3Hardware &&
@@ -807,13 +769,35 @@ export function ProfilePasskeysSection({
         </Alert>
       ) : null}
 
-      {showSessionStepUp ? (
+      {needsDestructiveStepUp ? (
         <Alert status="warning">
           <Alert.Indicator />
           <Alert.Content>
-            <Alert.Title>Confirm with passkey sign-in</Alert.Title>
+            <Alert.Title>Confirm before delete or transfer</Alert.Title>
             <Alert.Description>
-              {sessionStepUpDescription(sessionStepUpAppCode)}
+              {DESTRUCTIVE_SESSION_STEP_UP_DESCRIPTION}
+            </Alert.Description>
+          </Alert.Content>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <Button
+              size="sm"
+              variant="primary"
+              onPress={() => void onPasskeySignIn()}
+              isPending={isPasskeySigningIn}
+            >
+              Sign in with passkey
+            </Button>
+          </div>
+        </Alert>
+      ) : null}
+
+      {needsAdminStepUp ? (
+        <Alert status="warning">
+          <Alert.Indicator />
+          <Alert.Content>
+            <Alert.Title>Confirm administrator access</Alert.Title>
+            <Alert.Description>
+              {ADMIN_SESSION_STEP_UP_DESCRIPTION}
             </Alert.Description>
           </Alert.Content>
           <div className="mt-3 flex flex-wrap gap-2">
@@ -1304,11 +1288,13 @@ export function ProfilePageSkeleton({
 export function ProfileContributionsSection({
   userId,
   isOwnProfile,
-  onSessionAalRequired,
+  onRunWithDestructiveSessionAal,
 }: {
   userId: string;
   isOwnProfile: boolean;
-  onSessionAalRequired?: () => void;
+  onRunWithDestructiveSessionAal?: (
+    action: () => Promise<void>,
+  ) => Promise<void>;
 }) {
   const [contributionsSubview, setContributionsSubview] =
     useState<ProfileContributionsSubview>("molecules");
@@ -1423,7 +1409,7 @@ export function ProfileContributionsSection({
             isOwnProfile={isOwnProfile}
             molecules={molecules}
             isLoading={moleculesLoading}
-            onSessionAalRequired={onSessionAalRequired}
+            onRunWithDestructiveSessionAal={onRunWithDestructiveSessionAal}
             pagination={{
               currentPage: moleculesPage,
               totalPages: moleculesTotalPages,
@@ -1459,7 +1445,7 @@ export function ProfileContributionsSection({
             isOwnProfile={isOwnProfile}
             experimentGroups={experimentGroups}
             isLoading={experimentsLoading}
-            onSessionAalRequired={onSessionAalRequired}
+            onRunWithDestructiveSessionAal={onRunWithDestructiveSessionAal}
             pagination={{
               currentPage: nexafsPage,
               totalPages: nexafsTotalPages,
@@ -1485,14 +1471,16 @@ function ProfileNexafsList({
   experimentGroups,
   isLoading,
   pagination,
-  onSessionAalRequired,
+  onRunWithDestructiveSessionAal,
 }: {
   userId: string;
   isOwnProfile: boolean;
   experimentGroups: ProfileExperimentGroup[];
   isLoading: boolean;
   pagination: ProfileContributionsPaginationState;
-  onSessionAalRequired?: () => void;
+  onRunWithDestructiveSessionAal?: (
+    action: () => Promise<void>,
+  ) => Promise<void>;
 }) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
@@ -1576,10 +1564,9 @@ function ProfileNexafsList({
         }
       })
       .catch((error) => {
-        handlePrivilegedWriteError(
+        handleWriteError(
           error,
           showToast,
-          onSessionAalRequired,
           "Failed to calculate delete impact",
         );
         if (deleteImpactRequestIdRef.current === experimentId) {
@@ -1636,45 +1623,54 @@ function ProfileNexafsList({
 
   const handleDeleteConfirm = async () => {
     if (!deleteDialogExperimentId) return;
-    try {
-      await removeExperiment.mutateAsync({
-        experimentId: deleteDialogExperimentId,
-      });
+    const experimentId = deleteDialogExperimentId;
+    const run = async () => {
+      await removeExperiment.mutateAsync({ experimentId });
       await invalidateProfileExperiments();
       closeDelete();
       showToast("NEXAFS dataset deleted", "success");
+    };
+    if (onRunWithDestructiveSessionAal) {
+      await onRunWithDestructiveSessionAal(run);
+      return;
+    }
+    try {
+      await run();
     } catch (error) {
-      handlePrivilegedWriteError(
-        error,
-        showToast,
-        onSessionAalRequired,
-        "Failed to delete NEXAFS dataset",
-      );
+      handleWriteError(error, showToast, "Failed to delete NEXAFS dataset");
     }
   };
 
   const handleTransferConfirm = async () => {
     if (!transferDialogExperimentId || !transferRecipientUserId) return;
-    try {
+    const experimentId = transferDialogExperimentId;
+    const newCreatorId = transferRecipientUserId;
+    const run = async () => {
       await transferOwnership.mutateAsync({
-        experimentId: transferDialogExperimentId,
-        newCreatorId: transferRecipientUserId,
+        experimentId,
+        newCreatorId,
       });
       await invalidateProfileExperiments();
       closeTransfer();
       showToast("Dataset ownership transferred", "success");
+    };
+    if (onRunWithDestructiveSessionAal) {
+      await onRunWithDestructiveSessionAal(run);
+      return;
+    }
+    try {
+      await run();
     } catch (error) {
-      handlePrivilegedWriteError(
+      handleWriteError(
         error,
         showToast,
-        onSessionAalRequired,
         "Failed to transfer dataset ownership",
       );
     }
   };
 
   const handleRemoveCollector = async (experimentId: string) => {
-    try {
+    const run = async () => {
       await removeCollector.mutateAsync({ experimentId });
       await invalidateProfileExperiments();
       setExpandedManageExperimentIds((previous) => {
@@ -1683,11 +1679,17 @@ function ProfileNexafsList({
         return next;
       });
       showToast("Removed your collector listing", "success");
+    };
+    if (onRunWithDestructiveSessionAal) {
+      await onRunWithDestructiveSessionAal(run);
+      return;
+    }
+    try {
+      await run();
     } catch (error) {
-      handlePrivilegedWriteError(
+      handleWriteError(
         error,
         showToast,
-        onSessionAalRequired,
         "Failed to remove collector listing",
       );
     }
@@ -1713,10 +1715,9 @@ function ProfileNexafsList({
       );
       setSelectedExperimentIds(new Set());
     } catch (error) {
-      handlePrivilegedWriteError(
+      handleWriteError(
         error,
         showToast,
-        onSessionAalRequired,
         "Failed to update contribution visibility",
       );
     }
@@ -1734,12 +1735,7 @@ function ProfileNexafsList({
       showToast("Claimed selected contributions", "success");
       setSelectedUnclaimedIds(new Set());
     } catch (error) {
-      handlePrivilegedWriteError(
-        error,
-        showToast,
-        onSessionAalRequired,
-        "Failed to claim contributions",
-      );
+      handleWriteError(error, showToast, "Failed to claim contributions");
     }
   };
 
@@ -1755,12 +1751,7 @@ function ProfileNexafsList({
       showToast("Selected datasets remain unclaimed", "success");
       setSelectedUnclaimedIds(new Set());
     } catch (error) {
-      handlePrivilegedWriteError(
-        error,
-        showToast,
-        onSessionAalRequired,
-        "Failed to update claim state",
-      );
+      handleWriteError(error, showToast, "Failed to update claim state");
     }
   };
 
@@ -2265,14 +2256,16 @@ function ProfileMoleculesList({
   molecules,
   isLoading,
   pagination,
-  onSessionAalRequired,
+  onRunWithDestructiveSessionAal,
 }: {
   userId: string;
   isOwnProfile: boolean;
   molecules: ProfileMoleculeListItem[];
   isLoading: boolean;
   pagination: ProfileContributionsPaginationState;
-  onSessionAalRequired?: () => void;
+  onRunWithDestructiveSessionAal?: (
+    action: () => Promise<void>,
+  ) => Promise<void>;
 }) {
   const { data: session } = useSession();
   const utils = trpc.useUtils();
@@ -2342,10 +2335,9 @@ function ProfileMoleculesList({
         }
       })
       .catch((error) => {
-        handlePrivilegedWriteError(
+        handleWriteError(
           error,
           showToast,
-          onSessionAalRequired,
           "Failed to calculate delete impact",
         );
         if (deleteImpactRequestIdRef.current === moleculeId) {
@@ -2371,16 +2363,23 @@ function ProfileMoleculesList({
 
   const handleDeleteConfirm = async () => {
     if (!deleteDialogMoleculeId) return;
-    try {
-      await removeMolecule.mutateAsync({ moleculeId: deleteDialogMoleculeId });
+    const moleculeId = deleteDialogMoleculeId;
+    const run = async () => {
+      await removeMolecule.mutateAsync({ moleculeId });
       await utils.users.listProfileMolecules.invalidate({ userId });
       closeDelete();
       showToast("Molecule deleted", "success");
+    };
+    if (onRunWithDestructiveSessionAal) {
+      await onRunWithDestructiveSessionAal(run);
+      return;
+    }
+    try {
+      await run();
     } catch (error) {
-      handlePrivilegedWriteError(
+      handleWriteError(
         error,
         showToast,
-        onSessionAalRequired,
         "Failed to remove molecule from database",
       );
     }
@@ -2388,19 +2387,27 @@ function ProfileMoleculesList({
 
   const handleTransferConfirm = async () => {
     if (!transferDialogMoleculeId || !transferRecipientUserId) return;
-    try {
+    const moleculeId = transferDialogMoleculeId;
+    const newCreatorId = transferRecipientUserId;
+    const run = async () => {
       await transferOwnership.mutateAsync({
-        moleculeId: transferDialogMoleculeId,
-        newCreatorId: transferRecipientUserId,
+        moleculeId,
+        newCreatorId,
       });
       await utils.users.listProfileMolecules.invalidate({ userId });
       closeTransfer();
       showToast("Ownership transferred", "success");
+    };
+    if (onRunWithDestructiveSessionAal) {
+      await onRunWithDestructiveSessionAal(run);
+      return;
+    }
+    try {
+      await run();
     } catch (error) {
-      handlePrivilegedWriteError(
+      handleWriteError(
         error,
         showToast,
-        onSessionAalRequired,
         "Failed to transfer molecule ownership",
       );
     }
