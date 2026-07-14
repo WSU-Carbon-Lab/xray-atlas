@@ -12,7 +12,13 @@ export const DATABASE_UNAVAILABLE_TITLE = "Catalog database unreachable";
 export const databaseUnavailableMessage =
   "Our catalog database is temporarily unreachable. Search, browse, and saved catalog data may be unavailable until connectivity is restored. Try again in a moment.";
 
-const PRISMA_UNAVAILABLE_CODES = new Set(["P1001", "P1008", "P1011", "P1017"]);
+const PRISMA_UNAVAILABLE_CODES = new Set([
+  "P1001",
+  "P1008",
+  "P1011",
+  "P1017",
+  "P2010",
+]);
 
 const MESSAGE_UNAVAILABLE_PATTERNS: readonly RegExp[] = [
   /\bconnection timed out\b/i,
@@ -21,6 +27,8 @@ const MESSAGE_UNAVAILABLE_PATTERNS: readonly RegExp[] = [
   /\bcan't reach database\b/i,
   /\bcannot reach database\b/i,
   /\bconnection terminated\b/i,
+  /\becircuitbreaker\b/i,
+  /\btoo many authentication failures\b/i,
   /\bserver closed the connection\b/i,
   /\beconnrefused\b/i,
   /\beconnreset\b/i,
