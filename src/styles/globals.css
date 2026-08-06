@@ -436,6 +436,76 @@
     animation: skeleton-shimmer 1.5s ease-in-out infinite;
   }
 
+  .github-stars-beacon {
+    --border-angle: 0deg;
+    border: 1px solid transparent;
+    background:
+      linear-gradient(var(--surface), var(--surface)) padding-box,
+      conic-gradient(
+        from var(--border-angle),
+        var(--border) 0deg,
+        var(--border) 300deg,
+        color-mix(in oklab, var(--accent) 18%, var(--border)) 328deg,
+        color-mix(in oklab, var(--accent) 72%, var(--border)) 344deg,
+        var(--accent) 352deg,
+        color-mix(in oklab, var(--accent) 72%, var(--border)) 360deg
+      )
+      border-box;
+    animation: github-stars-border 5.5s linear infinite;
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent),
+      0 0 0 0 color-mix(in oklab, var(--accent) 0%, transparent);
+    transition:
+      background-color 0.2s ease,
+      box-shadow 0.35s ease;
+  }
+
+  .github-stars-beacon:hover,
+  .github-stars-beacon:focus-visible {
+    background:
+      linear-gradient(var(--default), var(--default)) padding-box,
+      conic-gradient(
+        from var(--border-angle),
+        color-mix(in oklab, var(--accent) 22%, var(--border)) 0deg,
+        var(--border) 300deg,
+        color-mix(in oklab, var(--accent) 35%, var(--border)) 328deg,
+        var(--accent) 352deg,
+        color-mix(in oklab, var(--accent) 35%, var(--border)) 360deg
+      )
+      border-box;
+    box-shadow:
+      inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent),
+      0 0 18px -4px color-mix(in oklab, var(--accent) 28%, transparent);
+  }
+
+  .github-stars-beacon--expandable:hover,
+  .github-stars-beacon--expandable:focus-visible {
+    animation-play-state: paused;
+  }
+
+  .github-stars-star-twinkle {
+    animation: github-stars-star-twinkle 2.8s ease-in-out infinite;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .github-stars-beacon {
+      animation: none;
+      border-color: var(--border);
+      background: var(--surface);
+      box-shadow: none;
+    }
+
+    .github-stars-beacon:hover,
+    .github-stars-beacon:focus-visible {
+      background: var(--default);
+      box-shadow: none;
+    }
+
+    .github-stars-star-twinkle {
+      animation: none;
+    }
+  }
+
   button.orcid-sign-in-button,
   .orcid-gradient-border,
   .orcid-sign-in-button {
@@ -603,6 +673,26 @@
   }
   100% {
     background-position: -200% 0;
+  }
+}
+
+@keyframes github-stars-border {
+  to {
+    --border-angle: 360deg;
+  }
+}
+
+@keyframes github-stars-star-twinkle {
+  0%,
+  100% {
+    opacity: 0.82;
+    filter: drop-shadow(0 0 0 transparent);
+  }
+  45% {
+    opacity: 1;
+    filter: drop-shadow(
+      0 0 5px color-mix(in oklab, var(--accent) 55%, transparent)
+    );
   }
 }
 
