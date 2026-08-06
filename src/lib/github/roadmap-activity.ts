@@ -3,10 +3,13 @@
  * Results are cached per Next.js revalidation window; optional token raises rate limits.
  */
 
-import { env } from "~/env.js";
 import { XRAY_ATLAS_GITHUB_REPO } from "~/lib/github-beamline-issues";
+import {
+  GITHUB_FETCH_REVALIDATE_SECONDS,
+  githubApiHeaders,
+  parseGithubRepoSlug,
+} from "~/lib/github/github-api";
 
-const REVALIDATE_SECONDS = 600;
 const PAGE_SIZE = 10;
 
 export interface GitHubRoadmapLabel {
@@ -67,26 +70,6 @@ interface GitHubGraphQlResponse {
   errors?: Array<{ message: string }>;
 }
 
-function parseRepoSlug(repo: string): { owner: string; name: string } {
-  const [owner, name] = repo.split("/");
-  if (!owner || !name) {
-    throw new Error(`Invalid GitHub repository slug: ${repo}`);
-  }
-  return { owner, name };
-}
-
-function githubHeaders(): HeadersInit {
-  const headers: Record<string, string> = {
-    Accept: "application/vnd.github+json",
-    "X-GitHub-Api-Version": "2022-11-28",
-  };
-  const token = env.GITHUB_API_TOKEN?.trim();
-  if (token) {
-    headers.Authorization = `Bearer ${token}`;
-  }
-  return headers;
-}
-
 function toRoadmapItem(
   item: GitHubRestIssue | GitHubRestPull,
 ): GitHubRoadmapItem {
@@ -114,8 +97,8 @@ async function fetchOpenIssues(
   url.searchParams.set("direction", "desc");
 
   const response = await fetch(url, {
-    headers: githubHeaders(),
-    next: { revalidate: REVALIDATE_SECONDS },
+    headers: githubApiHeaders(),
+    next: { revalidate: GITHUB_FETCH_REVALIDATE_SECONDS },
   });
 
   if (!response.ok) {
@@ -139,8 +122,8 @@ async function fetchOpenPullRequests(
   url.searchParams.set("direction", "desc");
 
   const response = await fetch(url, {
-    headers: githubHeaders(),
-    next: { revalidate: REVALIDATE_SECONDS },
+    headers: githubApiHeaders(),
+    next: { revalidate: GITHUB_FETCH_REVALIDATE_SECONDS },
   });
 
   if (!response.ok) {
@@ -179,14 +162,14 @@ async function fetchDiscussions(
   const response = await fetch("https://api.github.com/graphql", {
     method: "POST",
     headers: {
-      ...githubHeaders(),
+      ...githubApiHeaders(),
       "Content-Type": "application/json",
     },
     body: JSON.stringify({
       query,
       variables: { owner, name },
     }),
-    next: { revalidate: REVALIDATE_SECONDS },
+    next: { revalidate: GITHUB_FETCH_REVALIDATE_SECONDS },
   });
 
   if (!response.ok) {
@@ -217,7 +200,7 @@ async function fetchDiscussions(
  * failures (for example when repository discussions are disabled).
  */
 export async function fetchGitHubRoadmapActivity(): Promise<GitHubRoadmapActivity> {
-  const { owner, name } = parseRepoSlug(XRAY_ATLAS_GITHUB_REPO);
+  const { owner, name } = parseGithubRepoSlug(XRAY_ATLAS_GITHUB_REPO);
 
   const [issues, pullRequests, discussionsResult] = await Promise.all([
     fetchOpenIssues(owner, name),
