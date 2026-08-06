@@ -65,6 +65,10 @@ export function blogSeriesPartRows(
 
 /**
  * Resolves previous and next post links with series order first, then category.
+ *
+ * **Previous** is the prior post in the chain (lower series part, or older publish
+ * date within the category). **Next** is the following post (higher part, or newer
+ * date). Series parts sort ascending; category neighbors use newest-first order.
  */
 export function adjacentBlogPosts(
   entries: BlogEntry[],
@@ -83,8 +87,8 @@ export function adjacentBlogPosts(
       (entry) => entry.slug === slug,
     );
     if (seriesIndex !== -1) {
-      const previous = seriesPublished[seriesIndex + 1];
-      const next = seriesPublished[seriesIndex - 1];
+      const previous = seriesPublished[seriesIndex - 1];
+      const next = seriesPublished[seriesIndex + 1];
       return {
         previous: previous
           ? { slug: previous.slug, title: previous.frontmatter.title }

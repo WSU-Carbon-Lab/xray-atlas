@@ -53,6 +53,16 @@ const config = {
         permanent: true,
       },
       {
+        source: "/about/community",
+        destination: "/about/developers",
+        permanent: true,
+      },
+      {
+        source: "/about/community/:path*",
+        destination: "/about/developers",
+        permanent: true,
+      },
+      {
         source: "/wiki/home",
         destination: "/wiki",
         permanent: true,

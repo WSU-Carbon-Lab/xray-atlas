@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import type { DatasetState } from "../types";
 import { uploadGeometryIsComplete } from "../utils/default-upload-phi";
+import { hasSpectrumEnergyConflicts } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 
 export type DatasetStatus =
   | "complete"
@@ -37,6 +38,12 @@ export function useDatasetStatus(dataset: DatasetState): DatasetStatusInfo {
 
     if (dataset.spectrumError) {
       errors.push(dataset.spectrumError);
+    }
+
+    if (hasSpectrumEnergyConflicts(dataset.spectrumPoints)) {
+      errors.push(
+        "Duplicate photon energies with conflicting values. Resolve before submit.",
+      );
     }
 
     const hasThetaMapping = Boolean(dataset.columnMappings.theta);

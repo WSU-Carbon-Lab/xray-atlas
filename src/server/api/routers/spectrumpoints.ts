@@ -14,6 +14,10 @@ import {
   kkDeltaMetadataToJson,
 } from "~/server/nexafs/kkDeltaMetadata";
 import { spectrumpointsWhereForPlotGeometryKeys } from "~/server/nexafs/plotSpectrumGeometryFilter";
+import {
+  formatSpectrumPointsUniqueConstraintMessage,
+  isSpectrumPointsEnergyUniqueViolation,
+} from "~/server/nexafs/spectrumPointEnergyUniqueness";
 import { scheduleZenodoDepositSync } from "~/server/zenodo";
 
 const KK_DELTA_BATCH_CHUNK = 800;
@@ -208,23 +212,33 @@ export const spectrumpointsRouter = createTRPCRouter({
         await tx.spectrumpoints.deleteMany({
           where: { experimentid: input.experimentId },
         });
-        return tx.spectrumpoints.createMany({
-          data: input.points.map((point) => ({
-            experimentid: input.experimentId,
-            polarizationid:
-              point.polarizationId ??
-              input.polarizationId ??
-              experiment.polarizationid,
-            energyev: point.energyev,
-            rawabs: point.rawabs,
-            od: point.od ?? null,
-            massabsorption: point.massabsorption ?? null,
-            beta: point.beta ?? null,
-            delta: point.delta ?? null,
-            deltaerr: point.deltaerr ?? null,
-            i0: point.i0 ?? null,
-          })),
-        });
+        try {
+          return await tx.spectrumpoints.createMany({
+            data: input.points.map((point) => ({
+              experimentid: input.experimentId,
+              polarizationid:
+                point.polarizationId ??
+                input.polarizationId ??
+                experiment.polarizationid,
+              energyev: point.energyev,
+              rawabs: point.rawabs,
+              od: point.od ?? null,
+              massabsorption: point.massabsorption ?? null,
+              beta: point.beta ?? null,
+              delta: point.delta ?? null,
+              deltaerr: point.deltaerr ?? null,
+              i0: point.i0 ?? null,
+            })),
+          });
+        } catch (error) {
+          if (isSpectrumPointsEnergyUniqueViolation(error)) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: formatSpectrumPointsUniqueConstraintMessage(),
+            });
+          }
+          throw error;
+        }
       });
 
       return {

@@ -15,6 +15,8 @@ import {
   DatasetContent,
   BatchUploadControls,
   useDatasetStatus,
+  SpectrumEnergyConflictBanner,
+  SpectrumRowConflictModal,
 } from "~/features/process-nexafs/ui";
 import {
   Tooltip,
@@ -24,6 +26,10 @@ import {
 } from "@heroui/react";
 import { Button as HeroButton } from "@heroui/react";
 import type { DatasetState, CSVColumnMappings, CsvParseOptionsState } from "../types";
+import type {
+  SpectrumEnergyConflictGroup,
+  SpectrumEnergyConflictResolutionChoice,
+} from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
 import {
   GlobalFileDropZoneProvider,
@@ -68,6 +74,15 @@ export type NexafsContributeFlowProps = {
     parseOptions?: CsvParseOptionsState,
   ) => void | Promise<void>;
   handleColumnMappingClose: () => void;
+  energyConflictModal: {
+    datasetId: string;
+    groups: SpectrumEnergyConflictGroup[];
+  } | null;
+  handleEnergyConflictClose: () => void;
+  handleEnergyConflictResolve: (
+    resolutionByGroupKey: Map<string, SpectrumEnergyConflictResolutionChoice>,
+  ) => void;
+  requestEnergyConflictResolution: (datasetId: string) => void;
   instrumentOptions: InstrumentOption[];
   edgeOptions: EdgeOption[];
   calibrationOptions: {
@@ -140,6 +155,10 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     columnMappingFile,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
+    energyConflictModal,
+    handleEnergyConflictClose,
+    handleEnergyConflictResolve,
+    requestEnergyConflictResolution,
     instrumentOptions,
     edgeOptions,
     calibrationOptions,
@@ -264,6 +283,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
   const columnMappingDataset = columnMappingFile
     ? datasets.find((d) => d.id === columnMappingFile.datasetId)
     : null;
+  const energyConflictDataset = energyConflictModal
+    ? datasets.find((d) => d.id === energyConflictModal.datasetId)
+    : null;
 
   return (
     <GlobalFileDropZoneProvider
@@ -287,6 +309,14 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         file={columnMappingFile?.file ?? null}
         initialParseOptions={columnMappingDataset?.csvParseOptions}
         challenges={columnMappingDataset?.csvParseChallenges ?? []}
+      />
+
+      <SpectrumRowConflictModal
+        isOpen={!!energyConflictModal}
+        fileName={energyConflictDataset?.fileName ?? ""}
+        groups={energyConflictModal?.groups ?? []}
+        onClose={handleEnergyConflictClose}
+        onResolve={handleEnergyConflictResolve}
       />
 
       <div
@@ -334,6 +364,16 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
               {activeDataset && (
                 <DatasetMissingFieldsMessage dataset={activeDataset} />
               )}
+
+              {activeDataset && !energyConflictModal ? (
+                <SpectrumEnergyConflictBanner
+                  fileName={activeDataset.fileName}
+                  spectrumPoints={activeDataset.spectrumPoints}
+                  onResolvePress={() =>
+                    requestEnergyConflictResolution(activeDataset.id)
+                  }
+                />
+              ) : null}
 
               {activeDataset && (
                 <DatasetContent

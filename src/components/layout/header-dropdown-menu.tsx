@@ -160,6 +160,26 @@ export function HeaderMenuNestedLink({
 }
 
 /**
+ * Column heading + stacked links for multi-column header mega-menus.
+ */
+export function HeaderMenuColumn({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}): ReactElement {
+  return (
+    <div className="flex min-w-0 flex-col gap-1">
+      <p className="text-muted px-3 pt-1 text-[0.65rem] font-semibold tracking-[0.14em] uppercase">
+        {title}
+      </p>
+      <div className="flex flex-col gap-0.5">{children}</div>
+    </div>
+  );
+}
+
+/**
  * Nested wiki disclosure toggle; shares grid, padding, and hover bounds with nested links.
  */
 export function HeaderMenuNestedToggle({
