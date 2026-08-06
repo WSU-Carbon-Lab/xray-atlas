@@ -15,6 +15,8 @@ import {
   BeakerIcon,
   BookOpenIcon,
   BuildingOfficeIcon,
+  CodeBracketIcon,
+  CommandLineIcon,
   InformationCircleIcon,
   MapIcon,
   NewspaperIcon,
@@ -25,6 +27,7 @@ import { wikiDocTopics, wikiTopicIntroLinkLabel } from "~/lib/wiki-doc-nav";
 import type { WhatsNewSummary } from "~/lib/whats-new-summary";
 import {
   HeaderMenuButton,
+  HeaderMenuColumn,
   HeaderMenuNestedGroup,
   HeaderMenuNestedLink,
   headerDropdownInnerClass,
@@ -83,82 +86,100 @@ function AboutDropdown() {
 
       {isOpen ? (
         <div
-          className={`${headerDropdownPanelClass} left-0 w-[min(100vw-2rem,18rem)]`}
+          className={`${headerDropdownPanelClass} left-1/2 w-[min(100vw-2rem,36rem)] -translate-x-1/2 p-2`}
         >
-          <div className={headerDropdownInnerClass}>
-            <HeaderMenuButton
-              icon={InformationCircleIcon}
-              label="About"
-              onClick={() => handleItemClick("/about")}
-            />
-            <HeaderMenuButton
-              icon={MapIcon}
-              label="Roadmap"
-              onClick={() => handleItemClick("/about/roadmap")}
-            />
-            <HeaderMenuButton
-              aria-controls="about-wiki-nav"
-              aria-expanded={isWikiOpen}
-              chevronOpen={isWikiOpen}
-              icon={BookOpenIcon}
-              label="Wiki"
-              onClick={() => setIsWikiOpen((prev) => !prev)}
-            />
-            {isWikiOpen ? (
-              <div
-                id="about-wiki-nav"
-                className="border-border/60 flex w-full min-w-0 flex-col gap-0.5 border-l pl-1.5"
-              >
-                {wikiDocTopics.map((topic) => {
-                  if (topic.sections.length === 0) {
-                    return (
-                      <HeaderMenuNestedLink
-                        key={topic.href}
-                        label={topic.label}
-                        onClick={() => handleItemClick(topic.href)}
-                      />
-                    );
-                  }
+          <div className="grid grid-cols-3 gap-1">
+            <HeaderMenuColumn title="Discover">
+              <HeaderMenuButton
+                icon={InformationCircleIcon}
+                label="About"
+                onClick={() => handleItemClick("/about")}
+              />
+              <HeaderMenuButton
+                icon={NewspaperIcon}
+                label="Blog"
+                onClick={() => handleItemClick("/blog")}
+              />
+            </HeaderMenuColumn>
 
-                  const groupOpen = wikiGroupExpanded.has(topic.href);
-                  return (
-                    <HeaderMenuNestedGroup
-                      key={topic.href}
-                      id={`about-wiki-${topic.href.replace(/\//g, "-")}`}
-                      isOpen={groupOpen}
-                      label={topic.label}
-                      onToggle={() => toggleWikiGroup(topic.href)}
-                    >
-                      <HeaderMenuNestedLink
-                        indent={2}
-                        label={wikiTopicIntroLinkLabel(topic)}
-                        onClick={() => handleItemClick(topic.href)}
-                      />
-                      {topic.sections.map((section) =>
-                        section.href ? (
-                          <HeaderMenuNestedLink
-                            key={section.href}
-                            indent={2}
-                            label={section.label}
-                            onClick={() => handleItemClick(section.href!)}
-                          />
-                        ) : null,
-                      )}
-                    </HeaderMenuNestedGroup>
-                  );
-                })}
-              </div>
-            ) : null}
-            <HeaderMenuButton
-              icon={NewspaperIcon}
-              label="Blog"
-              onClick={() => handleItemClick("/blog")}
-            />
-            <HeaderMenuButton
-              icon={ShieldCheckIcon}
-              label="Privacy"
-              onClick={() => handleItemClick("/privacy")}
-            />
+            <HeaderMenuColumn title="Docs">
+              <HeaderMenuButton
+                aria-controls="about-wiki-nav"
+                aria-expanded={isWikiOpen}
+                chevronOpen={isWikiOpen}
+                icon={BookOpenIcon}
+                label="Wiki"
+                onClick={() => setIsWikiOpen((prev) => !prev)}
+              />
+              {isWikiOpen ? (
+                <div
+                  id="about-wiki-nav"
+                  className="border-border/60 flex w-full min-w-0 flex-col gap-0.5 border-l pl-1.5"
+                >
+                  {wikiDocTopics.map((topic) => {
+                    if (topic.sections.length === 0) {
+                      return (
+                        <HeaderMenuNestedLink
+                          key={topic.href}
+                          label={topic.label}
+                          onClick={() => handleItemClick(topic.href)}
+                        />
+                      );
+                    }
+
+                    const groupOpen = wikiGroupExpanded.has(topic.href);
+                    return (
+                      <HeaderMenuNestedGroup
+                        key={topic.href}
+                        id={`about-wiki-${topic.href.replace(/\//g, "-")}`}
+                        isOpen={groupOpen}
+                        label={topic.label}
+                        onToggle={() => toggleWikiGroup(topic.href)}
+                      >
+                        <HeaderMenuNestedLink
+                          indent={2}
+                          label={wikiTopicIntroLinkLabel(topic)}
+                          onClick={() => handleItemClick(topic.href)}
+                        />
+                        {topic.sections.map((section) =>
+                          section.href ? (
+                            <HeaderMenuNestedLink
+                              key={section.href}
+                              indent={2}
+                              label={section.label}
+                              onClick={() => handleItemClick(section.href!)}
+                            />
+                          ) : null,
+                        )}
+                      </HeaderMenuNestedGroup>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <HeaderMenuButton
+                icon={CodeBracketIcon}
+                label="API"
+                onClick={() => handleItemClick("/wiki/api")}
+              />
+            </HeaderMenuColumn>
+
+            <HeaderMenuColumn title="Project">
+              <HeaderMenuButton
+                icon={MapIcon}
+                label="Roadmap"
+                onClick={() => handleItemClick("/about/roadmap")}
+              />
+              <HeaderMenuButton
+                icon={CommandLineIcon}
+                label="Developers"
+                onClick={() => handleItemClick("/about/developers")}
+              />
+              <HeaderMenuButton
+                icon={ShieldCheckIcon}
+                label="Privacy"
+                onClick={() => handleItemClick("/privacy")}
+              />
+            </HeaderMenuColumn>
           </div>
         </div>
       ) : null}
@@ -272,8 +293,10 @@ function ContributeDropdown() {
 
 export default function Header({
   whatsNew = null,
+  githubStars,
 }: {
   whatsNew?: WhatsNewSummary | null;
+  githubStars?: number | null;
 }) {
   const { data: session, status } = useSession();
   const [mounted, setMounted] = useState(false);
@@ -333,7 +356,7 @@ export default function Header({
               <ThemeToggle />
             </li>
             <li className="flex">
-              <GitHubStarsLink />
+              <GitHubStarsLink stars={githubStars} />
             </li>
             <li className="flex items-center">
               {mounted && isLoaded ? (

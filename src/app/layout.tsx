@@ -2,7 +2,7 @@ import "~/styles/globals.css";
 
 import { Geist } from "next/font/google";
 import { HeaderWhatsNewSuspense } from "@/components/layout/header-whats-new";
-import { Footer } from "@/components/layout/footer";
+import { FooterGithubStarsSuspense } from "@/components/layout/footer-github-stars";
 import { siteMetadata } from "./metadata";
 import { SessionProvider } from "@/components/auth/session-provider";
 import { ThemeProviderWrapper } from "@/components/theme/theme-provider";
@@ -51,7 +51,7 @@ export default async function RootLayout({
               </main>
               {modal}
               <DeferredVercelTelemetry />
-              <Footer />
+              <FooterGithubStarsSuspense />
             </ThemeProviderWrapper>
           </TRPCReactProvider>
         </SessionProvider>

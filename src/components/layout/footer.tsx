@@ -6,7 +6,11 @@ import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-
 import { trpc } from "~/trpc/client";
 import { attribution, mission, site } from "~/app/brand";
 
-export function Footer() {
+export function Footer({
+  githubStars,
+}: {
+  githubStars?: number | null;
+} = {}) {
   const collaboratorsQuery = trpc.collaborators.getAll.useQuery();
   const {
     data: collaboratorsData,
@@ -26,8 +30,8 @@ export function Footer() {
               {site.name}
             </span>
           </div>
-          <div className="flex items-center gap-3 text-2xl">
-            <GitHubStarsLink />
+          <div className="flex items-center gap-3">
+            <GitHubStarsLink stars={githubStars} variant="static" />
           </div>
         </div>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-8">
@@ -79,12 +83,6 @@ export function Footer() {
             <h4 className="text-foreground text-sm font-semibold">Resources</h4>
             <div className="flex flex-col space-y-2">
               <Link
-                href="/about/roadmap"
-                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
-              >
-                Roadmap
-              </Link>
-              <Link
                 href="/wiki"
                 className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
@@ -95,6 +93,18 @@ export function Footer() {
                 className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
                 Blog
+              </Link>
+              <Link
+                href="/about/roadmap"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
+              >
+                Roadmap
+              </Link>
+              <Link
+                href="/about/developers"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
+              >
+                Developers
               </Link>
               <Link
                 href="/wiki/api"
