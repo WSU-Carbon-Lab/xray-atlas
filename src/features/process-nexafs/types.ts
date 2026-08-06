@@ -275,12 +275,24 @@ export const defaultDatasetViewNormalizationTypes =
     beta: "bare-atom",
   });
 
+/**
+ * Contributor overrides when automatic CSV header detection fails.
+ */
+export type CsvParseOptionsState = {
+  headerRowIndex: number;
+  skipRowsAfterHeader: number;
+};
+
 export type DatasetState = {
   id: string;
   file: File;
   fileName: string;
   csvColumns: string[];
   csvRawData: Record<string, unknown>[];
+  /** Header / data-start offsets used for the last successful CSV parse. */
+  csvParseOptions: CsvParseOptionsState;
+  /** Human-readable parse challenges shown in the column-mapping remediation UI. */
+  csvParseChallenges: string[];
   columnMappings: CSVColumnMappings;
   spectrumPoints: SpectrumPoint[];
   normalizedPoints: SpectrumPoint[] | null;
@@ -329,6 +341,8 @@ export function createEmptyDatasetState(file: File): DatasetState {
     fileName: file.name,
     csvColumns: [],
     csvRawData: [],
+    csvParseOptions: { headerRowIndex: 0, skipRowsAfterHeader: 0 },
+    csvParseChallenges: [],
     columnMappings: { energy: "", absorption: "" },
     spectrumPoints: [],
     normalizedPoints: null,

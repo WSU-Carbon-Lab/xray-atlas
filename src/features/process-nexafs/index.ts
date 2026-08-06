@@ -8,6 +8,7 @@ export type {
   ColumnStats,
   SpectrumStats,
   CSVColumnMappings,
+  CsvParseOptionsState,
   ExperimentNormalization,
   ExperimentConfig,
   ExperimentDatasetMeta,

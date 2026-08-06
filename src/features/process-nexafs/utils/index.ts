@@ -22,8 +22,15 @@ export {
   normalizeExperimentMode,
   normalizeFacilityToken,
   matchInstrumentIdFromParsedNexafsFilename,
+  isSpectrumUploadFileName,
+  moleculeLookupTokens,
+  experimentTypeFromParsedFilename,
 } from "./filenameParser";
-export type { ParsedFilename, InstrumentMatchOption } from "./filenameParser";
+export type {
+  ParsedFilename,
+  InstrumentMatchOption,
+  ExperimentTypeFromFilename,
+} from "./filenameParser";
 export { parseNexafsJson } from "./jsonParser";
 export type { NEXAFSJsonData, NexafsJsonDocumentMetadata } from "./jsonParser";
 export { buildNexafsUploadAutofill } from "./nexafsUploadAutofill";
@@ -40,7 +47,27 @@ export {
   buildBareAtomReferenceCurve,
   type BareAtomReferenceDataView,
 } from "./buildBareAtomReferenceCurve";
-export { parseCSVFile } from "./csv";
+export { parseCSVFile, parseNexafsCsvText } from "./csv";
+export type { ParseNexafsCsvOptions, ParsedNexafsCsv } from "./csv";
+export {
+  detectCsvParseChallenges,
+  detectSpectrumColumnNames,
+  csvParseNeedsUserHelp,
+} from "./csvParseChallenge";
+export type {
+  CsvParseChallenge,
+  CsvParseChallengeCode,
+} from "./csvParseChallenge";
+export {
+  isValidPolarDeg,
+  isValidAzimuthDeg,
+  parseFiniteAngleDegrees,
+  describeInvalidPolarizationGeometry,
+  POLAR_DEG_MIN,
+  POLAR_DEG_MAX,
+  AZIMUTH_DEG_MIN,
+  AZIMUTH_DEG_MAX_EXCLUSIVE,
+} from "./polarizationAngle";
 export { computeBetaIndex } from "./betaIndex";
 export { defaultNormalizationRangesFromSpectrum } from "./normalizationDefaults";
 export {

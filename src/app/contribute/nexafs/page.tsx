@@ -104,9 +104,12 @@ export default function NEXAFSContributePage() {
     processDatasetData,
     handleFilesSelected,
     handleNewDataset,
+    handleNewFolder,
     handleDatasetSelect,
     handleDatasetRemove,
     clearDatasets,
+    batchInstrumentId,
+    setBatchInstrumentId,
     columnMappingFile,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
@@ -115,6 +118,25 @@ export default function NEXAFSContributePage() {
     edgeOptions,
     vendors,
     showToast,
+    resolveMoleculeIdFromToken: async (token) => {
+      const response = await utils.client.molecules.autosuggest.query({
+        query: token,
+        limit: 8,
+      });
+      const results = response.results ?? [];
+      const needle = token.trim().toLowerCase();
+      const exact = results.find((item) => {
+        const names = [
+          item.commonName,
+          item.iupacName,
+          ...(item.synonyms ?? []),
+        ]
+          .filter(Boolean)
+          .map((name) => name.toLowerCase());
+        return names.includes(needle);
+      });
+      return exact?.id ?? null;
+    },
   });
 
   const { submit, submitStatus, setSubmitStatus, isPending } = useNexafsSubmit(
@@ -282,8 +304,11 @@ export default function NEXAFSContributePage() {
               processDatasetData={processDatasetData}
               handleFilesSelected={handleFilesSelected}
               handleNewDataset={handleNewDataset}
+              handleNewFolder={handleNewFolder}
               handleDatasetSelect={handleDatasetSelect}
               handleDatasetRemove={handleDatasetRemove}
+              batchInstrumentId={batchInstrumentId}
+              setBatchInstrumentId={setBatchInstrumentId}
               columnMappingFile={columnMappingFile}
               handleColumnMappingConfirm={handleColumnMappingConfirm}
               handleColumnMappingClose={handleColumnMappingClose}

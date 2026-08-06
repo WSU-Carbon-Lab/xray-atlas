@@ -4,13 +4,19 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { DefaultButton as Button } from "~/components/ui/button";
 import { SimpleDialog } from "~/components/ui/dialog";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
-import { Chip, Slider } from "@heroui/react";
+import { Chip, Input, Label, Slider } from "@heroui/react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import type { CSVColumnMappings, ColumnStats } from "~/features/process-nexafs";
+import type {
+  CSVColumnMappings,
+  ColumnStats,
+  CsvParseOptionsState,
+} from "~/features/process-nexafs";
 import {
   analyzeNumericColumns,
   detectAuxiliarySpectrumColumnNames,
 } from "~/features/process-nexafs/utils";
+import { parseCSVFile } from "~/features/process-nexafs/utils/csv";
+import { detectSpectrumColumnNames } from "~/features/process-nexafs/utils/csvParseChallenge";
 import type { SpectrumPoint } from "~/components/plots/types";
 
 interface ColumnMappingModalProps {
@@ -19,10 +25,14 @@ interface ColumnMappingModalProps {
   onConfirm: (
     mappings: CSVColumnMappings,
     fixedValues?: { theta?: string; phi?: string },
+    parseOptions?: CsvParseOptionsState,
   ) => void;
   columns: string[];
   rawData: Record<string, unknown>[];
   fileName: string;
+  file?: File | null;
+  initialParseOptions?: CsvParseOptionsState;
+  challenges?: readonly string[];
 }
 
 export function ColumnMappingModal({
@@ -32,6 +42,9 @@ export function ColumnMappingModal({
   columns,
   rawData,
   fileName,
+  file = null,
+  initialParseOptions,
+  challenges = [],
 }: ColumnMappingModalProps) {
   const [mappings, setMappings] = useState<CSVColumnMappings>({
     energy: "",
@@ -47,6 +60,16 @@ export function ColumnMappingModal({
   const [openStatusDropdown, setOpenStatusDropdown] = useState<
     "energy" | "absorption" | "theta" | "phi" | null
   >(null);
+  const [headerRowIndex, setHeaderRowIndex] = useState(
+    initialParseOptions?.headerRowIndex ?? 0,
+  );
+  const [skipRowsAfterHeader, setSkipRowsAfterHeader] = useState(
+    initialParseOptions?.skipRowsAfterHeader ?? 0,
+  );
+  const [previewColumns, setPreviewColumns] = useState(columns);
+  const [previewRawData, setPreviewRawData] = useState(rawData);
+  const [reparseError, setReparseError] = useState<string | null>(null);
+  const [isReparsing, setIsReparsing] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
 
@@ -75,32 +98,70 @@ export function ColumnMappingModal({
 
   // Auto-detect columns on open
   useEffect(() => {
-    if (columns.length === 0 || !isOpen) return;
+    if (!isOpen) return;
+    setPreviewColumns(columns);
+    setPreviewRawData(rawData);
+    setHeaderRowIndex(initialParseOptions?.headerRowIndex ?? 0);
+    setSkipRowsAfterHeader(initialParseOptions?.skipRowsAfterHeader ?? 0);
+    setReparseError(null);
 
-    const energyCol = columns.find(
-      (col) =>
-        col.toLowerCase().includes("energy") ||
-        col.toLowerCase().includes("ev") ||
-        col.toLowerCase().includes("photon"),
-    );
-    const absorptionCol = columns.find(
-      (col) =>
-        col.toLowerCase().includes("absorption") ||
-        col.toLowerCase().includes("abs") ||
-        col.toLowerCase().includes("intensity") ||
-        col.toLowerCase().includes("signal"),
-    );
-    const thetaCol = columns.find((col) => col.toLowerCase().includes("theta"));
-    const phiCol = columns.find((col) => col.toLowerCase().includes("phi"));
+    if (columns.length === 0) return;
 
+    const detected = detectSpectrumColumnNames(columns);
     setMappings({
-      energy: energyCol ?? columns[0] ?? "",
-      absorption: absorptionCol ?? columns[1] ?? "",
-      theta: thetaCol ?? undefined,
-      phi: phiCol ?? undefined,
+      energy: detected.energy ?? "",
+      absorption: detected.absorption ?? "",
+      theta: detected.theta,
+      phi: detected.phi,
       ...detectAuxiliarySpectrumColumnNames(columns),
     });
-  }, [columns, isOpen]);
+  }, [columns, rawData, isOpen, initialParseOptions]);
+
+  useEffect(() => {
+    if (!isOpen || !file) return;
+    let cancelled = false;
+    const handle = window.setTimeout(() => {
+      void (async () => {
+        setIsReparsing(true);
+        try {
+          const parsed = await parseCSVFile(file, {
+            headerRowIndex,
+            skipRowsAfterHeader,
+          });
+          if (cancelled) return;
+          setPreviewColumns(parsed.columns);
+          setPreviewRawData(parsed.data);
+          setReparseError(
+            parsed.columns.length === 0
+              ? "No columns found with these row settings."
+              : null,
+          );
+          const detected = detectSpectrumColumnNames(parsed.columns);
+          setMappings((prev) => ({
+            ...prev,
+            energy: detected.energy ?? prev.energy,
+            absorption: detected.absorption ?? prev.absorption,
+            theta: detected.theta ?? prev.theta,
+            phi: detected.phi ?? prev.phi,
+            ...detectAuxiliarySpectrumColumnNames(parsed.columns),
+          }));
+        } catch (error) {
+          if (cancelled) return;
+          setReparseError(
+            error instanceof Error
+              ? error.message
+              : "Failed to re-parse CSV with these row settings.",
+          );
+        } finally {
+          if (!cancelled) setIsReparsing(false);
+        }
+      })();
+    }, 200);
+    return () => {
+      cancelled = true;
+      window.clearTimeout(handle);
+    };
+  }, [file, headerRowIndex, skipRowsAfterHeader, isOpen]);
 
   const _columnStats = useMemo(() => {
     const numericColumns = new Set<string>();
@@ -115,14 +176,14 @@ export function ColumnMappingModal({
     if (mappings.delta) numericColumns.add(mappings.delta);
     if (mappings.deltaError) numericColumns.add(mappings.deltaError);
 
-    const reports = analyzeNumericColumns(rawData, numericColumns);
+    const reports = analyzeNumericColumns(previewRawData, numericColumns);
     const stats: Record<string, ColumnStats> = {};
 
     numericColumns.forEach((col) => {
       const report = reports[col];
       if (!report) return;
 
-      const values = rawData
+      const values = previewRawData
         .map((row) => {
           const val = row[col];
           if (val === undefined || val === null || val === "") return null;
@@ -151,7 +212,7 @@ export function ColumnMappingModal({
     });
 
     return stats;
-  }, [rawData, mappings]);
+  }, [previewRawData, mappings]);
 
   const handleConfirm = () => {
     if (!mappings.energy || !mappings.absorption) {
@@ -179,6 +240,10 @@ export function ColumnMappingModal({
     onConfirm(
       finalMappings,
       Object.keys(fixedValues).length > 0 ? fixedValues : undefined,
+      {
+        headerRowIndex,
+        skipRowsAfterHeader,
+      },
     );
   };
 
@@ -271,7 +336,7 @@ export function ColumnMappingModal({
     const energyCol = mappings.energy;
     const absorptionCol = mappings.absorption;
     const points: SpectrumPoint[] = [];
-    rawData.forEach((row) => {
+    previewRawData.forEach((row) => {
       const energyValue = Number(row[energyCol]);
       const absorptionValue = Number(row[absorptionCol]);
 
@@ -299,9 +364,9 @@ export function ColumnMappingModal({
     });
 
     return points;
-  }, [rawData, mappings]);
+  }, [previewRawData, mappings]);
 
-  const previewRows = rawData.slice(0, 10);
+  const previewRows = previewRawData.slice(0, 10);
 
   return (
     <SimpleDialog
@@ -313,6 +378,63 @@ export function ColumnMappingModal({
       <div className="mb-4 text-sm text-gray-600 dark:text-gray-400">
         Assign columns using the dropdown widgets in the table headers.
         Required: Energy and Absorption.
+      </div>
+
+      {(challenges.length > 0 || reparseError) && (
+        <div
+          role="alert"
+          className="border-warning bg-warning/10 text-foreground mb-4 space-y-1 rounded-lg border p-3 text-sm"
+        >
+          <p className="font-semibold">Parsing needs your help</p>
+          {challenges.map((message) => (
+            <p key={message} className="text-muted">
+              {message}
+            </p>
+          ))}
+          {reparseError ? <p className="text-danger">{reparseError}</p> : null}
+        </div>
+      )}
+
+      <div className="border-border bg-surface mb-4 grid grid-cols-1 gap-3 rounded-lg border p-3 sm:grid-cols-2">
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">Header row (0-based)</Label>
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            value={String(headerRowIndex)}
+            onChange={(event) => {
+              const next = Number.parseInt(event.target.value, 10);
+              setHeaderRowIndex(Number.isFinite(next) && next >= 0 ? next : 0);
+            }}
+            aria-label="CSV header row index"
+          />
+          <p className="text-muted text-xs">
+            Use when the file has a preamble before column names.
+          </p>
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-sm font-medium">
+            Skip rows after header
+          </Label>
+          <Input
+            type="number"
+            min={0}
+            step={1}
+            value={String(skipRowsAfterHeader)}
+            onChange={(event) => {
+              const next = Number.parseInt(event.target.value, 10);
+              setSkipRowsAfterHeader(
+                Number.isFinite(next) && next >= 0 ? next : 0,
+              );
+            }}
+            aria-label="Rows to skip after CSV header"
+          />
+          <p className="text-muted text-xs">
+            Skip units lines or blank separators before numeric data.
+            {isReparsing ? " Updating preview..." : ""}
+          </p>
+        </div>
       </div>
 
       {/* Column Assignment Status - Moved to Top */}
@@ -368,7 +490,7 @@ export function ColumnMappingModal({
                     >
                       None
                     </button>
-                    {columns.map((col) => (
+                    {previewColumns.map((col) => (
                       <button
                         key={col}
                         type="button"
@@ -443,7 +565,7 @@ export function ColumnMappingModal({
                     >
                       None
                     </button>
-                    {columns.map((col) => (
+                    {previewColumns.map((col) => (
                       <button
                         key={col}
                         type="button"
@@ -556,7 +678,7 @@ export function ColumnMappingModal({
                       >
                         None
                       </button>
-                      {columns.map((col) => (
+                      {previewColumns.map((col) => (
                         <button
                           key={col}
                           type="button"
@@ -679,7 +801,7 @@ export function ColumnMappingModal({
                       >
                         None
                       </button>
-                      {columns.map((col) => (
+                      {previewColumns.map((col) => (
                         <button
                           key={col}
                           type="button"
@@ -728,7 +850,7 @@ export function ColumnMappingModal({
               <table className="min-w-full divide-y divide-gray-200 text-xs dark:divide-gray-700">
                 <thead className="sticky top-0 bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    {columns.map((col) => {
+                    {previewColumns.map((col) => {
                       const mappingType = getColumnMappingType(col);
                       const isMapped = mappingType !== null;
 
@@ -901,7 +1023,7 @@ export function ColumnMappingModal({
                       key={idx}
                       className="hover:bg-gray-50 dark:hover:bg-gray-800/50"
                     >
-                      {columns.map((col) => {
+                      {previewColumns.map((col) => {
                         return (
                           <td
                             key={col}

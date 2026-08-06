@@ -7,6 +7,7 @@ import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
   PlusIcon,
+  FolderOpenIcon,
 } from "@heroicons/react/24/outline";
 import { skipToken } from "@tanstack/react-query";
 import type { DatasetState, ExperimentTypeOption } from "~/features/process-nexafs";
@@ -39,6 +40,7 @@ interface DatasetTabsProps {
   onDatasetSelect: (datasetId: string) => void;
   onDatasetRemove: (datasetId: string) => void;
   onNewDataset?: () => void;
+  onNewFolder?: () => void;
   instrumentOptions: InstrumentOption[];
   edgeOptions: EdgeOption[];
   updateDataset: (
@@ -299,6 +301,7 @@ export function DatasetTabs({
   onDatasetSelect,
   onDatasetRemove,
   onNewDataset,
+  onNewFolder,
   instrumentOptions,
   edgeOptions,
   updateDataset,
@@ -452,6 +455,24 @@ export function DatasetTabs({
             </Tabs.ListContainer>
           </Tabs>
         </div>
+        {onNewFolder && (
+          <Tooltip delay={0}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="md"
+              onPress={() => onNewFolder()}
+              className="focus-visible:ring-accent h-11 shrink-0 gap-2 rounded-lg px-3 font-medium focus-visible:ring-2"
+              aria-label="Add datasets from a folder"
+            >
+              <FolderOpenIcon className="h-5 w-5 shrink-0" />
+              <span className="hidden whitespace-nowrap sm:inline">Folder</span>
+            </Button>
+            <Tooltip.Content className="bg-foreground text-background rounded-lg px-3 py-2 shadow-lg">
+              Add all CSV/JSON spectra from a folder
+            </Tooltip.Content>
+          </Tooltip>
+        )}
         {onNewDataset && (
           <Tooltip delay={0}>
             <Button

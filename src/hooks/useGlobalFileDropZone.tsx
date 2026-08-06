@@ -15,6 +15,10 @@ import {
   dropTypeLabelFromFile,
   formatDropOverlayMessage,
 } from "~/lib/aux-file-client";
+import {
+  collectFilesFromDataTransfer,
+  dataTransferContainsDirectory,
+} from "~/lib/collect-files-from-data-transfer";
 
 export const GLOBAL_DROP_ZONE_IDS = {
   NEXAFS_NEW_DATASET: "nexafs-new-dataset",
@@ -49,7 +53,11 @@ function spectrumFileKind(file: File): "csv" | "json" | null {
 
 function classifyDraggedSpectrumKind(
   items: DataTransferItemList | null,
+  dataTransfer?: DataTransfer | null,
 ): ContributionFileDropOverlayFileKind | null {
+  if (dataTransferContainsDirectory(dataTransfer)) {
+    return "csv";
+  }
   if (!items || items.length === 0) {
     return null;
   }
@@ -257,12 +265,19 @@ export function useGlobalFileDropZone(
       return;
     }
     setActiveZone(zoneUnderPointer(event));
-    setSpectrumFileKind(classifyDraggedSpectrumKind(event.dataTransfer.items));
-    setFileTypeLabel(
-      classifyDraggedFileTypeLabel(
+    setSpectrumFileKind(
+      classifyDraggedSpectrumKind(
         event.dataTransfer.items,
-        event.dataTransfer.files,
+        event.dataTransfer,
       ),
+    );
+    setFileTypeLabel(
+      dataTransferContainsDirectory(event.dataTransfer)
+        ? "folder"
+        : classifyDraggedFileTypeLabel(
+            event.dataTransfer.items,
+            event.dataTransfer.files,
+          ),
     );
     const firstFile = Array.from(event.dataTransfer.items)
       .find((item) => item.kind === "file")
@@ -322,31 +337,33 @@ export function useGlobalFileDropZone(
       setFileTypeLabel("files");
       setDraggedFileName(null);
 
-      const allFiles = Array.from(event.dataTransfer?.files ?? []);
-      if (allFiles.length === 0) {
-        return;
-      }
+      void (async () => {
+        const allFiles = await collectFilesFromDataTransfer(event.dataTransfer);
+        if (allFiles.length === 0) {
+          return;
+        }
 
-      if (zone === GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX) {
-        onExperimentAuxFilesRef.current?.(allFiles);
-        return;
-      }
-      if (zone === GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX) {
-        onSampleAuxFilesRef.current?.(allFiles);
-        return;
-      }
+        if (zone === GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX) {
+          onExperimentAuxFilesRef.current?.(allFiles);
+          return;
+        }
+        if (zone === GLOBAL_DROP_ZONE_IDS.NEXAFS_SAMPLE_AUX) {
+          onSampleAuxFilesRef.current?.(allFiles);
+          return;
+        }
 
-      const spectrumFiles = filterSpectrumFiles(allFiles);
-      if (spectrumFiles.length === 0) {
-        return;
-      }
+        const spectrumFiles = filterSpectrumFiles(allFiles);
+        if (spectrumFiles.length === 0) {
+          return;
+        }
 
-      if (
-        zone === GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET ||
-        (zone == null && spectrumDropEnabled)
-      ) {
-        onSpectrumFilesRef.current(spectrumFiles);
-      }
+        if (
+          zone === GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET ||
+          (zone == null && spectrumDropEnabled)
+        ) {
+          onSpectrumFilesRef.current(spectrumFiles);
+        }
+      })();
     },
     [activeZone, spectrumDropEnabled],
   );
