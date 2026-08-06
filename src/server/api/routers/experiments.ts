@@ -64,6 +64,12 @@ import {
   parseKkDeltaMetadata,
 } from "~/server/nexafs/kkDeltaMetadata";
 import { kkDeltaSubmitValidationErrors } from "~/server/nexafs/kkDeltaSubmitValidation";
+import {
+  formatConflictingDuplicateEnergyMessage,
+  formatSpectrumPointsUniqueConstraintMessage,
+  isSpectrumPointsEnergyUniqueViolation,
+  prepareSpectrumPointsForUniqueEnergyInsert,
+} from "~/server/nexafs/spectrumPointEnergyUniqueness";
 import { SPECTRUMPOINTS_SERVER_SCAN_CAP } from "~/server/nexafs/spectrumpointLimits";
 import {
   buildAtlasTeamVerificationSummary,
@@ -1459,6 +1465,22 @@ export const experimentsRouter = createTRPCRouter({
         geometryGroups.push(...groupedByGeometry.values());
       }
 
+      for (const group of geometryGroups) {
+        const uniqueness = prepareSpectrumPointsForUniqueEnergyInsert(
+          group.points,
+        );
+        if (!uniqueness.ok) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: formatConflictingDuplicateEnergyMessage(
+              { theta: group.theta, phi: group.phi },
+              uniqueness.conflictingEnergies,
+            ),
+          });
+        }
+        group.points = uniqueness.points;
+      }
+
       const derivedByGroup: Array<
         Awaited<ReturnType<typeof computeSpectrumDerivedScalarColumns>>
       > = [];
@@ -1873,10 +1895,20 @@ export const experimentsRouter = createTRPCRouter({
             }));
 
             if (spectrumData.length > 0) {
-              const created = await tx.spectrumpoints.createMany({
-                data: spectrumData,
-              });
-              spectrumPointsCreated += created.count;
+              try {
+                const created = await tx.spectrumpoints.createMany({
+                  data: spectrumData,
+                });
+                spectrumPointsCreated += created.count;
+              } catch (error) {
+                if (isSpectrumPointsEnergyUniqueViolation(error)) {
+                  throw new TRPCError({
+                    code: "BAD_REQUEST",
+                    message: formatSpectrumPointsUniqueConstraintMessage(),
+                  });
+                }
+                throw error;
+              }
             }
           }
 
