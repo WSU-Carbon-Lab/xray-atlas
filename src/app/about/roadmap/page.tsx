@@ -1,28 +1,24 @@
 /**
- * About-section roadmap route: publication timeline plus live GitHub activity.
+ * About-section roadmap route: publication timeline with a link onward to Developers.
  */
 
 import type { Metadata } from "next";
 import Link from "next/link";
 import { Chip } from "@heroui/react";
 import { ArrowLeftIcon } from "@heroicons/react/24/outline";
-import { RoadmapGitHubPanel } from "~/components/about/roadmap/roadmap-github-panel";
 import { RoadmapTimeline } from "~/components/about/roadmap/roadmap-timeline";
 import { site } from "~/app/brand";
-import { fetchGitHubRoadmapActivity } from "~/lib/github/roadmap-activity";
 import { roadmapHorizon } from "~/lib/roadmap/roadmap-data";
 
 export const metadata: Metadata = {
   title: `Roadmap | About ${site.name}`,
-  description: `Near- and medium-term priorities for ${site.name}: platform milestones, publication timeline, and open GitHub work.`,
+  description: `Near- and medium-term priorities for ${site.name}: platform milestones, publication timeline, and open institutional questions.`,
   alternates: {
     canonical: "/about/roadmap",
   },
 };
 
-export default async function AboutRoadmapPage() {
-  const githubActivity = await fetchGitHubRoadmapActivity();
-
+export default function AboutRoadmapPage() {
   return (
     <div className="container mx-auto px-4 py-12">
       <div className="mx-auto max-w-4xl space-y-12">
@@ -56,7 +52,23 @@ export default async function AboutRoadmapPage() {
 
         <RoadmapTimeline />
 
-        <RoadmapGitHubPanel activity={githubActivity} />
+        <nav
+          aria-label="Continue to developers"
+          className="border-border grid gap-4 border-t pt-8 sm:grid-cols-2"
+        >
+          <span />
+          <Link
+            href="/about/developers"
+            className="border-border hover:border-accent/40 group block rounded-xl border p-4 no-underline transition-colors"
+          >
+            <span className="text-muted text-xs font-medium tracking-wide uppercase">
+              Next
+            </span>
+            <span className="text-foreground group-hover:text-accent mt-1 block text-base font-semibold">
+              Developers
+            </span>
+          </Link>
+        </nav>
       </div>
     </div>
   );

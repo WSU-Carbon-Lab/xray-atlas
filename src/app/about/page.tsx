@@ -40,8 +40,15 @@ const aboutResourceCards = [
     href: "/about/roadmap",
     title: "Roadmap",
     description:
-      "Publication timeline, platform milestones, DataCite decisions, and live GitHub activity.",
+      "Publication timeline, platform milestones, and open institutional questions.",
     icon: MapIcon,
+  },
+  {
+    href: "/about/developers",
+    title: "Developers",
+    description:
+      "Changelog of merges to main, open bugs, discussions, and pull requests on GitHub.",
+    icon: CodeBracketIcon,
   },
   {
     href: "/wiki",
