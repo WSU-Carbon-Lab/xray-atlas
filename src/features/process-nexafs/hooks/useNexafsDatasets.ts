@@ -40,6 +40,13 @@ import {
 import { describeInvalidPolarizationGeometry } from "../utils/polarizationAngle";
 import type { CsvParseOptionsState } from "../types";
 import type { ParseNexafsCsvOptions } from "../utils/csv";
+import {
+  applySpectrumEnergyConflictResolution,
+  detectSpectrumEnergyConflictGroups,
+  preflightSpectrumPointsEnergyUniqueness,
+  type SpectrumEnergyConflictGroup,
+  type SpectrumEnergyConflictResolutionChoice,
+} from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -95,6 +102,10 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
   const [columnMappingFile, setColumnMappingFile] = useState<{
     file: File;
     datasetId: string;
+  } | null>(null);
+  const [energyConflictModal, setEnergyConflictModal] = useState<{
+    datasetId: string;
+    groups: SpectrumEnergyConflictGroup[];
   } | null>(null);
 
   const setBatchInstrumentId = useCallback(
@@ -275,10 +286,37 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               : null,
         });
 
+        const challengeMessages = challenges.map((c) => c.message);
+        const preflight = preflightSpectrumPointsEnergyUniqueness(spectrumPoints);
+
+        if (!preflight.ok) {
+          setEnergyConflictModal({
+            datasetId,
+            groups: preflight.conflicts,
+          });
+          updateDataset(datasetId, {
+            spectrumPoints,
+            spectrumError: undefined,
+            csvParseChallenges: [
+              ...challengeMessages,
+              `Duplicate photon energies with conflicting values (${preflight.conflicts.length} group${preflight.conflicts.length === 1 ? "" : "s"}). Resolve before submit.`,
+            ],
+          });
+          return;
+        }
+
+        if (preflight.collapsedCount > 0) {
+          showToast(
+            `Removed ${preflight.collapsedCount} identical duplicate energy row${preflight.collapsedCount === 1 ? "" : "s"} from "${dataset.fileName}".`,
+            "success",
+            5000,
+          );
+        }
+
         updateDataset(datasetId, {
-          spectrumPoints,
+          spectrumPoints: preflight.points,
           spectrumError: undefined,
-          csvParseChallenges: challenges.map((c) => c.message),
+          csvParseChallenges: challengeMessages,
         });
       } catch (error) {
         updateDataset(datasetId, {
@@ -289,7 +327,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         });
       }
     },
-    [datasets, updateDataset],
+    [datasets, showToast, updateDataset],
   );
 
   const processDatasetDataRef = useRef(processDatasetData);
@@ -756,8 +794,59 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     setDatasets([]);
     setActiveDatasetId(null);
     setColumnMappingFile(null);
+    setEnergyConflictModal(null);
     setBatchInstrumentIdState("");
   }, []);
+
+  const handleEnergyConflictClose = useCallback(() => {
+    setEnergyConflictModal(null);
+  }, []);
+
+  const requestEnergyConflictResolution = useCallback(
+    (datasetId: string) => {
+      const dataset = datasets.find((entry) => entry.id === datasetId);
+      if (!dataset) return;
+      const groups = detectSpectrumEnergyConflictGroups(dataset.spectrumPoints);
+      if (groups.length === 0) return;
+      setActiveDatasetId(datasetId);
+      setEnergyConflictModal({ datasetId, groups });
+    },
+    [datasets],
+  );
+
+  const handleEnergyConflictResolve = useCallback(
+    (resolutionByGroupKey: Map<string, SpectrumEnergyConflictResolutionChoice>) => {
+      if (!energyConflictModal) return;
+      const dataset = datasets.find(
+        (entry) => entry.id === energyConflictModal.datasetId,
+      );
+      if (!dataset) return;
+
+      const resolved = applySpectrumEnergyConflictResolution(
+        dataset.spectrumPoints,
+        resolutionByGroupKey,
+      );
+      const preflight = preflightSpectrumPointsEnergyUniqueness(resolved);
+      const finalPoints = preflight.ok ? preflight.points : resolved;
+
+      updateDataset(energyConflictModal.datasetId, {
+        spectrumPoints: finalPoints,
+        spectrumError: null,
+        csvParseChallenges: dataset.csvParseChallenges.filter(
+          (message) =>
+            !message.startsWith(
+              "Duplicate photon energies with conflicting values",
+            ),
+        ),
+      });
+      setEnergyConflictModal(null);
+      showToast(
+        `Resolved duplicate energy conflicts in "${dataset.fileName}".`,
+        "success",
+      );
+    },
+    [datasets, energyConflictModal, showToast, updateDataset],
+  );
 
   return {
     datasets,
@@ -779,5 +868,9 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     setColumnMappingFile,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
+    energyConflictModal,
+    handleEnergyConflictClose,
+    handleEnergyConflictResolve,
+    requestEnergyConflictResolution,
   };
 }

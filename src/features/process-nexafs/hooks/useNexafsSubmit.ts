@@ -18,6 +18,7 @@ import {
   uploadGeometryIsComplete,
 } from "../utils/default-upload-phi";
 import { describeInvalidPolarizationGeometry } from "../utils/polarizationAngle";
+import { hasSpectrumEnergyConflicts } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
@@ -39,6 +40,7 @@ export function useNexafsSubmit(
     onDatasetPersisted?: (datasetId: string, ids: DatasetPersistedIds) => void;
     requestKkConsent?: () => Promise<boolean>;
     showToast?: (message: string, type?: ToastType) => void;
+    onEnergyConflicts?: (datasetId: string) => void;
   },
 ) {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
@@ -98,6 +100,14 @@ export function useNexafsSubmit(
           setSubmitStatus({
             type: "error",
             message: `Dataset "${dataset.fileName}": No spectrum data found.`,
+          });
+          return;
+        }
+        if (hasSpectrumEnergyConflicts(dataset.spectrumPoints)) {
+          options?.onEnergyConflicts?.(dataset.id);
+          setSubmitStatus({
+            type: "error",
+            message: `Dataset "${dataset.fileName}": Duplicate photon energies with conflicting values. Resolve the row conflicts before submitting.`,
           });
           return;
         }

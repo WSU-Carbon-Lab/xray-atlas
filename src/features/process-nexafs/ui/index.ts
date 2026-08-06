@@ -2,6 +2,10 @@ export { AddDatasetButton } from "./add-dataset-button";
 export { AddFacilityModal } from "./add-facility-modal";
 export { AddMoleculeModal } from "./add-molecule-modal";
 export { ColumnMappingModal } from "./column-mapping-modal";
+export {
+  SpectrumEnergyConflictBanner,
+  SpectrumRowConflictModal,
+} from "./spectrum-row-conflict-modal";
 export { DatasetContent } from "./dataset-content";
 export { DatasetAttributionEditor } from "./dataset-attribution-editor";
 export { ExperimentAttributionEditSection } from "./experiment-attribution-edit-section";

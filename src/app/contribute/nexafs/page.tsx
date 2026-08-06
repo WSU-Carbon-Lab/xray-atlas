@@ -113,6 +113,10 @@ export default function NEXAFSContributePage() {
     columnMappingFile,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
+    energyConflictModal,
+    handleEnergyConflictClose,
+    handleEnergyConflictResolve,
+    requestEnergyConflictResolution,
   } = useNexafsDatasets({
     instrumentOptions,
     edgeOptions,
@@ -159,6 +163,7 @@ export default function NEXAFSContributePage() {
       },
       requestKkConsent,
       showToast,
+      onEnergyConflicts: requestEnergyConflictResolution,
     },
   );
 
@@ -312,6 +317,10 @@ export default function NEXAFSContributePage() {
               columnMappingFile={columnMappingFile}
               handleColumnMappingConfirm={handleColumnMappingConfirm}
               handleColumnMappingClose={handleColumnMappingClose}
+              energyConflictModal={energyConflictModal}
+              handleEnergyConflictClose={handleEnergyConflictClose}
+              handleEnergyConflictResolve={handleEnergyConflictResolve}
+              requestEnergyConflictResolution={requestEnergyConflictResolution}
               instrumentOptions={instrumentOptions}
               edgeOptions={edgeOptions}
               calibrationOptions={calibrationOptions}
