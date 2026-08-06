@@ -72,6 +72,25 @@ import {
   userMayManageAtlasTeamVerification,
   validationSummaryToPrismaJson,
 } from "~/server/nexafs/atlasTeamVerification";
+import {
+  AZIMUTH_DEG_MAX_EXCLUSIVE,
+  AZIMUTH_DEG_MIN,
+  POLAR_DEG_MAX,
+  POLAR_DEG_MIN,
+} from "~/features/process-nexafs/utils/polarizationAngle";
+
+const polarizationAngleSchema = z.object({
+  theta: z
+    .number()
+    .finite()
+    .min(POLAR_DEG_MIN)
+    .max(POLAR_DEG_MAX),
+  phi: z
+    .number()
+    .finite()
+    .min(AZIMUTH_DEG_MIN)
+    .lt(AZIMUTH_DEG_MAX_EXCLUSIVE),
+});
 
 const nexafsBrowseSortBySchema = z
   .enum([
@@ -1236,20 +1255,8 @@ export const experimentsRouter = createTRPCRouter({
         geometry: z
           .object({
             mode: z.enum(["fixed", "csv"]),
-            fixed: z
-              .object({
-                theta: z.number(),
-                phi: z.number(),
-              })
-              .optional(),
-            csvGeometries: z
-              .array(
-                z.object({
-                  theta: z.number(),
-                  phi: z.number(),
-                }),
-              )
-              .optional(),
+            fixed: polarizationAngleSchema.optional(),
+            csvGeometries: z.array(polarizationAngleSchema).optional(),
           })
           .superRefine((value, ctx) => {
             if (value.mode === "fixed" && !value.fixed) {
@@ -1275,8 +1282,12 @@ export const experimentsRouter = createTRPCRouter({
               z.object({
                 energy: z.number(),
                 absorption: z.number(),
-                theta: z.number().optional(),
-                phi: z.number().optional(),
+                theta: z.number().min(POLAR_DEG_MIN).max(POLAR_DEG_MAX).optional(),
+                phi: z
+                  .number()
+                  .min(AZIMUTH_DEG_MIN)
+                  .lt(AZIMUTH_DEG_MAX_EXCLUSIVE)
+                  .optional(),
                 i0: z.number().optional(),
                 od: z.number().optional(),
                 rawabsError: z.number().optional(),

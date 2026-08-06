@@ -6,6 +6,8 @@ export interface ParsedFilename {
   experimenter: string | null;
   vendorSlug: string | null;
   extraInfo: string | null;
+  /** Optional molecule hint from `{mode}_{molecule}` basenames. */
+  moleculeToken: string | null;
 }
 
 export type InstrumentMatchOption = {
@@ -14,8 +16,14 @@ export type InstrumentMatchOption = {
   facilityName?: string;
 };
 
-export function parseNexafsFilename(filename: string): ParsedFilename {
-  const result: ParsedFilename = {
+export type ExperimentTypeFromFilename =
+  | "TOTAL_ELECTRON_YIELD"
+  | "PARTIAL_ELECTRON_YIELD"
+  | "FLUORESCENT_YIELD"
+  | "TRANSMISSION";
+
+function emptyParsedFilename(): ParsedFilename {
+  return {
     edge: null,
     experimentMode: null,
     facility: null,
@@ -23,9 +31,91 @@ export function parseNexafsFilename(filename: string): ParsedFilename {
     experimenter: null,
     vendorSlug: null,
     extraInfo: null,
+    moleculeToken: null,
   };
+}
 
-  const baseName = filename.replace(/\.(csv|json)$/i, "");
+/**
+ * Returns true when `fileName` is a spectrum upload candidate (CSV or JSON only).
+ */
+export function isSpectrumUploadFileName(fileName: string): boolean {
+  const lower = fileName.toLowerCase();
+  return lower.endsWith(".csv") || lower.endsWith(".json");
+}
+
+/**
+ * Builds molecule autosuggest lookup tokens from a filename fragment
+ * (for example `ZnPcSi` → `ZnPcSi`, `ZnPc`).
+ */
+export function moleculeLookupTokens(token: string): string[] {
+  const cleaned = token.trim();
+  if (!cleaned) return [];
+  const tokens = [cleaned];
+  let stripped = cleaned;
+  if (stripped.endsWith("CSi")) {
+    stripped = stripped.slice(0, -3);
+  } else if (stripped.endsWith("Si") || stripped.endsWith("si")) {
+    stripped = stripped.slice(0, -2);
+  } else if (/[a-z]C$/.test(stripped)) {
+    stripped = stripped.slice(0, -1);
+  }
+  if (
+    stripped.length >= 2 &&
+    stripped.toLowerCase() !== cleaned.toLowerCase()
+  ) {
+    tokens.push(stripped);
+  }
+  return tokens;
+}
+
+function parseModeMoleculeBasename(baseName: string): ParsedFilename | null {
+  const transmissionMatch = /^transmission[_\s-]+(.+)$/i.exec(baseName);
+  if (transmissionMatch) {
+    const moleculeToken = transmissionMatch[1]!.trim();
+    return {
+      ...emptyParsedFilename(),
+      experimentMode: "TRANSMISSION",
+      moleculeToken: moleculeToken || null,
+    };
+  }
+
+  const teyPolarizationMatch = /^TEY\s+polarization[_\s-]+(.+)$/i.exec(baseName);
+  if (teyPolarizationMatch) {
+    const moleculeToken = teyPolarizationMatch[1]!.trim();
+    return {
+      ...emptyParsedFilename(),
+      experimentMode: "TEY",
+      moleculeToken: moleculeToken || null,
+    };
+  }
+
+  const teyAngleMatch = /^TEY\s+angle[_\s-]+(.+)$/i.exec(baseName);
+  if (teyAngleMatch) {
+    const moleculeToken = teyAngleMatch[1]!.trim();
+    return {
+      ...emptyParsedFilename(),
+      experimentMode: "TEY",
+      moleculeToken: moleculeToken || null,
+    };
+  }
+
+  return null;
+}
+
+/**
+ * Parses a contribute spectrum basename into edge / mode / facility tokens.
+ *
+ * Supports Atlas six-token basenames and `{mode}_{molecule}` names such as
+ * `transmission_ZnPc` (Beer-law / TRANSMISSION) and `TEY polarization_ZnPcSi`.
+ */
+export function parseNexafsFilename(filename: string): ParsedFilename {
+  const baseName = filename.replace(/\.(csv|json)$/i, "").trim();
+  const modeMolecule = parseModeMoleculeBasename(baseName);
+  if (modeMolecule) {
+    return modeMolecule;
+  }
+
+  const result = emptyParsedFilename();
   const parts = baseName.split("_");
 
   if (parts.length < 2) {
@@ -59,6 +149,45 @@ export function parseNexafsFilename(filename: string): ParsedFilename {
   }
 
   return result;
+}
+
+/**
+ * Maps a parsed filename experiment-mode token onto a contribute experiment type.
+ */
+export function experimentTypeFromParsedFilename(
+  parsed: ParsedFilename,
+): ExperimentTypeFromFilename | null {
+  return experimentTypeFromModeToken(parsed.experimentMode);
+}
+
+function experimentTypeFromModeToken(
+  modeToken: string | null,
+): ExperimentTypeFromFilename | null {
+  if (!modeToken) return null;
+  const trimmed = modeToken.trim();
+  const upper = trimmed.toUpperCase();
+  if (upper.startsWith("TEY") || upper.includes("TOTAL ELECTRON")) {
+    return "TOTAL_ELECTRON_YIELD";
+  }
+  if (upper.startsWith("PEY") || upper.includes("PARTIAL ELECTRON")) {
+    return "PARTIAL_ELECTRON_YIELD";
+  }
+  if (upper.startsWith("FY") || upper.includes("FLUORESCEN")) {
+    return "FLUORESCENT_YIELD";
+  }
+  if (upper.startsWith("TRANS") || upper.includes("TRANSMISSION")) {
+    return "TRANSMISSION";
+  }
+  const normalized = normalizeExperimentMode(trimmed);
+  if (
+    normalized === "TOTAL_ELECTRON_YIELD" ||
+    normalized === "PARTIAL_ELECTRON_YIELD" ||
+    normalized === "FLUORESCENT_YIELD" ||
+    normalized === "TRANSMISSION"
+  ) {
+    return normalized;
+  }
+  return null;
 }
 
 export function matchInstrumentIdFromParsedNexafsFilename(
@@ -144,15 +273,28 @@ export function normalizeExperimentMode(mode: string | null): string | null {
 
   const normalized = mode.trim().toUpperCase();
 
+  if (normalized.startsWith("TEY")) {
+    return "TOTAL_ELECTRON_YIELD";
+  }
+  if (normalized.startsWith("PEY")) {
+    return "PARTIAL_ELECTRON_YIELD";
+  }
+  if (normalized.startsWith("FY") || normalized.includes("FLUORESCEN")) {
+    return "FLUORESCENT_YIELD";
+  }
+  if (normalized.startsWith("TRANS") || normalized.includes("TRANSMISSION")) {
+    return "TRANSMISSION";
+  }
+
   const modeMap: Record<string, string> = {
-    "TEY": "TOTAL_ELECTRON_YIELD",
-    "PEY": "PARTIAL_ELECTRON_YIELD",
-    "FY": "FLUORESCENT_YIELD",
-    "FLUORESCENT": "FLUORESCENT_YIELD",
-    "TOTAL": "TOTAL_ELECTRON_YIELD",
-    "PARTIAL": "PARTIAL_ELECTRON_YIELD",
-    "TRANSMISSION": "TRANSMISSION",
-    "TRANS": "TRANSMISSION",
+    TEY: "TOTAL_ELECTRON_YIELD",
+    PEY: "PARTIAL_ELECTRON_YIELD",
+    FY: "FLUORESCENT_YIELD",
+    FLUORESCENT: "FLUORESCENT_YIELD",
+    TOTAL: "TOTAL_ELECTRON_YIELD",
+    PARTIAL: "PARTIAL_ELECTRON_YIELD",
+    TRANSMISSION: "TRANSMISSION",
+    TRANS: "TRANSMISSION",
   };
 
   return modeMap[normalized] ?? normalized;

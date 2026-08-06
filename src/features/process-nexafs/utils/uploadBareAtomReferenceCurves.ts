@@ -9,6 +9,10 @@ import {
 /**
  * Applies the same linear normalization scale and offset used for experimental mu
  * to tabulated bare-atom samples so overlays share the plotted y-axis basis.
+ *
+ * Do not use this transform for beta overlays: experimental beta is already on the
+ * refractive-index scale (via {@link computeBetaIndex} / Henke), and scaling bare
+ * mu first then converting to beta double-warps the step edge.
  */
 export function transformBareAtomPointsWithNormalization(
   barePoints: readonly BareAtomPoint[],
@@ -25,15 +29,24 @@ export function transformBareAtomPointsWithNormalization(
 }
 
 /**
- * Builds bare-atom reference overlay curves for the NEXAFS upload plot using the same
- * normalization transform as the active experimental channel.
+ * Builds bare-atom reference overlay curves for the NEXAFS upload plot.
+ *
+ * Mass-absorption overlays reuse the experimental mu linear transform. Beta and
+ * delta overlays use the tabulated optical-constant basis without that transform
+ * so the step edge matches browse / Henke scaling.
  */
 export function buildUploadBareAtomReferenceCurves(args: {
   readonly barePoints: readonly BareAtomPoint[];
   readonly bareDeltaPoints: readonly BareAtomPoint[] | null;
   readonly dataView: BareAtomReferenceDataView;
-  readonly muNormalization: Pick<NormalizationComputation, "scale" | "offset"> | null;
-  readonly betaMuNormalization: Pick<NormalizationComputation, "scale" | "offset"> | null;
+  readonly muNormalization: Pick<
+    NormalizationComputation,
+    "scale" | "offset"
+  > | null;
+  readonly betaMuNormalization: Pick<
+    NormalizationComputation,
+    "scale" | "offset"
+  > | null;
   readonly isDark?: boolean;
 }): ReferenceCurve[] {
   const label =
@@ -53,18 +66,26 @@ export function buildUploadBareAtomReferenceCurves(args: {
     return curve ? [curve] : [];
   }
 
-  const muNorm =
-    args.dataView === "beta"
-      ? args.betaMuNormalization
-      : args.muNormalization;
+  if (args.dataView === "beta") {
+    const curve = buildBareAtomReferenceCurve({
+      bareMu: args.barePoints,
+      dataView: "beta",
+      label,
+      isDark: args.isDark,
+    });
+    return curve ? [curve] : [];
+  }
+
+  void args.betaMuNormalization;
+
   const normalizedBare = transformBareAtomPointsWithNormalization(
     args.barePoints,
-    muNorm,
+    args.muNormalization,
   );
 
   const curve = buildBareAtomReferenceCurve({
     bareMu: normalizedBare,
-    dataView: args.dataView,
+    dataView: "absorption",
     label,
     isDark: args.isDark,
   });

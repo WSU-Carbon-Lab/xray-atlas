@@ -8,6 +8,7 @@ export { ExperimentAttributionEditSection } from "./experiment-attribution-edit-
 export { SourcePaperDoiField } from "./source-paper-doi-field";
 export { SourcePaperPublicationsEditor } from "./source-paper-publications-editor";
 export { DatasetTabs } from "./dataset-tabs";
+export { BatchUploadControls } from "./batch-upload-controls";
 export { FileUploadZone } from "./file-upload-zone";
 export { NexafsUploadPortal } from "./nexafs-upload-portal";
 export { InlineColumnMapping } from "./inline-column-mapping";

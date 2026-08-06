@@ -13,6 +13,7 @@ import {
   NexafsUploadPortal,
   DatasetTabs,
   DatasetContent,
+  BatchUploadControls,
   useDatasetStatus,
 } from "~/features/process-nexafs/ui";
 import {
@@ -22,7 +23,7 @@ import {
   ErrorMessage,
 } from "@heroui/react";
 import { Button as HeroButton } from "@heroui/react";
-import type { DatasetState, CSVColumnMappings } from "../types";
+import type { DatasetState, CSVColumnMappings, CsvParseOptionsState } from "../types";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
 import {
   GlobalFileDropZoneProvider,
@@ -55,13 +56,17 @@ export type NexafsContributeFlowProps = {
   processDatasetData: (id: string) => void;
   handleFilesSelected: (files: File[]) => void | Promise<void>;
   handleNewDataset: () => void;
+  handleNewFolder?: () => void;
   handleDatasetSelect: (id: string) => void;
   handleDatasetRemove: (id: string) => void;
+  batchInstrumentId: string;
+  setBatchInstrumentId: (instrumentId: string) => void;
   columnMappingFile: { file: File; datasetId: string } | null;
   handleColumnMappingConfirm: (
     mappings: CSVColumnMappings,
     fixedValues?: { theta?: string; phi?: string },
-  ) => void;
+    parseOptions?: CsvParseOptionsState,
+  ) => void | Promise<void>;
   handleColumnMappingClose: () => void;
   instrumentOptions: InstrumentOption[];
   edgeOptions: EdgeOption[];
@@ -127,8 +132,11 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     processDatasetData,
     handleFilesSelected,
     handleNewDataset,
+    handleNewFolder,
     handleDatasetSelect,
     handleDatasetRemove,
+    batchInstrumentId,
+    setBatchInstrumentId,
     columnMappingFile,
     handleColumnMappingConfirm,
     handleColumnMappingClose,
@@ -276,6 +284,9 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
         columns={columnMappingDataset?.csvColumns ?? []}
         rawData={columnMappingDataset?.csvRawData ?? []}
         fileName={columnMappingFile?.file.name ?? ""}
+        file={columnMappingFile?.file ?? null}
+        initialParseOptions={columnMappingDataset?.csvParseOptions}
+        challenges={columnMappingDataset?.csvParseChallenges ?? []}
       />
 
       <div
@@ -301,12 +312,20 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
 
           {datasets.length > 0 && (
             <div className="flex min-h-0 w-full flex-1 flex-col">
+              <BatchUploadControls
+                instrumentOptions={instrumentOptions}
+                batchInstrumentId={batchInstrumentId}
+                onBatchInstrumentChange={setBatchInstrumentId}
+                isLoadingInstruments={isLoadingInstruments}
+                datasetCount={datasets.length}
+              />
               <DatasetTabs
                 datasets={datasets}
                 activeDatasetId={activeDatasetId}
                 onDatasetSelect={handleDatasetSelect}
                 onDatasetRemove={handleDatasetRemove}
                 onNewDataset={handleNewDataset}
+                onNewFolder={handleNewFolder}
                 instrumentOptions={instrumentOptions}
                 edgeOptions={edgeOptions}
                 updateDataset={updateDataset}

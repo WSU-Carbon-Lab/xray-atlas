@@ -17,6 +17,7 @@ import {
   resolveUploadFixedPhi,
   uploadGeometryIsComplete,
 } from "../utils/default-upload-phi";
+import { describeInvalidPolarizationGeometry } from "../utils/polarizationAngle";
 import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
@@ -184,6 +185,26 @@ export function useNexafsSubmit(
                     )!,
                   },
                 };
+
+          const geometriesToValidate =
+            geometryInput.mode === "csv"
+              ? (geometryInput.csvGeometries ?? [])
+              : geometryInput.fixed
+                ? [geometryInput.fixed]
+                : [];
+          for (const geometry of geometriesToValidate) {
+            const invalid = describeInvalidPolarizationGeometry(
+              geometry.theta,
+              geometry.phi,
+            );
+            if (invalid) {
+              setSubmitStatus({
+                type: "error",
+                message: `Dataset "${dataset.fileName}": ${invalid}. Remap theta/phi or use fixed geometry.`,
+              });
+              return;
+            }
+          }
 
           let vendorPayload:
             | { existingVendorId: string }

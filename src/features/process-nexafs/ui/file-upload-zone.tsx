@@ -1,7 +1,12 @@
 "use client";
 
 import { useCallback, useState, useRef } from "react";
-import { CloudArrowUpIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  CloudArrowUpIcon,
+  FolderOpenIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
+import { collectFilesFromDataTransfer } from "~/lib/collect-files-from-data-transfer";
 
 interface FileUploadZoneProps {
   onFilesSelected: (files: File[]) => void;
@@ -12,7 +17,7 @@ interface FileUploadZoneProps {
 
 export function FileUploadZone({
   onFilesSelected,
-  acceptedFileTypes = [".csv", "text/csv", ".json", "application/json"],
+  acceptedFileTypes: _acceptedFileTypes = [".csv", "text/csv", ".json", "application/json"],
   maxFileSize = 10 * 1024 * 1024,
   multiple = true,
 }: FileUploadZoneProps) {
@@ -20,49 +25,37 @@ export function FileUploadZone({
   const [draggedFileType, setDraggedFileType] = useState<"csv" | "json" | "mixed" | null>(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const folderInputRef = useRef<HTMLInputElement>(null);
 
   const handleFiles = useCallback(
-    (files: FileList | null) => {
+    (files: FileList | File[] | null) => {
       if (!files || files.length === 0) {
         return;
       }
 
-      const validateFile = (file: File): string | null => {
+      setError(null);
+      const validFiles: File[] = [];
+      const errors: string[] = [];
+      let skippedNonSpectrum = 0;
+
+      Array.from(files).forEach((file) => {
         const fileName = file.name.toLowerCase();
         const isCsv = fileName.endsWith(".csv");
         const isJson = fileName.endsWith(".json");
-
-        const isValidType =
-          acceptedFileTypes.some((type) => {
-            if (type.startsWith(".")) {
-              return fileName.endsWith(type.toLowerCase());
-            }
-            return file.type === type;
-          }) || file.type === "" || isCsv || isJson;
-
-        if (!isValidType && !isCsv && !isJson) {
-          return `Invalid file type. Expected CSV or JSON file, got: ${file.type ?? "unknown"}`;
+        if (!isCsv && !isJson) {
+          skippedNonSpectrum += 1;
+          return;
         }
 
         if (file.size > maxFileSize) {
           const maxSizeMB = (maxFileSize / (1024 * 1024)).toFixed(1);
-          return `File too large. Maximum size is ${maxSizeMB}MB, got ${(file.size / (1024 * 1024)).toFixed(1)}MB`;
+          errors.push(
+            `${file.name}: File too large. Maximum size is ${maxSizeMB}MB, got ${(file.size / (1024 * 1024)).toFixed(1)}MB`,
+          );
+          return;
         }
 
-        return null;
-      };
-
-      setError(null);
-      const validFiles: File[] = [];
-      const errors: string[] = [];
-
-      Array.from(files).forEach((file) => {
-        const validationError = validateFile(file);
-        if (validationError) {
-          errors.push(`${file.name}: ${validationError}`);
-        } else {
-          validFiles.push(file);
-        }
+        validFiles.push(file);
       });
 
       if (errors.length > 0) {
@@ -70,13 +63,18 @@ export function FileUploadZone({
         if (fileInputRef.current) {
           fileInputRef.current.value = "";
         }
+        if (folderInputRef.current) {
+          folderInputRef.current.value = "";
+        }
+      } else if (skippedNonSpectrum > 0 && validFiles.length === 0) {
+        setError("No CSV or JSON spectrum files found.");
       }
 
       if (validFiles.length > 0) {
         onFilesSelected(validFiles);
       }
     },
-    [onFilesSelected, maxFileSize, acceptedFileTypes],
+    [onFilesSelected, maxFileSize],
   );
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
@@ -103,6 +101,8 @@ export function FileUploadZone({
         } else {
           setDraggedFileType("mixed");
         }
+      } else {
+        setDraggedFileType("csv");
       }
     }
   }, []);
@@ -120,7 +120,9 @@ export function FileUploadZone({
       e.stopPropagation();
       setIsDragging(false);
       setDraggedFileType(null);
-      handleFiles(e.dataTransfer.files);
+      void collectFilesFromDataTransfer(e.dataTransfer).then((files) => {
+        handleFiles(files);
+      });
     },
     [handleFiles],
   );
@@ -130,6 +132,16 @@ export function FileUploadZone({
       handleFiles(e.target.files);
       if (fileInputRef.current) {
         fileInputRef.current.value = "";
+      }
+    },
+    [handleFiles],
+  );
+
+  const handleFolderInputChange = useCallback(
+    (e: React.ChangeEvent<HTMLInputElement>) => {
+      handleFiles(e.target.files);
+      if (folderInputRef.current) {
+        folderInputRef.current.value = "";
       }
     },
     [handleFiles],
@@ -154,26 +166,53 @@ export function FileUploadZone({
           accept=".csv,.json,text/csv,application/json"
           multiple={multiple}
           onChange={handleFileInputChange}
-          className="absolute inset-0 h-full w-full cursor-pointer opacity-0"
+          className="hidden"
+        />
+        <input
+          ref={folderInputRef}
+          type="file"
+          id="folder-upload"
+          accept=".csv,.json,text/csv,application/json"
+          multiple
+          className="hidden"
+          // @ts-expect-error Chromium/WebKit folder picker attribute
+          webkitdirectory=""
+          directory=""
+          onChange={handleFolderInputChange}
         />
 
         <div className="flex flex-col gap-2">
           <span className="text-accent text-sm font-semibold tracking-wide uppercase">
-            Upload CSV or JSON files
+            Upload CSV, JSON, or a folder
           </span>
           <span className="text-foreground text-base transition-colors duration-200">
             {isDragging
               ? draggedFileType === "json"
                 ? "Drop JSON file here"
-                : draggedFileType === "csv"
-                  ? "Drop CSV file here"
-                  : "Drop files here"
-              : "Drag and drop CSV or JSON files here"}
+                : "Drop spectra or a folder here"
+              : "Drag and drop CSV/JSON files or a folder"}
           </span>
           <span className="text-muted text-sm">
-            or click to browse • Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
+            Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
             {multiple ? " • Multiple files supported" : null}
           </span>
+          <div className="mt-1 flex flex-wrap gap-2">
+            <button
+              type="button"
+              className="border-border bg-surface text-foreground hover:bg-surface-2 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium"
+              onClick={() => fileInputRef.current?.click()}
+            >
+              Browse files
+            </button>
+            <button
+              type="button"
+              className="border-border bg-surface text-foreground hover:bg-surface-2 inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium"
+              onClick={() => folderInputRef.current?.click()}
+            >
+              <FolderOpenIcon className="h-3.5 w-3.5" />
+              Choose folder
+            </button>
+          </div>
         </div>
         <div className="text-muted hidden shrink-0 transition-colors duration-200 group-hover:text-accent md:block">
           <CloudArrowUpIcon
