@@ -1,4 +1,5 @@
 import type { SpectrumPoint } from "~/components/plots/types";
+import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
 
 export type DifferenceSpectrum = {
   label: string;
@@ -57,15 +58,16 @@ function groupByGeometry(
   const groups = new Map<string, SpectrumPoint[]>();
 
   for (const point of points) {
-    const hasGeometry =
-      typeof point.theta === "number" &&
-      Number.isFinite(point.theta) &&
-      typeof point.phi === "number" &&
-      Number.isFinite(point.phi);
+    if (
+      typeof point.theta !== "number" ||
+      !Number.isFinite(point.theta) ||
+      typeof point.phi !== "number" ||
+      !Number.isFinite(point.phi)
+    ) {
+      continue;
+    }
 
-    if (!hasGeometry) continue;
-
-    const key = `${point.theta}:${point.phi}`;
+    const key = spectrumGeometryKey(point.theta, point.phi);
     const group = groups.get(key);
     if (group) {
       group.push(point);

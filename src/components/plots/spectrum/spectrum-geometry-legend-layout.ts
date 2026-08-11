@@ -1,4 +1,5 @@
 import { LEGEND_SWATCH_WIDTH } from "./LegendSwatch";
+import type { SpectrumGeometryAngleDisplay } from "./spectrum-geometry-legend-angle";
 
 export const LEGEND_INSET = 12;
 export const LEGEND_GAP = 4;
@@ -11,11 +12,9 @@ export const LEGEND_HEADER_BLOCK_HEIGHT =
 export const LEGEND_ROW_HEIGHT = 14;
 export const LEGEND_FONT_SIZE = 13;
 export const LEGEND_FONT_FAMILY = "var(--font-sans), system-ui, sans-serif";
+export const LEGEND_ANGLE_PAIR_GAP_PX = 6;
 
 const MEASURE_SUBPIXEL_BUFFER_PX = 2;
-
-/** Extra space between swatch block and angle column (legacy layout slack). */
-export const LEGEND_TRACE_TO_ANGLE_EXTRA_PX = 24;
 
 function measureTextWidthPx(
   text: string,
@@ -34,7 +33,9 @@ function measureTextWidthPx(
   return ctx.measureText(text).width;
 }
 
-export function computeGeometryLegendBoxHeight(rowCount: number): number {
+export function computeGeometryLegendBoxHeight(
+  rowCount: number,
+): number {
   const rowGaps = rowCount > 0 ? (rowCount - 1) * LEGEND_GAP : 0;
   const panelHeight =
     LEGEND_PADDING * 2 +
@@ -46,8 +47,7 @@ export function computeGeometryLegendBoxHeight(rowCount: number): number {
 
 export type GeometryLegendWidthInput = {
   plotWidth: number;
-  angleColumnTitle: string;
-  angleLabels: readonly string[];
+  angleDisplays: readonly SpectrumGeometryAngleDisplay[];
   headerCol1: string;
   headerCol2: string | null;
   isLinked: boolean;
@@ -62,7 +62,7 @@ export type GeometryLegendWidthInput = {
 export function computeGeometryLegendWidth(input: GeometryLegendWidthInput): number {
   const {
     plotWidth,
-    angleLabels,
+    angleDisplays,
     headerCol1,
     headerCol2,
     isLinked,
@@ -74,10 +74,33 @@ export function computeGeometryLegendWidth(input: GeometryLegendWidthInput): num
   const measureAngle = (text: string) =>
     measureTextWidthPx(text, LEGEND_FONT_SIZE, 500);
 
-  const angleColWidth =
-    angleLabels.length > 0
-      ? Math.max(...angleLabels.map((label) => measureAngle(label)))
-      : 40;
+  const usesPairColumns = angleDisplays.some((display) => display.mode === "pair");
+  let angleColWidth = 40;
+  if (usesPairColumns) {
+    const thetaWidth = Math.max(
+      measureHeader("θ"),
+      ...angleDisplays.map((display) =>
+        display.mode === "pair" ? measureAngle(display.thetaLabel) : 0,
+      ),
+      28,
+    );
+    const phiWidth = Math.max(
+      measureHeader("φ"),
+      ...angleDisplays.map((display) =>
+        display.mode === "pair" ? measureAngle(display.phiLabel) : 0,
+      ),
+      28,
+    );
+    angleColWidth = thetaWidth + LEGEND_ANGLE_PAIR_GAP_PX + phiWidth;
+  } else if (angleDisplays.length > 0) {
+    angleColWidth = Math.max(
+      ...angleDisplays.map((display) =>
+        display.mode === "single" ? measureAngle(display.label) : 40,
+      ),
+      measureHeader("θ"),
+      40,
+    );
+  }
 
   const headerWidth = isLinked
     ? Math.max(measureHeader(headerCol1), measureHeader(headerCol2 ?? ""))
@@ -87,9 +110,10 @@ export function computeGeometryLegendWidth(input: GeometryLegendWidthInput): num
 
   const gridContentWidth =
     LEGEND_SWATCH_WIDTH * swatchColumnCount +
+    LEGEND_GAP * swatchColumnCount +
     headerWidth +
-    angleColWidth +
-    LEGEND_TRACE_TO_ANGLE_EXTRA_PX;
+    LEGEND_GAP +
+    angleColWidth;
 
   const panelWidth = LEGEND_PADDING * 2 + gridContentWidth;
   const boxWidth =

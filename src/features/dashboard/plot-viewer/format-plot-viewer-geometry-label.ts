@@ -3,6 +3,10 @@ import {
   resolveLinkedOpticalAngleSplit,
   type SpectrumGeometryAngleSplit,
 } from "~/components/plots/spectrum/spectrum-geometry-legend-angle";
+import {
+  SPECTRUM_FIXED_GEOMETRY_KEY,
+  parseSpectrumGeometryKey,
+} from "~/lib/nexafs/spectrum-geometry-key";
 
 /**
  * Formats one finite polarization angle in compact legend copy (`55°`, not `θ=55.0°`).
@@ -25,21 +29,10 @@ export function formatPlotViewerAngleDegrees(value: number | undefined): string 
 export function parsePlotViewerGeometryKey(
   geometryKey: string,
 ): { theta?: number; phi?: number } | null {
-  if (geometryKey === "fixed") {
+  if (geometryKey === SPECTRUM_FIXED_GEOMETRY_KEY) {
     return null;
   }
-  const [thetaText, phiText] = geometryKey.split(":");
-  const theta = Number(thetaText);
-  const phi = Number(phiText);
-  const finiteTheta = Number.isFinite(theta);
-  const finitePhi = Number.isFinite(phi);
-  if (!finiteTheta && !finitePhi) {
-    return null;
-  }
-  return {
-    theta: finiteTheta ? theta : undefined,
-    phi: finitePhi ? phi : undefined,
-  };
+  return parseSpectrumGeometryKey(geometryKey);
 }
 
 /**

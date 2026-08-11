@@ -1,3 +1,5 @@
+import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
+
 export type NexafsParsedSpectrumPoint = {
   energy: number;
   absorption: number;
@@ -58,7 +60,7 @@ export function buildPolarizationGroupsWithIndices(points: NexafsParsedSpectrumP
   const groupToIndices = new Map<string, number[]>();
   for (let idx = 0; idx < points.length; idx++) {
     const p = points[idx]!;
-    const key = `${p.theta}:${p.phi}`;
+    const key = spectrumGeometryKey(p.theta, p.phi);
     const arr = groupToIndices.get(key) ?? [];
     arr.push(idx);
     groupToIndices.set(key, arr);

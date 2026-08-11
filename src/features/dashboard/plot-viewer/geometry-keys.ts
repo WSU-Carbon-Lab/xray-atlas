@@ -1,16 +1,15 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 import { buildGeometryLabel } from "~/components/plots/utils/trace-utils";
+import { spectrumGeometryKeyFromPoint } from "~/lib/nexafs/spectrum-geometry-key";
 
 /**
  * Stable geometry key for polarization grouping (`theta:phi` or `fixed`).
+ *
+ * Delegates to {@link spectrumGeometryKeyFromPoint} so plot-viewer URL `geom`
+ * keys stay order-preserving and aligned with upload uniqueness / spectrum plots.
  */
 export function geometryKeyFromPoint(point: SpectrumPoint): string {
-  const hasGeometry =
-    typeof point.theta === "number" &&
-    Number.isFinite(point.theta) &&
-    typeof point.phi === "number" &&
-    Number.isFinite(point.phi);
-  return hasGeometry ? `${point.theta}:${point.phi}` : "fixed";
+  return spectrumGeometryKeyFromPoint(point);
 }
 
 /**

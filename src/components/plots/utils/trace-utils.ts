@@ -2,6 +2,7 @@
  * Utility functions for trace building and geometry handling
  */
 
+import { spectrumGeometryKeyFromPoint } from "~/lib/nexafs/spectrum-geometry-key";
 import type { SpectrumPoint, GeometryGroup } from "../types";
 
 /**
@@ -36,13 +37,7 @@ export function groupPointsByGeometry(
   const groups = new Map<string, GeometryGroup>();
 
   points.forEach((point) => {
-    const hasGeometry =
-      typeof point.theta === "number" &&
-      Number.isFinite(point.theta) &&
-      typeof point.phi === "number" &&
-      Number.isFinite(point.phi);
-
-    const key = hasGeometry ? `${point.theta}:${point.phi}` : "fixed";
+    const key = spectrumGeometryKeyFromPoint(point);
     const label = buildGeometryLabel(point.theta, point.phi);
 
     const group = groups.get(key);

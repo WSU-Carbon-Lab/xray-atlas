@@ -5,6 +5,7 @@ import type {
 } from "~/features/process-nexafs/nexafs-plot-channels";
 import type { SpectrumPoint, TraceData, TraceMarkerSymbol } from "../types";
 import {
+  angleDisplayForSpectrumGeometryGroup,
   angleLabelForSpectrumGeometryGroup,
   linkedOpticalAngleColumnTitle,
   resolveLinkedOpticalAngleSplit,
@@ -154,6 +155,12 @@ export function buildLinkedOpticalCompanionTraces(args: {
       geometryKey: key,
       color,
       angleLabel: angleLabelForSpectrumGeometryGroup(
+        { theta, phi, label: group.label },
+        showThetaData,
+        showPhiData,
+        angleSplit,
+      ),
+      angleDisplay: angleDisplayForSpectrumGeometryGroup(
         { theta, phi, label: group.label },
         showThetaData,
         showPhiData,
