@@ -5,6 +5,7 @@ import {
   isRealChannel,
   type NexafsPlotChannelId,
 } from "~/features/process-nexafs/nexafs-plot-channels";
+import { parseSpectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
 import {
   angleLabelForSpectrumGeometryGroup,
   linkedOpticalAngleColumnTitle,
@@ -37,16 +38,7 @@ export type InspectPinDisplayContext = {
 };
 
 function parseGeometryKey(key: string): { theta?: number; phi?: number } {
-  if (key === "fixed") {
-    return {};
-  }
-  const [thetaRaw, phiRaw] = key.split(":");
-  const theta = Number(thetaRaw);
-  const phi = Number(phiRaw);
-  return {
-    theta: Number.isFinite(theta) ? theta : undefined,
-    phi: Number.isFinite(phi) ? phi : undefined,
-  };
+  return parseSpectrumGeometryKey(key) ?? {};
 }
 
 function geometryFromTrace(trace: TraceData): { theta?: number; phi?: number } {

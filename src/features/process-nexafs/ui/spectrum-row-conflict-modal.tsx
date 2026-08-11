@@ -12,6 +12,7 @@ import {
   type SpectrumEnergyConflictResolutionChoice,
   type SpectrumEnergyConflictGroup,
   spectrumEnergyConflictGroupKey,
+  spectrumGeometryKey,
 } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 import type { SpectrumPoint } from "~/components/plots/types";
 import { formatStatNumber } from "~/features/process-nexafs/utils/core";
@@ -171,7 +172,7 @@ export function SpectrumRowConflictModal({
   const groupsByGeometry = useMemo(() => {
     const map = new Map<string, SpectrumEnergyConflictGroup[]>();
     for (const group of groups) {
-      const geometryKey = `${group.theta}:${group.phi}`;
+      const geometryKey = spectrumGeometryKey(group.theta, group.phi);
       const list = map.get(geometryKey);
       if (list) {
         list.push(group);
@@ -275,9 +276,9 @@ export function SpectrumRowConflictModal({
 
         <div className="space-y-5">
           {[...groupsByGeometry.entries()].map(([geometryKey, geometryGroups]) => {
-            const [thetaRaw, phiRaw] = geometryKey.split(":");
-            const theta = Number(thetaRaw);
-            const phi = Number(phiRaw);
+            const representative = geometryGroups[0];
+            const theta = representative?.theta ?? Number.NaN;
+            const phi = representative?.phi ?? Number.NaN;
             return (
               <section
                 key={geometryKey}
@@ -302,8 +303,8 @@ export function SpectrumRowConflictModal({
                       group.rows.map((row) => ({
                         ...row,
                         energy: group.energy,
-                        theta: group.theta,
-                        phi: group.phi,
+                        theta: row.theta,
+                        phi: row.phi,
                       })),
                     );
                     return (
@@ -351,6 +352,9 @@ export function SpectrumRowConflictModal({
                                           row === group.rows[1]
                                         ? `Second row (${row.pointIndex + 1})`
                                         : `Row ${row.pointIndex + 1}`}
+                                  </span>
+                                  <span className="text-muted mt-0.5 block text-xs">
+                                    {groupGeometryLabel(row.theta, row.phi)}
                                   </span>
                                   <span className="text-muted mt-0.5 block text-xs">
                                     {formatChannelSummary(row)}

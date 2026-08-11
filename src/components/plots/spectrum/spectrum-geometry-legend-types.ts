@@ -1,9 +1,11 @@
 import type { TraceData } from "../types";
 import type { SpectrumYAxisQuantity } from "../types";
 import {
+  angleDisplayForSpectrumGeometryGroup,
   angleLabelForSpectrumGeometryGroup,
   linkedOpticalAngleColumnTitle,
   resolveLinkedOpticalAngleSplit,
+  type SpectrumGeometryAngleDisplay,
 } from "./spectrum-geometry-legend-angle";
 
 /** One linked imaginary/real geometry row in the in-plot legend. */
@@ -11,6 +13,7 @@ export type LinkedSpectrumGeometryLegendRow = {
   readonly geometryKey: string;
   readonly color: string;
   readonly angleLabel: string;
+  readonly angleDisplay: SpectrumGeometryAngleDisplay;
   readonly imaginaryTraceId: string;
   readonly realTraceId: string;
   readonly imaginaryLineDash: "solid" | "dash";
@@ -20,11 +23,12 @@ export type LinkedSpectrumGeometryLegendRow = {
 /** @deprecated Use {@link LinkedSpectrumGeometryLegendRow}. */
 export type LinkedOpticalLegendRow = LinkedSpectrumGeometryLegendRow;
 
-/** One single-channel geometry row (solid line swatch + angle). */
+/** One single-channel geometry row (styled line swatch + angle). */
 export type SingleSpectrumGeometryLegendRow = {
   readonly geometryKey: string;
   readonly color: string;
   readonly angleLabel: string;
+  readonly angleDisplay: SpectrumGeometryAngleDisplay;
   readonly traceId: string;
   readonly lineDash: "solid";
 };
@@ -116,6 +120,12 @@ export function buildSingleSpectrumGeometryLegendRows(args: {
     const phi = resolveFiniteAngle(primary, group, "phi");
     const color =
       primary.line?.color ?? primary.marker?.color ?? "#6b7280";
+    const angleDisplay = angleDisplayForSpectrumGeometryGroup(
+      { theta, phi, label: group.label },
+      showThetaData,
+      showPhiData,
+      angleSplit,
+    );
     rows.push({
       geometryKey: key,
       color,
@@ -125,6 +135,7 @@ export function buildSingleSpectrumGeometryLegendRows(args: {
         showPhiData,
         angleSplit,
       ),
+      angleDisplay,
       traceId: `geometry-${key}`,
       lineDash: "solid",
     });

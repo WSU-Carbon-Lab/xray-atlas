@@ -3,6 +3,20 @@
  * polarization geometry before `spectrumpoints` persistence.
  */
 
+import {
+  SPECTRUM_FIXED_GEOMETRY_KEY,
+  parseSpectrumGeometryKey,
+  spectrumGeometryKey,
+  spectrumGeometryKeyFromPoint,
+} from "./spectrum-geometry-key";
+
+export {
+  SPECTRUM_FIXED_GEOMETRY_KEY,
+  parseSpectrumGeometryKey,
+  spectrumGeometryKey,
+  spectrumGeometryKeyFromPoint,
+} from "./spectrum-geometry-key";
+
 /** Minimal energy-keyed row used for uniqueness checks before `createMany`. */
 export interface SpectrumEnergyKeyedPoint {
   energy: number;
@@ -31,6 +45,10 @@ export interface SpectrumGeometryLabel {
 export interface SpectrumEnergyConflictRow {
   /** Index in the contributor's in-memory `spectrumPoints` array. */
   pointIndex: number;
+  /** Polar angle (degrees) copied from the source spectrum row. */
+  theta: number;
+  /** Azimuthal angle (degrees) copied from the source spectrum row. */
+  phi: number;
   absorption: number;
   od?: number;
   massabsorption?: number;
@@ -128,27 +146,23 @@ export function spectrumEnergyConflictGroupKey(
   phi: number,
   energy: number,
 ): string {
-  return `${theta}:${phi}:${energy}`;
+  return `${spectrumGeometryKey(theta, phi)}:${energy}`;
 }
 
 function geometryKeyFromPoint(point: SpectrumEnergyKeyedPoint): string | null {
-  if (
-    typeof point.theta !== "number" ||
-    !Number.isFinite(point.theta) ||
-    typeof point.phi !== "number" ||
-    !Number.isFinite(point.phi)
-  ) {
+  const key = spectrumGeometryKeyFromPoint(point);
+  if (key === SPECTRUM_FIXED_GEOMETRY_KEY) {
     return null;
   }
-  return `${point.theta}:${point.phi}`;
+  return key;
 }
 
 function parseGeometryKey(key: string): SpectrumGeometryLabel {
-  const [thetaRaw, phiRaw] = key.split(":");
-  return {
-    theta: Number(thetaRaw),
-    phi: Number(phiRaw),
-  };
+  const parsed = parseSpectrumGeometryKey(key);
+  if (!parsed) {
+    return { theta: Number.NaN, phi: Number.NaN };
+  }
+  return parsed;
 }
 
 function groupPointIndicesByGeometry(
@@ -171,9 +185,12 @@ function groupPointIndicesByGeometry(
 function conflictRowFromPoint(
   pointIndex: number,
   point: SpectrumEnergyKeyedPoint,
+  geometry: SpectrumGeometryLabel,
 ): SpectrumEnergyConflictRow {
   return {
     pointIndex,
+    theta: geometry.theta,
+    phi: geometry.phi,
     absorption: point.absorption,
     od: point.od,
     massabsorption: point.massabsorption,
@@ -354,7 +371,10 @@ export function detectSpectrumEnergyConflictGroups<
           phi,
           energy,
           rows: energyIndices.map((pointIndex) =>
-            conflictRowFromPoint(pointIndex, points[pointIndex]!),
+            conflictRowFromPoint(pointIndex, points[pointIndex]!, {
+              theta,
+              phi,
+            }),
           ),
         });
       }

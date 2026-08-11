@@ -5,6 +5,7 @@ import type {
   SpectrumStats,
   BareAtomPoint,
 } from "../types";
+import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
 
 export const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
@@ -56,7 +57,7 @@ export const extractGeometryPairs = (points: SpectrumPoint[]): GeometryPair[] =>
             Number.isFinite(point.phi),
         )
         .map((point) => {
-          const key = `${point.theta}:${point.phi}`;
+          const key = spectrumGeometryKey(point.theta, point.phi);
           return [key, { theta: point.theta, phi: point.phi }];
         }),
     ).values(),
@@ -346,14 +347,16 @@ export const computeNormalizationForExperiment = (
   const pointToGeometryKey = new Map<number, GeometryKey>();
 
   points.forEach((point, index) => {
+    const theta = point.theta;
+    const phi = point.phi;
     const hasGeometry =
-      typeof point.theta === "number" &&
-      Number.isFinite(point.theta) &&
-      typeof point.phi === "number" &&
-      Number.isFinite(point.phi);
+      typeof theta === "number" &&
+      Number.isFinite(theta) &&
+      typeof phi === "number" &&
+      Number.isFinite(phi);
 
     const geometryKey: GeometryKey = hasGeometry
-      ? `${point.theta}:${point.phi}`
+      ? spectrumGeometryKey(theta, phi)
       : "no-geometry";
 
     if (!geometryGroups.has(geometryKey)) {

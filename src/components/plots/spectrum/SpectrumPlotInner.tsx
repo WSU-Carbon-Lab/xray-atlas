@@ -414,6 +414,14 @@ export function SpectrumPlotInner({
           (typeof trace.name === "string" && trace.name.length > 0
             ? trace.name
             : `Trace ${traceIndex + 1}`),
+        angleDisplay: {
+          mode: "single",
+          label:
+            trace.regionSpotLabel ??
+            (typeof trace.name === "string" && trace.name.length > 0
+              ? trace.name
+              : `Trace ${traceIndex + 1}`),
+        },
         traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
         lineDash: "solid",
       });
@@ -431,6 +439,14 @@ export function SpectrumPlotInner({
           (typeof trace.name === "string" && trace.name.length > 0
             ? trace.name
             : `Trace ${traceIndex + 1}`),
+        angleDisplay: {
+          mode: "single",
+          label:
+            trace.regionSpotLabel ??
+            (typeof trace.name === "string" && trace.name.length > 0
+              ? trace.name
+              : `Trace ${traceIndex + 1}`),
+        },
         traceId: trace.legendId ?? traceVisibilityId(trace, traceIndex),
         lineDash: "solid",
       });

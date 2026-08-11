@@ -84,6 +84,7 @@ import {
   POLAR_DEG_MAX,
   POLAR_DEG_MIN,
 } from "~/features/process-nexafs/utils/polarizationAngle";
+import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
 
 const polarizationAngleSchema = z.object({
   theta: z
@@ -1443,7 +1444,7 @@ export const experimentsRouter = createTRPCRouter({
             });
           }
 
-          const key = `${point.theta}:${point.phi}`;
+          const key = spectrumGeometryKey(point.theta, point.phi);
           if (!groupedByGeometry.has(key)) {
             groupedByGeometry.set(key, {
               theta: point.theta,
@@ -1677,7 +1678,7 @@ export const experimentsRouter = createTRPCRouter({
             theta: number,
             phi: number,
           ) => {
-            const key = `${theta}:${phi}`;
+            const key = spectrumGeometryKey(theta, phi);
             const cached = polarizationIdByGeometry.get(key);
             if (cached) return cached;
 

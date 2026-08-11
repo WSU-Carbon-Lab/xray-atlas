@@ -130,8 +130,8 @@ describe("detectSpectrumEnergyConflictGroups", () => {
       phi: 0,
       energy: 280,
       rows: [
-        { pointIndex: 4, absorption: 1 },
-        { pointIndex: 5, absorption: 2 },
+        { pointIndex: 4, absorption: 1, theta: 55, phi: 0 },
+        { pointIndex: 5, absorption: 2, theta: 55, phi: 0 },
       ],
     });
     expect(groups[1]?.energy).toEqual(304.95);

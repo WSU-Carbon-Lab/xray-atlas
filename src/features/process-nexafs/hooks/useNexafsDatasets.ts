@@ -40,6 +40,7 @@ import {
 import { describeInvalidPolarizationGeometry } from "../utils/polarizationAngle";
 import type { CsvParseOptionsState } from "../types";
 import type { ParseNexafsCsvOptions } from "../utils/csv";
+import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
 import {
   applySpectrumEnergyConflictResolution,
   detectSpectrumEnergyConflictGroups,
@@ -107,6 +108,8 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     datasetId: string;
     groups: SpectrumEnergyConflictGroup[];
   } | null>(null);
+  const datasetsRef = useRef(datasets);
+  datasetsRef.current = datasets;
 
   const setBatchInstrumentId = useCallback(
     (instrumentId: string, applyToExisting = true) => {
@@ -147,7 +150,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
 
   const processDatasetData = useCallback(
     (datasetId: string) => {
-      const dataset = datasets.find((d) => d.id === datasetId);
+      const dataset = datasetsRef.current.find((d) => d.id === datasetId);
       if (
         !dataset ||
         !Array.isArray(dataset.csvRawData) ||
@@ -265,7 +268,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           ) {
             continue;
           }
-          const key = `${point.theta}:${point.phi}`;
+          const key = spectrumGeometryKey(point.theta, point.phi);
           if (seenGeometry.has(key)) continue;
           seenGeometry.add(key);
           const message = describeInvalidPolarizationGeometry(
@@ -327,7 +330,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         });
       }
     },
-    [datasets, showToast, updateDataset],
+    [showToast, updateDataset],
   );
 
   const processDatasetDataRef = useRef(processDatasetData);
@@ -804,20 +807,20 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
 
   const requestEnergyConflictResolution = useCallback(
     (datasetId: string) => {
-      const dataset = datasets.find((entry) => entry.id === datasetId);
+      const dataset = datasetsRef.current.find((entry) => entry.id === datasetId);
       if (!dataset) return;
       const groups = detectSpectrumEnergyConflictGroups(dataset.spectrumPoints);
       if (groups.length === 0) return;
       setActiveDatasetId(datasetId);
       setEnergyConflictModal({ datasetId, groups });
     },
-    [datasets],
+    [],
   );
 
   const handleEnergyConflictResolve = useCallback(
     (resolutionByGroupKey: Map<string, SpectrumEnergyConflictResolutionChoice>) => {
       if (!energyConflictModal) return;
-      const dataset = datasets.find(
+      const dataset = datasetsRef.current.find(
         (entry) => entry.id === energyConflictModal.datasetId,
       );
       if (!dataset) return;
@@ -845,7 +848,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         "success",
       );
     },
-    [datasets, energyConflictModal, showToast, updateDataset],
+    [energyConflictModal, showToast, updateDataset],
   );
 
   return {

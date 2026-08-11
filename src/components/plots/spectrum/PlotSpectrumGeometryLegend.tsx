@@ -78,8 +78,8 @@ function isSwatchToggleTarget(target: EventTarget | null): boolean {
 
 /**
  * In-plot geometry legend: linked mode shows imaginary/real columns plus angle;
- * single mode shows one channel column plus angle. Drag anywhere except swatch
- * controls; swatches toggle geometry visibility.
+ * single mode shows one channel column plus angle. When both θ and φ vary,
+ * the legend uses explicit θ and φ columns with tabular numeric alignment.
  */
 export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLegend(
   props: PlotSpectrumGeometryLegendProps,
@@ -110,11 +110,17 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
   const isLinked = props.mode === "linked";
   const rows = props.rows;
   const linkedAreaBandLegend = isLinked && graphStyle === "area";
+  const usesPairAngleColumns = rows.some(
+    (row) => row.angleDisplay.mode === "pair",
+  );
+  const angleColumnsTemplate = usesPairAngleColumns
+    ? "minmax(0, max-content) minmax(0, max-content)"
+    : "minmax(0, max-content)";
   const gridTemplateColumns = linkedAreaBandLegend
-    ? `${LEGEND_SWATCH_WIDTH}px 1fr`
+    ? `${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`
     : isLinked
-      ? `${LEGEND_SWATCH_WIDTH}px ${LEGEND_SWATCH_WIDTH}px 1fr`
-      : `${LEGEND_SWATCH_WIDTH}px 1fr`;
+      ? `${LEGEND_SWATCH_WIDTH}px ${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`
+      : `${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`;
 
   const headerGlyphs = useMemo(() => {
     if (isLinked) {
@@ -131,8 +137,7 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     () =>
       computeGeometryLegendWidth({
         plotWidth,
-        angleColumnTitle,
-        angleLabels: rows.map((row) => row.angleLabel),
+        angleDisplays: rows.map((row) => row.angleDisplay),
         headerCol1: headerGlyphs.col1,
         headerCol2: headerGlyphs.col2,
         isLinked,
@@ -140,7 +145,6 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
       }),
     [
       plotWidth,
-      angleColumnTitle,
       rows,
       headerGlyphs.col1,
       headerGlyphs.col2,
@@ -220,17 +224,16 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
     handleLegendPointerUp,
     handleLegendPointerCancel,
   } = useDraggablePlotLegendPosition({
-    plotWidth,
-    plotHeight,
-    boxHeight,
-    legendWidth,
-    defaultX,
-    defaultY,
     plotSvgRef,
     plotMarginLeft,
     plotMarginTop,
+    plotWidth,
+    plotHeight,
+    legendWidth,
+    boxHeight,
+    defaultX,
+    defaultY,
     positionResetKey,
-    inset: LEGEND_INSET,
   });
 
   const handleLegendSurfacePointerDownCapture = useCallback(
@@ -244,7 +247,9 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
   );
 
   const isRowVisible = useCallback(
-    (row: LinkedSpectrumGeometryLegendRow | SingleSpectrumGeometryLegendRow) => {
+    (
+      row: LinkedSpectrumGeometryLegendRow | SingleSpectrumGeometryLegendRow,
+    ): boolean => {
       if (visibleTraceIds.size === 0) {
         return true;
       }
@@ -346,9 +351,32 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
                 ) : null}
               </>
             )}
-            <span style={{ textAlign: "right", paddingRight: 2 }}>
-              {angleColumnTitle}
-            </span>
+            {usesPairAngleColumns ? (
+              <>
+                <span
+                  style={{
+                    textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                    paddingRight: 2,
+                  }}
+                >
+                  θ
+                </span>
+                <span
+                  style={{
+                    textAlign: "right",
+                    fontVariantNumeric: "tabular-nums",
+                    paddingRight: 2,
+                  }}
+                >
+                  φ
+                </span>
+              </>
+            ) : (
+              <span style={{ textAlign: "right", paddingRight: 2 }}>
+                {angleColumnTitle}
+              </span>
+            )}
           </div>
           <div
             data-export-legend-entries
@@ -454,10 +482,34 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
                       paddingRight: 2,
                       color: themeColors.text,
                       opacity: visible ? 1 : 0.55,
+                      fontVariantNumeric: "tabular-nums",
+                      whiteSpace: "nowrap",
                     }}
                   >
-                    {row.angleLabel}
+                    {row.angleDisplay.mode === "pair"
+                      ? row.angleDisplay.thetaLabel
+                      : row.angleDisplay.label}
                   </span>
+                  {usesPairAngleColumns ? (
+                    <span
+                      data-export-legend-label-phi
+                      style={{
+                        textAlign: "right",
+                        fontWeight: 500,
+                        fontSize: LEGEND_FONT_SIZE,
+                        lineHeight: 1,
+                        paddingRight: 2,
+                        color: themeColors.text,
+                        opacity: visible ? 1 : 0.55,
+                        fontVariantNumeric: "tabular-nums",
+                        whiteSpace: "nowrap",
+                      }}
+                    >
+                      {row.angleDisplay.mode === "pair"
+                        ? row.angleDisplay.phiLabel
+                        : ""}
+                    </span>
+                  ) : null}
                 </div>
               );
             })}
