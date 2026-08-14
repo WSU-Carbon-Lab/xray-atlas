@@ -25,6 +25,7 @@ export {
   isSpectrumUploadFileName,
   moleculeLookupTokens,
   experimentTypeFromParsedFilename,
+  SPECTRUM_UPLOAD_FILE_ACCEPT,
 } from "./filenameParser";
 export type {
   ParsedFilename,
@@ -47,6 +48,11 @@ export {
   buildBareAtomReferenceCurve,
   type BareAtomReferenceDataView,
 } from "./buildBareAtomReferenceCurve";
+export {
+  parseAnstoWideXlsxFile,
+  isAnstoWideXlsxFileName,
+} from "./parseAnstoWideXlsx";
+export type { ParsedAnstoWideXlsxSheet } from "./parseAnstoWideXlsx";
 export { parseCSVFile, parseNexafsCsvText } from "./csv";
 export type { ParseNexafsCsvOptions, ParsedNexafsCsv } from "./csv";
 export {

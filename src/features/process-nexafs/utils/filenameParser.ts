@@ -36,11 +36,21 @@ function emptyParsedFilename(): ParsedFilename {
 }
 
 /**
- * Returns true when `fileName` is a spectrum upload candidate (CSV or JSON only).
+ * File-input `accept` list for contribute spectrum uploads (CSV, JSON, XLSX).
+ */
+export const SPECTRUM_UPLOAD_FILE_ACCEPT =
+  ".csv,.json,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+/**
+ * Returns true when `fileName` is a spectrum upload candidate (CSV, JSON, or XLSX).
  */
 export function isSpectrumUploadFileName(fileName: string): boolean {
   const lower = fileName.toLowerCase();
-  return lower.endsWith(".csv") || lower.endsWith(".json");
+  return (
+    lower.endsWith(".csv") ||
+    lower.endsWith(".json") ||
+    lower.endsWith(".xlsx")
+  );
 }
 
 /**

@@ -27,6 +27,9 @@ import {
   experimentTypeFromParsedFilename,
   isSpectrumUploadFileName,
   moleculeLookupTokens,
+  parseAnstoWideXlsxFile,
+  isAnstoWideXlsxFileName,
+  SPECTRUM_UPLOAD_FILE_ACCEPT,
 } from "../utils";
 import {
   resolveUploadRowPhi,
@@ -38,6 +41,7 @@ import {
   detectSpectrumColumnNames,
 } from "../utils/csvParseChallenge";
 import { describeInvalidPolarizationGeometry } from "../utils/polarizationAngle";
+import type { ParsedFilename } from "../utils/filenameParser";
 import type { CsvParseOptionsState } from "../types";
 import type { ParseNexafsCsvOptions } from "../utils/csv";
 import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
@@ -85,6 +89,82 @@ function readOptionalFloat(
   if (typeof raw === "string") {
     const n = parseFloat(raw.trim());
     return Number.isFinite(n) ? n : undefined;
+  }
+  return undefined;
+}
+
+function buildAutofillUpdatesFromParsedFilename(
+  parsedFilename: ParsedFilename,
+  edgeOptions: EdgeOption[],
+  instrumentOptions: InstrumentOption[],
+  batchInstrumentId: string,
+): Partial<DatasetState> {
+  const updates: Partial<DatasetState> = {};
+
+  const experimentType = experimentTypeFromParsedFilename(parsedFilename);
+  if (experimentType) {
+    updates.experimentType = experimentType;
+  } else if (parsedFilename.experimentMode) {
+    const normalizedMode = normalizeExperimentMode(parsedFilename.experimentMode);
+    if (
+      normalizedMode &&
+      EXPERIMENT_TYPE_OPTIONS.some((opt) => opt.value === normalizedMode)
+    ) {
+      updates.experimentType = normalizedMode as ExperimentTypeOption;
+    }
+  }
+
+  if (parsedFilename.edge) {
+    const normalizedEdge = normalizeEdge(parsedFilename.edge);
+    if (normalizedEdge) {
+      const matchingEdge = edgeOptions.find((edge) => {
+        const edgeLabel = `${edge.targetatom}(${edge.corestate})`;
+        return (
+          edgeLabel === normalizedEdge ||
+          edgeLabel.toLowerCase() === normalizedEdge.toLowerCase()
+        );
+      });
+      if (matchingEdge) updates.edgeId = matchingEdge.id;
+    }
+  }
+
+  const matchedInstrumentId = matchInstrumentIdFromParsedNexafsFilename(
+    parsedFilename,
+    instrumentOptions,
+  );
+  if (batchInstrumentId) {
+    updates.instrumentId = batchInstrumentId;
+  } else if (matchedInstrumentId) {
+    updates.instrumentId = matchedInstrumentId;
+  }
+
+  return updates;
+}
+
+function mergeAutofillAttributions(
+  existing: DatasetState["attributions"],
+  autofill: ReturnType<typeof buildNexafsUploadAutofill>,
+): Pick<DatasetState, "attributions" | "collectedByUserIds"> {
+  const attributions = dedupeDatasetAttributions([
+    ...filterValidOrcidAttributions(existing),
+    ...autofill.attributions,
+  ]);
+  return {
+    attributions,
+    collectedByUserIds: collectorOrcidsFromAttributions(attributions),
+  };
+}
+
+async function resolveMoleculeIdFromFilenameToken(
+  token: string | null,
+  resolveMoleculeIdFromToken:
+    | ((lookup: string) => Promise<string | null>)
+    | undefined,
+): Promise<string | undefined> {
+  if (!token || !resolveMoleculeIdFromToken) return undefined;
+  for (const lookup of moleculeLookupTokens(token)) {
+    const moleculeId = await resolveMoleculeIdFromToken(lookup);
+    if (moleculeId) return moleculeId;
   }
   return undefined;
 }
@@ -339,7 +419,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       const skippedCount = files.length - spectrumFiles.length;
       if (skippedCount > 0) {
         showToast(
-          `Skipped ${skippedCount} non-CSV/JSON file${skippedCount === 1 ? "" : "s"}.`,
+          `Skipped ${skippedCount} non-spectrum file${skippedCount === 1 ? "" : "s"}.`,
           "error",
           6000,
         );
@@ -347,7 +427,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       if (spectrumFiles.length === 0) {
         if (files.length > 0) {
           showToast(
-            "No CSV or JSON spectrum files found in the drop.",
+            "No CSV, JSON, or XLSX spectrum files found in the drop.",
             "error",
             8000,
           );
@@ -356,59 +436,96 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       }
 
       for (const file of spectrumFiles) {
+        if (isAnstoWideXlsxFileName(file.name)) {
+          try {
+            const parsedSheets = await parseAnstoWideXlsxFile(file);
+            const nextDatasets: DatasetState[] = [];
+
+            for (const sheet of parsedSheets) {
+              const dataset = createEmptyDatasetState(file);
+              const updates = buildAutofillUpdatesFromParsedFilename(
+                sheet.parsedFilename,
+                edgeOptions,
+                instrumentOptions,
+                batchInstrumentId,
+              );
+              const moleculeId = await resolveMoleculeIdFromFilenameToken(
+                sheet.parsedFilename.moleculeToken,
+                resolveMoleculeIdFromToken,
+              );
+              if (moleculeId) updates.moleculeId = moleculeId;
+
+              const autofill = buildNexafsUploadAutofill({
+                parsedFilename: sheet.parsedFilename,
+                documentMetadata: null,
+                instrumentOptions,
+                vendors,
+                experimentType: updates.experimentType,
+                instrumentId: updates.instrumentId,
+                baseSampleInfo: dataset.sampleInfo,
+              });
+
+              nextDatasets.push({
+                ...dataset,
+                ...updates,
+                fileName: sheet.displayFileName,
+                fixedPhi: String(DEFAULT_UPLOAD_PHI_DEGREES),
+                csvColumns: sheet.columns,
+                csvRawData: sheet.rawData.map((row) => ({
+                  energy: row.energy,
+                  mu: row.mu,
+                  theta: row.theta,
+                })),
+                csvParseOptions: { headerRowIndex: 0, skipRowsAfterHeader: 0 },
+                csvParseChallenges: [],
+                columnMappings: sheet.columnMappings,
+                sampleInfo: autofill.sampleInfo,
+                ...mergeAutofillAttributions(dataset.attributions, autofill),
+              });
+            }
+
+            setDatasets((prev) => [...prev, ...nextDatasets]);
+            setActiveDatasetId((prev) => prev ?? nextDatasets[0]?.id ?? null);
+            for (const dataset of nextDatasets) {
+              setTimeout(() => processDatasetDataRef.current(dataset.id), 50);
+            }
+
+            if (parsedSheets.length > 1) {
+              showToast(
+                `Imported ${parsedSheets.length} edge datasets from ${file.name}.`,
+                "success",
+                6000,
+              );
+            }
+          } catch (error) {
+            console.error("Failed to parse XLSX", error);
+            const errorMessage =
+              error instanceof Error
+                ? error.message
+                : "Failed to parse XLSX workbook.";
+            showToast(
+              `Failed to process ${file.name}: ${errorMessage}`,
+              "error",
+              10000,
+            );
+          }
+          continue;
+        }
+
         const dataset = createEmptyDatasetState(file);
         const parsedFilename = parseNexafsFilename(file.name);
-        const updates: Partial<DatasetState> = {};
-
-        const experimentType = experimentTypeFromParsedFilename(parsedFilename);
-        if (experimentType) {
-          updates.experimentType = experimentType;
-        } else if (parsedFilename.experimentMode) {
-          const normalizedMode = normalizeExperimentMode(
-            parsedFilename.experimentMode,
-          );
-          if (
-            normalizedMode &&
-            EXPERIMENT_TYPE_OPTIONS.some((opt) => opt.value === normalizedMode)
-          ) {
-            updates.experimentType = normalizedMode as ExperimentTypeOption;
-          }
-        }
-
-        if (parsedFilename.edge) {
-          const normalizedEdge = normalizeEdge(parsedFilename.edge);
-          if (normalizedEdge) {
-            const matchingEdge = edgeOptions.find((edge) => {
-              const edgeLabel = `${edge.targetatom}(${edge.corestate})`;
-              return (
-                edgeLabel === normalizedEdge ||
-                edgeLabel.toLowerCase() === normalizedEdge.toLowerCase()
-              );
-            });
-            if (matchingEdge) updates.edgeId = matchingEdge.id;
-          }
-        }
-
-        const matchedInstrumentId = matchInstrumentIdFromParsedNexafsFilename(
+        const updates = buildAutofillUpdatesFromParsedFilename(
           parsedFilename,
+          edgeOptions,
           instrumentOptions,
+          batchInstrumentId,
         );
-        if (batchInstrumentId) {
-          updates.instrumentId = batchInstrumentId;
-        } else if (matchedInstrumentId) {
-          updates.instrumentId = matchedInstrumentId;
-        }
 
-        if (parsedFilename.moleculeToken && resolveMoleculeIdFromToken) {
-          const tokens = moleculeLookupTokens(parsedFilename.moleculeToken);
-          for (const token of tokens) {
-            const moleculeId = await resolveMoleculeIdFromToken(token);
-            if (moleculeId) {
-              updates.moleculeId = moleculeId;
-              break;
-            }
-          }
-        }
+        const moleculeId = await resolveMoleculeIdFromFilenameToken(
+          parsedFilename.moleculeToken,
+          resolveMoleculeIdFromToken,
+        );
+        if (moleculeId) updates.moleculeId = moleculeId;
 
         setDatasets((prev) => [...prev, { ...dataset, ...updates }]);
         setActiveDatasetId((prev) => prev ?? dataset.id);
@@ -460,16 +577,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                   columnMappings,
                   spectrumPoints,
                   sampleInfo: autofill.sampleInfo,
-                  attributions: dedupeDatasetAttributions([
-                    ...filterValidOrcidAttributions(d.attributions),
-                    ...autofill.attributions,
-                  ]),
-                  collectedByUserIds: collectorOrcidsFromAttributions(
-                    dedupeDatasetAttributions([
-                      ...filterValidOrcidAttributions(d.attributions),
-                      ...autofill.attributions,
-                    ]),
-                  ),
+                  ...mergeAutofillAttributions(d.attributions, autofill),
                 };
               }),
             );
@@ -552,16 +660,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                     ),
                     columnMappings,
                     sampleInfo: autofill.sampleInfo,
-                    attributions: dedupeDatasetAttributions([
-                      ...filterValidOrcidAttributions(d.attributions),
-                      ...autofill.attributions,
-                    ]),
-                    collectedByUserIds: collectorOrcidsFromAttributions(
-                      dedupeDatasetAttributions([
-                        ...filterValidOrcidAttributions(d.attributions),
-                        ...autofill.attributions,
-                      ]),
-                    ),
+                    ...mergeAutofillAttributions(d.attributions, autofill),
                   };
                 }),
               );
@@ -734,7 +833,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
   const handleNewDataset = useCallback(() => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".csv,.json,text/csv,application/json";
+    input.accept = SPECTRUM_UPLOAD_FILE_ACCEPT;
     input.multiple = true;
     input.onchange = async (e) => {
       const files = Array.from((e.target as HTMLInputElement).files ?? []);
@@ -746,7 +845,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
   const handleNewFolder = useCallback(() => {
     const input = document.createElement("input");
     input.type = "file";
-    input.accept = ".csv,.json,text/csv,application/json";
+    input.accept = SPECTRUM_UPLOAD_FILE_ACCEPT;
     input.multiple = true;
     input.setAttribute("webkitdirectory", "");
     input.setAttribute("directory", "");
