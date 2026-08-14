@@ -33,7 +33,14 @@ export interface ParsedNexafsCsv {
   };
 }
 
-function normalizeHeaderCell(value: unknown, index: number): string {
+/**
+ * Normalizes a header cell into a non-empty column key for NEXAFS tabular ingest.
+ *
+ * @param value Header cell from CSV or worksheet row 1.
+ * @param index Zero-based column index used when the cell is blank.
+ * @returns Trimmed string, numeric string, or `column_{index+1}`.
+ */
+export function normalizeHeaderCell(value: unknown, index: number): string {
   if (typeof value === "string" && value.trim() !== "") {
     return value.trim();
   }
@@ -43,7 +50,14 @@ function normalizeHeaderCell(value: unknown, index: number): string {
   return `column_${index + 1}`;
 }
 
-function rowToRecord(
+/**
+ * Maps one data row onto `headers`, coercing plain numeric strings to finite numbers.
+ *
+ * @param headers Column keys from the header row.
+ * @param cells Cell values aligned to `headers`.
+ * @returns Record keyed by header; blank cells become empty strings.
+ */
+export function rowToRecord(
   headers: string[],
   cells: unknown[],
 ): Record<string, unknown> {
