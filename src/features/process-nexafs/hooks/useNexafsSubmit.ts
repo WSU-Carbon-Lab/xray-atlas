@@ -15,6 +15,7 @@ import {
 import {
   parseStrictFiniteNumber,
   resolveUploadFixedPhi,
+  applyDefaultUploadPhiToPoints,
   uploadGeometryIsComplete,
 } from "../utils/default-upload-phi";
 import { describeInvalidPolarizationGeometry } from "../utils/polarizationAngle";
@@ -180,11 +181,15 @@ export function useNexafsSubmit(
 
           const hasThetaMapping = Boolean(dataset.columnMappings.theta);
           const hasPhiMapping = Boolean(dataset.columnMappings.phi);
+          const spectrumPointsWithPhi = applyDefaultUploadPhiToPoints(
+            dataset.spectrumPoints,
+            dataset.fixedPhi,
+          );
           const geometryInput =
             hasThetaMapping || hasPhiMapping
               ? {
                   mode: "csv" as const,
-                  csvGeometries: extractGeometryPairs(dataset.spectrumPoints),
+                  csvGeometries: extractGeometryPairs(spectrumPointsWithPhi),
                 }
               : {
                   mode: "fixed" as const,
@@ -230,7 +235,10 @@ export function useNexafsSubmit(
             };
           }
 
-          let spectrumPoints = buildSpectrumPointsWithDerivedForUpload(dataset);
+          let spectrumPoints = buildSpectrumPointsWithDerivedForUpload({
+            ...dataset,
+            spectrumPoints: spectrumPointsWithPhi,
+          });
           if (dataset.computeKkDeltaOnSubmit) {
             const hasBeta = spectrumPoints.every(
               (p) => typeof p.beta === "number" && Number.isFinite(p.beta),

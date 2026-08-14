@@ -5,8 +5,10 @@ import {
 } from "bun:test";
 import {
   DEFAULT_UPLOAD_PHI_DEGREES,
+  applyDefaultUploadPhiToPoints,
   isStrictFiniteNumberString,
   resolveUploadFixedPhi,
+  resolveUploadRowPhi,
   uploadGeometryIsComplete,
 } from "./default-upload-phi";
 
@@ -34,6 +36,49 @@ describe("resolveUploadFixedPhi", () => {
 
   it("does not inject a default when a phi column is mapped", () => {
     expect(resolveUploadFixedPhi(undefined, true)).toBe(undefined);
+  });
+});
+
+describe("resolveUploadRowPhi", () => {
+  it("defaults blank mapped phi cells to zero", () => {
+    expect(resolveUploadRowPhi("", undefined)).toBe(DEFAULT_UPLOAD_PHI_DEGREES);
+    expect(resolveUploadRowPhi("   ", undefined)).toBe(
+      DEFAULT_UPLOAD_PHI_DEGREES,
+    );
+    expect(resolveUploadRowPhi(null, undefined)).toBe(
+      DEFAULT_UPLOAD_PHI_DEGREES,
+    );
+    expect(resolveUploadRowPhi(undefined, undefined)).toBe(
+      DEFAULT_UPLOAD_PHI_DEGREES,
+    );
+  });
+
+  it("uses finite numeric phi cells", () => {
+    expect(resolveUploadRowPhi("45", undefined)).toBe(45);
+    expect(resolveUploadRowPhi(0, undefined)).toBe(0);
+    expect(resolveUploadRowPhi(-12.5, undefined)).toBe(-12.5);
+  });
+
+  it("prefers fixed phi when the cell is blank", () => {
+    expect(resolveUploadRowPhi("", "30")).toBe(30);
+    expect(resolveUploadRowPhi(undefined, "15")).toBe(15);
+  });
+
+  it("returns null for non-numeric non-blank cells", () => {
+    expect(resolveUploadRowPhi("abc", undefined)).toBe(null);
+    expect(resolveUploadRowPhi("45deg", "0")).toBe(null);
+  });
+});
+
+describe("applyDefaultUploadPhiToPoints", () => {
+  it("fills missing phi while preserving existing finite phi", () => {
+    const points = applyDefaultUploadPhiToPoints(
+      [{ theta: 30 }, { theta: 55, phi: 45 }, { theta: 90, phi: Number.NaN }],
+      undefined,
+    );
+    expect(points[0]?.phi).toBe(DEFAULT_UPLOAD_PHI_DEGREES);
+    expect(points[1]?.phi).toBe(45);
+    expect(points[2]?.phi).toBe(DEFAULT_UPLOAD_PHI_DEGREES);
   });
 });
 

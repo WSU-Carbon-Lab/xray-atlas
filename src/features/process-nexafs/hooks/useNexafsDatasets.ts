@@ -29,7 +29,7 @@ import {
   moleculeLookupTokens,
 } from "../utils";
 import {
-  resolveUploadFixedPhi,
+  resolveUploadRowPhi,
   DEFAULT_UPLOAD_PHI_DEGREES,
 } from "../utils/default-upload-phi";
 import {
@@ -209,26 +209,21 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
             if (!isNaN(fixedThetaValue)) point.theta = fixedThetaValue;
           }
 
-          if (
-            phiColumn &&
-            row[phiColumn] !== undefined &&
-            row[phiColumn] !== null
-          ) {
-            const phiValueRaw = row[phiColumn];
-            const phiStr =
-              typeof phiValueRaw === "string" || typeof phiValueRaw === "number"
-                ? String(phiValueRaw)
+          {
+            const phiValueRaw = phiColumn ? row[phiColumn] : undefined;
+            const phiCell: string | number | null | undefined =
+              typeof phiValueRaw === "string" ||
+              typeof phiValueRaw === "number" ||
+              phiValueRaw === null ||
+              phiValueRaw === undefined
+                ? phiValueRaw
                 : "";
-            const phiValue = parseFloat(phiStr.trim());
-            if (!isNaN(phiValue)) point.phi = phiValue;
-          } else {
-            const effectiveFixedPhi = resolveUploadFixedPhi(
+            const resolvedPhi = resolveUploadRowPhi(
+              phiColumn ? phiCell : undefined,
               dataset.fixedPhi,
-              Boolean(phiColumn),
             );
-            if (effectiveFixedPhi !== undefined && effectiveFixedPhi !== "") {
-              const fixedPhiValue = parseFloat(effectiveFixedPhi);
-              if (!isNaN(fixedPhiValue)) point.phi = fixedPhiValue;
+            if (resolvedPhi !== null) {
+              point.phi = resolvedPhi;
             }
           }
 
