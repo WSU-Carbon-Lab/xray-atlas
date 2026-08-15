@@ -57,7 +57,13 @@ X-ray Atlas requires several environment variables for database connections, aut
 
 ### Infisical for Secrets Management
 
-We use [Infisical](https://infisical.com/) for secure secrets management across the team. This ensures consistent environment configuration and prevents secrets from being committed to version control.
+X-ray Atlas is **Infisical-first**: Infisical is the single source of truth for every secret, in every environment. Nobody hand-edits Vercel's dashboard or passes around `.env` files — the project's `.infisical.json` (committed, contains no secrets) already points every clone at the right Infisical project, so setup is just login + a project config check.
+
+**How secrets actually flow:**
+
+- **Supabase → Infisical**: the Supabase project's API keys are rotated by Infisical's [Supabase API Key Rotation](https://infisical.com/docs/documentation/platform/secret-rotation/supabase-api-key), which owns their lifecycle going forward.
+- **Infisical → Vercel**: each Infisical environment pushes to its matching Vercel environment via a [Vercel Secret Sync](https://infisical.com/docs/integrations/secret-syncs/vercel) (`dev` → Development, `staging` → Preview, `prod` → Production), so deployed secrets update automatically when Infisical changes.
+- **Infisical → you**: `bun dev` (see `package.json`) already runs through `infisical run --env=dev --`, injecting secrets straight into the process — there's no `.env.local` to keep in sync for shared/team secrets.
 
 #### Initial Setup
 
@@ -71,52 +77,49 @@ We use [Infisical](https://infisical.com/) for secure secrets management across 
    infisical login
    ```
 
-3. **Initialize the Project**
+3. **Verify the project link**
+
+   The repo already ships a committed `.infisical.json` pointing at the `xray-atlas` project with `dev` as the default environment, so you normally don't need to run `infisical init` yourself. If it's ever missing, recreate it with `infisical init` (select the `xray-atlas` project and `dev` environment).
+
+4. **Run the app**
 
    ```bash
-   cd xray-atlas
-   infisical init
+   bun dev
    ```
 
-   Select the `xray-atlas` project and `development` environment when prompted.
-
-4. **Export Secrets to .env.local**
-
-   ```bash
-   infisical export --env=dev > .env.local
-   ```
-
-5. **Run with Infisical**
-
-   You can also run commands with secrets injected automatically:
-
-   ```bash
-   infisical run -- bun dev
-   ```
+   This is equivalent to `infisical run --env=dev -- next dev --turbo` — secrets are injected directly into the process, never written to disk.
 
 #### Environment Profiles
 
 | Environment | Use Case |
 |-------------|----------|
-| `dev` | Local development |
-| `staging` | Preview deployments |
-| `prod` | Production (read-only for most contributors) |
+| `dev` | Local development (also read by `bun dev`) |
+| `staging` | Preview deployments (synced to Vercel Preview) |
+| `prod` | Production (synced to Vercel Production; read-only for most contributors) |
 
-#### Syncing Secrets
+#### If you need a real `.env` file
 
-When environment variables are updated:
+Some editor/tooling integrations want an actual file on disk instead of an injected process. Export one on demand — treat it as disposable, regenerate it instead of hand-editing it, and never commit it (already gitignored):
 
 ```bash
-# Pull latest secrets
-infisical export --env=dev > .env.local
-
-# Or run with latest secrets without saving to disk
-infisical run -- bun dev
+infisical export --env=dev -o .env
 ```
+
+#### Scanning for leaked secrets
+
+Before pushing, especially if you touched anything under `docs/` or added example code, run:
+
+```bash
+bun run secrets:scan
+```
+
+This wraps `infisical scan` and checks your history for anything that looks like a credential. You can also install it as a pre-commit hook with `infisical scan install --pre-commit-hook`.
 
 ### Manual Environment Configuration
 
-If you don't have Infisical access, create a `.env.local` file manually:
+This is the exception path, for contributors without Infisical access — expect to fall behind on secret rotations and Vercel sync changes made through Infisical. If you use this path, run the app with `bun run dev:local-env` instead of `bun dev` (the default `dev` script requires Infisical).
+
+Create a `.env.local` file manually:
 
 ```bash
 # Copy the template
