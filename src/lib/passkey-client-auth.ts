@@ -128,7 +128,19 @@ export const PASSKEY_STEP_UP_CANCELLED_MESSAGE =
   "Passkey confirmation was cancelled. Confirm again when you are ready to delete or transfer.";
 
 /**
+ * User-facing copy when the browser WebAuthn prompt is cancelled during contribute submit.
+ */
+export const PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE =
+  "Passkey confirmation was cancelled. Confirm again when you are ready to submit.";
+
+/**
  * User-facing copy when destructive writes are blocked because no passkey is enrolled.
  */
 export const PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE =
   "Register a passkey from your Security tab before deleting or transferring data.";
+
+/**
+ * User-facing copy when contribute submit is blocked because no passkey is enrolled.
+ */
+export const PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE =
+  "Register a passkey before contributing data.";

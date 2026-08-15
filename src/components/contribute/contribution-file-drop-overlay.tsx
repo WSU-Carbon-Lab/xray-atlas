@@ -17,14 +17,22 @@ function truncateFileName(name: string): string {
   return `${base.slice(0, Math.max(0, keep))}...${ext}`;
 }
 
-function getDefaultSpectrumMessage(fileKind: "csv" | "json" | "mixed"): string {
+function getDefaultSpectrumMessage(
+  fileKind: ContributionFileDropOverlayFileKind,
+): string {
   switch (fileKind) {
     case "json":
       return "Drop JSON here to upload";
     case "csv":
       return "Drop CSV here to upload";
-    default:
-      return "Drop CSV or JSON here to upload";
+    case "xlsx":
+      return "Drop Excel here to upload";
+    case "mixed":
+      return "Drop CSV, JSON, or Excel here to upload";
+    default: {
+      const exhaustive: never = fileKind;
+      return exhaustive;
+    }
   }
 }
 
@@ -36,12 +44,22 @@ function spectrumVisualKind(
       return "data";
     case "csv":
       return "spreadsheet";
-    default:
+    case "xlsx":
+      return "spreadsheet";
+    case "mixed":
       return "generic";
+    default: {
+      const exhaustive: never = fileKind;
+      return exhaustive;
+    }
   }
 }
 
-export type ContributionFileDropOverlayFileKind = "csv" | "json" | "mixed";
+export type ContributionFileDropOverlayFileKind =
+  | "csv"
+  | "json"
+  | "xlsx"
+  | "mixed";
 
 type ContributionFileDropOverlayProps = {
   isDragging: boolean;

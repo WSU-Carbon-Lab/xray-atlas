@@ -24,6 +24,13 @@ import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
 } from "~/features/kk-calc";
+import {
+  isPasskeyClientCancelled,
+  isSessionAalRequiredError,
+  PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
+  PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
+  runPasskeyClientAuth,
+} from "~/lib/passkey-client-auth";
 
 export type SubmitStatus = { type: "error"; message: string } | undefined;
 
@@ -45,10 +52,85 @@ export function useNexafsSubmit(
   },
 ) {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
+  const [isConfirmingPasskey, setIsConfirmingPasskey] = useState(false);
   const utils = trpc.useUtils();
   const createNexafsMutation =
     trpc.experiments.createWithSpectrum.useMutation();
   const sampleAuxUpsertMutation = trpc.sampleAux.upsert.useMutation();
+  const confirmPasskeySessionStepUp =
+    trpc.users.confirmPasskeySessionStepUp.useMutation();
+
+  const ensureSubmitPasskey = useCallback(async (): Promise<boolean> => {
+    const assurance = await utils.users.getSessionWriteAssurance.fetch();
+    if (assurance.satisfied) {
+      return true;
+    }
+    if (!assurance.enrolled) {
+      setSubmitStatus({
+        type: "error",
+        message: PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
+      });
+      return false;
+    }
+
+    setIsConfirmingPasskey(true);
+    try {
+      const result = await runPasskeyClientAuth({
+        action: "sign-in",
+        callbackUrl: window.location.href,
+        errorFallback: "Passkey confirmation failed. Please try again.",
+        incompleteFallback: "Passkey confirmation did not complete",
+      });
+
+      if (!result.ok) {
+        const message =
+          result.errorMessage ?? "Passkey confirmation failed. Please try again.";
+        if (
+          isPasskeyClientCancelled(new Error(message)) ||
+          message.toLowerCase().includes("interrupted") ||
+          message.toLowerCase().includes("denied")
+        ) {
+          setSubmitStatus({
+            type: "error",
+            message: PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
+          });
+          return false;
+        }
+        setSubmitStatus({ type: "error", message });
+        return false;
+      }
+
+      const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
+      await utils.users.getSessionWriteAssurance.invalidate();
+      if (!stepUp.evaluation.satisfied) {
+        setSubmitStatus({
+          type: "error",
+          message:
+            "Passkey confirmation did not elevate this session. Try again, or register a passkey first.",
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      if (isPasskeyClientCancelled(error)) {
+        setSubmitStatus({
+          type: "error",
+          message: PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
+        });
+        return false;
+      }
+      setSubmitStatus({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Passkey confirmation failed. Please try again.",
+      });
+      return false;
+    } finally {
+      setIsConfirmingPasskey(false);
+    }
+  }, [confirmPasskeySessionStepUp, utils.users.getSessionWriteAssurance]);
 
   const submit = useCallback(
     async (event?: React.FormEvent<HTMLFormElement>) => {
@@ -172,6 +254,11 @@ export function useNexafsSubmit(
       }
 
       try {
+        if (!(await ensureSubmitPasskey())) {
+          return;
+        }
+
+        let didRetryPasskey = false;
         for (const dataset of datasetsToSubmit) {
           if (!dataset.moleculeId) return;
 
@@ -281,7 +368,7 @@ export function useNexafsSubmit(
             }
           }
 
-          const createResult = await createNexafsMutation.mutateAsync({
+          const createPayload = {
             sample: {
               moleculeId: dataset.moleculeId,
               identifier: crypto.randomUUID(),
@@ -337,12 +424,16 @@ export function useNexafsSubmit(
                     }
                   : undefined,
               uploadedChannels: [
-                "rawabs",
-                ...(dataset.columnMappings.od ? (["od"] as const) : []),
+                "rawabs" as const,
+                ...(dataset.columnMappings.od
+                  ? (["od"] as const)
+                  : ([] as const)),
                 ...(dataset.columnMappings.massabsorption
                   ? (["massabsorption"] as const)
-                  : []),
-                ...(dataset.columnMappings.beta ? (["beta"] as const) : []),
+                  : ([] as const)),
+                ...(dataset.columnMappings.beta
+                  ? (["beta"] as const)
+                  : ([] as const)),
               ],
               computeKkDeltaOnSubmit: dataset.computeKkDeltaOnSubmit
                 ? true
@@ -363,7 +454,22 @@ export function useNexafsSubmit(
             sourcePaperDois: dataset.sourcePaperPublications.map(
               (publication) => publication.doi,
             ),
-          });
+          };
+
+          let createResult;
+          try {
+            createResult = await createNexafsMutation.mutateAsync(createPayload);
+          } catch (createError) {
+            if (!isSessionAalRequiredError(createError) || didRetryPasskey) {
+              throw createError;
+            }
+            didRetryPasskey = true;
+            if (!(await ensureSubmitPasskey())) {
+              return;
+            }
+            createResult =
+              await createNexafsMutation.mutateAsync(createPayload);
+          }
 
           const sampleId = createResult.sample.id;
           const experimentId = createResult.experiments[0]?.experiment.id;
@@ -472,13 +578,20 @@ export function useNexafsSubmit(
         });
       }
     },
-    [createNexafsMutation, datasets, options, sampleAuxUpsertMutation, utils],
+    [
+      createNexafsMutation,
+      datasets,
+      ensureSubmitPasskey,
+      options,
+      sampleAuxUpsertMutation,
+      utils,
+    ],
   );
 
   return {
     submit,
     submitStatus,
     setSubmitStatus,
-    isPending: createNexafsMutation.isPending,
+    isPending: createNexafsMutation.isPending || isConfirmingPasskey,
   };
 }

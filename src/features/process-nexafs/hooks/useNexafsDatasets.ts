@@ -27,8 +27,8 @@ import {
   experimentTypeFromParsedFilename,
   isSpectrumUploadFileName,
   moleculeLookupTokens,
-  parseAnstoWideXlsxFile,
-  isAnstoWideXlsxFileName,
+  parseSpectrumXlsxFile,
+  isSpectrumXlsxFileName,
   SPECTRUM_UPLOAD_FILE_ACCEPT,
 } from "../utils";
 import {
@@ -52,6 +52,11 @@ import {
   type SpectrumEnergyConflictGroup,
   type SpectrumEnergyConflictResolutionChoice,
 } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
+import {
+  applyIncomingSpectrumOntoUnsubmittedDataset,
+  findReplaceableUnsubmittedDataset,
+  upsertDatasetById,
+} from "../utils/replace-unsubmitted-upload-dataset";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -435,14 +440,27 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         return;
       }
 
+      let catalog = [...datasetsRef.current];
+
       for (const file of spectrumFiles) {
-        if (isAnstoWideXlsxFileName(file.name)) {
+        if (isSpectrumXlsxFileName(file.name)) {
           try {
-            const parsedSheets = await parseAnstoWideXlsxFile(file);
+            const parsedSheets = await parseSpectrumXlsxFile(file);
             const nextDatasets: DatasetState[] = [];
+            let replacedCount = 0;
 
             for (const sheet of parsedSheets) {
-              const dataset = createEmptyDatasetState(file);
+              const existing = findReplaceableUnsubmittedDataset(
+                catalog,
+                sheet.displayFileName,
+              );
+              if (existing) {
+                replacedCount += 1;
+              }
+              const dataset = applyIncomingSpectrumOntoUnsubmittedDataset(
+                createEmptyDatasetState(file),
+                existing,
+              );
               const updates = buildAutofillUpdatesFromParsedFilename(
                 sheet.parsedFilename,
                 edgeOptions,
@@ -453,23 +471,30 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 sheet.parsedFilename.moleculeToken,
                 resolveMoleculeIdFromToken,
               );
-              if (moleculeId) updates.moleculeId = moleculeId;
+              if (moleculeId && !dataset.moleculeId) {
+                updates.moleculeId = moleculeId;
+              }
 
               const autofill = buildNexafsUploadAutofill({
                 parsedFilename: sheet.parsedFilename,
                 documentMetadata: null,
                 instrumentOptions,
                 vendors,
-                experimentType: updates.experimentType,
-                instrumentId: updates.instrumentId,
+                experimentType: updates.experimentType ?? dataset.experimentType,
+                instrumentId:
+                  updates.instrumentId !== undefined &&
+                  updates.instrumentId !== ""
+                    ? updates.instrumentId
+                    : dataset.instrumentId,
                 baseSampleInfo: dataset.sampleInfo,
               });
 
-              nextDatasets.push({
+              const incoming: DatasetState = {
                 ...dataset,
                 ...updates,
                 fileName: sheet.displayFileName,
-                fixedPhi: String(DEFAULT_UPLOAD_PHI_DEGREES),
+                fixedPhi:
+                  dataset.fixedPhi || String(DEFAULT_UPLOAD_PHI_DEGREES),
                 csvColumns: sheet.columns,
                 csvRawData: sheet.rawData.map((row) => ({
                   energy: row.energy,
@@ -479,20 +504,47 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 csvParseOptions: { headerRowIndex: 0, skipRowsAfterHeader: 0 },
                 csvParseChallenges: [],
                 columnMappings: sheet.columnMappings,
-                sampleInfo: autofill.sampleInfo,
+                sampleInfo: existing ? dataset.sampleInfo : autofill.sampleInfo,
                 ...mergeAutofillAttributions(dataset.attributions, autofill),
-              });
+              };
+              const merged = applyIncomingSpectrumOntoUnsubmittedDataset(
+                incoming,
+                existing,
+              );
+              catalog = upsertDatasetById(catalog, merged);
+              nextDatasets.push(merged);
             }
 
-            setDatasets((prev) => [...prev, ...nextDatasets]);
+            setDatasets((prev) => {
+              let next = prev;
+              for (const incoming of nextDatasets) {
+                next = upsertDatasetById(next, incoming);
+              }
+              return next;
+            });
             setActiveDatasetId((prev) => prev ?? nextDatasets[0]?.id ?? null);
             for (const dataset of nextDatasets) {
               setTimeout(() => processDatasetDataRef.current(dataset.id), 50);
             }
 
-            if (parsedSheets.length > 1) {
+            if (parsedSheets.length > 1 || replacedCount > 0) {
+              const createdCount = parsedSheets.length - replacedCount;
+              const parts: string[] = [];
+              if (replacedCount > 0) {
+                parts.push(
+                  `updated ${replacedCount} edge dataset${replacedCount === 1 ? "" : "s"}`,
+                );
+              }
+              if (createdCount > 0) {
+                parts.push(
+                  `imported ${createdCount} edge dataset${createdCount === 1 ? "" : "s"}`,
+                );
+              }
               showToast(
-                `Imported ${parsedSheets.length} edge datasets from ${file.name}.`,
+                `${parts.join(" and ")} from ${file.name}.`.replace(
+                  /^./,
+                  (ch) => ch.toUpperCase(),
+                ),
                 "success",
                 6000,
               );
@@ -512,7 +564,11 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           continue;
         }
 
-        const dataset = createEmptyDatasetState(file);
+        const existing = findReplaceableUnsubmittedDataset(catalog, file.name);
+        const dataset = applyIncomingSpectrumOntoUnsubmittedDataset(
+          createEmptyDatasetState(file),
+          existing,
+        );
         const parsedFilename = parseNexafsFilename(file.name);
         const updates = buildAutofillUpdatesFromParsedFilename(
           parsedFilename,
@@ -525,10 +581,18 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           parsedFilename.moleculeToken,
           resolveMoleculeIdFromToken,
         );
-        if (moleculeId) updates.moleculeId = moleculeId;
+        if (moleculeId && !dataset.moleculeId) updates.moleculeId = moleculeId;
 
-        setDatasets((prev) => [...prev, { ...dataset, ...updates }]);
-        setActiveDatasetId((prev) => prev ?? dataset.id);
+        const seeded: DatasetState = applyIncomingSpectrumOntoUnsubmittedDataset(
+          { ...dataset, ...updates },
+          existing,
+        );
+        catalog = upsertDatasetById(catalog, seeded);
+        setDatasets((prev) => upsertDatasetById(prev, seeded));
+        setActiveDatasetId((prev) => prev ?? seeded.id);
+        if (existing) {
+          showToast(`Updated ${file.name} in the current upload.`, "success", 6000);
+        }
 
         const isJson = file.name.toLowerCase().endsWith(".json");
 
@@ -570,13 +634,13 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 if (d.id !== dataset.id) return d;
                 return {
                   ...d,
-                  ...updates,
+                  ...(existing ? {} : updates),
                   ...geometryDefaults,
                   csvColumns: columns,
                   csvRawData: rawData,
                   columnMappings,
                   spectrumPoints,
-                  sampleInfo: autofill.sampleInfo,
+                  sampleInfo: existing ? d.sampleInfo : autofill.sampleInfo,
                   ...mergeAutofillAttributions(d.attributions, autofill),
                 };
               }),
@@ -650,7 +714,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                   if (d.id !== dataset.id) return d;
                   return {
                     ...d,
-                    ...updates,
+                    ...(existing ? {} : updates),
                     ...csvGeometryDefaults,
                     csvColumns: columns,
                     csvRawData: parsed.data,
@@ -659,7 +723,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                       (c) => c.message,
                     ),
                     columnMappings,
-                    sampleInfo: autofill.sampleInfo,
+                    sampleInfo: existing ? d.sampleInfo : autofill.sampleInfo,
                     ...mergeAutofillAttributions(d.attributions, autofill),
                   };
                 }),

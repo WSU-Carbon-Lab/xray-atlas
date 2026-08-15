@@ -12,6 +12,11 @@ import {
 } from "react";
 import type { ContributionFileDropOverlayFileKind } from "~/components/contribute/contribution-file-drop-overlay";
 import {
+  overlayKindFromSpectrumKinds,
+  spectrumUploadKindFromFileName,
+  spectrumUploadKindFromMime,
+} from "~/features/process-nexafs/utils/filenameParser";
+import {
   dropTypeLabelFromFile,
   formatDropOverlayMessage,
 } from "~/lib/aux-file-client";
@@ -40,17 +45,6 @@ export const GLOBAL_DROP_ZONE_UPLOAD_LABELS: Record<GlobalDropZoneId, string> =
 
 export { formatDropOverlayMessage } from "~/lib/aux-file-client";
 
-function spectrumFileKind(file: File): "csv" | "json" | null {
-  const name = file.name.toLowerCase();
-  if (name.endsWith(".json")) {
-    return "json";
-  }
-  if (name.endsWith(".csv")) {
-    return "csv";
-  }
-  return null;
-}
-
 function classifyDraggedSpectrumKind(
   items: DataTransferItemList | null,
   dataTransfer?: DataTransfer | null,
@@ -61,29 +55,26 @@ function classifyDraggedSpectrumKind(
   if (!items || items.length === 0) {
     return null;
   }
-  const kinds = Array.from(items)
-    .filter((item) => item.kind === "file")
-    .map((item) => {
-      const mime = item.type.toLowerCase();
-      if (mime === "application/json" || mime === "text/json") {
-        return "json" as const;
-      }
-      if (mime === "text/csv" || mime === "application/csv") {
-        return "csv" as const;
-      }
-      const file = item.getAsFile();
-      if (file) {
-        return spectrumFileKind(file);
-      }
-      return null;
-    })
-    .filter((k): k is "csv" | "json" => k !== null);
-
-  if (kinds.length === 0) {
+  const fileItems = Array.from(items).filter((item) => item.kind === "file");
+  if (fileItems.length === 0) {
     return null;
   }
-  const unique = Array.from(new Set(kinds));
-  return unique.length === 1 ? unique[0]! : "mixed";
+  const kinds = fileItems.map((item) => {
+    const fromMime = spectrumUploadKindFromMime(item.type);
+    if (fromMime) {
+      return fromMime;
+    }
+    const file = item.getAsFile();
+    if (file) {
+      return spectrumUploadKindFromFileName(file.name);
+    }
+    return null;
+  });
+  const overlayKind = overlayKindFromSpectrumKinds(kinds);
+  if (overlayKind) {
+    return overlayKind;
+  }
+  return "mixed";
 }
 
 function classifyDraggedFileTypeLabel(
@@ -100,6 +91,15 @@ function classifyDraggedFileTypeLabel(
       const file = item.getAsFile();
       if (file) {
         labels.push(dropTypeLabelFromFile(file));
+        continue;
+      }
+      const kind = spectrumUploadKindFromMime(item.type);
+      if (kind === "json") {
+        labels.push("JSON");
+      } else if (kind === "csv") {
+        labels.push("CSV");
+      } else if (kind === "xlsx") {
+        labels.push("spreadsheet");
       }
     }
   }
@@ -137,7 +137,9 @@ function zoneUnderPointer(event: DragEvent): GlobalDropZoneId | null {
 }
 
 function filterSpectrumFiles(files: File[]): File[] {
-  return files.filter((file) => spectrumFileKind(file) !== null);
+  return files.filter(
+    (file) => spectrumUploadKindFromFileName(file.name) !== null,
+  );
 }
 
 /**
@@ -405,13 +407,12 @@ export function useGlobalFileDropZone(
       if (zoneId === GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET) {
         return (
           spectrumDropEnabled &&
-          spectrumFileKind != null &&
           activeZone === GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET
         );
       }
       return true;
     },
-    [activeZone, isDraggingFiles, spectrumDropEnabled, spectrumFileKind],
+    [activeZone, isDraggingFiles, spectrumDropEnabled],
   );
 
   return useMemo(

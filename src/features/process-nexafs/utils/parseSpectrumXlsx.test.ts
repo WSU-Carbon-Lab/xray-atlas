@@ -4,7 +4,7 @@ import {
   it as bunIt,
 } from "bun:test";
 import * as XLSX from "xlsx";
-import { parseAnstoWideXlsxFile } from "./parseAnstoWideXlsx";
+import { parseSpectrumXlsxFile } from "./parseSpectrumXlsx";
 
 type ExpectAssertions = {
   toBe: (expected: unknown) => void;
@@ -34,13 +34,13 @@ function workbookFile(
   if (!(written instanceof ArrayBuffer) && !ArrayBuffer.isView(written)) {
     throw new Error("xlsx write did not return a binary buffer");
   }
-  return new File([written], fileName, {
+  return new File([written as BlobPart], fileName, {
     type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
   });
 }
 
-describe("parseAnstoWideXlsxFile", () => {
-  it("reads workbook sheets into long-format upload datasets", async () => {
+describe("parseSpectrumXlsxFile", () => {
+  it("reads ANSTO wide paired-column sheets into long-format upload datasets", async () => {
     const file = workbookFile("N2200 1.xlsx", [
       {
         name: "N2200_C_K_edge_TEY_ANSTO_SXR",
@@ -56,9 +56,10 @@ describe("parseAnstoWideXlsxFile", () => {
         ],
       },
     ]);
-    const parsed = await parseAnstoWideXlsxFile(file);
+    const parsed = await parseSpectrumXlsxFile(file);
     expect(parsed).toHaveLength(1);
     const sheet = parsed[0]!;
+    expect(sheet.formatId).toBe("wide-paired");
     expect(sheet.semantics.edgeLabel).toBe("C(K)");
     expect(sheet.columnMappings.energy).toBe("energy");
     expect(sheet.columnMappings.absorption).toBe("mu");
@@ -74,7 +75,34 @@ describe("parseAnstoWideXlsxFile", () => {
     );
   });
 
-  it("rejects workbooks without ANSTO wide paired-column sheets", async () => {
+  it("reads the same wide paired-column layout for an ALS beamline pattern", async () => {
+    const file = workbookFile("ZnPc.xlsx", [
+      {
+        name: "ZnPc_C_K_edge_TEY_ALS_5322",
+        rows: [
+          [
+            "ZnPc_C_K_edge_TEY_ALS_5322_20deg_En",
+            "ZnPc_C_K_edge_TEY_ALS_5322_20deg",
+            "ZnPc_C_K_edge_TEY_ALS_5322_55deg_En",
+            "ZnPc_C_K_edge_TEY_ALS_5322_55deg",
+          ],
+          [280.0, 0.2, 280.1, 0.21],
+        ],
+      },
+    ]);
+    const parsed = await parseSpectrumXlsxFile(file);
+    expect(parsed).toHaveLength(1);
+    const sheet = parsed[0]!;
+    expect(sheet.formatId).toBe("wide-paired");
+    expect(sheet.semantics.facility).toBe("ALS");
+    expect(sheet.semantics.beamline).toBe("5322");
+    expect(sheet.parsedFilename.facility).toBe("Advanced Light Source");
+    expect(sheet.parsedFilename.beamline).toBe("5322");
+    expect(sheet.geometryCount).toBe(2);
+    expect(sheet.rowCount).toBe(2);
+  });
+
+  it("rejects workbooks without recognized spectrum sheets", async () => {
     const file = workbookFile("scans.xlsx", [
       {
         name: "ScanID103834",
@@ -86,10 +114,10 @@ describe("parseAnstoWideXlsxFile", () => {
     ]);
     let message = "";
     try {
-      await parseAnstoWideXlsxFile(file);
+      await parseSpectrumXlsxFile(file);
     } catch (error) {
       message = error instanceof Error ? error.message : "";
     }
-    expect(message.includes("No ANSTO wide paired-column sheets")).toBe(true);
+    expect(message.includes("No recognized spectrum sheets")).toBe(true);
   });
 });

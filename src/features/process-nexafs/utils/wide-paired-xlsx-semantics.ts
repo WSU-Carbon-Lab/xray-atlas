@@ -1,9 +1,12 @@
 /**
- * Semantic parsing for ANSTO SXR wide paired-column NEXAFS workbooks.
+ * Semantic parsing for wide paired-column NEXAFS workbooks.
  *
- * Owns sheet-name and column-header grammar for labels such as
- * `N2200_C_K_edge_TEY_ANSTO_SXR` and `{base}_{theta}deg` / `{base}_{theta}deg_En`.
- * Unpivots those pairs into long-format contribute rows. Does not read xlsx bytes.
+ * Owns sheet-name and column-header grammar for edge-labeled tabs such as
+ * `{molecule}_{atom}_{shell}_edge_{technique}_{facility}_{beamline}` and
+ * `{base}_{theta}deg` / `{base}_{theta}deg_En` column pairs. Facility and
+ * beamline are opaque tokens so the same layout works across instruments
+ * (ANSTO SXR, ALS, and others). Unpivots those pairs into long-format
+ * contribute rows. Does not read xlsx bytes.
  */
 import type { ParsedFilename } from "./filenameParser";
 import {
@@ -14,19 +17,21 @@ import {
 } from "./filenameParser";
 
 /**
- * Canonical long-format column names produced when unpivoting ANSTO SXR wide
+ * Canonical long-format column names produced when unpivoting wide
  * paired-column workbooks into NEXAFS contribute upload tables.
  */
-export const ANSTO_WIDE_UPLOAD_COLUMNS = {
+export const WIDE_PAIRED_UPLOAD_COLUMNS = {
   energy: "energy",
   absorption: "mu",
   theta: "theta",
 } as const;
 
 /**
- * Parsed metadata from an ANSTO SXR wide-format sheet or column prefix token.
+ * Parsed metadata from a wide paired-column sheet or column prefix token.
+ * `facility` and `beamline` are raw tokens from the sheet name; display mapping
+ * happens via {@link normalizeFacilityToken} when building autofill.
  */
-export interface AnstoWideSheetSemantics {
+export interface WidePairedSheetSemantics {
   readonly molecule: string;
   readonly targetAtom: string;
   readonly coreState: string;
@@ -40,7 +45,7 @@ export interface AnstoWideSheetSemantics {
 /**
  * One geometry trace identified from paired `_En` / signal column headers.
  */
-export interface AnstoWideGeometryColumnPair {
+export interface WidePairedGeometryColumnPair {
   readonly thetaDegrees: number;
   readonly energyColumn: string;
   readonly absorptionColumn: string;
@@ -50,7 +55,7 @@ export interface AnstoWideGeometryColumnPair {
 /**
  * Parsed wide-format column header: geometry plus energy vs absorption role.
  */
-export interface AnstoWideColumnHeader {
+export interface WidePairedColumnHeader {
   readonly baseToken: string;
   readonly thetaDegrees: number;
   readonly channel: "energy" | "absorption";
@@ -59,7 +64,7 @@ export interface AnstoWideColumnHeader {
 /**
  * Long-format contribute row after unpivoting one geometry pair.
  */
-export interface AnstoWideUploadRow {
+export interface WidePairedUploadRow {
   readonly energy: number;
   readonly mu: number;
   readonly theta: number;
@@ -80,14 +85,14 @@ const WIDE_COLUMN_HEADER =
 
 /**
  * Parses `{molecule}_{atom}_{shell}_edge_{technique}_{facility}_{beamline}` sheet
- * names (for example `N2200_C_K_edge_TEY_ANSTO_SXR`).
+ * names (for example `N2200_C_K_edge_TEY_ANSTO_SXR` or `ZnPc_C_K_edge_TEY_ALS_5322`).
  *
  * @param sheetName Workbook sheet tab label.
  * @returns Structured semantics, or `null` when the label does not match.
  */
-export function parseAnstoWideSheetName(
+export function parseWidePairedSheetName(
   sheetName: string,
-): AnstoWideSheetSemantics | null {
+): WidePairedSheetSemantics | null {
   const trimmed = sheetName.trim();
   if (!trimmed) return null;
 
@@ -139,9 +144,9 @@ export function parseAnstoWideSheetName(
  * @param header Column label such as `N2200_C_K_edge_TEY_ANSTO_SXR_30deg_En`.
  * @returns Parsed column semantics, or `null` when the header is not wide-format.
  */
-export function parseAnstoWideColumnHeader(
+export function parseWidePairedColumnHeader(
   header: string,
-): AnstoWideColumnHeader | null {
+): WidePairedColumnHeader | null {
   const trimmed = header.trim();
   if (!trimmed) return null;
 
@@ -167,18 +172,21 @@ export function parseAnstoWideColumnHeader(
  * @param expectedBaseToken When set, only pairs whose base token matches are kept.
  * @returns Ordered geometry pairs; empty when no valid pairs are found.
  */
-export function pairAnstoWideGeometryColumns(
+export function pairWidePairedGeometryColumns(
   headers: readonly string[],
   expectedBaseToken?: string,
-): AnstoWideGeometryColumnPair[] {
-  const energyByKey = new Map<string, AnstoWideColumnHeader & { header: string }>();
+): WidePairedGeometryColumnPair[] {
+  const energyByKey = new Map<
+    string,
+    WidePairedColumnHeader & { header: string }
+  >();
   const absorptionByKey = new Map<
     string,
-    AnstoWideColumnHeader & { header: string }
+    WidePairedColumnHeader & { header: string }
   >();
 
   for (const header of headers) {
-    const parsed = parseAnstoWideColumnHeader(header);
+    const parsed = parseWidePairedColumnHeader(header);
     if (!parsed) continue;
     if (expectedBaseToken && parsed.baseToken !== expectedBaseToken) continue;
 
@@ -191,7 +199,7 @@ export function pairAnstoWideGeometryColumns(
     }
   }
 
-  const pairs: AnstoWideGeometryColumnPair[] = [];
+  const pairs: WidePairedGeometryColumnPair[] = [];
   for (const [key, energyEntry] of energyByKey) {
     const absorptionEntry = absorptionByKey.get(key);
     if (!absorptionEntry) continue;
@@ -213,7 +221,7 @@ export function pairAnstoWideGeometryColumns(
  * @param fileName Original workbook file name.
  * @returns Molecule token when present, otherwise `null`.
  */
-export function moleculeTokenFromAnstoWideWorkbookName(
+export function moleculeTokenFromWidePairedWorkbookName(
   fileName: string,
 ): string | null {
   const base = fileName.replace(/\.xlsx$/i, "").trim();
@@ -230,8 +238,8 @@ export function moleculeTokenFromAnstoWideWorkbookName(
  * @param workbookMolecule Optional molecule hint from the workbook file name.
  * @returns `ParsedFilename` compatible with existing NEXAFS upload autofill.
  */
-export function parsedFilenameFromAnstoWideSemantics(
-  semantics: AnstoWideSheetSemantics,
+export function parsedFilenameFromWidePairedSemantics(
+  semantics: WidePairedSheetSemantics,
   workbookMolecule?: string | null,
 ): ParsedFilename {
   return {
@@ -247,19 +255,19 @@ export function parsedFilenameFromAnstoWideSemantics(
 }
 
 /**
- * Returns true when a worksheet name and header row match the ANSTO wide pair layout.
+ * Returns true when a worksheet name and header row match the wide pair layout.
  *
  * @param sheetName Workbook sheet tab label.
  * @param headers Header row labels.
- * @returns Whether the sheet can be unpivoted by {@link pairAnstoWideGeometryColumns}.
+ * @returns Whether the sheet can be unpivoted by {@link pairWidePairedGeometryColumns}.
  */
-export function isAnstoWideWorksheet(
+export function isWidePairedWorksheet(
   sheetName: string,
   headers: readonly string[],
 ): boolean {
-  const semantics = parseAnstoWideSheetName(sheetName);
+  const semantics = parseWidePairedSheetName(sheetName);
   if (!semantics) return false;
-  return pairAnstoWideGeometryColumns(headers, semantics.baseToken).length > 0;
+  return pairWidePairedGeometryColumns(headers, semantics.baseToken).length > 0;
 }
 
 /**
@@ -268,11 +276,11 @@ export function isAnstoWideWorksheet(
  * @param semantics Parsed sheet metadata.
  * @returns Normalized experiment type when mappable, otherwise `null`.
  */
-export function experimentTypeFromAnstoWideSemantics(
-  semantics: AnstoWideSheetSemantics,
+export function experimentTypeFromWidePairedSemantics(
+  semantics: WidePairedSheetSemantics,
 ): ExperimentTypeFromFilename | null {
   return experimentTypeFromParsedFilename(
-    parsedFilenameFromAnstoWideSemantics(semantics),
+    parsedFilenameFromWidePairedSemantics(semantics),
   );
 }
 
@@ -297,14 +305,14 @@ function cellAsStringOrNumber(
  * Unpivots wide paired-column rows into long-format upload records with theta geometry.
  *
  * @param wideRows Worksheet body rows keyed by original wide headers.
- * @param pairs Geometry column pairs from {@link pairAnstoWideGeometryColumns}.
- * @returns Long rows using {@link ANSTO_WIDE_UPLOAD_COLUMNS} field names.
+ * @param pairs Geometry column pairs from {@link pairWidePairedGeometryColumns}.
+ * @returns Long rows using {@link WIDE_PAIRED_UPLOAD_COLUMNS} field names.
  */
-export function unpivotAnstoWideRowsToUploadFormat(
+export function unpivotWidePairedRowsToUploadFormat(
   wideRows: ReadonlyArray<Readonly<Record<string, string | number>>>,
-  pairs: readonly AnstoWideGeometryColumnPair[],
-): AnstoWideUploadRow[] {
-  const longRows: AnstoWideUploadRow[] = [];
+  pairs: readonly WidePairedGeometryColumnPair[],
+): WidePairedUploadRow[] {
+  const longRows: WidePairedUploadRow[] = [];
 
   for (const row of wideRows) {
     for (const pair of pairs) {

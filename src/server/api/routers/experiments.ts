@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   adminProcedure,
+  contributeSubmitProcedure,
   contributeWriteProcedure,
   createTRPCRouter,
   privilegedWriteProcedure,
@@ -1222,7 +1223,7 @@ export const experimentsRouter = createTRPCRouter({
       return experiment;
     }),
 
-  createWithSpectrum: contributeWriteProcedure
+  createWithSpectrum: contributeSubmitProcedure
     .input(
       z.object({
         sample: z.object({

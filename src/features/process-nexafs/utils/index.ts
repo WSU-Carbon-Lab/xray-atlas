@@ -23,14 +23,20 @@ export {
   normalizeFacilityToken,
   matchInstrumentIdFromParsedNexafsFilename,
   isSpectrumUploadFileName,
+  spectrumUploadKindFromFileName,
+  spectrumUploadKindFromMime,
+  overlayKindFromSpectrumKinds,
   moleculeLookupTokens,
   experimentTypeFromParsedFilename,
   SPECTRUM_UPLOAD_FILE_ACCEPT,
+  SPECTRUM_UPLOAD_XLSX_MIME,
 } from "./filenameParser";
 export type {
   ParsedFilename,
   InstrumentMatchOption,
   ExperimentTypeFromFilename,
+  SpectrumUploadKind,
+  SpectrumDropOverlayKind,
 } from "./filenameParser";
 export { parseNexafsJson } from "./jsonParser";
 export type { NEXAFSJsonData, NexafsJsonDocumentMetadata } from "./jsonParser";
@@ -49,10 +55,38 @@ export {
   type BareAtomReferenceDataView,
 } from "./buildBareAtomReferenceCurve";
 export {
-  parseAnstoWideXlsxFile,
-  isAnstoWideXlsxFileName,
-} from "./parseAnstoWideXlsx";
-export type { ParsedAnstoWideXlsxSheet } from "./parseAnstoWideXlsx";
+  parseSpectrumXlsxFile,
+  isSpectrumXlsxFileName,
+  detectWidePairedSpectrumXlsxSheets,
+  SPECTRUM_XLSX_DETECTORS,
+} from "./parseSpectrumXlsx";
+export type {
+  ParsedSpectrumXlsxSheet,
+  SpectrumXlsxDetector,
+} from "./parseSpectrumXlsx";
+export {
+  WIDE_PAIRED_UPLOAD_COLUMNS,
+  parseWidePairedSheetName,
+  parseWidePairedColumnHeader,
+  pairWidePairedGeometryColumns,
+  moleculeTokenFromWidePairedWorkbookName,
+  parsedFilenameFromWidePairedSemantics,
+  isWidePairedWorksheet,
+  experimentTypeFromWidePairedSemantics,
+  unpivotWidePairedRowsToUploadFormat,
+} from "./wide-paired-xlsx-semantics";
+export type {
+  WidePairedSheetSemantics,
+  WidePairedGeometryColumnPair,
+  WidePairedColumnHeader,
+  WidePairedUploadRow,
+} from "./wide-paired-xlsx-semantics";
+export {
+  applyIncomingSpectrumOntoUnsubmittedDataset,
+  findReplaceableUnsubmittedDataset,
+  spectrumUploadIdentity,
+  upsertDatasetById,
+} from "./replace-unsubmitted-upload-dataset";
 export { parseCSVFile, parseNexafsCsvText } from "./csv";
 export type { ParseNexafsCsvOptions, ParsedNexafsCsv } from "./csv";
 export {

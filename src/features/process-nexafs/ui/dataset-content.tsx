@@ -2717,7 +2717,7 @@ export function DatasetContent({
                       <div className="text-center">
                         <p className="font-medium">No data available</p>
                         <p className="mt-1 text-sm">
-                          Upload a CSV file to see the table
+                          Upload a CSV, JSON, or Excel file to see the table
                         </p>
                       </div>
                     </div>
@@ -2734,7 +2734,7 @@ export function DatasetContent({
                     <div className="text-center">
                       <p className="font-medium">No spectrum data</p>
                       <p className="mt-1 text-sm">
-                        Upload a CSV file to see the plot
+                        Upload a CSV, JSON, or Excel file to see the plot
                       </p>
                     </div>
                   </div>

@@ -5,6 +5,7 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import {
   ContributionAgreementModal,
+  ContributeAccessGate,
   ContributionFileDropOverlay,
 } from "@/components/contribute";
 import type { ContributionFileDropOverlayFileKind } from "@/components/contribute";
@@ -22,6 +23,7 @@ import { Breadcrumbs, Button, Card, Form, Separator, Tabs } from "@heroui/react"
 import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
 import { parseFacilityCsvFile } from "~/app/contribute/facility/utils/parse-facility-csv";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
+import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";
 import { facilityDetailHrefFromName } from "~/lib/facility-route";
 
 import { skipToken } from "@tanstack/react-query";
@@ -68,6 +70,19 @@ export default function FacilityContributePage({
       }
     },
   });
+
+  const {
+    isChecking: isCheckingPasskey,
+    needsPasskeyEnrollment,
+    requiresAal3Hardware,
+    registerPasskey,
+    isRegisteringPasskey,
+  } = usePasskeyEnrollmentGate();
+
+  const profileHref = session?.user?.id
+    ? `/users/${encodeURIComponent(session.user.id)}`
+    : "/sign-in";
+
   const [facilityData, setFacilityData] = useState<FacilityFormState>({
     name: "",
     city: "",
@@ -564,13 +579,15 @@ export default function FacilityContributePage({
             database, use the Instruments step to add rows, then submit once.
           </p>
 
-          {isCheckingAgreement ? (
-            <p className="text-muted text-sm">
-              Checking contribution agreement status...
-            </p>
-          ) : null}
-
-          {canContribute ? (
+          <ContributeAccessGate
+            isChecking={isCheckingAgreement || isCheckingPasskey}
+            needsPasskeyEnrollment={needsPasskeyEnrollment}
+            canContribute={canContribute}
+            requiresAal3Hardware={requiresAal3Hardware}
+            profileHref={profileHref}
+            onRegisterPasskey={registerPasskey}
+            isRegisteringPasskey={isRegisteringPasskey}
+          >
           <Form onSubmit={handleSubmit} className="space-y-8">
             <Tabs
               selectedKey={contributeStep}
@@ -721,7 +738,7 @@ export default function FacilityContributePage({
               </div>
             ) : null}
           </Form>
-          ) : null}
+          </ContributeAccessGate>
         </div>
       </div>
     </>
