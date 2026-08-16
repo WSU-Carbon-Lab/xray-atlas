@@ -1132,6 +1132,7 @@ export function MoleculeDrawCanvas({
       viewTransform,
       localPoint,
       hitAt,
+      containerPointFromSvg,
       dragBondKind,
       baseTransform,
       viewPanZoom,

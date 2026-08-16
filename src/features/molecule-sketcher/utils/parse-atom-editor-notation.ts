@@ -22,6 +22,7 @@ export interface ParsedAtomEditorNotation {
 }
 
 function toSubscriptDigits(value: string): string {
+  // oxlint-disable-next-line typescript/no-misused-spread -- only ever called with a single pre-validated ASCII digit
   return [...value]
     .map((char) => {
       const digit = Number.parseInt(char, 10);
@@ -40,6 +41,7 @@ function toSuperscriptSignedCharge(charge: number): string {
     return sign;
   }
   const magnitudeText = String(magnitude);
+  // oxlint-disable-next-line typescript/no-misused-spread -- magnitudeText is String(number), guaranteed ASCII digits
   const superscriptMagnitude = [...magnitudeText]
     .map((char) => {
       const digit = Number.parseInt(char, 10);

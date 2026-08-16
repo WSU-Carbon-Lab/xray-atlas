@@ -122,6 +122,7 @@ function MoleculesBrowseContent() {
 
   useEffect(() => {
     facet.setCurrentPage(1);
+    // oxlint-disable-next-line react-hooks/exhaustive-deps -- `facet` is a fresh object every render (useMoleculeFacetSelection doesn't memoize its return); depending on it here would reset the page on every render, not just sortBy/itemsPerPage changes
   }, [sortBy, itemsPerPage, facet.setCurrentPage]);
 
   const hasSearchQuery = facet.debouncedQuery.trim().length > 0;

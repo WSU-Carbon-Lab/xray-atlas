@@ -76,10 +76,10 @@ export function applyExportOverrides(
     const lines = Array.from(group.querySelectorAll("line"));
     if (lines.length === 0) return;
     const withLength = lines.map((line) => {
-      const x1 = Number(line.getAttribute("x1")) ?? 0;
-      const y1 = Number(line.getAttribute("y1")) ?? 0;
-      const x2 = Number(line.getAttribute("x2")) ?? 0;
-      const y2 = Number(line.getAttribute("y2")) ?? 0;
+      const x1 = Number(line.getAttribute("x1") ?? "0");
+      const y1 = Number(line.getAttribute("y1") ?? "0");
+      const x2 = Number(line.getAttribute("x2") ?? "0");
+      const y2 = Number(line.getAttribute("y2") ?? "0");
       const len = Math.hypot(x2 - x1, y2 - y1);
       return { line, len };
     });

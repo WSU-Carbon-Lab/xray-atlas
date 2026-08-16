@@ -60,6 +60,7 @@ function RoleFaviconUrlPreview({
   if (!t) return null;
   return (
     <div className="relative mt-2 inline-block">
+      {/* oxlint-disable-next-line next/no-img-element -- admin-entered arbitrary external favicon URL; next/image requires a fixed remote-pattern allowlist that doesn't fit this use case */}
       <img
         key={t}
         src={t}
@@ -149,6 +150,7 @@ function AdminRoleChipContent({
   return (
     <span className="flex min-w-0 items-center gap-1">
       {faviconUrl ? (
+        // oxlint-disable-next-line next/no-img-element -- admin-entered arbitrary external favicon URL; next/image requires a fixed remote-pattern allowlist that doesn't fit this use case
         <img
           src={faviconUrl}
           alt={`${displayName} role favicon`}

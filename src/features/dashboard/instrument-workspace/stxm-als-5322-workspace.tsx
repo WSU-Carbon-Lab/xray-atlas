@@ -67,7 +67,6 @@ export function StxmAls5322Workspace() {
   const searchParams = useSearchParams();
   const sessionIdFromUrl = searchParams.get("session");
 
-  const utils = trpc.useUtils();
   const [sessionId, setSessionId] = useState<string | null>(sessionIdFromUrl);
   const createSession = trpc.dashboardSessions.create.useMutation();
   const updateSession = trpc.dashboardSessions.update.useMutation();
@@ -555,7 +554,7 @@ export function StxmAls5322Workspace() {
     if (!selectedBeamtime) {
       return;
     }
-    void handleSelectBeamtime(selectedBeamtime, { forceRefresh: true });
+    handleSelectBeamtime(selectedBeamtime, { forceRefresh: true });
   }, [handleSelectBeamtime, selectedBeamtime]);
 
   useEffect(() => {
@@ -780,12 +779,6 @@ export function StxmAls5322Workspace() {
     [activeScanId, stxmSession],
   );
 
-  const refreshSession = useCallback(() => {
-    if (sessionId) {
-      void utils.dashboardSessions.getById.invalidate({ sessionId });
-    }
-  }, [sessionId, utils.dashboardSessions.getById]);
-
   const breadcrumb = useMemo(() => {
     const parts = [BL5322_BREADCRUMB];
     if (folderRootName) {
@@ -836,7 +829,7 @@ export function StxmAls5322Workspace() {
               <BeamtimeScroller
                 beamtimes={beamtimes}
                 selectedName={selectedBeamtime}
-                onSelect={(name) => void handleSelectBeamtime(name)}
+                onSelect={(name) => handleSelectBeamtime(name)}
                 loading={isLoadingBeamtimes}
                 error={beamtimeLoadError}
                 onRetry={
@@ -859,9 +852,7 @@ export function StxmAls5322Workspace() {
                     <button
                       type="button"
                       className="text-accent text-sm font-medium hover:underline"
-                      onClick={() =>
-                        void handleSelectBeamtime(selectedBeamtime)
-                      }
+                      onClick={() => handleSelectBeamtime(selectedBeamtime)}
                     >
                       Retry loading scans
                     </button>
@@ -877,7 +868,7 @@ export function StxmAls5322Workspace() {
                     <button
                       type="button"
                       className="text-accent text-sm font-medium hover:underline"
-                      onClick={() => void handleContinueCatalogListing()}
+                      onClick={() => handleContinueCatalogListing()}
                     >
                       Continue scan listing
                     </button>
@@ -970,7 +961,7 @@ export function StxmAls5322Workspace() {
     catalogListingIncomplete,
     catalogScanPhase,
     catalogFromCache,
-    grantStoredFolderAccess,
+    handleContinueCatalogListing,
     handlePickFolder,
     handleSelectBeamtime,
     handleOpenIngestionFromPreview,
@@ -981,7 +972,6 @@ export function StxmAls5322Workspace() {
     isPicking,
     persistExportForScan,
     persistLcf,
-    persistWorkspace,
     stepMetadata.lcf,
     pendingFolderAccess,
     refreshBeamtimes,
@@ -990,9 +980,6 @@ export function StxmAls5322Workspace() {
     selectedEntry,
     selectedFiles,
     stxmSession,
-    sessionQuery.isSuccess,
-    sessionId,
-    refreshSession,
     isSelectingScan,
     selectingScanRelativePath,
     resolvedExportMetadata,

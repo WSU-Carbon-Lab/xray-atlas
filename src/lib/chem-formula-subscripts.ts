@@ -15,6 +15,7 @@ export function formatAlkylCnH2nPlus1(nCarbons: number): string {
   const h = 2 * nCarbons + 1;
   const nc = String(nCarbons);
   const nh = String(h);
+  // oxlint-disable-next-line typescript/no-misused-spread -- nc/nh are String(number), guaranteed single-codepoint ASCII digits
   return `C${[...nc].map(digitCharToSubscript).join("")}H${[...nh].map(digitCharToSubscript).join("")}`;
 }
 

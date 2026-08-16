@@ -32,10 +32,10 @@ export interface StructureLookupComponent {
  */
 export function normalizeComponentSmilesForPubchem(smiles: string): string {
   return smiles
-    .replace(/\[\<\]/g, "")
-    .replace(/\[\>\]/g, "")
+    .replace(/\[<\]/g, "")
+    .replace(/\[>\]/g, "")
     .replace(/\[\*\]/g, "")
-    .replace(/\[\?\:\d+\]/g, "")
+    .replace(/\[\?:\d+\]/g, "")
     .trim();
 }
 
@@ -167,7 +167,7 @@ export function structureLookupComponentsFromSmiles(
   const seen = new Set<string>();
   addComponent(components, seen, "full", trimmed, "Full structure");
 
-  const repeatMatch = /\[<\](.*)\[\>\]/.exec(trimmed);
+  const repeatMatch = /\[<\](.*)\[>\]/.exec(trimmed);
   if (repeatMatch?.[1]) {
     addComponent(
       components,

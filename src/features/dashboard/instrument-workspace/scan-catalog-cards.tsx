@@ -70,6 +70,7 @@ function ScanPreview({ entry }: ScanPreviewProps) {
             </span>
           ) : null}
           {hasThumbnail ? (
+            // oxlint-disable-next-line next/no-img-element -- client-generated data: URL thumbnail; next/image has nothing to optimize here
             <img
               src={entry.thumbnailDataUrl ?? undefined}
               alt=""

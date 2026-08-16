@@ -115,11 +115,22 @@ export function LcfFittingTab({
   onPersistLcf,
 }: LcfFittingTabProps) {
   const entries = previewMetadata.spectra;
-  const atlasEntries = previewMetadata.atlasExperiments ?? [];
-  const atlasGeometryByExperimentId =
-    previewMetadata.atlasGeometryByExperimentId ?? {};
-  const ingestionByScanId = previewMetadata.ingestionCache ?? {};
-  const regionSpectraByScanId = previewMetadata.regionSpectraCache ?? {};
+  const atlasEntries = useMemo(
+    () => previewMetadata.atlasExperiments ?? [],
+    [previewMetadata.atlasExperiments],
+  );
+  const atlasGeometryByExperimentId = useMemo(
+    () => previewMetadata.atlasGeometryByExperimentId ?? {},
+    [previewMetadata.atlasGeometryByExperimentId],
+  );
+  const ingestionByScanId = useMemo(
+    () => previewMetadata.ingestionCache ?? {},
+    [previewMetadata.ingestionCache],
+  );
+  const regionSpectraByScanId = useMemo(
+    () => previewMetadata.regionSpectraCache ?? {},
+    [previewMetadata.regionSpectraCache],
+  );
 
   const [channel, setChannel] = useState<StxmPreviewCompareChannel>(
     lcfMetadata?.channel ?? "od",
@@ -474,6 +485,7 @@ export function LcfFittingTab({
     }
   }, [componentSpectra.length, targetSpectrum]);
 
+  const componentTraceKeysSignature = componentTraceKeys.join("|");
   useEffect(() => {
     setFitResult(null);
     setFitError(null);
@@ -483,7 +495,7 @@ export function LcfFittingTab({
     energyMinEv,
     energyMaxEv,
     sumToOne,
-    componentTraceKeys.join("|"),
+    componentTraceKeysSignature,
   ]);
 
   const plotSeries = useMemo(() => {

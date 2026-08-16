@@ -100,8 +100,10 @@ export interface PlotDataViewRailProps<
   ) => void;
 }
 
+const glyphSegmenter = new Intl.Segmenter();
+
 export function assertGlyphLength(glyph: string, context: string): void {
-  const graphemes = [...glyph];
+  const graphemes = [...glyphSegmenter.segment(glyph)];
   if (graphemes.length === 0 || graphemes.length > 2) {
     throw new RangeError(
       `${context}: glyph must be 1–2 Unicode characters, got "${glyph}"`,

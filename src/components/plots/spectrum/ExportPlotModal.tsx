@@ -90,7 +90,7 @@ export const ExportPlotModal = memo(function ExportPlotModal({
       }
       return { ...c, traceOverrides };
     });
-  }, [isOpen, visibleTraceExportInfo]);
+  }, [isOpen, svgRef, visibleTraceExportInfo]);
 
   const { widthCm, heightCm } = getDimensionsFromConfig(
     exportConfig,
@@ -803,6 +803,7 @@ export const ExportPlotModal = memo(function ExportPlotModal({
             }
           >
             {exportPreviewUrl ? (
+              // oxlint-disable-next-line next/no-img-element -- client-generated data:image/svg+xml preview; next/image has nothing to optimize here
               <img
                 alt="Export preview"
                 className="max-h-[280px] w-auto max-w-full object-contain"

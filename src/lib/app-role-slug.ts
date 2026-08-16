@@ -12,7 +12,7 @@
  */
 export function normalizeRoleSlugInput(raw: string): string {
   const lowered = raw.toLowerCase();
-  const withUnderscores = lowered.replace(/[ \-\/\\]/g, "_");
+  const withUnderscores = lowered.replace(/[ \-/\\]/g, "_");
   const collapsed = withUnderscores.replace(/_+/g, "_");
   return collapsed.replace(/^_|_$/g, "");
 }

@@ -233,7 +233,10 @@ export function StxmIngestionPlotPanel({
   const [selectedPeakId, setSelectedPeakId] = useState<string | null>(null);
 
   const hasReducedResult = result !== null;
-  const energyEv = result?.energyEv ?? regionSpectra[0]?.energyEv ?? [];
+  const energyEv = useMemo(
+    () => result?.energyEv ?? regionSpectra[0]?.energyEv ?? [],
+    [result?.energyEv, regionSpectra],
+  );
   const betaSeries =
     result?.beta ?? regionSpectra.find((series) => series.beta)?.beta;
   const deltaSeries =
