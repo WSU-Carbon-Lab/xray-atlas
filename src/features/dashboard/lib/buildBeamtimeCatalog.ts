@@ -14,7 +14,6 @@ import {
   validateStxmFilePair,
   validateStxmFileSize,
 } from "~/lib/stxm/validateStxmFile";
-import { readHdr } from "~/lib/stxm/readHdr";
 import {
   countHdrFilesInDirectory,
   findXimFileForHdr,

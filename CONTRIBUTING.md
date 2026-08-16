@@ -335,10 +335,10 @@ bun dev:tunnel
 | `bun build` | Build for production |
 | `bun start` | Start production server |
 | `bun check` | Run linting and type checking |
-| `bun lint` | Run ESLint |
-| `bun lint:fix` | Fix ESLint errors |
-| `bun format:check` | Check Prettier formatting |
-| `bun format:write` | Fix Prettier formatting |
+| `bun lint` | Run oxlint (type-aware) |
+| `bun lint:fix` | Fix auto-fixable oxlint issues |
+| `bun format:check` | Check oxfmt formatting |
+| `bun format:write` | Fix oxfmt formatting |
 | `bun typecheck` | Run TypeScript type checking |
 | `bun db:generate` | Create Prisma migration |
 | `bun db:migrate` | Apply Prisma migrations |
@@ -348,6 +348,8 @@ bun dev:tunnel
 | `bun db:push` | Push schema changes (dev only) |
 | `bun db:studio` | Open Prisma Studio |
 
+**Keep `package.json`'s `scripts` list to durable, ongoing commands only.** One-off migration, backfill, or audit scripts belong in `scripts/` and can be run directly with `bun scripts/<name>.ts` — they don't need a permanent `package.json` entry. Once a one-off script has served its purpose, delete both the script file and its entry rather than leaving it as accumulated cruft. If you're adding something you expect the team to run repeatedly (not a single migration event), that's the case for a real script entry — raise it in your PR description so reviewers know a new command is being added.
+
 ### Before Committing
 
 Always run the full check suite:
@@ -356,7 +358,7 @@ Always run the full check suite:
 bun check
 ```
 
-This runs both ESLint and TypeScript type checking.
+This runs oxlint, oxfmt, and TypeScript type checking.
 
 ---
 
@@ -371,10 +373,8 @@ This runs both ESLint and TypeScript type checking.
 
 ### Formatting
 
-- Prettier with Tailwind CSS plugin
-- 2-space indentation
-- No semicolons
-- Single quotes for strings
+- [oxfmt](https://oxc.rs/docs/guide/usage/formatter.html), config in `.oxfmtrc.json` (Tailwind class sorting built in; wiki MDX under `content/wiki/` is excluded — Prettier corrupts its raw JSX comments)
+- 2-space indentation, semicolons, double quotes (`printWidth: 80`)
 
 ```bash
 # Check formatting
@@ -386,9 +386,8 @@ bun format:write
 
 ### Linting
 
-- ESLint with Next.js and TypeScript configs
-- React hooks rules enforced
-- Import sorting
+- [oxlint](https://oxc.rs/docs/guide/usage/linter.html) with type-aware linting (`--type-aware`, via `oxlint-tsgolint`), config in `.oxlintrc.json`
+- Next.js and React hooks rules enforced via the `nextjs`/`react` plugins
 
 ```bash
 # Check linting

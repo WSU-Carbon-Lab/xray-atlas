@@ -42,7 +42,7 @@ export function CatalogSearchChrome({
   onFocus,
   onBlurClose,
   onInputKeyDown,
-  highlightedIndex = -1,
+  highlightedIndex: _highlightedIndex = -1,
   listboxId: listboxIdProp,
   activedescendantId,
 }: CatalogSearchChromeProps) {

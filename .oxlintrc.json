@@ -1,0 +1,47 @@
+{
+  "$schema": "./node_modules/oxlint/configuration_schema.json",
+  "plugins": ["typescript", "oxc", "react", "nextjs"],
+  "categories": {
+    "correctness": "warn"
+  },
+  "ignorePatterns": [
+    ".next",
+    "generated",
+    "node_modules",
+    ".agents",
+    ".cursor",
+    ".claude",
+    ".vercel",
+    "tmp",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/__pycache__/**",
+    "tests/kk-calc-validation/.venv/**",
+    "tests/kk-calc-validation/kkcalc/**"
+  ],
+  "options": {
+    "typeAware": true,
+    "reportUnusedDisableDirectives": "warn"
+  },
+  "rules": {
+    "typescript/array-type": "off",
+    "typescript/consistent-type-definitions": "off",
+    "typescript/consistent-type-imports": [
+      "warn",
+      { "prefer": "type-imports", "fixStyle": "inline-type-imports" }
+    ],
+    "typescript/no-unused-vars": [
+      "warn",
+      { "argsIgnorePattern": "^_", "varsIgnorePattern": "^_" }
+    ],
+    "typescript/require-await": "off",
+    "typescript/no-misused-promises": [
+      "error",
+      { "checksVoidReturn": { "attributes": false } }
+    ],
+    "react-hooks/exhaustive-deps": "warn"
+  },
+  "env": {
+    "builtin": true
+  }
+}

@@ -27,7 +27,6 @@ import {
   moleculeCompoundKindLabel,
   parseMoleculeCompoundKind,
   parseRepeatUnitFormula,
-  type MoleculeCompoundKind,
 } from "~/lib/molecule-compound-kind";
 import {
   Button,

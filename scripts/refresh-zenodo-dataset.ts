@@ -371,7 +371,7 @@ if (import.meta.main) {
       console.error(error);
       process.exitCode = 1;
     })
-    .finally(async () => {
-      await db.$disconnect();
+    .finally(() => {
+      void db.$disconnect();
     });
 }

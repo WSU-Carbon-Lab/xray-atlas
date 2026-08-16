@@ -3,7 +3,7 @@ import {
   expect as bunExpect,
   it as bunIt,
 } from "bun:test";
-import type { Prisma, PrismaClient } from "~/prisma/client";
+import type { PrismaClient } from "~/prisma/client";
 import type { PublicationCitation } from "~/lib/publication-citation";
 import {
   addExperimentSourcePublication,
@@ -99,7 +99,7 @@ function createMockDb() {
       },
       findUnique: async ({
         where,
-        select,
+        select: _select,
       }: {
         where: { doi: string };
         select: { id: true };
@@ -143,7 +143,7 @@ function createMockDb() {
       },
       findMany: async ({
         where,
-        include,
+        include: _include,
       }: {
         where: { experimentid: string; role: string };
         include: {

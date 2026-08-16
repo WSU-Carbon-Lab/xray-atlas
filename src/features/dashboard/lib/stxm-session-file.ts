@@ -248,7 +248,6 @@ export function resolveStxmSessionRegions(
   if (!session) {
     return undefined;
   }
-  const entry = session.scans[scanId];
   const preview = session.preview ?? defaultStxmSessionPreview();
   return resolveRegionsMetadataForScanWithIngestionFallback(
     {

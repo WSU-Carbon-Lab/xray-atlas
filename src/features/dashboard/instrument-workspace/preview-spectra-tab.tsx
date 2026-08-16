@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import type {
-  DashboardIngestionResult,
-  DashboardPreviewRegionSpectrum,
-  DashboardPreviewSpectrumEntry,
-  DashboardPreviewStepMetadata,
-} from "~/lib/dashboard-processing-session";
+import type { DashboardPreviewStepMetadata } from "~/lib/dashboard-processing-session";
 import { useDashboardPlotSpectra } from "~/features/dashboard/plot-viewer/use-dashboard-plot-spectra";
 import { catalogMetaFromBrowseGroup } from "~/features/dashboard/plot-viewer/plot-viewer-catalog-meta";
 import { geometryKeysForPoints } from "~/features/dashboard/plot-viewer/geometry-selection";

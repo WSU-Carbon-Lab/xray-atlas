@@ -343,7 +343,7 @@ export const externalRouter = createTRPCRouter({
           casNumber: z.string().max(64).optional(),
         })
         .refine(
-          // eslint-disable-next-line @typescript-eslint/prefer-nullish-coalescing -- We want to reject empty strings, not just null/undefined
+          // Reject empty strings, not just null/undefined -- do not change `||` to `??` here.
           (data) => data.inchi || data.synonym || data.casNumber,
           {
             message: "Either InChI, synonym, or CAS number is required",

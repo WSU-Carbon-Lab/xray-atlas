@@ -4,7 +4,6 @@ import type { SpectrumPoint } from "~/components/plots/types";
 import {
   fetchWikiOpticalConstantsShowcase,
   type WikiOpticalConstantsShowcaseCaption,
-  type WikiOpticalConstantsShowcasePayload,
   type WikiOpticalConstantsShowcaseResult,
 } from "~/server/nexafs/wikiOpticalConstantsShowcase";
 
