@@ -3,14 +3,14 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
-import { FacilityCardCompact } from "@/components/facilities/facility-card";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
-import { BrowseTabs } from "@/components/layout/browse-tabs";
-import { AddFacilityButton } from "@/components/contribute";
-import { BrowseHeader } from "@/components/browse/browse-header";
-import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
-import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
-import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
+import { FacilityCardCompact } from "~/components/facilities/facility-card";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
+import { BrowseTabs } from "~/components/layout/browse-tabs";
+import { AddFacilityButton } from "~/components/contribute";
+import { BrowseHeader } from "~/components/browse/browse-header";
+import { BrowsePageLayout } from "~/components/browse/browse-page-layout";
+import { BrowseEmptyState } from "~/components/browse/browse-empty-state";
+import { ItemsPerPageSelect } from "~/components/browse/items-per-page-select";
 import { Pagination } from "@heroui/react";
 
 function FacilitiesBrowseContent() {

@@ -7,7 +7,7 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { ContributionFileDropOverlay } from "@/components/contribute";
+import { ContributionFileDropOverlay } from "~/components/contribute";
 import {
   ColumnMappingModal,
   NexafsUploadPortal,

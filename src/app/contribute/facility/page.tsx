@@ -6,8 +6,8 @@ import { useRouter } from "next/navigation";
 import {
   ContributionAgreementModal,
   ContributionFileDropOverlay,
-} from "@/components/contribute";
-import type { ContributionFileDropOverlayFileKind } from "@/components/contribute";
+} from "~/components/contribute";
+import type { ContributionFileDropOverlayFileKind } from "~/components/contribute";
 import { trpc } from "~/trpc/client";
 import {
   FacilityIdentitySection,

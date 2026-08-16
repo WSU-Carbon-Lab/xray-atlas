@@ -2,7 +2,7 @@ import Link from "next/link";
 import {
   MoleculeHeaderSkeleton,
   NexafsExperimentCompactSkeleton,
-} from "@/components/feedback/loading-state";
+} from "~/components/feedback/loading-state";
 
 export default function MoleculeDetailLoading() {
   return (

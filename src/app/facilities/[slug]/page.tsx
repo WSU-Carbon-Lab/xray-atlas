@@ -4,7 +4,7 @@ import { use } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
-import { PageSkeleton } from "@/components/feedback/loading-state";
+import { PageSkeleton } from "~/components/feedback/loading-state";
 import { BeamDumpErrorPage } from "~/components/feedback/beam-dump-error-page";
 import {
   MapPinIcon,
@@ -16,8 +16,8 @@ import {
   BookOpenIcon,
   SparklesIcon,
 } from "@heroicons/react/24/outline";
-import { AddInstrumentButton } from "@/components/contribute";
-import { InstrumentStatusChip } from "@/components/forms/instrument-status-chip";
+import { AddInstrumentButton } from "~/components/contribute";
+import { InstrumentStatusChip } from "~/components/forms/instrument-status-chip";
 import { InstrumentConnectorClaimSection } from "~/features/dashboard/instrument-connector-claim-section";
 import { FacilityIcon } from "~/components/facilities/facility-icon";
 import { FacilityWebsiteAdminCard } from "~/components/facilities/facility-website-admin-card";

@@ -2,12 +2,12 @@
 
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
-import { SignInButton } from "@/components/auth/sign-in-button";
-import { ContributionAgreementModal } from "@/components/contribute";
+import { SignInButton } from "~/components/auth/sign-in-button";
+import { ContributionAgreementModal } from "~/components/contribute";
 import { trpc } from "~/trpc/client";
 import { Breadcrumbs } from "@heroui/react";
 import { ContributeClearFormButton } from "~/components/forms";
-import { useToast, ToastContainer } from "@/components/ui/toast";
+import { useToast, ToastContainer } from "~/components/ui/toast";
 import {
   useNexafsOptions,
   useNexafsDatasets,

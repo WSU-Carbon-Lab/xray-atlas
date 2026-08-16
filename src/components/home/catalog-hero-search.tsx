@@ -30,7 +30,7 @@ import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import { buildPopularitySections } from "~/components/browse/unified-search/catalog-search-popularity";
 import { CatalogSearchPopularityPanel } from "~/components/browse/unified-search/catalog-search-popularity-panel";
 import type {

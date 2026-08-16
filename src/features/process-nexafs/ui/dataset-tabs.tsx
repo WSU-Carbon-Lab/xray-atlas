@@ -20,7 +20,7 @@ import {
   parseNexafsFilename,
 } from "~/features/process-nexafs/utils/filenameParser";
 import { useDatasetStatus } from "./hooks/use-dataset-status";
-import { ContributionFileDropOverlay } from "@/components/contribute";
+import { ContributionFileDropOverlay } from "~/components/contribute";
 import {
   globalDropZoneProps,
   GLOBAL_DROP_ZONE_IDS,

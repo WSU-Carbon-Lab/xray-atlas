@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import { AlertCircle } from "lucide-react";
 import { cn } from "@heroui/styles";
 import { BookOpenIcon } from "@heroicons/react/24/outline";
-import { AccentNavChip } from "@/components/ui/accent-nav-chip";
+import { AccentNavChip } from "~/components/ui/accent-nav-chip";
 import {
   DATASET_QUALITY_MISSING_STATISTIC_PENALTY,
   type NexafsBrowseDatasetMetricBarModel,

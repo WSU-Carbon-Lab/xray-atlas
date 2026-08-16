@@ -1,7 +1,7 @@
 import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { api } from "~/trpc/server";
-import { MoleculeDetailLayoutClient } from "@/components/browse/molecule-detail-layout-client";
+import { MoleculeDetailLayoutClient } from "~/components/browse/molecule-detail-layout-client";
 import Link from "next/link";
 import {
   canonicalMoleculeSlugFromView,

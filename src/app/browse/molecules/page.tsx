@@ -13,13 +13,13 @@ import {
   MoleculeDisplayCompact,
   MoleculeDisplay,
   type DisplayMolecule,
-} from "@/components/molecules/molecule-display";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
+} from "~/components/molecules/molecule-display";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import {
   MoleculeCardSkeleton,
   MoleculeCompactSkeleton,
-} from "@/components/feedback/loading-state";
-import { BrowseTabs } from "@/components/layout/browse-tabs";
+} from "~/components/feedback/loading-state";
+import { BrowseTabs } from "~/components/layout/browse-tabs";
 import {
   Squares2X2Icon,
   ListBulletIcon,
@@ -28,15 +28,15 @@ import {
   CalendarDaysIcon,
   CircleStackIcon,
 } from "@heroicons/react/24/outline";
-import { AddMoleculeButton } from "@/components/contribute";
-import { BrowseHeader } from "@/components/browse/browse-header";
-import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
-import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
-import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
+import { AddMoleculeButton } from "~/components/contribute";
+import { BrowseHeader } from "~/components/browse/browse-header";
+import { BrowsePageLayout } from "~/components/browse/browse-page-layout";
+import { BrowseEmptyState } from "~/components/browse/browse-empty-state";
+import { ItemsPerPageSelect } from "~/components/browse/items-per-page-select";
 import {
   BrowseSortButton,
   type BrowseSortOption,
-} from "@/components/browse/browse-sort-button";
+} from "~/components/browse/browse-sort-button";
 import {
   Pagination,
   ToggleButton,
@@ -48,7 +48,7 @@ import {
   useMoleculeFacetSelection,
   tagLabelsFromFacetItems,
   moleculeFacetSelectionToBrowseFilters,
-} from "@/components/browse/molecule-search";
+} from "~/components/browse/molecule-search";
 
 type MoleculeSortKey = "favorites" | "created" | "name" | "views" | "datasets";
 

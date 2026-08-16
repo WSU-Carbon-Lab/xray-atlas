@@ -2,7 +2,7 @@
 
 import { Suspense, useState } from "react";
 import { useSearchParams } from "next/navigation";
-import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
+import { SocialSignInButtons } from "~/components/auth/social-sign-in-buttons";
 import { mapSignInPageError } from "~/lib/auth-sign-in-errors";
 
 function SignInContent() {

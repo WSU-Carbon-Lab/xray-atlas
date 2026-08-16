@@ -1,6 +1,6 @@
 import type { ReactElement, ReactNode } from "react";
 import { BookOpenIcon } from "@heroicons/react/24/outline";
-import { AccentNavChip } from "@/components/ui/accent-nav-chip";
+import { AccentNavChip } from "~/components/ui/accent-nav-chip";
 import { cn } from "@heroui/styles";
 
 /**

@@ -6,7 +6,7 @@ import { useSession } from "next-auth/react";
 import { Tabs } from "@heroui/react";
 import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "~/trpc/client";
-import { ToastContainer, useToast } from "@/components/ui/toast";
+import { ToastContainer, useToast } from "~/components/ui/toast";
 import {
   applyPasskeyClientRedirect,
   getSessionAalRequiredAppCode,

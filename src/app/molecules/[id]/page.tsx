@@ -3,9 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useMoleculeDetail } from "@/components/browse/molecule-detail-context";
-import { NexafsBrowseExperimentSection } from "@/components/browse/nexafs-browse-experiment-section";
-import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
+import { useMoleculeDetail } from "~/components/browse/molecule-detail-context";
+import { NexafsBrowseExperimentSection } from "~/components/browse/nexafs-browse-experiment-section";
+import { NexafsExperimentCompactSkeleton } from "~/components/feedback/loading-state";
 import { trpc } from "~/trpc/client";
 
 const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";

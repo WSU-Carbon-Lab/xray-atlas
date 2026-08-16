@@ -42,7 +42,7 @@ function auxKindFromString(kind: string): AuxFileKind {
 }
 import { appendPendingAuxFiles } from "~/lib/pending-aux-file";
 import type { PendingAuxFile } from "~/features/process-nexafs/types";
-import { ContributionFileDropOverlay } from "@/components/contribute";
+import { ContributionFileDropOverlay } from "~/components/contribute";
 import {
   globalDropZoneProps,
   useOptionalGlobalFileDropZoneContext,

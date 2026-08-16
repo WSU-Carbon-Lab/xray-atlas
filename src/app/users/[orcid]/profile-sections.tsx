@@ -22,26 +22,26 @@ import {
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
 import { ExternalLink, Key, MoreVertical, Plus, UserMinus } from "lucide-react";
-import { AccentNavChip } from "@/components/ui/accent-nav-chip";
-import { GitHubIcon, ORCIDIcon } from "@/components/icons";
-import { CustomAvatar } from "@/components/ui/avatar";
-import { SimpleDialog } from "@/components/ui/dialog";
+import { AccentNavChip } from "~/components/ui/accent-nav-chip";
+import { GitHubIcon, ORCIDIcon } from "~/components/icons";
+import { CustomAvatar } from "~/components/ui/avatar";
+import { SimpleDialog } from "~/components/ui/dialog";
 import { cn } from "@heroui/styles";
-import { MoleculeDisplayCompact } from "@/components/molecules/molecule-display";
+import { MoleculeDisplayCompact } from "~/components/molecules/molecule-display";
 import {
   LoadingSkeleton,
   MoleculeCompactSkeleton,
   NexafsExperimentCompactSkeleton,
-} from "@/components/feedback/loading-state";
-import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
-import { mapNexafsBrowseGroupToCard } from "@/components/browse/nexafs-browse-map-group";
+} from "~/components/feedback/loading-state";
+import { NexafsExperimentCompactCard } from "~/components/nexafs/nexafs-display";
+import { mapNexafsBrowseGroupToCard } from "~/components/browse/nexafs-browse-map-group";
 import type { inferRouterOutputs } from "@trpc/server";
 import type { AppRouter } from "~/server/api/root";
 import { trpc } from "~/trpc/client";
 import { moleculeContributorUsers } from "~/lib/molecule-contributor-users";
 import { moleculeContributionTypeLabel } from "~/lib/molecule-contribution-types";
-import { ToastContainer, useToast } from "@/components/ui/toast";
-import { ProfileDangerZoneRail } from "@/components/profile/profile-danger-zone-rail";
+import { ToastContainer, useToast } from "~/components/ui/toast";
+import { ProfileDangerZoneRail } from "~/components/profile/profile-danger-zone-rail";
 import type { SessionWriteAssuranceEvaluation } from "~/server/auth/mfa-access";
 type ProfileUser = {
   id: string;
