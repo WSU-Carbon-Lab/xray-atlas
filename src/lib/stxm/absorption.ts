@@ -43,7 +43,7 @@ export function odToBeta(
   for (let i = 0; i < energyEv.length; i += 1) {
     const energy = energyEv[i] ?? 0;
     const lamCm = HC_EV_CM / energy;
-    beta[i] = (od[i] ?? 0) * lamCm / (4 * Math.PI * thicknessCm);
+    beta[i] = ((od[i] ?? 0) * lamCm) / (4 * Math.PI * thicknessCm);
   }
   return beta;
 }
@@ -60,7 +60,7 @@ export function odErrToBetaErr(
   for (let i = 0; i < energyEv.length; i += 1) {
     const energy = energyEv[i] ?? 0;
     const lamCm = HC_EV_CM / energy;
-    out[i] = (odErr[i] ?? 0) * lamCm / (4 * Math.PI * thicknessCm);
+    out[i] = ((odErr[i] ?? 0) * lamCm) / (4 * Math.PI * thicknessCm);
   }
   return out;
 }
@@ -210,7 +210,7 @@ export function betaFromNormalizedMassAbsorption(
   for (let i = 0; i < muNorm.length; i += 1) {
     const muRef = muBare[i] ?? 0;
     const safeMu = muRef > 1e-30 ? muRef : 1e-30;
-    beta[i] = (muNorm[i] ?? 0) * (betaBare[i] ?? 0) / safeMu;
+    beta[i] = ((muNorm[i] ?? 0) * (betaBare[i] ?? 0)) / safeMu;
   }
   return beta;
 }
@@ -225,7 +225,7 @@ export function bareAtomBetaFromMassAbsorption(
   const beta = new Float64Array(energyEv.length);
   for (let i = 0; i < energyEv.length; i += 1) {
     const lamCm = HC_EV_CM / (energyEv[i] ?? 1);
-    beta[i] = (muMassAbs[i] ?? 0) * lamCm / (4 * Math.PI);
+    beta[i] = ((muMassAbs[i] ?? 0) * lamCm) / (4 * Math.PI);
   }
   return beta;
 }

@@ -133,7 +133,9 @@ function calculateMassAbsorption(
 
 const atomFormFactorCache = new Map<string, Promise<AtomFormFactorPoint[]>>();
 
-function getCachedAtomFormFactors(atom: string): Promise<AtomFormFactorPoint[]> {
+function getCachedAtomFormFactors(
+  atom: string,
+): Promise<AtomFormFactorPoint[]> {
   const existing = atomFormFactorCache.get(atom);
   if (existing) {
     return existing;
@@ -477,10 +479,7 @@ export async function calculateBareAtomDelta(
         }
       }
     } catch (error) {
-      console.error(
-        `[BareAtom] Failed to calculate delta for ${atom}:`,
-        error,
-      );
+      console.error(`[BareAtom] Failed to calculate delta for ${atom}:`, error);
       failedAtoms.push(atom);
     }
   }

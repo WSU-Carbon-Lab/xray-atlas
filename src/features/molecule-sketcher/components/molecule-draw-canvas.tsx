@@ -162,7 +162,10 @@ function bookendOpeningTowardAtom(
   if (otherMark !== null) {
     const otherBond = resolveBondMark(mol, otherMark);
     if (otherBond >= 0) {
-      const targets = [mol.getBondAtom(0, otherBond), mol.getBondAtom(1, otherBond)];
+      const targets = [
+        mol.getBondAtom(0, otherBond),
+        mol.getBondAtom(1, otherBond),
+      ];
       const toward0 = canReachAtomsWithoutBond(mol, atom0, bond, targets);
       const toward1 = canReachAtomsWithoutBond(mol, atom1, bond, targets);
       if (toward0 && !toward1) {
@@ -190,7 +193,10 @@ function bookendOpeningTowardAtom(
  * concerns: pointer hover, drag previews, viewport fitting, and the inline
  * heteroatom palette; all molecule state lives in the hook.
  */
-export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps) {
+export function MoleculeDrawCanvas({
+  state,
+  heightPx,
+}: MoleculeDrawCanvasProps) {
   const { resolvedTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
   useEffect(() => {
@@ -205,7 +211,10 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
   const [width, setWidth] = useState(640);
   const [viewPan, setViewPan] = useState<DrawPoint>({ x: 0, y: 0 });
   const [viewZoom, setViewZoom] = useState(1);
-  const [viewZoomOrigin, setViewZoomOrigin] = useState<DrawPoint>({ x: 0, y: 0 });
+  const [viewZoomOrigin, setViewZoomOrigin] = useState<DrawPoint>({
+    x: 0,
+    y: 0,
+  });
   const [spaceHeld, setSpaceHeld] = useState(false);
   const [isPanning, setIsPanning] = useState(false);
   const [hover, setHover] = useState<DrawHit>({ kind: "empty" });
@@ -216,25 +225,30 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     x1: number;
     y1: number;
   } | null>(null);
-  const [elementPopover, setElementPopover] = useState<ElementPopoverState | null>(
-    null,
-  );
-  const [alkylPopover, setAlkylPopover] = useState<AlkylTailPopoverState | null>(
-    null,
-  );
+  const [elementPopover, setElementPopover] =
+    useState<ElementPopoverState | null>(null);
+  const [alkylPopover, setAlkylPopover] =
+    useState<AlkylTailPopoverState | null>(null);
   const [customAlkylCount, setCustomAlkylCount] = useState("8");
   const [customSymbol, setCustomSymbol] = useState("");
-  const [elementInputError, setElementInputError] = useState<string | null>(null);
-  const dragRef = useRef<{ fromAtom: number; startScreen: DrawPoint } | null>(null);
-  const emptyDragRef = useRef<{ startScreen: DrawPoint; startMol: DrawPoint } | null>(
+  const [elementInputError, setElementInputError] = useState<string | null>(
     null,
   );
-  const panDragRef = useRef<{ startPan: DrawPoint; startScreen: DrawPoint } | null>(
+  const dragRef = useRef<{ fromAtom: number; startScreen: DrawPoint } | null>(
     null,
   );
-  const marqueeRef = useRef<{ startScreen: DrawPoint; pointerId: number } | null>(
-    null,
-  );
+  const emptyDragRef = useRef<{
+    startScreen: DrawPoint;
+    startMol: DrawPoint;
+  } | null>(null);
+  const panDragRef = useRef<{
+    startPan: DrawPoint;
+    startScreen: DrawPoint;
+  } | null>(null);
+  const marqueeRef = useRef<{
+    startScreen: DrawPoint;
+    pointerId: number;
+  } | null>(null);
   const selectionDragRef = useRef<{
     pointerId: number;
     snapshot: string;
@@ -242,10 +256,14 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     startScreen: DrawPoint;
     moved: boolean;
   } | null>(null);
-  const layoutDragRef = useRef<{ lastAngle: number; pointerId: number } | null>(null);
-  const cageOrbitDragRef = useRef<{ lastX: number; lastY: number; pointerId: number } | null>(
+  const layoutDragRef = useRef<{ lastAngle: number; pointerId: number } | null>(
     null,
   );
+  const cageOrbitDragRef = useRef<{
+    lastX: number;
+    lastY: number;
+    pointerId: number;
+  } | null>(null);
   const cageOrbitAnchorRef = useRef<CageOrbitDragAnchor | null>(null);
   const [cageModeToggleAnchor, setCageModeToggleAnchor] =
     useState<CageOrbitDragAnchor | null>(null);
@@ -270,7 +288,10 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     selectedAtoms,
     templateFuseAtoms,
   } = state;
-  const selectedAtomSet = useMemo(() => new Set(selectedAtoms), [selectedAtoms]);
+  const selectedAtomSet = useMemo(
+    () => new Set(selectedAtoms),
+    [selectedAtoms],
+  );
 
   useEffect(() => {
     const el = containerRef.current;
@@ -386,7 +407,12 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
 
   const svgViewBox = useMemo(() => {
     if (cageViewportAnchor !== null) {
-      const { x, y, width: vbWidth, height: vbHeight } = cageViewportAnchor.viewBox;
+      const {
+        x,
+        y,
+        width: vbWidth,
+        height: vbHeight,
+      } = cageViewportAnchor.viewBox;
       return `${x} ${y} ${vbWidth} ${vbHeight}`;
     }
     if (oclDepiction !== null) {
@@ -406,7 +432,13 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       return;
     }
     setViewZoomOrigin({ x: width / 2, y: heightPx / 2 });
-  }, [cageModeToggleAnchor, oclDepiction, width, heightPx, state.cageOrbitDragging]);
+  }, [
+    cageModeToggleAnchor,
+    oclDepiction,
+    width,
+    heightPx,
+    state.cageOrbitDragging,
+  ]);
 
   viewStateRef.current = {
     pan: viewPan,
@@ -520,7 +552,9 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       ) {
         event.preventDefault();
         state.rotateSelectedByDegrees(
-          event.shiftKey ? -SELECTION_ROTATE_STEP_DEG : SELECTION_ROTATE_STEP_DEG,
+          event.shiftKey
+            ? -SELECTION_ROTATE_STEP_DEG
+            : SELECTION_ROTATE_STEP_DEG,
         );
       }
     };
@@ -572,7 +606,12 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       const oclCircle = oclDepiction?.atomCircles.get(a);
       infos.push({
         index: a,
-        screen: atomCenterInBaseView(molecule, a, baseTransform, oclAtomCenters),
+        screen: atomCenterInBaseView(
+          molecule,
+          a,
+          baseTransform,
+          oclAtomCenters,
+        ),
         hoverRadius: oclCircle?.radius ?? MOLECULE_2D_ATOM_HOVER_RADIUS_PX,
       });
     }
@@ -592,23 +631,26 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     return { x: event.clientX - rect.left, y: event.clientY - rect.top };
   }, []);
 
-  const containerPointFromSvg = useCallback((svgPoint: DrawPoint): DrawPoint => {
-    const svg = svgRef.current;
-    const container = containerRef.current;
-    if (svg === null || container === null) {
-      return svgPoint;
-    }
-    const ctm = svg.getScreenCTM();
-    if (ctm === null) {
-      return svgPoint;
-    }
-    const point = svg.createSVGPoint();
-    point.x = svgPoint.x;
-    point.y = svgPoint.y;
-    const client = point.matrixTransform(ctm);
-    const rect = container.getBoundingClientRect();
-    return { x: client.x - rect.left, y: client.y - rect.top };
-  }, []);
+  const containerPointFromSvg = useCallback(
+    (svgPoint: DrawPoint): DrawPoint => {
+      const svg = svgRef.current;
+      const container = containerRef.current;
+      if (svg === null || container === null) {
+        return svgPoint;
+      }
+      const ctm = svg.getScreenCTM();
+      if (ctm === null) {
+        return svgPoint;
+      }
+      const point = svg.createSVGPoint();
+      point.x = svgPoint.x;
+      point.y = svgPoint.y;
+      const client = point.matrixTransform(ctm);
+      const rect = container.getBoundingClientRect();
+      return { x: client.x - rect.left, y: client.y - rect.top };
+    },
+    [],
+  );
 
   const openAtomEditor = useCallback(
     (atom: number) => {
@@ -668,7 +710,8 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       if (anchor === null) {
         return;
       }
-      const factor = event.deltaY > 0 ? WHEEL_ZOOM_OUT_FACTOR : WHEEL_ZOOM_IN_FACTOR;
+      const factor =
+        event.deltaY > 0 ? WHEEL_ZOOM_OUT_FACTOR : WHEEL_ZOOM_IN_FACTOR;
       applyZoomFactor(factor, anchor);
     };
     svg.addEventListener("wheel", onWheel, { passive: false });
@@ -756,8 +799,16 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
           return;
         }
         if (hit.kind === "empty") {
-          marqueeRef.current = { startScreen: point, pointerId: event.pointerId };
-          setMarqueeRect({ x0: point.x, y0: point.y, x1: point.x, y1: point.y });
+          marqueeRef.current = {
+            startScreen: point,
+            pointerId: event.pointerId,
+          };
+          setMarqueeRect({
+            x0: point.x,
+            y0: point.y,
+            x1: point.x,
+            y1: point.y,
+          });
           event.currentTarget.setPointerCapture(event.pointerId);
           return;
         }
@@ -814,7 +865,8 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
           const molScale = baseTransform.scale * viewZoom;
           const dx = (point.x - selectionDrag.lastScreen.x) / molScale;
           const ySign = baseTransform.flipY === false ? 1 : -1;
-          const dy = (ySign * (point.y - selectionDrag.lastScreen.y)) / molScale;
+          const dy =
+            (ySign * (point.y - selectionDrag.lastScreen.y)) / molScale;
           selectionDrag.lastScreen = point;
           state.translateSelectedDuringDrag(dx, dy);
         }
@@ -858,7 +910,16 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
         setDragPreview(moleculeToScreen(baseTransform, snapped));
       }
     },
-    [localPoint, hitAt, preferBondHits, molecule, viewTransform, baseTransform, viewZoom, state],
+    [
+      localPoint,
+      hitAt,
+      preferBondHits,
+      molecule,
+      viewTransform,
+      baseTransform,
+      viewZoom,
+      state,
+    ],
   );
 
   const onPointerUp = useCallback(
@@ -889,8 +950,10 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
         };
         setMarqueeRect(null);
         const moved =
-          Math.hypot(point.x - marquee.startScreen.x, point.y - marquee.startScreen.y) >
-          CLICK_DRAG_THRESHOLD_PX;
+          Math.hypot(
+            point.x - marquee.startScreen.x,
+            point.y - marquee.startScreen.y,
+          ) > CLICK_DRAG_THRESHOLD_PX;
         if (moved) {
           const atoms = atomsInDepictionScreenRect(
             molecule,
@@ -925,8 +988,10 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       if (emptyDrag !== null) {
         setDragPreview(null);
         const moved =
-          Math.hypot(point.x - emptyDrag.startScreen.x, point.y - emptyDrag.startScreen.y) >
-          CLICK_DRAG_THRESHOLD_PX;
+          Math.hypot(
+            point.x - emptyDrag.startScreen.x,
+            point.y - emptyDrag.startScreen.y,
+          ) > CLICK_DRAG_THRESHOLD_PX;
         if (moved) {
           state.addAtomSproutFromEmpty(
             emptyDrag.startMol,
@@ -946,8 +1011,10 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       if (drag !== null) {
         const hit = hitAt(point);
         const moved =
-          Math.hypot(point.x - drag.startScreen.x, point.y - drag.startScreen.y) >
-          CLICK_DRAG_THRESHOLD_PX;
+          Math.hypot(
+            point.x - drag.startScreen.x,
+            point.y - drag.startScreen.y,
+          ) > CLICK_DRAG_THRESHOLD_PX;
         if (hit.kind === "atom" && hit.atom !== drag.fromAtom) {
           state.bondBetween(drag.fromAtom, hit.atom, dragBondKind);
         } else if (moved || hit.kind === "empty" || hit.kind === "atom") {
@@ -963,7 +1030,9 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       const hit = hitAt(point);
 
       if (state.pendingSmilesFragment !== null && hit.kind === "empty") {
-        state.placePendingSmilesFragment(screenToMolecule(viewTransform, point));
+        state.placePendingSmilesFragment(
+          screenToMolecule(viewTransform, point),
+        );
         return;
       }
 
@@ -1055,7 +1124,20 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
         }
       }
     },
-    [tool, layoutTool, state, molecule, viewTransform, localPoint, hitAt, dragBondKind, baseTransform, viewPanZoom, oclAtomCenters, openAtomEditor],
+    [
+      tool,
+      layoutTool,
+      state,
+      molecule,
+      viewTransform,
+      localPoint,
+      hitAt,
+      dragBondKind,
+      baseTransform,
+      viewPanZoom,
+      oclAtomCenters,
+      openAtomEditor,
+    ],
   );
 
   const onLayoutOverlayPointerDown = useCallback(
@@ -1063,9 +1145,11 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       if (layoutTool === "cage-orbit") {
         event.preventDefault();
         layoutDragSnapshotRef.current = state.molfile;
-        const anchorSource = oclDepictionComputed ?? prevOclDepictionRef.current;
+        const anchorSource =
+          oclDepictionComputed ?? prevOclDepictionRef.current;
         if (anchorSource !== null) {
-          cageOrbitAnchorRef.current = snapshotCageOrbitDragAnchor(anchorSource);
+          cageOrbitAnchorRef.current =
+            snapshotCageOrbitDragAnchor(anchorSource);
         }
         state.beginCageOrbitDrag();
         event.currentTarget.setPointerCapture(event.pointerId);
@@ -1225,7 +1309,11 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     const bothBookendsSet =
       state.bookends.open !== null && state.bookends.close !== null;
 
-    const renderBookend = (mark: DrawBondMark | null, isOpen: boolean, key: string) => {
+    const renderBookend = (
+      mark: DrawBondMark | null,
+      isOpen: boolean,
+      key: string,
+    ) => {
       if (mark === null) {
         return;
       }
@@ -1375,13 +1463,20 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
   );
 
   const editingAtomLabel = useMemo(() => {
-    if (elementPopover === null || elementPopover.atom >= molecule.getAllAtoms()) {
+    if (
+      elementPopover === null ||
+      elementPopover.atom >= molecule.getAllAtoms()
+    ) {
       return null;
     }
     const atom = elementPopover.atom;
     const atomicNo = molecule.getAtomicNo(atom);
     const symbol = MoleculeCtor.cAtomLabel[atomicNo] ?? "?";
-    return formatMolecule2dAtomLabelText(symbol, 0, molecule.getAtomCharge(atom));
+    return formatMolecule2dAtomLabelText(
+      symbol,
+      0,
+      molecule.getAtomCharge(atom),
+    );
   }, [elementPopover, molecule]);
 
   const applyAlkylTail = useCallback(
@@ -1569,8 +1664,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
     layoutTool === "translate" ||
     layoutTool === "rotate" ||
     layoutTool === "cage-orbit";
-  const panCursorEligible =
-    tool === "pan" || spaceHeld || isPanning;
+  const panCursorEligible = tool === "pan" || spaceHeld || isPanning;
   const cursorClass =
     layoutTool === "translate" ||
     layoutTool === "rotate" ||
@@ -1599,7 +1693,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
   return (
     <div
       ref={containerRef}
-      className="relative outline-none focus-visible:ring-accent rounded-lg focus-visible:ring-2"
+      className="focus-visible:ring-accent relative rounded-lg outline-none focus-visible:ring-2"
       tabIndex={0}
       role="group"
       aria-label="Molecule draw canvas container"
@@ -1613,7 +1707,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
         containerRef.current?.focus({ preventScroll: true });
       }}
     >
-      <div className="absolute right-2 top-2 z-10 flex items-center gap-1">
+      <div className="absolute top-2 right-2 z-10 flex items-center gap-1">
         <Tooltip delay={300}>
           <Tooltip.Trigger>
             <Button
@@ -1628,7 +1722,9 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
               <ZoomOut className="h-4 w-4" aria-hidden />
             </Button>
           </Tooltip.Trigger>
-          <Tooltip.Content placement="left">Zoom out (scroll wheel down)</Tooltip.Content>
+          <Tooltip.Content placement="left">
+            Zoom out (scroll wheel down)
+          </Tooltip.Content>
         </Tooltip>
         <Tooltip delay={300}>
           <Tooltip.Trigger>
@@ -1644,7 +1740,9 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
               <ZoomIn className="h-4 w-4" aria-hidden />
             </Button>
           </Tooltip.Trigger>
-          <Tooltip.Content placement="left">Zoom in (scroll wheel up)</Tooltip.Content>
+          <Tooltip.Content placement="left">
+            Zoom in (scroll wheel up)
+          </Tooltip.Content>
         </Tooltip>
         <Tooltip delay={300}>
           <Tooltip.Trigger>
@@ -1666,7 +1764,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       </div>
       {showLayoutOverlay ? (
         <div
-          className="touch-none absolute inset-0 z-10 cursor-grab rounded-lg active:cursor-grabbing"
+          className="absolute inset-0 z-10 cursor-grab touch-none rounded-lg active:cursor-grabbing"
           style={{ touchAction: "none" }}
           onPointerDown={onLayoutOverlayPointerDown}
           onPointerMove={onLayoutOverlayPointerMove}
@@ -1690,7 +1788,10 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
           viewBox={svgViewBox}
           preserveAspectRatio="xMidYMid meet"
           className="block w-full touch-none bg-transparent"
-          style={{ cursor: cursorClass, fontFamily: MOLECULE_SVG_FONT_FAMILY_INLINE }}
+          style={{
+            cursor: cursorClass,
+            fontFamily: MOLECULE_SVG_FONT_FAMILY_INLINE,
+          }}
           onPointerDown={onPointerDown}
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
@@ -1701,70 +1802,71 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
             event.preventDefault();
           }}
         >
-        {marqueeRect !== null ? (
-          <rect
-            x={Math.min(marqueeRect.x0, marqueeRect.x1)}
-            y={Math.min(marqueeRect.y0, marqueeRect.y1)}
-            width={Math.abs(marqueeRect.x1 - marqueeRect.x0)}
-            height={Math.abs(marqueeRect.y1 - marqueeRect.y0)}
-            fill="var(--accent)"
-            fillOpacity={0.12}
-            stroke="var(--accent)"
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
-            pointerEvents="none"
-          />
-        ) : null}
-        <g transform={panZoomGroupTransform || undefined}>
-          {state.cageOrbitDragging && state.cageOrbitFastFrame !== null ? (
-            <CageOrbitFastLayer
-              frame={state.cageOrbitFastFrame}
-              baseTransform={baseTransform}
-              isDark={drawCanvasDepictionDark}
-            />
-          ) : oclDepiction !== null ? (
-            <g
-              pointerEvents="none"
-              transform={oclDepictionCompensation ?? undefined}
-              dangerouslySetInnerHTML={{ __html: oclDepiction.innerMarkup }}
-            />
-          ) : null}
-          {bondHoverElement}
-          {dragFromScreen !== null && dragPreview !== null ? (
-            <line
-              x1={dragFromScreen.x}
-              y1={dragFromScreen.y}
-              x2={dragPreview.x}
-              y2={dragPreview.y}
+          {marqueeRect !== null ? (
+            <rect
+              x={Math.min(marqueeRect.x0, marqueeRect.x1)}
+              y={Math.min(marqueeRect.y0, marqueeRect.y1)}
+              width={Math.abs(marqueeRect.x1 - marqueeRect.x0)}
+              height={Math.abs(marqueeRect.y1 - marqueeRect.y0)}
+              fill="var(--accent)"
+              fillOpacity={0.12}
               stroke="var(--accent)"
-              strokeWidth={MOLECULE_2D_BOND_STROKE_WIDTH}
-              strokeDasharray={dragBondKind === "dative" ? "5 4" : undefined}
-              strokeOpacity={0.8}
+              strokeWidth={1.5}
+              strokeDasharray="4 3"
+              pointerEvents="none"
             />
           ) : null}
-          {atomInfos.map((info) => {
-            const isHovered = hover.kind === "atom" && hover.atom === info.index;
-            const isHighlighted = highlightAtoms.includes(info.index);
-            const isSelected = selectedAtomSet.has(info.index);
-            if (!isHovered && !isHighlighted) {
-              return null;
-            }
-            return (
-              <circle
-                key={info.index}
-                cx={info.screen.x}
-                cy={info.screen.y}
-                r={info.hoverRadius}
-                fill="var(--accent)"
-                fillOpacity={isSelected ? 0.32 : isHighlighted ? 0.28 : 0.18}
-                stroke="var(--accent)"
-                strokeWidth={isSelected ? 2.5 : isHighlighted ? 2 : 1.5}
-                pointerEvents="none"
+          <g transform={panZoomGroupTransform || undefined}>
+            {state.cageOrbitDragging && state.cageOrbitFastFrame !== null ? (
+              <CageOrbitFastLayer
+                frame={state.cageOrbitFastFrame}
+                baseTransform={baseTransform}
+                isDark={drawCanvasDepictionDark}
               />
-            );
-          })}
-          {polymerOverlays}
-        </g>
+            ) : oclDepiction !== null ? (
+              <g
+                pointerEvents="none"
+                transform={oclDepictionCompensation ?? undefined}
+                dangerouslySetInnerHTML={{ __html: oclDepiction.innerMarkup }}
+              />
+            ) : null}
+            {bondHoverElement}
+            {dragFromScreen !== null && dragPreview !== null ? (
+              <line
+                x1={dragFromScreen.x}
+                y1={dragFromScreen.y}
+                x2={dragPreview.x}
+                y2={dragPreview.y}
+                stroke="var(--accent)"
+                strokeWidth={MOLECULE_2D_BOND_STROKE_WIDTH}
+                strokeDasharray={dragBondKind === "dative" ? "5 4" : undefined}
+                strokeOpacity={0.8}
+              />
+            ) : null}
+            {atomInfos.map((info) => {
+              const isHovered =
+                hover.kind === "atom" && hover.atom === info.index;
+              const isHighlighted = highlightAtoms.includes(info.index);
+              const isSelected = selectedAtomSet.has(info.index);
+              if (!isHovered && !isHighlighted) {
+                return null;
+              }
+              return (
+                <circle
+                  key={info.index}
+                  cx={info.screen.x}
+                  cy={info.screen.y}
+                  r={info.hoverRadius}
+                  fill="var(--accent)"
+                  fillOpacity={isSelected ? 0.32 : isHighlighted ? 0.28 : 0.18}
+                  stroke="var(--accent)"
+                  strokeWidth={isSelected ? 2.5 : isHighlighted ? 2 : 1.5}
+                  pointerEvents="none"
+                />
+              );
+            })}
+            {polymerOverlays}
+          </g>
         </svg>
       </div>
       <p className="text-muted mt-1 text-xs">{toolHint}</p>
@@ -1826,7 +1928,7 @@ export function MoleculeDrawCanvas({ state, heightPx }: MoleculeDrawCanvasProps)
       ) : null}
       {elementPopover !== null ? (
         <div
-          className="border-border bg-surface absolute left-2 top-12 z-20 w-64 max-h-[min(28rem,calc(100%-4rem))] overflow-y-auto rounded-md border p-2 shadow-lg"
+          className="border-border bg-surface absolute top-12 left-2 z-20 max-h-[min(28rem,calc(100%-4rem))] w-64 overflow-y-auto rounded-md border p-2 shadow-lg"
           role="dialog"
           aria-label="Atom editor"
         >

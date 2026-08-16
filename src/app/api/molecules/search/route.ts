@@ -48,7 +48,10 @@ function scoreValue(value: string | null | undefined, query: string): number {
   return 0;
 }
 
-function rankMolecule(molecule: SearchableMolecule, query: string): RankedMolecule {
+function rankMolecule(
+  molecule: SearchableMolecule,
+  query: string,
+): RankedMolecule {
   const synonymScore = molecule.moleculesynonyms.reduce((best, synonymRow) => {
     const valueScore = scoreValue(synonymRow.synonym, query);
     const primaryBoost = synonymRow.order === 0 ? 8 : 0;
@@ -177,7 +180,9 @@ export async function GET(request: Request): Promise<NextResponse> {
   const ranked = molecules
     .map((molecule) => rankMolecule(molecule, normalizedQuery))
     .sort((a, b) => b.score - a.score);
-  const moleculeById = new Map(molecules.map((molecule) => [molecule.id, molecule]));
+  const moleculeById = new Map(
+    molecules.map((molecule) => [molecule.id, molecule]),
+  );
 
   const exactMatches = ranked.filter((entry) => entry.hasExactMatch);
 

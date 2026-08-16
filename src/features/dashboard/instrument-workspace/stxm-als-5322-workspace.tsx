@@ -16,19 +16,14 @@ import {
   type DashboardWorkspaceContext,
   type DashboardWorkspaceTab,
 } from "~/lib/dashboard-processing-session";
-import {
-  summarizeBeamtimeFolders,
-  type StxmCatalogEntry,
-} from "~/lib/stxm";
+import { summarizeBeamtimeFolders, type StxmCatalogEntry } from "~/lib/stxm";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
   countHdrFilesInExperiments,
   loadScanFilesFromCatalogEntry,
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
-import {
-  pickStxmRootDirectory,
-} from "~/features/dashboard/lib/localDirectoryBrowser";
+import { pickStxmRootDirectory } from "~/features/dashboard/lib/localDirectoryBrowser";
 import {
   getExperimentDirectory,
   resolveStxmDirectoryLayout,
@@ -49,10 +44,7 @@ import type { StxmDirectoryHandle } from "~/features/dashboard/lib/fileSystemAcc
 import { BeamtimeScroller } from "./beamtime-scroller";
 import { ExperimentFileBrowser } from "./experiment-file-browser";
 import { useExperimentCatalogLoad } from "./useExperimentCatalogLoad";
-import {
-  FolderPickerPrompt,
-  RecentFolderPills,
-} from "./folder-picker-prompt";
+import { FolderPickerPrompt, RecentFolderPills } from "./folder-picker-prompt";
 import {
   grantStxmComputeConsent,
   readStxmComputeConsentGranted,
@@ -102,7 +94,8 @@ export function StxmAls5322Workspace() {
     hdrFile: File;
     ximFile: File;
   } | null>(null);
-  const [activeTab, setActiveTab] = useState<DashboardWorkspaceTab>("experiment");
+  const [activeTab, setActiveTab] =
+    useState<DashboardWorkspaceTab>("experiment");
   const [isPicking, setIsPicking] = useState(false);
   const [isLoadingBeamtimes, setIsLoadingBeamtimes] = useState(false);
   const [isReloading, setIsReloading] = useState(false);
@@ -128,7 +121,11 @@ export function StxmAls5322Workspace() {
     useState<StxmDirectoryHandle | null>(null);
 
   const applyBeamtimeScanCounts = useCallback(
-    (experimentName: string, scanCount: number, nexafsLineScanCount: number) => {
+    (
+      experimentName: string,
+      scanCount: number,
+      nexafsLineScanCount: number,
+    ) => {
       setBeamtimes((previous) =>
         previous.map((row) =>
           row.name === experimentName
@@ -147,17 +144,21 @@ export function StxmAls5322Workspace() {
     [],
   );
 
-  const { snapshot: catalogSnapshot, loadCatalog, clearCatalog, readCheckpointScanCounts } =
-    useExperimentCatalogLoad({
-      rootHandle,
-      directoryLayout,
-      folderHandleKey,
-      folderRootName,
-      onScanCountUpdate: applyBeamtimeScanCounts,
-      onPendingFolderAccess: (handleKey, displayName) => {
-        setPendingFolderAccess({ handleKey, displayName });
-      },
-    });
+  const {
+    snapshot: catalogSnapshot,
+    loadCatalog,
+    clearCatalog,
+    readCheckpointScanCounts,
+  } = useExperimentCatalogLoad({
+    rootHandle,
+    directoryLayout,
+    folderHandleKey,
+    folderRootName,
+    onScanCountUpdate: applyBeamtimeScanCounts,
+    onPendingFolderAccess: (handleKey, displayName) => {
+      setPendingFolderAccess({ handleKey, displayName });
+    },
+  });
 
   const catalog = catalogSnapshot.entries;
   const isLoadingCatalog = catalogSnapshot.isLoading;
@@ -244,13 +245,16 @@ export function StxmAls5322Workspace() {
           ...base.workspace,
           folderRootName: folderRootName ?? base.workspace?.folderRootName,
           folderHandleKey: folderHandleKey ?? base.workspace?.folderHandleKey,
-          beamtimeName: selectedBeamtime ?? base.workspace?.beamtimeName ?? null,
+          beamtimeName:
+            selectedBeamtime ?? base.workspace?.beamtimeName ?? null,
           selectedScanRelativePath:
             selectedEntry?.relativePath ??
             base.workspace?.selectedScanRelativePath ??
             null,
           selectedScanBasename:
-            selectedEntry?.basename ?? base.workspace?.selectedScanBasename ?? null,
+            selectedEntry?.basename ??
+            base.workspace?.selectedScanBasename ??
+            null,
           activeTab: activeTab ?? base.workspace?.activeTab ?? "experiment",
           ...patch,
         },
@@ -358,7 +362,10 @@ export function StxmAls5322Workspace() {
           return layout;
         }
 
-        const rows = summarizeBeamtimeFolders(layout.experimentNames, new Map());
+        const rows = summarizeBeamtimeFolders(
+          layout.experimentNames,
+          new Map(),
+        );
         setBeamtimes(rows);
         setIsLoadingBeamtimes(false);
         void enrichScanCounts(handle, layout);
@@ -607,7 +614,13 @@ export function StxmAls5322Workspace() {
         }
       }
     },
-    [directoryLayout, persistWorkspace, rootHandle, selectedBeamtime, stxmSession],
+    [
+      directoryLayout,
+      persistWorkspace,
+      rootHandle,
+      selectedBeamtime,
+      stxmSession,
+    ],
   );
 
   useEffect(() => {
@@ -732,7 +745,14 @@ export function StxmAls5322Workspace() {
     } finally {
       setIsReloading(false);
     }
-  }, [folderHandleKey, folderRootName, loadCatalog, refreshBeamtimes, rootHandle, selectedBeamtime]);
+  }, [
+    folderHandleKey,
+    folderRootName,
+    loadCatalog,
+    refreshBeamtimes,
+    rootHandle,
+    selectedBeamtime,
+  ]);
 
   const activeScanId =
     selectedEntry?.relativePath ?? selectedFiles?.hdrFile.name ?? null;
@@ -786,8 +806,8 @@ export function StxmAls5322Workspace() {
         if (pendingFolderAccess && !rootHandle) {
           return (
             <p className="text-muted text-sm">
-              Use the button above to re-grant folder access, or select a new data
-              folder.
+              Use the button above to re-grant folder access, or select a new
+              data folder.
             </p>
           );
         }
@@ -833,7 +853,9 @@ export function StxmAls5322Workspace() {
                 </h2>
                 {catalogLoadError ? (
                   <div className="border-border bg-default/30 mb-3 flex flex-col items-start gap-2 rounded-lg border px-4 py-3">
-                    <p className="text-foreground text-sm">{catalogLoadError}</p>
+                    <p className="text-foreground text-sm">
+                      {catalogLoadError}
+                    </p>
                     <button
                       type="button"
                       className="text-accent text-sm font-medium hover:underline"
@@ -878,8 +900,8 @@ export function StxmAls5322Workspace() {
         if (!selectedFiles) {
           return (
             <p className="text-muted text-sm">
-              Select a NEXAFS line scan on the Experiment tab to configure regions
-              and recompute spectra.
+              Select a NEXAFS line scan on the Experiment tab to configure
+              regions and recompute spectra.
             </p>
           );
         }
@@ -888,7 +910,9 @@ export function StxmAls5322Workspace() {
             exportMetadata={resolvedExportMetadata}
             hdrFile={selectedFiles.hdrFile}
             ximFile={selectedFiles.ximFile}
-            scanLabel={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
+            scanLabel={
+              selectedEntry?.relativePath ?? selectedFiles.hdrFile.name
+            }
             scanId={selectedEntry?.relativePath ?? selectedFiles.hdrFile.name}
             energyMinEv={selectedEntry?.energyMinEv ?? null}
             energyMaxEv={selectedEntry?.energyMaxEv ?? null}
@@ -1029,7 +1053,9 @@ export function StxmAls5322Workspace() {
         <div className="border-border bg-default/30 flex flex-col items-start gap-3 rounded-lg border px-4 py-4">
           <p className="text-foreground text-sm">
             Read access to{" "}
-            <span className="font-medium">{pendingFolderAccess.displayName}</span>{" "}
+            <span className="font-medium">
+              {pendingFolderAccess.displayName}
+            </span>{" "}
             requires your confirmation after reload.
           </p>
           <Button size="sm" onPress={() => void grantStoredFolderAccess()}>

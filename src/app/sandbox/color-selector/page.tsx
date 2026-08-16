@@ -18,7 +18,8 @@ export default function SandboxHexColorSelectorPage() {
           <code className="text-foreground/90 bg-surface-2/80 rounded px-1 py-0.5 text-xs">
             HexColorSelector
           </code>
-          . Uses the system color dialog, preset carousel, and no overlay popover.
+          . Uses the system color dialog, preset carousel, and no overlay
+          popover.
         </p>
         <div className="mt-4">
           <HexColorSelector

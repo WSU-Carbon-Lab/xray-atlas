@@ -2,7 +2,5 @@ import { WhatsNewHeroAnnouncement } from "@/components/home/whats-new-hero-annou
 import { HomePageContent } from "./home-page-content";
 
 export default function HomePage() {
-  return (
-    <HomePageContent heroAnnouncement={<WhatsNewHeroAnnouncement />} />
-  );
+  return <HomePageContent heroAnnouncement={<WhatsNewHeroAnnouncement />} />;
 }

@@ -82,7 +82,9 @@ export interface PlotDataViewRailProps<
     closePicker: () => void,
   ) => ReactNode;
   /** Per-channel disabled tooltip when `isChannelAvailable` is false. */
-  readonly channelUnavailableDescription?: (id: TChannelId) => string | undefined;
+  readonly channelUnavailableDescription?: (
+    id: TChannelId,
+  ) => string | undefined;
   /**
    * Tray ids whose popover uses multi-select toggles instead of exclusive single-select.
    * Selection state is read from {@link traySelectedChannelIds} and written via
@@ -123,8 +125,13 @@ function linkedTrayPairForLink<
 >(
   definition: PlotDataRailDefinition<TChannelId, TTrayId>,
   link: PlotDataRailLinkDefinition<TChannelId, TTrayId>,
-): { readonly primaryTrayId: TTrayId; readonly companionTrayId: TTrayId } | null {
-  const index = definition.trays.findIndex((t) => t.id === link.insertAfterTrayId);
+): {
+  readonly primaryTrayId: TTrayId;
+  readonly companionTrayId: TTrayId;
+} | null {
+  const index = definition.trays.findIndex(
+    (t) => t.id === link.insertAfterTrayId,
+  );
   if (index < 0 || index + 1 >= definition.trays.length) {
     return null;
   }

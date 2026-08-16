@@ -107,7 +107,8 @@ export function StxmStandardsPicker({
         });
         continue;
       }
-      const color = STANDARD_COLORS[index % STANDARD_COLORS.length] ?? "#dc2626";
+      const color =
+        STANDARD_COLORS[index % STANDARD_COLORS.length] ?? "#dc2626";
       plotStandards.push(
         await loadStandardPoints(overlay.experimentId, overlay.label, color),
       );
@@ -146,7 +147,9 @@ export function StxmStandardsPicker({
     <div className="border-border flex flex-col gap-2 rounded-lg border p-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <p className="text-foreground text-sm font-medium">Reference standards</p>
+          <p className="text-foreground text-sm font-medium">
+            Reference standards
+          </p>
           <p className="text-muted text-xs">
             {edgeLabel
               ? `Atlas spectra for ${edgeLabel}`
@@ -200,9 +203,7 @@ export function StxmStandardsPicker({
 
       {pickerOpen ? (
         <div className="border-border max-h-48 space-y-1 overflow-y-auto rounded border p-2">
-          {browseQuery.isLoading ? (
-            <Spinner size="sm" />
-          ) : null}
+          {browseQuery.isLoading ? <Spinner size="sm" /> : null}
           {(browseQuery.data?.groups ?? []).map((group) => {
             const experimentId = group.experimentId;
             const edgeLabel = `${group.edge.targetatom} ${group.edge.corestate}`;
@@ -218,8 +219,11 @@ export function StxmStandardsPicker({
               </button>
             );
           })}
-          {!browseQuery.isLoading && (browseQuery.data?.groups.length ?? 0) === 0 ? (
-            <p className="text-muted text-xs">No published datasets for this edge.</p>
+          {!browseQuery.isLoading &&
+          (browseQuery.data?.groups.length ?? 0) === 0 ? (
+            <p className="text-muted text-xs">
+              No published datasets for this edge.
+            </p>
           ) : null}
         </div>
       ) : null}

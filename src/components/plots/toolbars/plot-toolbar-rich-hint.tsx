@@ -64,7 +64,8 @@ function anchorStyleForPlacement(
       return {
         left: rect.right + EDGE_GAP_PX,
         top: rect.top + rect.height / 2,
-        outerClassName: "z-max pointer-events-none fixed isolate -translate-y-1/2",
+        outerClassName:
+          "z-max pointer-events-none fixed isolate -translate-y-1/2",
       };
     case "top":
     default:
@@ -359,24 +360,18 @@ export function PlotToolbarRichHint({
   return cloneElement(children, {
     [BUTTON_GROUP_CHILD]: buttonGroupChild,
     ref: mergeRefs(anchorRef, childProps.ref),
-    onMouseEnter: chainHandlers(
-      (event: MouseEvent<HTMLElement>) => {
-        scheduleOpenFromPointer();
-        event.stopPropagation();
-      },
-      childProps.onMouseEnter,
-    ),
+    onMouseEnter: chainHandlers((event: MouseEvent<HTMLElement>) => {
+      scheduleOpenFromPointer();
+      event.stopPropagation();
+    }, childProps.onMouseEnter),
     onMouseLeave: chainHandlers(scheduleClose, childProps.onMouseLeave),
     onFocus: chainHandlers(openHint, childProps.onFocus),
-    onBlur: chainHandlers(
-      (event: FocusEvent<HTMLElement>) => {
-        const next = event.relatedTarget as Node | null;
-        if (!next || !anchorRef.current?.contains(next)) {
-          scheduleClose();
-        }
-      },
-      childProps.onBlur,
-    ),
+    onBlur: chainHandlers((event: FocusEvent<HTMLElement>) => {
+      const next = event.relatedTarget as Node | null;
+      if (!next || !anchorRef.current?.contains(next)) {
+        scheduleClose();
+      }
+    }, childProps.onBlur),
   } as Record<string, unknown>);
 }
 
@@ -407,13 +402,15 @@ function PlotToolbarRichHintPanel({
         onMouseEnter={onPointerEnter}
         onMouseLeave={onPointerLeave}
       >
-        <p className="text-foreground font-semibold leading-snug">{title}</p>
+        <p className="text-foreground leading-snug font-semibold">{title}</p>
         {showUnavailableLabel ? (
-          <p className="text-muted mt-1 text-[0.6875rem] font-semibold uppercase tracking-wide">
+          <p className="text-muted mt-1 text-[0.6875rem] font-semibold tracking-wide uppercase">
             Unavailable
           </p>
         ) : null}
-        <p className="mt-1.5 leading-snug text-[var(--text-secondary)]">{hintBody}</p>
+        <p className="mt-1.5 leading-snug text-[var(--text-secondary)]">
+          {hintBody}
+        </p>
       </div>
     </div>
   );

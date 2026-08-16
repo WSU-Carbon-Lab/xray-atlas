@@ -121,7 +121,11 @@ export function ProfilePageClient({
       adminSatisfied: stepUp.evaluation.adminSatisfied,
       adminRequiredAal: stepUp.evaluation.adminRequiredAal,
     };
-  }, [confirmPasskeySessionStepUp, utils.users.getPasskeys, utils.users.getSessionWriteAssurance]);
+  }, [
+    confirmPasskeySessionStepUp,
+    utils.users.getPasskeys,
+    utils.users.getSessionWriteAssurance,
+  ]);
 
   const performPasskeySessionStepUp = useCallback(
     async (options?: {
@@ -142,7 +146,8 @@ export function ProfilePageClient({
 
         if (!result.ok) {
           const message =
-            result.errorMessage ?? "Passkey confirmation failed. Please try again.";
+            result.errorMessage ??
+            "Passkey confirmation failed. Please try again.";
           if (
             isPasskeyClientCancelled(new Error(message)) ||
             message.toLowerCase().includes("interrupted") ||
@@ -255,14 +260,14 @@ export function ProfilePageClient({
           }
           return;
         }
-        showToast(
-          getErrorMessage(error, "Action failed"),
-          "error",
-          0,
-        );
+        showToast(getErrorMessage(error, "Action failed"), "error", 0);
       }
     },
-    [performPasskeySessionStepUp, showToast, utils.users.getSessionWriteAssurance],
+    [
+      performPasskeySessionStepUp,
+      showToast,
+      utils.users.getSessionWriteAssurance,
+    ],
   );
 
   const handleRegisterPasskey = useCallback(async () => {
@@ -276,7 +281,8 @@ export function ProfilePageClient({
 
       if (!result.ok) {
         throw new Error(
-          result.errorMessage ?? "Passkey registration failed. Please try again.",
+          result.errorMessage ??
+            "Passkey registration failed. Please try again.",
         );
       }
 
@@ -346,13 +352,18 @@ export function ProfilePageClient({
     [showToast, unlinkAccount, utils.users.getLinkedAccounts],
   );
 
-  const headerGithub = useMemo((): ProfileGitHubPresentation | null | undefined => {
+  const headerGithub = useMemo(():
+    | ProfileGitHubPresentation
+    | null
+    | undefined => {
     if (isOwnProfile) {
       if (linkedAccounts === undefined) {
         return undefined;
       }
       const githubAccount = linkedAccounts.find(
-        (account): account is Extract<
+        (
+          account,
+        ): account is Extract<
           (typeof linkedAccounts)[number],
           { provider: "github" }
         > => account.provider === "github",

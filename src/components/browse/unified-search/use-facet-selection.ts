@@ -98,7 +98,8 @@ function catalogFilterTokens(filters: NexafsCatalogFilters): CatalogToken[] {
       field: "acquisition",
       id: filters.experimentType,
       label:
-        EXPERIMENT_TYPE_LABELS[filters.experimentType] ?? filters.experimentType,
+        EXPERIMENT_TYPE_LABELS[filters.experimentType] ??
+        filters.experimentType,
     });
   }
   if (filters.verifiedOnly) {
@@ -128,7 +129,8 @@ export function useFacetSelection({
   const urlKey = searchParams.toString();
 
   const [urlSynced, setUrlSynced] = useState(false);
-  const [selection, setSelection] = useState<FacetSelection>(emptyFacetSelection);
+  const [selection, setSelection] =
+    useState<FacetSelection>(emptyFacetSelection);
   const [catalogFilters, setCatalogFilters] = useState<NexafsCatalogFilters>(
     emptyNexafsCatalogFilters,
   );
@@ -239,7 +241,9 @@ export function useFacetSelection({
         const has = prev[field].includes(id);
         return {
           ...prev,
-          [field]: has ? prev[field].filter((x) => x !== id) : [...prev[field], id],
+          [field]: has
+            ? prev[field].filter((x) => x !== id)
+            : [...prev[field], id],
         };
       });
       resetPage();

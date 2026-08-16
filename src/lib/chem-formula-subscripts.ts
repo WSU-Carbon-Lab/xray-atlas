@@ -19,7 +19,10 @@ export function formatAlkylCnH2nPlus1(nCarbons: number): string {
 }
 
 export function normalizeNumericSubscriptsToAscii(text: string): string {
-  return text.replace(/[₀₁₂₃₄₅₆₇₈₉]/g, (ch) => SUBSCRIPT_TO_ASCII_DIGIT[ch] ?? ch);
+  return text.replace(
+    /[₀₁₂₃₄₅₆₇₈₉]/g,
+    (ch) => SUBSCRIPT_TO_ASCII_DIGIT[ch] ?? ch,
+  );
 }
 
 export function formatChHydrideLabel(implicitHydrogenCount: number): string {

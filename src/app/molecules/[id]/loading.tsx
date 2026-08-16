@@ -8,7 +8,10 @@ export default function MoleculeDetailLoading() {
   return (
     <div className="py-8">
       <div className="mb-6">
-        <nav aria-label="Breadcrumb" className="text-sm text-gray-600 dark:text-gray-400">
+        <nav
+          aria-label="Breadcrumb"
+          className="text-sm text-gray-600 dark:text-gray-400"
+        >
           <ol className="flex flex-wrap items-center gap-2">
             <li>
               <Link
@@ -64,7 +67,11 @@ export default function MoleculeDetailLoading() {
           <div className="h-12 w-24 shrink-0 animate-pulse rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800" />
           <div className="h-12 w-28 shrink-0 animate-pulse rounded-lg border border-gray-200 bg-gray-100 dark:border-gray-700 dark:bg-gray-800" />
         </div>
-        <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
+        <div
+          className="space-y-3"
+          aria-busy
+          aria-label="Loading NEXAFS experiments"
+        >
           {Array.from({ length: 6 }).map((_, i) => (
             <NexafsExperimentCompactSkeleton key={i} />
           ))}

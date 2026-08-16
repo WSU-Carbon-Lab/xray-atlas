@@ -29,9 +29,7 @@ const MONITOR_AXIS_PATTERN =
  * Parses an optional monitor/drain axis point list from `.hdr` text when the beamline writes one.
  * Returns null when no recognizable monitor axis is present.
  */
-export function parseTeyDrainSeriesFromHdr(
-  hdrText: string,
-): number[] | null {
+export function parseTeyDrainSeriesFromHdr(hdrText: string): number[] | null {
   const match = MONITOR_AXIS_PATTERN.exec(hdrText);
   if (!match?.[1]) {
     return null;

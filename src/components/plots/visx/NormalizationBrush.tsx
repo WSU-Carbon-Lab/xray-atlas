@@ -60,9 +60,7 @@ export function NormalizationBrush({
       const energyRange = (domain[1] ?? 0) - (domain[0] ?? 0);
       const selectionWidth = energyMax - energyMin;
       const estimatedPoints =
-        energyRange > 0
-          ? Math.ceil((selectionWidth / energyRange) * 100)
-          : 0;
+        energyRange > 0 ? Math.ceil((selectionWidth / energyRange) * 100) : 0;
       return {
         energyMin,
         energyMax,
@@ -85,18 +83,14 @@ export function NormalizationBrush({
       if (!pt) return;
       const x = Math.max(0, Math.min(plotWidth, pt.x));
       const y = Math.max(0, Math.min(plotHeight, pt.y));
-      setMarquee((prev) =>
-        prev ? { ...prev, end: { x, y } } : null,
-      );
+      setMarquee((prev) => (prev ? { ...prev, end: { x, y } } : null));
     };
 
     const handlePointerUp = (e: PointerEvent) => {
       const current = marqueeRef.current;
       if (!current) return;
       const pt = eventToPlotCoords(e, svg, left, top);
-      const endX = pt
-        ? Math.max(0, Math.min(plotWidth, pt.x))
-        : current.end.x;
+      const endX = pt ? Math.max(0, Math.min(plotWidth, pt.x)) : current.end.x;
       const x0 = Math.min(current.start.x, endX);
       const x1 = Math.max(current.start.x, endX);
       if (x1 - x0 >= 2) {
@@ -105,15 +99,21 @@ export function NormalizationBrush({
       setMarquee(null);
     };
 
-    window.addEventListener("pointermove", handlePointerMove, { capture: true });
+    window.addEventListener("pointermove", handlePointerMove, {
+      capture: true,
+    });
     window.addEventListener("pointerup", handlePointerUp, { capture: true });
-    window.addEventListener("pointercancel", handlePointerUp, { capture: true });
+    window.addEventListener("pointercancel", handlePointerUp, {
+      capture: true,
+    });
 
     return () => {
       window.removeEventListener("pointermove", handlePointerMove, {
         capture: true,
       });
-      window.removeEventListener("pointerup", handlePointerUp, { capture: true });
+      window.removeEventListener("pointerup", handlePointerUp, {
+        capture: true,
+      });
       window.removeEventListener("pointercancel", handlePointerUp, {
         capture: true,
       });

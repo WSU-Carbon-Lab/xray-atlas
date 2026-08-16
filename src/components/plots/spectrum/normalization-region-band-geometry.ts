@@ -27,7 +27,11 @@ export function resolveNormalizationBandRect(
   const x1 = xScale(hi) + offsetX;
   let x = Math.min(x0, x1);
   let xEnd = Math.max(x0, x1);
-  if (plotInnerWidth != null && Number.isFinite(plotInnerWidth) && plotInnerWidth > 0) {
+  if (
+    plotInnerWidth != null &&
+    Number.isFinite(plotInnerWidth) &&
+    plotInnerWidth > 0
+  ) {
     const clipMin = offsetX;
     const clipMax = offsetX + plotInnerWidth;
     x = Math.max(x, clipMin);

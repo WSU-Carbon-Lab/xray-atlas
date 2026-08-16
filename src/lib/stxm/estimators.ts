@@ -1,8 +1,5 @@
 /** Recorded region-sum weighting policy aligned with Python `stxm.estimators.WeightingMode`. */
-export type StxmWeightingMode =
-  | "inverse_count"
-  | "poisson_mle"
-  | "empirical";
+export type StxmWeightingMode = "inverse_count" | "poisson_mle" | "empirical";
 
 export interface RegionSumSigmaResult {
   sum: Float64Array;
@@ -11,7 +8,9 @@ export interface RegionSumSigmaResult {
 }
 
 /** @deprecated Use `RegionSumSigmaResult`. */
-export type RegionMeanSigmaResult = RegionSumSigmaResult & { mean: Float64Array };
+export type RegionMeanSigmaResult = RegionSumSigmaResult & {
+  mean: Float64Array;
+};
 
 /**
  * Computes per-energy column sums and standard errors over masked spatial rows.

@@ -7,7 +7,11 @@ import {
   PlotToolbarRichHint,
   plotToolbarCompactIconToolClass,
 } from "~/components/plots/toolbars";
-import type { StxmIzeroBounds, StxmPlotScaleMode, StxmSampleRegion } from "~/lib/stxm/stxm-region-types";
+import type {
+  StxmIzeroBounds,
+  StxmPlotScaleMode,
+  StxmSampleRegion,
+} from "~/lib/stxm/stxm-region-types";
 import {
   lineScanImageDisplayScale,
   lineScanPixelGray,
@@ -30,7 +34,10 @@ import {
   resolveSampleRegionsAfterIzeroChange,
 } from "~/lib/stxm/region-drag-constraints";
 import { createRegionInGap } from "~/lib/stxm/multi-region-state";
-import { STXM_IZERO_COLOR, stxmRegionSeriesColor } from "~/lib/stxm/region-colors";
+import {
+  STXM_IZERO_COLOR,
+  stxmRegionSeriesColor,
+} from "~/lib/stxm/region-colors";
 import {
   STXM_INGESTION_SPECTRUM_HEIGHT_PX,
   STXM_REGION_EDITOR_MAX_WIDTH_PX,
@@ -107,7 +114,9 @@ export function StxmMultiRegionEditor({
     width: 0,
     height,
   });
-  const [editingRegionIndex, setEditingRegionIndex] = useState<number | null>(null);
+  const [editingRegionIndex, setEditingRegionIndex] = useState<number | null>(
+    null,
+  );
   const [editDraft, setEditDraft] = useState("");
   const editInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -116,7 +125,8 @@ export function StxmMultiRegionEditor({
   const minGap = sampleSpan * 0.02;
 
   const yToPx = useCallback(
-    (value: number, height: number) => qAxisValueToPx(value, qaxisPoints, height),
+    (value: number, height: number) =>
+      qAxisValueToPx(value, qaxisPoints, height),
     [qaxisPoints],
   );
 
@@ -320,7 +330,9 @@ export function StxmMultiRegionEditor({
     context.font = "11px system-ui, sans-serif";
     context.textAlign = "center";
     context.textBaseline = "middle";
-    context.strokeStyle = izeroClampActive ? "var(--warning)" : STXM_IZERO_COLOR;
+    context.strokeStyle = izeroClampActive
+      ? "var(--warning)"
+      : STXM_IZERO_COLOR;
     context.lineWidth = izeroClampActive ? 3 : 2;
     drawHorizontalLine(context, yToPx(izero.izeroLo, height), width);
     drawHorizontalLine(context, yToPx(izero.izeroHi, height), width);
@@ -337,7 +349,16 @@ export function StxmMultiRegionEditor({
       drawHorizontalLine(context, yToPx(region.sampleLo, height), width);
       drawHorizontalLine(context, yToPx(region.sampleHi, height), width);
     });
-  }, [canvasSize, image, imageScaleMode, izero, izeroClampActive, regions, rowBandPx, yToPx]);
+  }, [
+    canvasSize,
+    image,
+    imageScaleMode,
+    izero,
+    izeroClampActive,
+    regions,
+    rowBandPx,
+    yToPx,
+  ]);
 
   useEffect(() => {
     if (editingRegionIndex === null) {
@@ -382,9 +403,9 @@ export function StxmMultiRegionEditor({
     }
     return Boolean(
       target.closest("[data-gap-button]") ??
-        target.closest("[data-region-label]") ??
-        target.closest("[data-region-remove]") ??
-        target.closest("[data-region-label-edit]"),
+      target.closest("[data-region-label]") ??
+      target.closest("[data-region-remove]") ??
+      target.closest("[data-region-label-edit]"),
     );
   };
 
@@ -401,7 +422,9 @@ export function StxmMultiRegionEditor({
       }
       const sample = pxToSample(event.clientY, canvas);
       const hitMargin = sampleSpan * HIT_MARGIN_FRACTION;
-      setHoverDragTarget(findRegionDragTarget(sample, hitMargin, izero, regions));
+      setHoverDragTarget(
+        findRegionDragTarget(sample, hitMargin, izero, regions),
+      );
     },
     [izero, pxToSample, regions, sampleSpan],
   );
@@ -565,7 +588,7 @@ export function StxmMultiRegionEditor({
                         data-region-label-edit=""
                         value={editDraft}
                         aria-label={`Edit label for ${label}`}
-                        className="border-border bg-surface/95 w-24 rounded-md border px-1.5 py-0.5 text-center text-[11px] font-medium leading-none shadow-sm outline-none"
+                        className="border-border bg-surface/95 w-24 rounded-md border px-1.5 py-0.5 text-center text-[11px] leading-none font-medium shadow-sm outline-none"
                         style={{ color }}
                         onChange={(event) => setEditDraft(event.target.value)}
                         onBlur={() => commitRegionLabelEdit(index)}
@@ -585,7 +608,7 @@ export function StxmMultiRegionEditor({
                         <button
                           type="button"
                           data-region-label=""
-                          className="cursor-pointer px-1.5 py-0.5 text-[11px] font-medium leading-none hover:underline"
+                          className="cursor-pointer px-1.5 py-0.5 text-[11px] leading-none font-medium hover:underline"
                           style={{ color }}
                           onClick={() => startRegionLabelEdit(index)}
                         >
@@ -602,7 +625,10 @@ export function StxmMultiRegionEditor({
                               removeRegion(index);
                             }}
                           >
-                            <Minus className="h-3 w-3 shrink-0" aria-hidden="true" />
+                            <Minus
+                              className="h-3 w-3 shrink-0"
+                              aria-hidden="true"
+                            />
                           </button>
                         ) : null}
                       </div>
@@ -622,7 +648,7 @@ export function StxmMultiRegionEditor({
                     type="button"
                     data-gap-button=""
                     aria-label="Add region in gap"
-                    className="border-border bg-surface/80 text-foreground absolute left-1/2 z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border text-sm font-semibold shadow-sm hover:bg-surface"
+                    className="border-border bg-surface/80 text-foreground hover:bg-surface absolute left-1/2 z-10 flex h-6 w-6 -translate-x-1/2 -translate-y-1/2 cursor-pointer items-center justify-center rounded-md border text-sm font-semibold shadow-sm"
                     style={{ top: `${topPct}%` }}
                     onPointerDown={(event) => event.stopPropagation()}
                     onClick={() => addRegionInGap(gap)}

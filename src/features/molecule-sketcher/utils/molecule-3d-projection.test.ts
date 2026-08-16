@@ -26,7 +26,9 @@ const expect = bunExpect as (value: unknown) => ExpectAssertions;
 function syntheticSession(
   coords: [number, number, number][],
 ): Molecule3dSession {
-  const mol = Molecule.fromSmiles(`C${"C".repeat(Math.max(0, coords.length - 1))}`);
+  const mol = Molecule.fromSmiles(
+    `C${"C".repeat(Math.max(0, coords.length - 1))}`,
+  );
   for (let i = 0; i < coords.length; i += 1) {
     const [x, y, z] = coords[i]!;
     mol.setAtomX(i, x);

@@ -16,9 +16,20 @@ import {
   type FacilityFormState,
   type InstrumentFormData,
 } from "~/components/forms";
-import { BuildingOfficeIcon, PlusIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
+import {
+  BuildingOfficeIcon,
+  PlusIcon,
+  WrenchScrewdriverIcon,
+} from "@heroicons/react/24/outline";
 import type { Key } from "@heroui/react";
-import { Breadcrumbs, Button, Card, Form, Separator, Tabs } from "@heroui/react";
+import {
+  Breadcrumbs,
+  Button,
+  Card,
+  Form,
+  Separator,
+  Tabs,
+} from "@heroui/react";
 import { parseFacilityJsonFile } from "~/app/contribute/facility/utils/parse-facility-json";
 import { parseFacilityCsvFile } from "~/app/contribute/facility/utils/parse-facility-csv";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
@@ -237,7 +248,10 @@ export default function FacilityContributePage({
     useState<Key | null>(null);
 
   const selectedListFacilityId = useMemo(() => {
-    if (facilityNameSelectedKey == null || typeof facilityNameSelectedKey !== "string") {
+    if (
+      facilityNameSelectedKey == null ||
+      typeof facilityNameSelectedKey !== "string"
+    ) {
       return null;
     }
     return facilitiesList.some((f) => f.id === facilityNameSelectedKey)
@@ -370,7 +384,9 @@ export default function FacilityContributePage({
     }
 
     if (existingFacility) {
-      const toCreate = instruments.filter((inst) => inst.name.trim().length > 0);
+      const toCreate = instruments.filter(
+        (inst) => inst.name.trim().length > 0,
+      );
       if (toCreate.length === 0) {
         setSubmitStatus({
           type: "error",
@@ -571,156 +587,158 @@ export default function FacilityContributePage({
           ) : null}
 
           {canContribute ? (
-          <Form onSubmit={handleSubmit} className="space-y-8">
-            <Tabs
-              selectedKey={contributeStep}
-              onSelectionChange={handleStepChange}
-              variant="primary"
-              className="w-full"
-            >
-              <Tabs.ListContainer className="flex justify-center">
-                <Tabs.List
-                  aria-label="Contribution steps"
-                  className="border-border bg-surface-2 inline-flex h-11 items-center rounded-full border p-1 shadow-sm [&_.tabs__list]:flex [&_.tabs__list]:items-center [&_.tabs__list]:gap-0.5"
-                >
-                  <Tabs.Tab
-                    id="facility"
-                    className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
-                      Facility
-                    </span>
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
-                  <Tabs.Tab
-                    id="instruments"
-                    className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
-                  >
-                    <span className="flex items-center gap-2">
-                      <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
-                      Instruments
-                    </span>
-                    <Tabs.Indicator />
-                  </Tabs.Tab>
-                </Tabs.List>
-              </Tabs.ListContainer>
-
-              <Tabs.Panel id="facility" className="mt-6 outline-none">
-                <Card className="border-border bg-surface-1 border shadow-sm">
-                  <Card.Content className="space-y-5 p-5 sm:p-6">
-                    <FacilityIdentitySection
-                      facilitiesList={facilitiesList}
-                      facilityNameSelectedKey={facilityNameSelectedKey}
-                      onFacilityNameSelectedKeyChange={setFacilityNameSelectedKey}
-                      onSelectExistingFacility={(f) => {
-                        setFacilityData({
-                          name: f.name,
-                          city: f.city ?? "",
-                          country: f.country ?? "",
-                          facilityType: f.facilitytype,
-                        });
-                      }}
-                      facilityData={facilityData}
-                      onFacilityDataChange={(patch) =>
-                        setFacilityData((prev) => ({ ...prev, ...patch }))
-                      }
-                      existingFacility={!!existingFacility}
-                      existingFacilityId={existingFacility?.id ?? null}
-                      instrumentCountOnFile={instrumentCountOnFile}
-                    />
-                  </Card.Content>
-                </Card>
-              </Tabs.Panel>
-
-              <Tabs.Panel id="instruments" className="mt-6 outline-none">
-                <Card className="border-border bg-surface-1 border shadow-sm">
-                  <Card.Content className="space-y-5 p-5 sm:p-6">
-                    {existingFacility ? (
-                      <>
-                        <RegisteredInstrumentsAccordion
-                          items={registeredInstruments}
-                          facilityId={existingFacility.id}
-                          isListRefreshing={facilityDetailQuery.isFetching}
-                          onInstrumentUpdated={() => {
-                            void facilityDetailQuery.refetch();
-                          }}
-                        />
-                        <Separator className="bg-border" />
-                      </>
-                    ) : null}
-
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <p className="text-muted text-sm">
-                        {existingFacility
-                          ? "Add new instruments below."
-                          : "Optional: add instruments now, or create the site first and come back later."}
-                      </p>
-                      <Button
-                        type="button"
-                        variant="secondary"
-                        onPress={addInstrument}
-                        className="inline-flex shrink-0 items-center gap-2"
-                      >
-                        <PlusIcon className="h-4 w-4 shrink-0" />
-                        <span>Add instrument</span>
-                      </Button>
-                    </div>
-
-                    <NewInstrumentsAccordion
-                      instruments={instruments}
-                      facilityId={existingFacility?.id}
-                      onChange={(index, field, value) =>
-                        updateInstrument(index, field, value)
-                      }
-                      onRemove={removeInstrument}
-                    />
-                  </Card.Content>
-                </Card>
-              </Tabs.Panel>
-            </Tabs>
-
-            <Separator className="bg-border" />
-
-            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-muted text-xs sm:max-w-sm">
-                {existingFacility
-                  ? "Expand a registered row to edit; save changes there. Submit adds only new instruments below."
-                  : "Submit creates the facility and any named instrument rows."}
-              </p>
-              <Button
-                type="submit"
+            <Form onSubmit={handleSubmit} className="space-y-8">
+              <Tabs
+                selectedKey={contributeStep}
+                onSelectionChange={handleStepChange}
                 variant="primary"
-                isDisabled={isSubmitting || !canSubmit}
-                className="inline-flex items-center gap-2"
+                className="w-full"
               >
-                {existingFacility ? (
-                  <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
-                ) : (
-                  <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
-                )}
-                <span>
-                  {isSubmitting
-                    ? "Working..."
-                    : existingFacility
-                      ? "Submit instruments"
-                      : "Create facility"}
-                </span>
-              </Button>
-            </div>
+                <Tabs.ListContainer className="flex justify-center">
+                  <Tabs.List
+                    aria-label="Contribution steps"
+                    className="border-border bg-surface-2 inline-flex h-11 items-center rounded-full border p-1 shadow-sm [&_.tabs__list]:flex [&_.tabs__list]:items-center [&_.tabs__list]:gap-0.5"
+                  >
+                    <Tabs.Tab
+                      id="facility"
+                      className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
+                        Facility
+                      </span>
+                      <Tabs.Indicator />
+                    </Tabs.Tab>
+                    <Tabs.Tab
+                      id="instruments"
+                      className="data-[selected=true]:bg-accent data-[selected=true]:text-accent-foreground text-muted rounded-full px-4 py-2 text-sm font-semibold transition-colors"
+                    >
+                      <span className="flex items-center gap-2">
+                        <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
+                        Instruments
+                      </span>
+                      <Tabs.Indicator />
+                    </Tabs.Tab>
+                  </Tabs.List>
+                </Tabs.ListContainer>
 
-            {submitStatus.type ? (
-              <div
-                className={
-                  submitStatus.type === "success"
-                    ? "border-success/50 bg-success/10 text-foreground rounded-xl border p-4"
-                    : "border-error/50 bg-error/10 text-foreground rounded-xl border p-4"
-                }
-              >
-                {submitStatus.message}
+                <Tabs.Panel id="facility" className="mt-6 outline-none">
+                  <Card className="border-border bg-surface-1 border shadow-sm">
+                    <Card.Content className="space-y-5 p-5 sm:p-6">
+                      <FacilityIdentitySection
+                        facilitiesList={facilitiesList}
+                        facilityNameSelectedKey={facilityNameSelectedKey}
+                        onFacilityNameSelectedKeyChange={
+                          setFacilityNameSelectedKey
+                        }
+                        onSelectExistingFacility={(f) => {
+                          setFacilityData({
+                            name: f.name,
+                            city: f.city ?? "",
+                            country: f.country ?? "",
+                            facilityType: f.facilitytype,
+                          });
+                        }}
+                        facilityData={facilityData}
+                        onFacilityDataChange={(patch) =>
+                          setFacilityData((prev) => ({ ...prev, ...patch }))
+                        }
+                        existingFacility={!!existingFacility}
+                        existingFacilityId={existingFacility?.id ?? null}
+                        instrumentCountOnFile={instrumentCountOnFile}
+                      />
+                    </Card.Content>
+                  </Card>
+                </Tabs.Panel>
+
+                <Tabs.Panel id="instruments" className="mt-6 outline-none">
+                  <Card className="border-border bg-surface-1 border shadow-sm">
+                    <Card.Content className="space-y-5 p-5 sm:p-6">
+                      {existingFacility ? (
+                        <>
+                          <RegisteredInstrumentsAccordion
+                            items={registeredInstruments}
+                            facilityId={existingFacility.id}
+                            isListRefreshing={facilityDetailQuery.isFetching}
+                            onInstrumentUpdated={() => {
+                              void facilityDetailQuery.refetch();
+                            }}
+                          />
+                          <Separator className="bg-border" />
+                        </>
+                      ) : null}
+
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                        <p className="text-muted text-sm">
+                          {existingFacility
+                            ? "Add new instruments below."
+                            : "Optional: add instruments now, or create the site first and come back later."}
+                        </p>
+                        <Button
+                          type="button"
+                          variant="secondary"
+                          onPress={addInstrument}
+                          className="inline-flex shrink-0 items-center gap-2"
+                        >
+                          <PlusIcon className="h-4 w-4 shrink-0" />
+                          <span>Add instrument</span>
+                        </Button>
+                      </div>
+
+                      <NewInstrumentsAccordion
+                        instruments={instruments}
+                        facilityId={existingFacility?.id}
+                        onChange={(index, field, value) =>
+                          updateInstrument(index, field, value)
+                        }
+                        onRemove={removeInstrument}
+                      />
+                    </Card.Content>
+                  </Card>
+                </Tabs.Panel>
+              </Tabs>
+
+              <Separator className="bg-border" />
+
+              <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-muted text-xs sm:max-w-sm">
+                  {existingFacility
+                    ? "Expand a registered row to edit; save changes there. Submit adds only new instruments below."
+                    : "Submit creates the facility and any named instrument rows."}
+                </p>
+                <Button
+                  type="submit"
+                  variant="primary"
+                  isDisabled={isSubmitting || !canSubmit}
+                  className="inline-flex items-center gap-2"
+                >
+                  {existingFacility ? (
+                    <WrenchScrewdriverIcon className="h-4 w-4 shrink-0" />
+                  ) : (
+                    <BuildingOfficeIcon className="h-4 w-4 shrink-0" />
+                  )}
+                  <span>
+                    {isSubmitting
+                      ? "Working..."
+                      : existingFacility
+                        ? "Submit instruments"
+                        : "Create facility"}
+                  </span>
+                </Button>
               </div>
-            ) : null}
-          </Form>
+
+              {submitStatus.type ? (
+                <div
+                  className={
+                    submitStatus.type === "success"
+                      ? "border-success/50 bg-success/10 text-foreground rounded-xl border p-4"
+                      : "border-error/50 bg-error/10 text-foreground rounded-xl border p-4"
+                  }
+                >
+                  {submitStatus.message}
+                </div>
+              ) : null}
+            </Form>
           ) : null}
         </div>
       </div>

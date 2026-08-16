@@ -12,17 +12,15 @@ function SignInContent() {
   const [passkeyInlineError, setPasskeyInlineError] = useState<string | null>(
     null,
   );
-  const errorMessage =
-    passkeyInlineError ??
-    mapSignInPageError(authError);
+  const errorMessage = passkeyInlineError ?? mapSignInPageError(authError);
 
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-1 p-4">
-      <div className="w-full max-w-md rounded-2xl border border-border-default bg-surface-1 p-8 shadow-lg">
-        <h1 className="mb-2 text-2xl font-bold text-text-primary">
+    <div className="bg-surface-1 flex min-h-screen items-center justify-center p-4">
+      <div className="border-border-default bg-surface-1 w-full max-w-md rounded-2xl border p-8 shadow-lg">
+        <h1 className="text-text-primary mb-2 text-2xl font-bold">
           Sign in to X-ray Atlas
         </h1>
-        <p className="mb-6 text-sm text-text-secondary">
+        <p className="text-text-secondary mb-6 text-sm">
           Sign in with{" "}
           <a
             href="https://orcid.org"
@@ -32,9 +30,10 @@ function SignInContent() {
           >
             ORCID
           </a>{" "}
-          to create or access your account. After your first ORCID sign-in, register a passkey from
-          your profile before contributing data. Returning users can sign in with an existing
-          passkey. GitHub works only after you link it from your profile.
+          to create or access your account. After your first ORCID sign-in,
+          register a passkey from your profile before contributing data.
+          Returning users can sign in with an existing passkey. GitHub works
+          only after you link it from your profile.
         </p>
         {errorMessage ? (
           <p className="text-error mb-4 text-sm" role="alert">

@@ -49,7 +49,9 @@ export interface CageTemplateLayoutFailure {
   message: string;
 }
 
-export type CageTemplateLayoutResult = CageTemplateLayout | CageTemplateLayoutFailure;
+export type CageTemplateLayoutResult =
+  | CageTemplateLayout
+  | CageTemplateLayoutFailure;
 
 /** Atom-pair keys ({@link bondMarkKey}) mapping to front/back depth tiers for cage view. */
 export type CageBondDepthTierByMark = Readonly<Record<string, BondDepthTier>>;
@@ -144,7 +146,11 @@ export interface CageOrbitWireframeFrame {
   bonds: CageOrbitWireframeBond[];
 }
 
-function applyPlaneCoordsToMolecule(mol: Molecule, x: number[], y: number[]): void {
+function applyPlaneCoordsToMolecule(
+  mol: Molecule,
+  x: number[],
+  y: number[],
+): void {
   const n = mol.getAtoms();
   for (let i = 0; i < n; i += 1) {
     mol.setAtomX(i, x[i]!);
@@ -170,7 +176,10 @@ function bondDepthTierIndicesToMarks(
   return out;
 }
 
-function fragmentCentroid(mol: Molecule, atomIndices: readonly number[]): { x: number; y: number } {
+function fragmentCentroid(
+  mol: Molecule,
+  atomIndices: readonly number[],
+): { x: number; y: number } {
   let sumX = 0;
   let sumY = 0;
   for (const a of atomIndices) {
@@ -562,7 +571,7 @@ export function reapplyCageDepictionModeOnMolecule(
 
   const sessionResult =
     sessionOverride !== undefined
-      ? ({ ok: true as const, session: sessionOverride })
+      ? { ok: true as const, session: sessionOverride }
       : createMolecule3dSession(mol);
   if (!sessionResult.ok) {
     return { depthMarks, planeScale: 1 };
@@ -720,7 +729,13 @@ export function commitCageOrbitProjectionToMolecule(
   depthMarks: CageBondDepthTierByMark,
   planeScale: number,
 ): CageBondDepthTierByMark {
-  const frame = buildCageOrbitWireframeFrame(mol, session, view, depthMarks, planeScale);
+  const frame = buildCageOrbitWireframeFrame(
+    mol,
+    session,
+    view,
+    depthMarks,
+    planeScale,
+  );
   return applyCageOrbitWireframeFrameToMolecule(mol, frame, depthMarks);
 }
 

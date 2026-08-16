@@ -150,20 +150,17 @@ export function useResidualSubplotLayout(
       extents.absorptionExtent ?? undefined,
       mainYAxisQuantity,
     );
-    const residualAbsorptionDomain = buildResidualSubplotYDomain(residualPoints);
+    const residualAbsorptionDomain =
+      buildResidualSubplotYDomain(residualPoints);
 
     const buildScales = (
       dimensions: PlotDimensions,
       yDomain: [number, number],
     ) => {
       const plotWidth =
-        dimensions.width -
-        dimensions.margins.left -
-        dimensions.margins.right;
+        dimensions.width - dimensions.margins.left - dimensions.margins.right;
       const plotHeight =
-        dimensions.height -
-        dimensions.margins.top -
-        dimensions.margins.bottom;
+        dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
       const xScale = scaleLinear<number>({
         domain: energyDomain,
         range: [0, plotWidth],

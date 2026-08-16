@@ -34,8 +34,8 @@ export function SpectrumSummary({ stats }: { stats: SpectrumStats }) {
         </p>
       </div>
       <div className="overflow-x-auto">
-        <table className="text-foreground border-separator min-w-full divide-y divide-separator text-sm">
-          <thead className="bg-default text-muted text-xs uppercase tracking-wide">
+        <table className="text-foreground border-separator divide-separator min-w-full divide-y text-sm">
+          <thead className="bg-default text-muted text-xs tracking-wide uppercase">
             <tr>
               <th className="px-5 py-3 text-left">Column</th>
               <th className="px-5 py-3 text-right">Min</th>
@@ -44,7 +44,7 @@ export function SpectrumSummary({ stats }: { stats: SpectrumStats }) {
               <th className="px-5 py-3 text-right">NaNs</th>
             </tr>
           </thead>
-          <tbody className="divide-y divide-separator">
+          <tbody className="divide-separator divide-y">
             {visibleColumns.map((column) => (
               <tr key={column.label}>
                 <td className="px-5 py-3 font-medium">

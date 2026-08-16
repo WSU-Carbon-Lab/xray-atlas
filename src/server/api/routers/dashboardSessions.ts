@@ -12,10 +12,7 @@ import {
   workspaceSessionDuplicateIdsToDelete,
   type DashboardStepMetadata,
 } from "~/lib/dashboard-processing-session";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import {
   assertUserMayEditExperiment,
   userMayEditExperiment,
@@ -358,18 +355,13 @@ export const dashboardSessionsRouter = createTRPCRouter({
     .input(linkExperimentInputSchema)
     .mutation(async ({ ctx, input }) => {
       await assertSessionOwner(ctx.db, input.sessionId, ctx.userId);
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
-      const existing = await ctx.db.dashboardprocessingsession.findUniqueOrThrow(
-        {
+      const existing =
+        await ctx.db.dashboardprocessingsession.findUniqueOrThrow({
           where: { id: input.sessionId },
           select: { stepmetadata: true },
-        },
-      );
+        });
       const metadata = parseDashboardStepMetadata(existing.stepmetadata);
       const nextMetadata: DashboardStepMetadata = {
         ...metadata,

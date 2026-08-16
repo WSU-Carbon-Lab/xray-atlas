@@ -39,7 +39,9 @@ export function commonEnergyGrid(
       axisMax = Math.max(axisMax, value);
     }
     if (!Number.isFinite(axisMin) || !Number.isFinite(axisMax)) {
-      throw new RangeError("each energy axis must contain at least one finite point");
+      throw new RangeError(
+        "each energy axis must contain at least one finite point",
+      );
     }
     lo = Math.max(lo, axisMin);
     hi = Math.min(hi, axisMax);

@@ -74,7 +74,7 @@ function CompactMoleculeCopyRow({
     <div
       role="group"
       aria-label={`Copy ${label}`}
-      className="group/copyline relative inline-flex w-fit max-w-full cursor-pointer items-center rounded-md px-1 py-0.5 -mx-1 hover:bg-muted/40 focus-within:bg-muted/40 motion-safe:transition-colors"
+      className="group/copyline hover:bg-muted/40 focus-within:bg-muted/40 relative -mx-1 inline-flex w-fit max-w-full cursor-pointer items-center rounded-md px-1 py-0.5 motion-safe:transition-colors"
       onClick={(e) => {
         e.stopPropagation();
         onCopy(text, label);
@@ -187,94 +187,94 @@ export const CompactCard = memo(function CompactCard({
       <div className="border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 @container/moleculecard w-full overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md dark:bg-zinc-800">
         <div className="group flex w-full flex-col gap-2 p-3 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-3">
           <div className="flex min-w-0 flex-1 flex-col gap-2 @md/moleculecard:min-w-0 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-3">
-          <div
-            className={cn(
-              "flex min-w-0 items-center gap-2 @md/moleculecard:gap-3",
-              hasCompactTags
-                ? "w-full @md/moleculecard:max-w-[min(42%,22rem)] @md/moleculecard:shrink-0"
-                : "w-full @md/moleculecard:min-w-0 @md/moleculecard:flex-1",
-            )}
-          >
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                setImageModalOpen(true);
-              }}
-              className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 @md/moleculecard:h-14 @md/moleculecard:w-14 dark:bg-black ${
-                hasImage ? "" : `bg-linear-to-br ${previewGradient}`
-              }`}
-              aria-label="View molecule structure"
+            <div
+              className={cn(
+                "flex min-w-0 items-center gap-2 @md/moleculecard:gap-3",
+                hasCompactTags
+                  ? "w-full @md/moleculecard:max-w-[min(42%,22rem)] @md/moleculecard:shrink-0"
+                  : "w-full @md/moleculecard:min-w-0 @md/moleculecard:flex-1",
+              )}
             >
-              {hasImage ? (
-                <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1">
-                  <MoleculeImageSVG
-                    imageUrl={props.molecule.imageUrl ?? ""}
-                    name={props.primaryName}
-                    className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
-                  />
-                </div>
-              ) : (
-                <div className="flex h-full w-full items-center justify-center">
-                  <Atom
-                    className="h-6 w-6 text-white/80"
-                    strokeWidth={1}
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setImageModalOpen(true);
+                }}
+                className={`relative flex h-11 w-11 shrink-0 cursor-pointer items-center justify-center overflow-hidden rounded-lg bg-white motion-safe:transition-transform motion-safe:duration-200 motion-safe:group-hover:scale-105 @md/moleculecard:h-14 @md/moleculecard:w-14 dark:bg-black ${
+                  hasImage ? "" : `bg-linear-to-br ${previewGradient}`
+                }`}
+                aria-label="View molecule structure"
+              >
+                {hasImage ? (
+                  <div className="pointer-events-none absolute inset-0 flex items-center justify-center p-1">
+                    <MoleculeImageSVG
+                      imageUrl={props.molecule.imageUrl ?? ""}
+                      name={props.primaryName}
+                      className="h-full w-full [&_svg]:h-full [&_svg]:w-full [&_svg]:object-contain"
+                    />
+                  </div>
+                ) : (
+                  <div className="flex h-full w-full items-center justify-center">
+                    <Atom
+                      className="h-6 w-6 text-white/80"
+                      strokeWidth={1}
+                      aria-hidden
+                    />
+                  </div>
+                )}
+                {props.realtimeUserHasUpvoted ? (
+                  <span
+                    className="bg-accent absolute top-1 right-1 h-2.5 w-2.5 rounded-full border border-black/50 shadow-[0_0_4px_rgba(99,102,241,0.8)]"
                     aria-hidden
                   />
+                ) : null}
+              </button>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden py-0.5">
+                <div className="flex min-w-0 items-center gap-x-2 gap-y-1 overflow-hidden">
+                  <Link
+                    href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
+                    className="text-text-primary motion-safe:group-hover:text-accent min-w-0 shrink self-center truncate text-sm leading-tight font-bold hover:underline motion-safe:transition-colors"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    {props.primaryName}
+                  </Link>
+                  {moleculeOverflowSynonyms(props.orderedSynonyms, {
+                    primaryName: props.primaryName,
+                  }).length > 0 ? (
+                    <span className="inline-flex shrink-0 items-center self-center leading-none">
+                      <SynonymChipsWithPopup
+                        synonyms={props.orderedSynonyms}
+                        primaryName={props.primaryName}
+                        collapseOnly
+                      />
+                    </span>
+                  ) : null}
                 </div>
-              )}
-              {props.realtimeUserHasUpvoted ? (
-                <span
-                  className="bg-accent absolute top-1 right-1 h-2.5 w-2.5 rounded-full border border-black/50 shadow-[0_0_4px_rgba(99,102,241,0.8)]"
-                  aria-hidden
-                />
-              ) : null}
-            </button>
-            <div className="flex min-w-0 flex-1 flex-col gap-0.5 overflow-hidden py-0.5">
-              <div className="flex min-w-0 items-center gap-x-2 gap-y-1 overflow-hidden">
-                <Link
-                  href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
-                  className="text-text-primary motion-safe:group-hover:text-accent min-w-0 shrink self-center truncate text-sm leading-tight font-bold hover:underline motion-safe:transition-colors"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {props.primaryName}
-                </Link>
-                {moleculeOverflowSynonyms(props.orderedSynonyms, {
-                  primaryName: props.primaryName,
-                }).length > 0 ? (
-                  <span className="inline-flex shrink-0 items-center self-center leading-none">
-                    <SynonymChipsWithPopup
-                      synonyms={props.orderedSynonyms}
-                      primaryName={props.primaryName}
-                      collapseOnly
-                    />
-                  </span>
+                {props.molecule.chemicalFormula ? (
+                  <CompactMoleculeCopyRow
+                    text={props.molecule.chemicalFormula}
+                    label="Chemical formula"
+                    copiedLabel={props.copiedText}
+                    onCopy={props.handleCopy}
+                  />
+                ) : null}
+                {props.molecule.casNumber ? (
+                  <CompactMoleculeCopyRow
+                    text={props.molecule.casNumber}
+                    displayText={`CAS ${props.molecule.casNumber}`}
+                    label="CAS number"
+                    copiedLabel={props.copiedText}
+                    onCopy={props.handleCopy}
+                  />
                 ) : null}
               </div>
-              {props.molecule.chemicalFormula ? (
-                <CompactMoleculeCopyRow
-                  text={props.molecule.chemicalFormula}
-                  label="Chemical formula"
-                  copiedLabel={props.copiedText}
-                  onCopy={props.handleCopy}
-                />
-              ) : null}
-              {props.molecule.casNumber ? (
-                <CompactMoleculeCopyRow
-                  text={props.molecule.casNumber}
-                  displayText={`CAS ${props.molecule.casNumber}`}
-                  label="CAS number"
-                  copiedLabel={props.copiedText}
-                  onCopy={props.handleCopy}
-                />
-              ) : null}
             </div>
-          </div>
-          {hasCompactTags ? (
-            <div className="hidden min-w-0 flex-1 items-center @md/moleculecard:flex">
-              <CompactMoleculeTagRow tags={compactTags} variant="rail" />
-            </div>
-          ) : null}
+            {hasCompactTags ? (
+              <div className="hidden min-w-0 flex-1 items-center @md/moleculecard:flex">
+                <CompactMoleculeTagRow tags={compactTags} variant="rail" />
+              </div>
+            ) : null}
           </div>
           {hasCompactTags ? (
             <div className="w-full min-w-0 @md/moleculecard:hidden">

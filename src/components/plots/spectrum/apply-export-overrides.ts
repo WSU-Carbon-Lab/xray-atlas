@@ -101,12 +101,17 @@ export function applyExportOverrides(
     if (!over) return;
     const stroke = over.color;
     const strokeWidth = over.lineWidth;
-    const strokeDasharray = over.lineStyle != null ? strokeDasharrayForStyle(over.lineStyle) : undefined;
+    const strokeDasharray =
+      over.lineStyle != null
+        ? strokeDasharrayForStyle(over.lineStyle)
+        : undefined;
     g.querySelectorAll("path, line").forEach((el) => {
       if (!(el instanceof SVGElement)) return;
       if (stroke != null) el.setAttribute("stroke", stroke);
-      if (strokeWidth != null) el.setAttribute("stroke-width", String(strokeWidth));
-      if (strokeDasharray != null) el.setAttribute("stroke-dasharray", strokeDasharray);
+      if (strokeWidth != null)
+        el.setAttribute("stroke-width", String(strokeWidth));
+      if (strokeDasharray != null)
+        el.setAttribute("stroke-dasharray", strokeDasharray);
     });
   });
 }

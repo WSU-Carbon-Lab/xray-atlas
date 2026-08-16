@@ -129,7 +129,9 @@ function parsePlotViewerHexColor(value: unknown): string | null {
   return parsed.data.toUpperCase();
 }
 
-function parseTraceOverride(value: unknown): PlotViewerTraceStyleOverride | null {
+function parseTraceOverride(
+  value: unknown,
+): PlotViewerTraceStyleOverride | null {
   if (typeof value !== "object" || value === null) {
     return null;
   }
@@ -261,14 +263,22 @@ function mergeLegacyColorOverrides(
   return overrides;
 }
 
-function parseStoredOverrides(parsed: Record<string, unknown>): PlotViewerStyleOverrides {
+function parseStoredOverrides(
+  parsed: Record<string, unknown>,
+): PlotViewerStyleOverrides {
   return mergeLegacyColorOverrides({
     lineDash: parseLineDashRecord(parsed.lineDash),
     marker: parseMarkerRecord(parsed.marker),
     experimentLineDash: parseLineDashRecord(parsed.experimentLineDash),
-    experimentLineWidth: parseNumberRecord(parsed.experimentLineWidth, parseLineWidth),
+    experimentLineWidth: parseNumberRecord(
+      parsed.experimentLineWidth,
+      parseLineWidth,
+    ),
     experimentMarker: parseMarkerRecord(parsed.experimentMarker),
-    experimentMarkerSize: parseNumberRecord(parsed.experimentMarkerSize, parsePositiveNumber),
+    experimentMarkerSize: parseNumberRecord(
+      parsed.experimentMarkerSize,
+      parsePositiveNumber,
+    ),
     experimentMarkerEvery: parseNumberRecord(
       parsed.experimentMarkerEvery,
       parsePositiveNumber,
@@ -336,14 +346,19 @@ export function readStxmPreviewStyleOverrides(): PlotViewerStyleOverrides {
   return readOverridesForStorageKey(STXM_PREVIEW_STYLE_STORAGE_KEY);
 }
 
-function persistOverrides(overrides: PlotViewerStyleOverrides): PlotViewerStyleOverrides {
+function persistOverrides(
+  overrides: PlotViewerStyleOverrides,
+): PlotViewerStyleOverrides {
   return persistOverridesForStorageKey(STORAGE_KEY, overrides);
 }
 
 function persistStxmPreviewOverrides(
   overrides: PlotViewerStyleOverrides,
 ): PlotViewerStyleOverrides {
-  return persistOverridesForStorageKey(STXM_PREVIEW_STYLE_STORAGE_KEY, overrides);
+  return persistOverridesForStorageKey(
+    STXM_PREVIEW_STYLE_STORAGE_KEY,
+    overrides,
+  );
 }
 
 function readStxmPreviewOverridesMutable(): PlotViewerStyleOverrides {
@@ -544,7 +559,11 @@ export function writePlotViewerTraceStyleOverride(
   if (key.length === 0) {
     return current;
   }
-  const merged = mergeTraceOverride(current.traceOverrides[key], patch, clearKeys);
+  const merged = mergeTraceOverride(
+    current.traceOverrides[key],
+    patch,
+    clearKeys,
+  );
   if (merged == null) {
     delete current.traceOverrides[key];
   } else {
@@ -556,7 +575,9 @@ export function writePlotViewerTraceStyleOverride(
 function writeStyleOverrideForStorageKey(
   storageKey: string,
   readCurrent: () => PlotViewerStyleOverrides,
-  persistCurrent: (overrides: PlotViewerStyleOverrides) => PlotViewerStyleOverrides,
+  persistCurrent: (
+    overrides: PlotViewerStyleOverrides,
+  ) => PlotViewerStyleOverrides,
   mutate: (current: PlotViewerStyleOverrides) => void,
 ): PlotViewerStyleOverrides {
   const current = readCurrent();
@@ -712,7 +733,10 @@ export function writeStxmPreviewExperimentMarkerEveryOverride(
       if (markerEvery == null || key.length === 0) {
         delete current.experimentMarkerEvery[key];
       } else {
-        current.experimentMarkerEvery[key] = Math.max(1, Math.round(markerEvery));
+        current.experimentMarkerEvery[key] = Math.max(
+          1,
+          Math.round(markerEvery),
+        );
       }
     },
   );
@@ -736,7 +760,11 @@ export function writeStxmPreviewExperimentColorMode(
         return;
       }
       current.experimentColorMode[key] = mode;
-      if (mode === "fixed" && fixedColor != null && fixedColor.trim().length > 0) {
+      if (
+        mode === "fixed" &&
+        fixedColor != null &&
+        fixedColor.trim().length > 0
+      ) {
         current.experimentFixedColor[key] = fixedColor.trim();
       } else {
         delete current.experimentFixedColor[key];

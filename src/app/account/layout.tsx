@@ -17,5 +17,9 @@ export default async function AccountLayout({
   if (!session?.user?.id) {
     redirect("/sign-in");
   }
-  return <div className="container mx-auto w-full max-w-4xl flex-1 px-4 py-8">{children}</div>;
+  return (
+    <div className="container mx-auto w-full max-w-4xl flex-1 px-4 py-8">
+      {children}
+    </div>
+  );
 }

@@ -23,7 +23,9 @@ export interface NexafsPlotDataRailProps {
   availability: NexafsPlotChannelAvailability;
   linkImaginaryReal: boolean;
   onLinkImaginaryRealChange: (linked: boolean) => void;
-  channelUnavailableDescription?: (id: NexafsPlotChannelId) => string | undefined;
+  channelUnavailableDescription?: (
+    id: NexafsPlotChannelId,
+  ) => string | undefined;
 }
 
 /**

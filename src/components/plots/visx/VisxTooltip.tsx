@@ -70,7 +70,8 @@ export function VisxTooltip({
 }) {
   if (!tooltipData) return null;
 
-  const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
+  const themeColors =
+    themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
 
   // Calculate crosshair position in plot coordinates
   const _crosshairX =
@@ -98,7 +99,8 @@ export function VisxTooltip({
           padding: "10px 14px",
           fontSize: "13px",
           fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
-          boxShadow: "0 4px 14px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08)",
+          boxShadow:
+            "0 4px 14px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.08)",
           pointerEvents: "none",
           zIndex: 1000,
           transition: "opacity 0.15s ease-in-out, transform 0.15s ease-in-out",

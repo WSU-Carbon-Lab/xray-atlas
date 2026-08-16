@@ -100,9 +100,7 @@ export function useDraggablePlotLegendPosition(args: {
         if (Math.hypot(dx, dy) >= DRAG_CLICK_SUPPRESS_PX) {
           dragMovedRef.current = true;
         }
-        setPosition(
-          clampPosition(session.originX + dx, session.originY + dy),
-        );
+        setPosition(clampPosition(session.originX + dx, session.originY + dy));
         return;
       }
       const pt = plotPointFromClient(event);
@@ -112,9 +110,7 @@ export function useDraggablePlotLegendPosition(args: {
       if (Math.hypot(dx, dy) >= DRAG_CLICK_SUPPRESS_PX) {
         dragMovedRef.current = true;
       }
-      setPosition(
-        clampPosition(session.originX + dx, session.originY + dy),
-      );
+      setPosition(clampPosition(session.originX + dx, session.originY + dy));
     },
     [plotPointFromClient, clampPosition],
   );

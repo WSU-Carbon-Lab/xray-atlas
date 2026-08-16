@@ -127,7 +127,8 @@ export function MoleculeLookupConfirmation({
       aria-live="polite"
       className={cn(
         "border-accent/30 bg-surface motion-safe:animate-in motion-safe:fade-in-0 motion-safe:slide-in-from-top-1 motion-safe:duration-[180ms] rounded-xl border shadow-sm",
-        isApplied && "border-accent/40 from-accent-soft/15 bg-gradient-to-br to-surface",
+        isApplied &&
+          "border-accent/40 from-accent-soft/15 bg-gradient-to-br to-surface",
         "px-4 py-4 sm:px-5",
       )}
     >

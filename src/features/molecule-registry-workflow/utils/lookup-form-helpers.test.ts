@@ -84,8 +84,8 @@ describe("promoteSynonymToPreferredName", () => {
     expect(result.synonyms).toContain("benzene");
     expect(result.synonyms).toContain("Toluene");
     expect(result.synonyms).toContain("phenyl");
-    expect(result.synonyms.filter((s) => s.toLowerCase() === "phh")).toHaveLength(
-      0,
-    );
+    expect(
+      result.synonyms.filter((s) => s.toLowerCase() === "phh"),
+    ).toHaveLength(0);
   });
 });

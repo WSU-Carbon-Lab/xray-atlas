@@ -21,21 +21,13 @@ import {
   BoltIcon,
   ChevronDownIcon,
 } from "@heroicons/react/24/outline";
-import {
-  ExternalLink,
-  Key,
-  MoreVertical,
-  Plus,
-  UserMinus,
-} from "lucide-react";
+import { ExternalLink, Key, MoreVertical, Plus, UserMinus } from "lucide-react";
 import { AccentNavChip } from "@/components/ui/accent-nav-chip";
 import { GitHubIcon, ORCIDIcon } from "@/components/icons";
 import { CustomAvatar } from "@/components/ui/avatar";
 import { SimpleDialog } from "@/components/ui/dialog";
 import { cn } from "@heroui/styles";
-import {
-  MoleculeDisplayCompact,
-} from "@/components/molecules/molecule-display";
+import { MoleculeDisplayCompact } from "@/components/molecules/molecule-display";
 import {
   LoadingSkeleton,
   MoleculeCompactSkeleton,
@@ -79,7 +71,11 @@ const profileIdentityRowClassName =
 
 function handleWriteError(
   error: unknown,
-  showToast: (message: string, type: "error" | "success", duration?: number) => void,
+  showToast: (
+    message: string,
+    type: "error" | "success",
+    duration?: number,
+  ) => void,
   fallbackMessage: string,
 ): void {
   showToast(getErrorMessage(error, fallbackMessage), "error", 0);
@@ -140,7 +136,7 @@ export function ProfileHeader({
           <CustomAvatar
             user={user}
             size="lg"
-            className="ring-border bg-surface h-[4.5rem] w-[4.5rem] shrink-0 rounded-full ring-2 ring-offset-2 ring-offset-background sm:h-20 sm:w-20"
+            className="ring-border bg-surface ring-offset-background h-[4.5rem] w-[4.5rem] shrink-0 rounded-full ring-2 ring-offset-2 sm:h-20 sm:w-20"
           />
           <div className="min-w-0 flex-1 pt-0.5">
             <h1 className="text-foreground mb-1.5 text-2xl font-bold tracking-tight sm:text-3xl">
@@ -349,10 +345,7 @@ function ProfileContributionYearChart({
           {title}
         </Card.Title>
         <Card.Description
-          className={cn(
-            "text-muted",
-            compact ? "sr-only" : "text-xs",
-          )}
+          className={cn("text-muted", compact ? "sr-only" : "text-xs")}
         >
           {description}
         </Card.Description>
@@ -378,7 +371,7 @@ function ProfileContributionYearChart({
                   key={point.year}
                   className="flex min-w-0 flex-1 flex-col items-center justify-end gap-0.5"
                 >
-                  <span className="text-muted text-[9px] tabular-nums leading-none sm:text-[10px]">
+                  <span className="text-muted text-[9px] leading-none tabular-nums sm:text-[10px]">
                     {point.count > 0 ? point.count : ""}
                   </span>
                   <div
@@ -400,7 +393,7 @@ function ProfileContributionYearChart({
                       title={`${point.year}: ${point.count}`}
                     />
                   </div>
-                  <span className="text-muted text-[9px] tabular-nums leading-none sm:text-[10px]">
+                  <span className="text-muted text-[9px] leading-none tabular-nums sm:text-[10px]">
                     {point.year}
                   </span>
                 </div>
@@ -568,7 +561,9 @@ export function ProfileGitHubSecuritySection({
   isUnlinking: boolean;
   onUnlink: (accountId: string) => Promise<void>;
 }) {
-  const githubAccount = linkedAccounts?.find((acc) => acc.provider === "github");
+  const githubAccount = linkedAccounts?.find(
+    (acc) => acc.provider === "github",
+  );
   const login =
     githubAccount?.login ??
     (githubAccount
@@ -598,8 +593,7 @@ export function ProfileGitHubSecuritySection({
             {login ? (
               <>
                 {" "}
-                as{" "}
-                <span className="text-foreground font-medium">{login}</span>
+                as <span className="text-foreground font-medium">{login}</span>
               </>
             ) : null}
           </p>
@@ -819,8 +813,9 @@ export function ProfilePasskeysSection({
           <Alert.Content>
             <Alert.Title>Hardware key for admin and Labs</Alert.Title>
             <Alert.Description>
-              Your role requires a cross-platform FIDO2 security key (for example
-              YubiKey) in addition to platform passkeys such as Touch ID.
+              Your role requires a cross-platform FIDO2 security key (for
+              example YubiKey) in addition to platform passkeys such as Touch
+              ID.
             </Alert.Description>
           </Alert.Content>
         </Alert>
@@ -844,7 +839,9 @@ export function ProfilePasskeysSection({
                         </p>
                         <p className="text-muted mt-1 text-xs">
                           {lastUsed ? `Last used ${lastUsed}` : "Not used yet"}
-                          {passkey.backedUp ? " · Synced / backed up" : " · Device-bound"}
+                          {passkey.backedUp
+                            ? " · Synced / backed up"
+                            : " · Device-bound"}
                           {passkey.transports.length > 0
                             ? ` · ${passkey.transports.join(", ")}`
                             : ""}
@@ -1054,9 +1051,7 @@ function ProfileContributionsDangerZoneAccordion({
       aria-label="Danger zone for contributed data"
       className="border-border w-full rounded-lg border"
       expandedKeys={
-        dangerZoneOpen
-          ? new Set([profileDangerZoneAccordionId])
-          : new Set()
+        dangerZoneOpen ? new Set([profileDangerZoneAccordionId]) : new Set()
       }
       onExpandedChange={(keys) => {
         onDangerZoneOpenChange(
@@ -1118,10 +1113,7 @@ function ProfileTabBarSkeleton({
   className?: string;
 }) {
   return (
-    <div
-      className={cn(profileTabListClassName, className)}
-      aria-hidden
-    >
+    <div className={cn(profileTabListClassName, className)} aria-hidden>
       {tabs.map((label) => (
         <div
           key={label}
@@ -1155,7 +1147,7 @@ export function ProfileHeaderSkeleton() {
     <header className="border-border bg-surface flex flex-col gap-4 rounded-2xl border p-4 sm:gap-5 sm:p-5">
       <div className="flex flex-col gap-4 md:flex-row md:items-start md:gap-5">
         <div className="flex min-w-0 flex-1 items-start gap-4 sm:gap-5">
-          <LoadingSkeleton className="ring-border h-[4.5rem] w-[4.5rem] shrink-0 rounded-full ring-2 ring-offset-2 ring-offset-background sm:h-20 sm:w-20" />
+          <LoadingSkeleton className="ring-border ring-offset-background h-[4.5rem] w-[4.5rem] shrink-0 rounded-full ring-2 ring-offset-2 sm:h-20 sm:w-20" />
           <div className="min-w-0 flex-1 pt-0.5">
             <LoadingSkeleton className="mb-2 h-8 w-48 max-w-full rounded sm:h-9" />
             <div className="flex flex-col gap-2">
@@ -1362,98 +1354,104 @@ export function ProfileContributionsSection({
         }}
         className="w-full"
       >
-      <Tabs.ListContainer className="w-full">
-        <Tabs.List
-          aria-label="Contribution types"
-          className="border-border bg-surface flex w-full flex-wrap gap-1 rounded-xl border p-1 sm:max-w-md"
-        >
-          <Tabs.Tab id="molecules" className="flex-1 px-4 py-2 text-sm font-medium">
-            Molecules
-            <Tabs.Indicator />
-          </Tabs.Tab>
-          <Tabs.Tab id="nexafs" className="flex-1 px-4 py-2 text-sm font-medium">
-            NEXAFS
-            {!experimentsLoading && nexafsDatasetCount > 0 ? (
-              <span className="text-muted ms-1.5 tabular-nums">
-                ({nexafsDatasetCount.toLocaleString()})
-              </span>
-            ) : null}
-            <Tabs.Indicator />
-          </Tabs.Tab>
-        </Tabs.List>
-      </Tabs.ListContainer>
+        <Tabs.ListContainer className="w-full">
+          <Tabs.List
+            aria-label="Contribution types"
+            className="border-border bg-surface flex w-full flex-wrap gap-1 rounded-xl border p-1 sm:max-w-md"
+          >
+            <Tabs.Tab
+              id="molecules"
+              className="flex-1 px-4 py-2 text-sm font-medium"
+            >
+              Molecules
+              <Tabs.Indicator />
+            </Tabs.Tab>
+            <Tabs.Tab
+              id="nexafs"
+              className="flex-1 px-4 py-2 text-sm font-medium"
+            >
+              NEXAFS
+              {!experimentsLoading && nexafsDatasetCount > 0 ? (
+                <span className="text-muted ms-1.5 tabular-nums">
+                  ({nexafsDatasetCount.toLocaleString()})
+                </span>
+              ) : null}
+              <Tabs.Indicator />
+            </Tabs.Tab>
+          </Tabs.List>
+        </Tabs.ListContainer>
 
-      <Tabs.Panel id="molecules" className="space-y-10 pt-6">
-        <section aria-labelledby="profile-molecules-heading">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2
-                id="profile-molecules-heading"
-                className="text-foreground text-xl font-semibold"
-              >
-                Molecules
-              </h2>
-              <p className="text-muted mt-1 text-sm">
-                Molecules you linked to X-ray Atlas or edited.
-              </p>
+        <Tabs.Panel id="molecules" className="space-y-10 pt-6">
+          <section aria-labelledby="profile-molecules-heading">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2
+                  id="profile-molecules-heading"
+                  className="text-foreground text-xl font-semibold"
+                >
+                  Molecules
+                </h2>
+                <p className="text-muted mt-1 text-sm">
+                  Molecules you linked to X-ray Atlas or edited.
+                </p>
+              </div>
+              <AccentNavChip
+                href={`/browse/molecules?q=${encodeURIComponent(userId)}`}
+                label="Browse all molecules"
+                icon={BeakerIcon}
+              />
             </div>
-            <AccentNavChip
-              href={`/browse/molecules?q=${encodeURIComponent(userId)}`}
-              label="Browse all molecules"
-              icon={BeakerIcon}
+
+            <ProfileMoleculesList
+              userId={userId}
+              isOwnProfile={isOwnProfile}
+              molecules={molecules}
+              isLoading={moleculesLoading}
+              onRunWithDestructiveSessionAal={onRunWithDestructiveSessionAal}
+              pagination={{
+                currentPage: moleculesPage,
+                totalPages: moleculesTotalPages,
+                onPageChange: setMoleculesPage,
+              }}
             />
-          </div>
+          </section>
+        </Tabs.Panel>
 
-          <ProfileMoleculesList
-            userId={userId}
-            isOwnProfile={isOwnProfile}
-            molecules={molecules}
-            isLoading={moleculesLoading}
-            onRunWithDestructiveSessionAal={onRunWithDestructiveSessionAal}
-            pagination={{
-              currentPage: moleculesPage,
-              totalPages: moleculesTotalPages,
-              onPageChange: setMoleculesPage,
-            }}
-          />
-        </section>
-      </Tabs.Panel>
-
-      <Tabs.Panel id="nexafs" className="pt-6">
-        <section aria-labelledby="profile-nexafs-heading">
-          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
-            <div>
-              <h2
-                id="profile-nexafs-heading"
-                className="text-foreground text-xl font-semibold"
-              >
-                NEXAFS datasets
-              </h2>
-              <p className="text-muted mt-1 text-sm">
-                Datasets you uploaded or are listed as a collector on.
-              </p>
+        <Tabs.Panel id="nexafs" className="pt-6">
+          <section aria-labelledby="profile-nexafs-heading">
+            <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+              <div>
+                <h2
+                  id="profile-nexafs-heading"
+                  className="text-foreground text-xl font-semibold"
+                >
+                  NEXAFS datasets
+                </h2>
+                <p className="text-muted mt-1 text-sm">
+                  Datasets you uploaded or are listed as a collector on.
+                </p>
+              </div>
+              <AccentNavChip
+                href="/browse/nexafs"
+                label="Browse NEXAFS catalog"
+                icon={BoltIcon}
+              />
             </div>
-            <AccentNavChip
-              href="/browse/nexafs"
-              label="Browse NEXAFS catalog"
-              icon={BoltIcon}
-            />
-          </div>
 
-          <ProfileNexafsList
-            userId={userId}
-            isOwnProfile={isOwnProfile}
-            experimentGroups={experimentGroups}
-            isLoading={experimentsLoading}
-            onRunWithDestructiveSessionAal={onRunWithDestructiveSessionAal}
-            pagination={{
-              currentPage: nexafsPage,
-              totalPages: nexafsTotalPages,
-              onPageChange: setNexafsPage,
-            }}
-          />
-        </section>
-      </Tabs.Panel>
+            <ProfileNexafsList
+              userId={userId}
+              isOwnProfile={isOwnProfile}
+              experimentGroups={experimentGroups}
+              isLoading={experimentsLoading}
+              onRunWithDestructiveSessionAal={onRunWithDestructiveSessionAal}
+              pagination={{
+                currentPage: nexafsPage,
+                totalPages: nexafsTotalPages,
+                onPageChange: setNexafsPage,
+              }}
+            />
+          </section>
+        </Tabs.Panel>
       </Tabs>
     </div>
   );
@@ -1511,17 +1509,18 @@ function ProfileNexafsList({
     number | null
   >(null);
   const deleteImpactRequestIdRef = useRef<string | null>(null);
-  const [transferDialogExperimentId, setTransferDialogExperimentId] =
-    useState<string | null>(null);
+  const [transferDialogExperimentId, setTransferDialogExperimentId] = useState<
+    string | null
+  >(null);
   const [transferRecipientUserId, setTransferRecipientUserId] = useState<
     string | null
   >(null);
   const [expandedManageExperimentIds, setExpandedManageExperimentIds] =
     useState(() => new Set<string>());
   const [dangerZoneOpen, setDangerZoneOpen] = useState(false);
-  const [selectedExperimentIds, setSelectedExperimentIds] = useState<Set<string>>(
-    () => new Set(),
-  );
+  const [selectedExperimentIds, setSelectedExperimentIds] = useState<
+    Set<string>
+  >(() => new Set());
   const [selectedUnclaimedIds, setSelectedUnclaimedIds] = useState<Set<string>>(
     () => new Set(),
   );
@@ -1564,11 +1563,7 @@ function ProfileNexafsList({
         }
       })
       .catch((error) => {
-        handleWriteError(
-          error,
-          showToast,
-          "Failed to calculate delete impact",
-        );
+        handleWriteError(error, showToast, "Failed to calculate delete impact");
         if (deleteImpactRequestIdRef.current === experimentId) {
           setDeleteDataPointsRemoved(-1);
         }
@@ -1687,11 +1682,7 @@ function ProfileNexafsList({
     try {
       await run();
     } catch (error) {
-      handleWriteError(
-        error,
-        showToast,
-        "Failed to remove collector listing",
-      );
+      handleWriteError(error, showToast, "Failed to remove collector listing");
     }
   };
 
@@ -1883,103 +1874,82 @@ function ProfileNexafsList({
 
   const nexafsList = (
     <ul className={profileNexafsListClassName}>
-        {experimentGroups.map((group) => {
-          const { key, props } = mapNexafsBrowseGroupToCard(group);
-          const label = profileExperimentLabel(group);
-          const canManageCreator =
-            isOwnProfile && group.profileContributions.includes("creator");
-          const canLeaveCollector =
-            isOwnProfile && group.profileContributions.includes("collector");
-          const canManage =
-            dangerZoneOpen && (canManageCreator || canLeaveCollector);
-          const manageExpanded = expandedManageExperimentIds.has(
-            group.experimentId,
-          );
+      {experimentGroups.map((group) => {
+        const { key, props } = mapNexafsBrowseGroupToCard(group);
+        const label = profileExperimentLabel(group);
+        const canManageCreator =
+          isOwnProfile && group.profileContributions.includes("creator");
+        const canLeaveCollector =
+          isOwnProfile && group.profileContributions.includes("collector");
+        const canManage =
+          dangerZoneOpen && (canManageCreator || canLeaveCollector);
+        const manageExpanded = expandedManageExperimentIds.has(
+          group.experimentId,
+        );
 
-          if (canManage && manageExpanded) {
-            return (
-              <li key={key}>
-                <div className="flex min-w-0 items-stretch gap-3">
-                  <div className="self-stretch">
-                    <ProfileDangerZoneRail
-                      subjectLabel={label}
-                      showDelete={canManageCreator}
-                      onDelete={
-                        canManageCreator
-                          ? () => openDelete(group.experimentId)
-                          : undefined
-                      }
-                      deleteDisabled={
-                        removeExperiment.isPending &&
-                        deleteDialogExperimentId === group.experimentId
-                      }
-                      showTransfer={canManageCreator}
-                      onTransfer={
-                        canManageCreator
-                          ? () => openTransfer(group.experimentId)
-                          : undefined
-                      }
-                      extraActions={
-                        canLeaveCollector ? (
-                          <>
-                            {canManageCreator ? (
-                              <div className="border-border h-px w-full border-t" />
-                            ) : null}
-                            <Tooltip delay={0}>
-                              <Tooltip.Trigger>
-                                <span className="inline-flex h-11 w-11 flex-none">
-                                  <Button
-                                    isIconOnly
-                                    aria-label={`Remove collector listing for ${label}`}
-                                    onPress={() =>
-                                      void handleRemoveCollector(
-                                        group.experimentId,
-                                      )
-                                    }
-                                    size="sm"
-                                    variant="ghost"
-                                    className={cn(
-                                      "text-warning h-11 w-11 rounded-none rounded-b-lg",
-                                      !canManageCreator && "rounded-t-lg",
-                                    )}
-                                    isPending={removeCollector.isPending}
-                                  >
-                                    <UserMinus className="h-4 w-4" />
-                                  </Button>
-                                </span>
-                              </Tooltip.Trigger>
-                              <Tooltip.Content placement="right top">
-                                Leave collector listing
-                              </Tooltip.Content>
-                            </Tooltip>
-                          </>
-                        ) : null
-                      }
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="mb-1 flex justify-end">
-                      <Checkbox
-                        isSelected={selectedExperimentIds.has(group.experimentId)}
-                        onChange={() =>
-                          toggleExperimentSelection(group.experimentId)
-                        }
-                        aria-label={`Select dataset ${label}`}
-                      />
-                    </div>
-                    <NexafsExperimentCompactCard {...props} />
-                  </div>
-                </div>
-              </li>
-            );
-          }
-
+        if (canManage && manageExpanded) {
           return (
             <li key={key}>
-              {canManage ? (
-                <div className="group relative">
-                  <NexafsExperimentCompactCard {...props} />
-                  <div className="absolute end-12 top-2 z-10">
+              <div className="flex min-w-0 items-stretch gap-3">
+                <div className="self-stretch">
+                  <ProfileDangerZoneRail
+                    subjectLabel={label}
+                    showDelete={canManageCreator}
+                    onDelete={
+                      canManageCreator
+                        ? () => openDelete(group.experimentId)
+                        : undefined
+                    }
+                    deleteDisabled={
+                      removeExperiment.isPending &&
+                      deleteDialogExperimentId === group.experimentId
+                    }
+                    showTransfer={canManageCreator}
+                    onTransfer={
+                      canManageCreator
+                        ? () => openTransfer(group.experimentId)
+                        : undefined
+                    }
+                    extraActions={
+                      canLeaveCollector ? (
+                        <>
+                          {canManageCreator ? (
+                            <div className="border-border h-px w-full border-t" />
+                          ) : null}
+                          <Tooltip delay={0}>
+                            <Tooltip.Trigger>
+                              <span className="inline-flex h-11 w-11 flex-none">
+                                <Button
+                                  isIconOnly
+                                  aria-label={`Remove collector listing for ${label}`}
+                                  onPress={() =>
+                                    void handleRemoveCollector(
+                                      group.experimentId,
+                                    )
+                                  }
+                                  size="sm"
+                                  variant="ghost"
+                                  className={cn(
+                                    "text-warning h-11 w-11 rounded-none rounded-b-lg",
+                                    !canManageCreator && "rounded-t-lg",
+                                  )}
+                                  isPending={removeCollector.isPending}
+                                >
+                                  <UserMinus className="h-4 w-4" />
+                                </Button>
+                              </span>
+                            </Tooltip.Trigger>
+                            <Tooltip.Content placement="right top">
+                              Leave collector listing
+                            </Tooltip.Content>
+                          </Tooltip>
+                        </>
+                      ) : null
+                    }
+                  />
+                </div>
+                <div className="min-w-0 flex-1">
+                  <div className="mb-1 flex justify-end">
                     <Checkbox
                       isSelected={selectedExperimentIds.has(group.experimentId)}
                       onChange={() =>
@@ -1988,24 +1958,45 @@ function ProfileNexafsList({
                       aria-label={`Select dataset ${label}`}
                     />
                   </div>
-                  <Button
-                    isIconOnly
-                    aria-label={`Manage NEXAFS dataset ${label}`}
-                    aria-expanded={false}
-                    onPress={() => toggleManageExperiment(group.experimentId)}
-                    size="sm"
-                    variant="ghost"
-                    className="absolute end-2 top-2 z-10 h-8 w-8 opacity-100"
-                  >
-                    <MoreVertical className="h-4 w-4" aria-hidden />
-                  </Button>
+                  <NexafsExperimentCompactCard {...props} />
                 </div>
-              ) : (
-                <NexafsExperimentCompactCard {...props} />
-              )}
+              </div>
             </li>
           );
-        })}
+        }
+
+        return (
+          <li key={key}>
+            {canManage ? (
+              <div className="group relative">
+                <NexafsExperimentCompactCard {...props} />
+                <div className="absolute end-12 top-2 z-10">
+                  <Checkbox
+                    isSelected={selectedExperimentIds.has(group.experimentId)}
+                    onChange={() =>
+                      toggleExperimentSelection(group.experimentId)
+                    }
+                    aria-label={`Select dataset ${label}`}
+                  />
+                </div>
+                <Button
+                  isIconOnly
+                  aria-label={`Manage NEXAFS dataset ${label}`}
+                  aria-expanded={false}
+                  onPress={() => toggleManageExperiment(group.experimentId)}
+                  size="sm"
+                  variant="ghost"
+                  className="absolute end-2 top-2 z-10 h-8 w-8 opacity-100"
+                >
+                  <MoreVertical className="h-4 w-4" aria-hidden />
+                </Button>
+              </div>
+            ) : (
+              <NexafsExperimentCompactCard {...props} />
+            )}
+          </li>
+        );
+      })}
     </ul>
   );
 
@@ -2019,7 +2010,8 @@ function ProfileNexafsList({
               Unclaimed ORCID contributions
             </Card.Title>
             <Card.Description className="text-muted text-xs">
-              Confirm claim to show your name and avatar. Until claimed, only your ORCID is shown.
+              Confirm claim to show your name and avatar. Until claimed, only
+              your ORCID is shown.
             </Card.Description>
           </Card.Header>
           <Card.Content className="space-y-3 p-4">
@@ -2047,12 +2039,15 @@ function ProfileNexafsList({
                   <label className="border-border bg-default/20 flex items-start gap-2 rounded-lg border p-2">
                     <Checkbox
                       isSelected={selectedUnclaimedIds.has(row.experimentId)}
-                      onChange={() => toggleUnclaimedSelection(row.experimentId)}
+                      onChange={() =>
+                        toggleUnclaimedSelection(row.experimentId)
+                      }
                       aria-label={`Select unclaimed experiment ${row.experiment.id}`}
                     />
                     <span className="min-w-0 text-sm">
                       <span className="text-foreground block font-medium">
-                        {row.experiment.moleculeName} ({row.experiment.edgeLabel})
+                        {row.experiment.moleculeName} (
+                        {row.experiment.edgeLabel})
                       </span>
                       <span className="text-muted block text-xs">
                         {row.experiment.instrumentName}
@@ -2087,7 +2082,9 @@ function ProfileNexafsList({
                 variant="ghost"
                 onPress={() =>
                   setSelectedExperimentIds(
-                    new Set(experimentGroups.map((group) => group.experimentId)),
+                    new Set(
+                      experimentGroups.map((group) => group.experimentId),
+                    ),
                   )
                 }
               >
@@ -2141,7 +2138,7 @@ function ProfileNexafsList({
                     : "this dataset"}
                 </span>
                 . This removes{" "}
-                <span className="tabular-nums font-semibold">
+                <span className="font-semibold tabular-nums">
                   {deleteDataPointsRemoved === null
                     ? "…"
                     : deleteDataPointsRemoved < 0
@@ -2209,7 +2206,9 @@ function ProfileNexafsList({
           >
             {recipientOptions.length === 0 ? (
               <ListBox.Item key="none" textValue="No recipients available">
-                <span className="text-muted text-sm">No recipients available</span>
+                <span className="text-muted text-sm">
+                  No recipients available
+                </span>
               </ListBox.Item>
             ) : (
               recipientOptions.map((u) => (
@@ -2335,11 +2334,7 @@ function ProfileMoleculesList({
         }
       })
       .catch((error) => {
-        handleWriteError(
-          error,
-          showToast,
-          "Failed to calculate delete impact",
-        );
+        handleWriteError(error, showToast, "Failed to calculate delete impact");
         if (deleteImpactRequestIdRef.current === moleculeId) {
           setDeleteDataPointsRemoved(-1);
         }
@@ -2418,9 +2413,7 @@ function ProfileMoleculesList({
 
   const ownerMoleculeIds = useMemo(
     () =>
-      molecules
-        .filter((item) => item.isOwner)
-        .map((item) => item.molecule.id),
+      molecules.filter((item) => item.isOwner).map((item) => item.molecule.id),
     [molecules],
   );
 
@@ -2518,67 +2511,26 @@ function ProfileMoleculesList({
 
   const moleculeList = (
     <div className={profileMoleculeListClassName}>
-        {molecules.map(({ molecule, contributions, isOwner }) => {
-          const canManage =
-            dangerZoneOpen &&
-            isOwnProfile &&
-            isOwner;
-          const manageExpanded = expandedManageMoleculeIds.has(molecule.id);
+      {molecules.map(({ molecule, contributions, isOwner }) => {
+        const canManage = dangerZoneOpen && isOwnProfile && isOwner;
+        const manageExpanded = expandedManageMoleculeIds.has(molecule.id);
 
-          if (canManage && manageExpanded) {
-            return (
-              <div key={molecule.id}>
-                <div className="flex min-w-0 items-stretch gap-3">
-                  <div className="self-stretch">
-                    <ProfileDangerZoneRail
-                      subjectLabel={molecule.name}
-                      onDelete={() => openDelete(molecule.id)}
-                      deleteDisabled={
-                        removeMolecule.isPending &&
-                        deleteDialogMoleculeId === molecule.id
-                      }
-                      onTransfer={() => openTransfer(molecule.id)}
-                    />
-                  </div>
-                  <div className="min-w-0 flex-1">
-                    <MoleculeDisplayCompact
-                      molecule={molecule}
-                      enableRealtime={false}
-                    />
-                    <ProfileMoleculeContributionChips
-                      contributions={contributions}
-                    />
-                  </div>
-                </div>
-              </div>
-            );
-          }
-
+        if (canManage && manageExpanded) {
           return (
             <div key={molecule.id}>
-              {canManage ? (
-                <div className="group relative">
-                  <MoleculeDisplayCompact
-                    molecule={molecule}
-                    enableRealtime={false}
+              <div className="flex min-w-0 items-stretch gap-3">
+                <div className="self-stretch">
+                  <ProfileDangerZoneRail
+                    subjectLabel={molecule.name}
+                    onDelete={() => openDelete(molecule.id)}
+                    deleteDisabled={
+                      removeMolecule.isPending &&
+                      deleteDialogMoleculeId === molecule.id
+                    }
+                    onTransfer={() => openTransfer(molecule.id)}
                   />
-                  <ProfileMoleculeContributionChips
-                    contributions={contributions}
-                  />
-                  <Button
-                    isIconOnly
-                    aria-label={`Manage molecule ${molecule.name}`}
-                    aria-expanded={false}
-                    onPress={() => toggleManageMolecule(molecule.id)}
-                    size="sm"
-                    variant="ghost"
-                    className="absolute end-2 top-2 z-10 h-8 w-8 opacity-100"
-                  >
-                    <MoreVertical className="h-4 w-4" aria-hidden />
-                  </Button>
                 </div>
-              ) : (
-                <>
+                <div className="min-w-0 flex-1">
                   <MoleculeDisplayCompact
                     molecule={molecule}
                     enableRealtime={false}
@@ -2586,11 +2538,49 @@ function ProfileMoleculesList({
                   <ProfileMoleculeContributionChips
                     contributions={contributions}
                   />
-                </>
-              )}
+                </div>
+              </div>
             </div>
           );
-        })}
+        }
+
+        return (
+          <div key={molecule.id}>
+            {canManage ? (
+              <div className="group relative">
+                <MoleculeDisplayCompact
+                  molecule={molecule}
+                  enableRealtime={false}
+                />
+                <ProfileMoleculeContributionChips
+                  contributions={contributions}
+                />
+                <Button
+                  isIconOnly
+                  aria-label={`Manage molecule ${molecule.name}`}
+                  aria-expanded={false}
+                  onPress={() => toggleManageMolecule(molecule.id)}
+                  size="sm"
+                  variant="ghost"
+                  className="absolute end-2 top-2 z-10 h-8 w-8 opacity-100"
+                >
+                  <MoreVertical className="h-4 w-4" aria-hidden />
+                </Button>
+              </div>
+            ) : (
+              <>
+                <MoleculeDisplayCompact
+                  molecule={molecule}
+                  enableRealtime={false}
+                />
+                <ProfileMoleculeContributionChips
+                  contributions={contributions}
+                />
+              </>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 
@@ -2606,8 +2596,8 @@ function ProfileMoleculesList({
           />
           {!dangerZoneOpen ? (
             <p className="text-muted text-sm">
-              Expand Danger zone to delete or transfer ownership of molecules you
-              created.
+              Expand Danger zone to delete or transfer ownership of molecules
+              you created.
             </p>
           ) : null}
         </>
@@ -2638,7 +2628,7 @@ function ProfileMoleculesList({
                   {pendingDeleteMolecule?.name ?? "this molecule"}
                 </span>
                 . This removes{" "}
-                <span className="tabular-nums font-semibold">
+                <span className="font-semibold tabular-nums">
                   {deleteDataPointsRemoved === null
                     ? "…"
                     : deleteDataPointsRemoved < 0
@@ -2704,7 +2694,9 @@ function ProfileMoleculesList({
           >
             {recipientOptions.length === 0 ? (
               <ListBox.Item key="none" textValue="No recipients available">
-                <span className="text-muted text-sm">No recipients available</span>
+                <span className="text-muted text-sm">
+                  No recipients available
+                </span>
               </ListBox.Item>
             ) : (
               recipientOptions.map((u) => (

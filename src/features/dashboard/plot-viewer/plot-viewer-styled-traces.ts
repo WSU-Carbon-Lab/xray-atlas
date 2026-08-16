@@ -4,9 +4,7 @@ import type {
 } from "~/components/plots/types";
 import { groupPointsByGeometry } from "~/components/plots/utils/trace-utils";
 import { abbreviateInstrumentName } from "./abbreviate-instrument-name";
-import {
-  shortPlotViewerExperimentId,
-} from "./plot-viewer-catalog-meta";
+import { shortPlotViewerExperimentId } from "./plot-viewer-catalog-meta";
 import {
   formatPlotViewerAngleDegrees,
   formatPlotViewerGeometryCellLabel,
@@ -223,8 +221,7 @@ export function buildPlotViewerStyledTraces(params: {
         dataset.experimentId,
         geometryKey,
       );
-      const geomSuffix =
-        geometryEntries.length <= 1 ? "" : ` — ${group.label}`;
+      const geomSuffix = geometryEntries.length <= 1 ? "" : ` — ${group.label}`;
       traceDrafts.push({
         traceKey,
         experimentId: dataset.experimentId,

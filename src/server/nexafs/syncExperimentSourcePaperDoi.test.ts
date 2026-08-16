@@ -128,8 +128,7 @@ function createMockDb() {
       }) => {
         const key = `${where.experimentid_publicationid.experimentid}:${where.experimentid_publicationid.publicationid}`;
         const existingIndex = links.findIndex(
-          (link) =>
-            `${link.experimentid}:${link.publicationid}` === key,
+          (link) => `${link.experimentid}:${link.publicationid}` === key,
         );
         if (existingIndex >= 0) {
           links[existingIndex] = {
@@ -196,7 +195,10 @@ function createMockDb() {
           if (link.experimentid !== where.experimentid) {
             continue;
           }
-          if (where.publicationid && link.publicationid !== where.publicationid) {
+          if (
+            where.publicationid &&
+            link.publicationid !== where.publicationid
+          ) {
             continue;
           }
           if (where.role && link.role !== where.role) {

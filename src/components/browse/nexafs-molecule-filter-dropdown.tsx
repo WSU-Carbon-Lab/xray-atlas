@@ -98,7 +98,7 @@ export function NexafsMoleculeFilterDropdown({
                   setSearchInput("");
                   close();
                 }}
-                className="text-muted focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors hover:bg-default focus:outline-none focus-visible:ring-2"
+                className="text-muted focus-visible:ring-accent hover:bg-default flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2"
               >
                 <XMarkIcon className="h-4 w-4 shrink-0" aria-hidden />
                 Any molecule

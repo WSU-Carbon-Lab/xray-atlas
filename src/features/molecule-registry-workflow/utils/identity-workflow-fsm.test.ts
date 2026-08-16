@@ -69,10 +69,10 @@ describe("reduceMoleculeIdentityFsm", () => {
   });
 
   it("transitions matched to linked on apply and keeps pending lookup", () => {
-    const matched = reduceMoleculeIdentityFsm(
-      MOLECULE_IDENTITY_FSM_INITIAL,
-      { type: "queue_match", pending: PENDING },
-    );
+    const matched = reduceMoleculeIdentityFsm(MOLECULE_IDENTITY_FSM_INITIAL, {
+      type: "queue_match",
+      pending: PENDING,
+    });
     expect(matched.phase).toBe("matched");
     const linked = reduceMoleculeIdentityFsm(matched, {
       type: "apply_match",

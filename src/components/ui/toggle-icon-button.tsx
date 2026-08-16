@@ -60,7 +60,7 @@ export function ToggleIconButton({
       disabled={disabled}
       className={`rounded-lg border transition-colors ${
         disabled
-          ? "cursor-not-allowed border-border bg-surface text-muted opacity-50"
+          ? "border-border bg-surface text-muted cursor-not-allowed opacity-50"
           : isActive
             ? "border-accent bg-accent text-accent-foreground"
             : "border-border bg-surface text-foreground hover:bg-default"

@@ -33,7 +33,10 @@ import { BrowseHeader } from "@/components/browse/browse-header";
 import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
 import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
 import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
-import { BrowseSortButton, type BrowseSortOption } from "@/components/browse/browse-sort-button";
+import {
+  BrowseSortButton,
+  type BrowseSortOption,
+} from "@/components/browse/browse-sort-button";
 import {
   Pagination,
   ToggleButton,
@@ -68,7 +71,9 @@ const MOLECULE_SORT_OPTIONS: Array<BrowseSortOption<MoleculeSortKey>> = [
   {
     key: "name",
     label: "Name (A-Z)",
-    icon: <span className="font-mono text-sm font-semibold leading-none">A</span>,
+    icon: (
+      <span className="font-mono text-sm leading-none font-semibold">A</span>
+    ),
   },
   {
     key: "created",
@@ -253,7 +258,10 @@ function MoleculesBrowseContent() {
             aria-label="Compact list view"
             className={`${viewToggleSegmentClass} rounded-l-md rounded-r-none`}
           >
-            <ListBulletIcon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+            <ListBulletIcon
+              className="h-5 w-5 shrink-0 stroke-[1.5]"
+              aria-hidden
+            />
           </ToggleButton>
         </Tooltip.Trigger>
         <Tooltip.Content
@@ -272,7 +280,10 @@ function MoleculesBrowseContent() {
             className={`${viewToggleSegmentClass} rounded-l-none rounded-r-md`}
           >
             <ToggleButtonGroup.Separator />
-            <Squares2X2Icon className="h-5 w-5 shrink-0 stroke-[1.5]" aria-hidden />
+            <Squares2X2Icon
+              className="h-5 w-5 shrink-0 stroke-[1.5]"
+              aria-hidden
+            />
           </ToggleButton>
         </Tooltip.Trigger>
         <Tooltip.Content
@@ -349,9 +360,7 @@ function MoleculesBrowseContent() {
                       ? `No molecules found for "${facet.debouncedQuery}".`
                       : "No molecules match the current filters."
                   }
-                  hasSearchQuery={
-                    hasSearchQuery || facet.tokens.length > 0
-                  }
+                  hasSearchQuery={hasSearchQuery || facet.tokens.length > 0}
                   browseAllHref={MOLECULES_BROWSE_PATH}
                   onClearSearch={handleClearAll}
                 >
@@ -422,7 +431,7 @@ function MoleculesBrowseContent() {
                               Math.max(1, facet.currentPage - 1),
                             )
                           }
-                          className="rounded-lg border border-border bg-surface"
+                          className="border-border bg-surface rounded-lg border"
                         >
                           <Pagination.PreviousIcon />
                         </Pagination.Previous>
@@ -436,7 +445,7 @@ function MoleculesBrowseContent() {
                               <Pagination.Link
                                 isActive={p === facet.currentPage}
                                 onPress={() => facet.setCurrentPage(p)}
-                                className={`rounded-lg border border-border bg-surface text-foreground ${
+                                className={`border-border bg-surface text-foreground rounded-lg border ${
                                   p === facet.currentPage
                                     ? "border-accent bg-accent text-accent-foreground"
                                     : ""
@@ -463,7 +472,7 @@ function MoleculesBrowseContent() {
                               Math.min(totalPages, facet.currentPage + 1),
                             )
                           }
-                          className="rounded-lg border border-border bg-surface"
+                          className="border-border bg-surface rounded-lg border"
                         >
                           <Pagination.NextIcon />
                         </Pagination.Next>

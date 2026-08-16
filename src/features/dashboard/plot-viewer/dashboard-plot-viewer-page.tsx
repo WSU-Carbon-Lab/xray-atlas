@@ -38,9 +38,7 @@ import { filterPlotViewerTracesByHiddenIds } from "./plot-viewer-hidden-traces";
 import { PlotViewerLegendPlacementToggle } from "./plot-viewer-legend-placement";
 import { PlotViewerPopoutLegend } from "./plot-viewer-popout-legend";
 import { PlotViewerCompactLegend } from "./plot-viewer-compact-legend";
-import {
-  buildPlotViewerTraceOverrideRows,
-} from "./plot-viewer-style-mapping-utils";
+import { buildPlotViewerTraceOverrideRows } from "./plot-viewer-style-mapping-utils";
 import {
   readPlotViewerStyleOverrides,
   writePlotViewerExperimentColorMode,
@@ -213,7 +211,9 @@ export function DashboardPlotViewerPage() {
 
   const handleMarkerOverrideChange = useCallback(
     (fieldValue: string, markerSymbol: PlotViewerMarkerSymbol) => {
-      setStyleOverrides(writePlotViewerMarkerOverride(fieldValue, markerSymbol));
+      setStyleOverrides(
+        writePlotViewerMarkerOverride(fieldValue, markerSymbol),
+      );
     },
     [],
   );
@@ -298,9 +298,15 @@ export function DashboardPlotViewerPage() {
       moleculeIds: state.facets.mol.length > 0 ? state.facets.mol : undefined,
       edgeIds: state.facets.edge.length > 0 ? state.facets.edge : undefined,
       instrumentIds:
-        state.facets.instrument.length > 0 ? state.facets.instrument : undefined,
+        state.facets.instrument.length > 0
+          ? state.facets.instrument
+          : undefined,
     },
-    { enabled: urlSynced && debouncedQuery.length > 0, staleTime: 30_000, gcTime: 300_000 },
+    {
+      enabled: urlSynced && debouncedQuery.length > 0,
+      staleTime: 30_000,
+      gcTime: 300_000,
+    },
   );
   const browseListQuery = trpc.experiments.browseList.useQuery(
     {
@@ -310,9 +316,15 @@ export function DashboardPlotViewerPage() {
       moleculeIds: state.facets.mol.length > 0 ? state.facets.mol : undefined,
       edgeIds: state.facets.edge.length > 0 ? state.facets.edge : undefined,
       instrumentIds:
-        state.facets.instrument.length > 0 ? state.facets.instrument : undefined,
+        state.facets.instrument.length > 0
+          ? state.facets.instrument
+          : undefined,
     },
-    { enabled: urlSynced && debouncedQuery.length === 0, staleTime: 30_000, gcTime: 300_000 },
+    {
+      enabled: urlSynced && debouncedQuery.length === 0,
+      staleTime: 30_000,
+      gcTime: 300_000,
+    },
   );
 
   const catalogGroups = useMemo(() => {
@@ -345,7 +357,9 @@ export function DashboardPlotViewerPage() {
       const group = groupById.get(experimentId);
       map.set(
         experimentId,
-        group ? catalogMetaFromBrowseGroup(group) : catalogMetaFallback(experimentId),
+        group
+          ? catalogMetaFromBrowseGroup(group)
+          : catalogMetaFallback(experimentId),
       );
     }
     return map;
@@ -357,9 +371,7 @@ export function DashboardPlotViewerPage() {
         const group = groupById.get(experimentId);
         return {
           experimentId,
-          label: group
-            ? plotViewerExperimentGroupLabel(group)
-            : experimentId,
+          label: group ? plotViewerExperimentGroupLabel(group) : experimentId,
           chemicalFormula: group?.molecule.chemicalformula ?? null,
         };
       }),
@@ -377,12 +389,18 @@ export function DashboardPlotViewerPage() {
     return geometryByExperiment;
   }, [state.datasets, state.geometryKeys]);
 
-  const { datasets, spectraByExperimentId, isLoading, errorMessage, fetchError, isDatabaseUnavailable } =
-    useDashboardPlotSpectra(catalogSelections, {
-      enabled: state.datasets.length > 0,
-      geometryKeysByExperimentId,
-      retryNonce: spectraRetryNonce,
-    });
+  const {
+    datasets,
+    spectraByExperimentId,
+    isLoading,
+    errorMessage,
+    fetchError,
+    isDatabaseUnavailable,
+  } = useDashboardPlotSpectra(catalogSelections, {
+    enabled: state.datasets.length > 0,
+    geometryKeysByExperimentId,
+    retryNonce: spectraRetryNonce,
+  });
 
   useEffect(() => {
     if (!urlSynced || state.datasets.length === 0) {
@@ -647,11 +665,9 @@ export function DashboardPlotViewerPage() {
           aria-label="Download overlay spectrum CSV"
           className={plotToolbarIconToolClass}
           onPress={() => {
-            void downloadSpectrumCsv(
-              plotCsvPoints,
-              "dashboard-plot-overlay",
-              { includeBareAtom: false },
-            );
+            void downloadSpectrumCsv(plotCsvPoints, "dashboard-plot-overlay", {
+              includeBareAtom: false,
+            });
           }}
         >
           <ArrowDownTrayIcon className="h-5 w-5" aria-hidden />
@@ -674,7 +690,7 @@ export function DashboardPlotViewerPage() {
           "No plottable points for the selected channel and geometries.");
 
   return (
-    <div className="flex w-full min-h-[calc(100dvh-10rem)] flex-1 flex-col gap-3">
+    <div className="flex min-h-[calc(100dvh-10rem)] w-full flex-1 flex-col gap-3">
       <header className="flex shrink-0 flex-wrap items-start justify-between gap-3">
         <div className="flex min-w-0 flex-col gap-2">
           <Link
@@ -729,7 +745,9 @@ export function DashboardPlotViewerPage() {
                   onPanelOpenChange={setPanelOpen}
                 />
                 <div>
-                  <p className="text-foreground text-sm font-medium">Spectrum plot</p>
+                  <p className="text-foreground text-sm font-medium">
+                    Spectrum plot
+                  </p>
                   <p className="text-muted text-xs">
                     {state.datasets.length} dataset
                     {state.datasets.length === 1 ? "" : "s"}
@@ -742,7 +760,7 @@ export function DashboardPlotViewerPage() {
 
               <div className="flex flex-wrap items-end gap-2">
                 <div className="flex flex-col gap-1">
-                  <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+                  <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
                     Layout
                   </Label>
                   <ToggleButtonGroup
@@ -760,7 +778,10 @@ export function DashboardPlotViewerPage() {
                       Overlay
                     </ToggleButton>
                     <ToggleButton id="subplots" size="sm">
-                      <LayoutGrid className="me-1 inline h-3.5 w-3.5" aria-hidden />
+                      <LayoutGrid
+                        className="me-1 inline h-3.5 w-3.5"
+                        aria-hidden
+                      />
                       Subplots
                     </ToggleButton>
                   </ToggleButtonGroup>
@@ -780,7 +801,9 @@ export function DashboardPlotViewerPage() {
                   disabled={isLoading}
                 />
 
-                {isLoading ? <Spinner size="sm" aria-label="Loading spectra" /> : null}
+                {isLoading ? (
+                  <Spinner size="sm" aria-label="Loading spectra" />
+                ) : null}
               </div>
             </div>
           </div>
@@ -813,7 +836,9 @@ export function DashboardPlotViewerPage() {
                 onExperimentLineWidthChange={handleExperimentLineWidthChange}
                 onExperimentMarkerChange={handleExperimentMarkerChange}
                 onExperimentMarkerSizeChange={handleExperimentMarkerSizeChange}
-                onExperimentMarkerEveryChange={handleExperimentMarkerEveryChange}
+                onExperimentMarkerEveryChange={
+                  handleExperimentMarkerEveryChange
+                }
                 onTraceStyleOverrideChange={handleTraceStyleOverrideChange}
               />
             </div>
@@ -868,7 +893,8 @@ export function DashboardPlotViewerPage() {
                   )}
                 >
                   {usePopoutLegend &&
-                  (state.legendDock === "top" || state.legendDock === "left") ? (
+                  (state.legendDock === "top" ||
+                    state.legendDock === "left") ? (
                     <PlotViewerPopoutLegend
                       rows={legendRows}
                       descriptorFields={state.descriptorFields}

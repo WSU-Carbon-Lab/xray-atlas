@@ -29,7 +29,9 @@ import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGa
 
 const NexafsContributeFlow = dynamic<NexafsContributeFlowProps>(
   () =>
-    import("~/features/process-nexafs").then((module) => module.NexafsContributeFlow),
+    import("~/features/process-nexafs").then(
+      (module) => module.NexafsContributeFlow,
+    ),
   {
     ssr: false,
     loading: () => (
@@ -229,18 +231,18 @@ export default function NEXAFSContributePage() {
   if (!isSignedIn) {
     return (
       <div className="container mx-auto flex min-h-[calc(100vh-20rem)] items-center justify-center px-4 py-16">
-          <div className="mx-auto max-w-2xl text-center">
-            <h1 className="text-foreground mb-4 text-3xl font-bold">
-              Sign In Required
-            </h1>
-            <p className="text-muted mb-8">
-              You must be signed in to contribute NEXAFS experiments.
-            </p>
-            <div className="flex justify-center">
-              <SignInButton variant="primary">Sign In</SignInButton>
-            </div>
+        <div className="mx-auto max-w-2xl text-center">
+          <h1 className="text-foreground mb-4 text-3xl font-bold">
+            Sign In Required
+          </h1>
+          <p className="text-muted mb-8">
+            You must be signed in to contribute NEXAFS experiments.
+          </p>
+          <div className="flex justify-center">
+            <SignInButton variant="primary">Sign In</SignInButton>
           </div>
         </div>
+      </div>
     );
   }
 
@@ -295,47 +297,49 @@ export default function NEXAFSContributePage() {
           ) : null}
 
           {canContribute ? (
-          <div
-            className={
-              datasets.length > 0
-                ? "flex min-h-0 w-full flex-1 flex-col"
-                : "w-full shrink-0"
-            }
-          >
-            <NexafsContributeFlow
-              datasets={datasets}
-              activeDatasetId={activeDatasetId}
-              updateDataset={updateDataset}
-              processDatasetData={processDatasetData}
-              handleFilesSelected={handleFilesSelected}
-              handleNewDataset={handleNewDataset}
-              handleNewFolder={handleNewFolder}
-              handleDatasetSelect={handleDatasetSelect}
-              handleDatasetRemove={handleDatasetRemove}
-              batchInstrumentId={batchInstrumentId}
-              setBatchInstrumentId={setBatchInstrumentId}
-              columnMappingFile={columnMappingFile}
-              handleColumnMappingConfirm={handleColumnMappingConfirm}
-              handleColumnMappingClose={handleColumnMappingClose}
-              energyConflictModal={energyConflictModal}
-              handleEnergyConflictClose={handleEnergyConflictClose}
-              handleEnergyConflictResolve={handleEnergyConflictResolve}
-              requestEnergyConflictResolution={requestEnergyConflictResolution}
-              instrumentOptions={instrumentOptions}
-              edgeOptions={edgeOptions}
-              calibrationOptions={calibrationOptions}
-              vendors={vendors}
-              isLoadingInstruments={isLoadingInstruments}
-              isLoadingEdges={isLoadingEdges}
-              isLoadingCalibrations={isLoadingCalibrations}
-              isLoadingVendors={isLoadingVendors}
-              submit={submit}
-              submitStatus={submitStatus}
-              setSubmitStatus={setSubmitStatus}
-              isPending={isPending}
-              onAuxValidationError={(message) => showToast(message, "error")}
-            />
-          </div>
+            <div
+              className={
+                datasets.length > 0
+                  ? "flex min-h-0 w-full flex-1 flex-col"
+                  : "w-full shrink-0"
+              }
+            >
+              <NexafsContributeFlow
+                datasets={datasets}
+                activeDatasetId={activeDatasetId}
+                updateDataset={updateDataset}
+                processDatasetData={processDatasetData}
+                handleFilesSelected={handleFilesSelected}
+                handleNewDataset={handleNewDataset}
+                handleNewFolder={handleNewFolder}
+                handleDatasetSelect={handleDatasetSelect}
+                handleDatasetRemove={handleDatasetRemove}
+                batchInstrumentId={batchInstrumentId}
+                setBatchInstrumentId={setBatchInstrumentId}
+                columnMappingFile={columnMappingFile}
+                handleColumnMappingConfirm={handleColumnMappingConfirm}
+                handleColumnMappingClose={handleColumnMappingClose}
+                energyConflictModal={energyConflictModal}
+                handleEnergyConflictClose={handleEnergyConflictClose}
+                handleEnergyConflictResolve={handleEnergyConflictResolve}
+                requestEnergyConflictResolution={
+                  requestEnergyConflictResolution
+                }
+                instrumentOptions={instrumentOptions}
+                edgeOptions={edgeOptions}
+                calibrationOptions={calibrationOptions}
+                vendors={vendors}
+                isLoadingInstruments={isLoadingInstruments}
+                isLoadingEdges={isLoadingEdges}
+                isLoadingCalibrations={isLoadingCalibrations}
+                isLoadingVendors={isLoadingVendors}
+                submit={submit}
+                submitStatus={submitStatus}
+                setSubmitStatus={setSubmitStatus}
+                isPending={isPending}
+                onAuxValidationError={(message) => showToast(message, "error")}
+              />
+            </div>
           ) : null}
         </div>
       </div>

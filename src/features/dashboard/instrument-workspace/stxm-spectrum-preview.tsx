@@ -15,9 +15,7 @@ export function StxmSpectrumPreview({
   height = 200,
 }: StxmSpectrumPreviewProps) {
   if (spectra.length === 0) {
-    return (
-      <p className="text-muted text-sm">No reduced spectra to display.</p>
-    );
+    return <p className="text-muted text-sm">No reduced spectra to display.</p>;
   }
 
   const width = 640;
@@ -49,8 +47,7 @@ export function StxmSpectrumPreview({
         const points = spectrum.energyEv
           .map((energy, i) => {
             const x =
-              padding +
-              ((energy - xMin) / xSpan) * (width - padding * 2);
+              padding + ((energy - xMin) / xSpan) * (width - padding * 2);
             const y =
               height -
               padding -
@@ -68,11 +65,7 @@ export function StxmSpectrumPreview({
           />
         );
       })}
-      <text
-        x={padding}
-        y={16}
-        className="fill-muted text-[10px]"
-      >
+      <text x={padding} y={16} className="fill-muted text-[10px]">
         OD vs energy (eV)
       </text>
     </svg>

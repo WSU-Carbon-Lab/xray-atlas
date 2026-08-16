@@ -2,7 +2,11 @@
 
 import { useEffect, useRef } from "react";
 import type { StxmRegionBounds } from "~/lib/dashboard-processing-session";
-import { downsampleHeatmap, percentile, valueToGrayscaleByte } from "~/lib/stxm/heatmap";
+import {
+  downsampleHeatmap,
+  percentile,
+  valueToGrayscaleByte,
+} from "~/lib/stxm/heatmap";
 
 type StxmScanHeatmapProps = {
   image: Float64Array[];
@@ -86,7 +90,9 @@ export function StxmScanHeatmap({
   return (
     <canvas
       ref={canvasRef}
-      className={className ?? "border-border bg-default/20 h-56 w-full rounded-md border"}
+      className={
+        className ?? "border-border bg-default/20 h-56 w-full rounded-md border"
+      }
       role="img"
       aria-label="STXM line scan heatmap"
     />

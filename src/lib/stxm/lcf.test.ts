@@ -37,7 +37,10 @@ function syntheticCase(): {
   references: LcfSpectrum[];
   trueFractions: number[];
 } {
-  const energy = Array.from({ length: 50 }, (_, index) => 280 + index * (10 / 49));
+  const energy = Array.from(
+    { length: 50 },
+    (_, index) => 280 + index * (10 / 49),
+  );
   const refA: LcfSpectrum = {
     energyEv: energy,
     values: energy.map((value) => Math.sin(value * 0.4)),

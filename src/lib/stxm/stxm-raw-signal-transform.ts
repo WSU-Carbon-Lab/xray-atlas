@@ -21,7 +21,11 @@ export function migrateStxmRawSignalTransformMode(
     | "log_inv"
     | undefined,
 ): StxmRawSignalTransformMode {
-  if (legacy === "reciprocal" || legacy === "log_reciprocal" || legacy === "signal") {
+  if (
+    legacy === "reciprocal" ||
+    legacy === "log_reciprocal" ||
+    legacy === "signal"
+  ) {
     return legacy;
   }
   if (legacy === "log_inv") {

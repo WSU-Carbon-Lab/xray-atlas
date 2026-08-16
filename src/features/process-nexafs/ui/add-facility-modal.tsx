@@ -15,7 +15,11 @@ export function AddFacilityModal({
   onFacilityCreated,
 }: AddFacilityModalProps) {
   return (
-    <SimpleDialog isOpen={isOpen} onClose={onClose} title="Add Facility and Instrument">
+    <SimpleDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title="Add Facility and Instrument"
+    >
       <div className="max-h-[80vh] overflow-y-auto">
         <FacilityContributePage
           variant="modal"

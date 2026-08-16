@@ -108,7 +108,10 @@ export async function GET(request: Request): Promise<NextResponse> {
           id: dataset.edges.id,
           targetAtom: dataset.edges.targetatom,
           coreState: dataset.edges.corestate,
-          label: formatEdgeLabel(dataset.edges.targetatom, dataset.edges.corestate),
+          label: formatEdgeLabel(
+            dataset.edges.targetatom,
+            dataset.edges.corestate,
+          ),
         },
         molecule: {
           id: dataset.samples.molecules.id,
@@ -157,7 +160,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     });
   } catch (error) {
     if (error instanceof ZodError) {
-      return jsonError(error.issues[0]?.message ?? "Invalid query parameters.", 400);
+      return jsonError(
+        error.issues[0]?.message ?? "Invalid query parameters.",
+        400,
+      );
     }
     return jsonError("Failed to list dataset summaries.", 500);
   }

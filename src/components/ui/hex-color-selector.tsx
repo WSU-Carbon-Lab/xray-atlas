@@ -8,7 +8,14 @@
  *
  * @see README.md in this folder for when to use this vs HeroUI `ColorPicker`.
  */
-import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { Button, parseColor } from "@heroui/react";
 import { cn } from "@heroui/styles";
 import { ChevronLeft, ChevronRight } from "lucide-react";
@@ -34,10 +41,7 @@ function swatchesPerPageFromTrackWidth(widthPx: number): number {
   }
   const per = SWATCH_SIZE_PX + SWATCH_GAP_PX;
   const n = Math.floor((widthPx + SWATCH_GAP_PX) / per);
-  return Math.min(
-    MAX_SWATCHES_PER_PAGE,
-    Math.max(MIN_SWATCHES_PER_PAGE, n),
-  );
+  return Math.min(MAX_SWATCHES_PER_PAGE, Math.max(MIN_SWATCHES_PER_PAGE, n));
 }
 
 export interface HexColorSelectorProps {
@@ -259,7 +263,7 @@ export function HexColorSelector({
                 className="sr-only"
               />
               <span
-                className="border-border size-8 shrink-0 rounded-lg border shadow-inner ring-2 ring-inset ring-black/15 dark:ring-white/20"
+                className="border-border size-8 shrink-0 rounded-lg border shadow-inner ring-2 ring-black/15 ring-inset dark:ring-white/20"
                 style={{ backgroundColor: normalized }}
                 aria-hidden
               />
@@ -267,7 +271,7 @@ export function HexColorSelector({
           </div>
 
           <div
-            className="border-border col-start-1 row-start-2 flex min-w-0 flex-col rounded-2xl border border-dashed border-border/80 bg-default/15 px-2 py-2 sm:col-start-2 sm:row-start-1 sm:min-w-[min(100%,12rem)]"
+            className="border-border border-border/80 bg-default/15 col-start-1 row-start-2 flex min-w-0 flex-col rounded-2xl border border-dashed px-2 py-2 sm:col-start-2 sm:row-start-1 sm:min-w-[min(100%,12rem)]"
             role="group"
             aria-label={presetsAriaLabel}
           >
@@ -365,7 +369,7 @@ export function HexColorSelector({
               className="sr-only"
             />
             <span
-              className="border-border size-8 shrink-0 rounded-lg border shadow-inner ring-2 ring-inset ring-black/15 dark:ring-white/20"
+              className="border-border size-8 shrink-0 rounded-lg border shadow-inner ring-2 ring-black/15 ring-inset dark:ring-white/20"
               style={{ backgroundColor: normalized }}
               aria-hidden
             />

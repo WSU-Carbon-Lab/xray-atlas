@@ -25,8 +25,7 @@ export function NewInstrumentsAccordion({
       className="border-border w-full rounded-lg border"
     >
       {instruments.map((instrument, index) => {
-        const title =
-          instrument.name.trim() || `New instrument ${index + 1}`;
+        const title = instrument.name.trim() || `New instrument ${index + 1}`;
         return (
           <Accordion.Item key={`new-${index}`} id={`new-${index}`}>
             <Accordion.Heading>

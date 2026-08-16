@@ -22,7 +22,10 @@ import {
   mapAuxFilesByFilename,
 } from "~/lib/stxm";
 import { usePersistedAuxUpload } from "~/features/process-nexafs/hooks/usePersistedAuxUpload";
-import { parseLocalStxmPair, useStxmScanLoader } from "~/features/dashboard/hooks/useStxmScanLoader";
+import {
+  parseLocalStxmPair,
+  useStxmScanLoader,
+} from "~/features/dashboard/hooks/useStxmScanLoader";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import { StxmScanHeatmap } from "./stxm-scan-heatmap";
@@ -171,9 +174,7 @@ export function IngestStep({
           "STXM line scan (dashboard ingest)",
         );
         if (!uploadResult || uploadResult.failed.length > 0) {
-          throw new Error(
-            uploadResult?.failed[0]?.message ?? "Upload failed",
-          );
+          throw new Error(uploadResult?.failed[0]?.message ?? "Upload failed");
         }
       }
 
@@ -213,7 +214,9 @@ export function IngestStep({
   const handleFiles = useCallback(
     async (fileList: FileList | File[]) => {
       if (!experimentId) {
-        setErrorMessage("Link an Atlas experiment before uploading line scans.");
+        setErrorMessage(
+          "Link an Atlas experiment before uploading line scans.",
+        );
         return;
       }
 
@@ -365,8 +368,8 @@ export function IngestStep({
       <p className="text-muted text-sm leading-relaxed">
         Upload paired <span className="font-mono">.hdr</span> and{" "}
         <span className="font-mono">.xim</span> files to experiment-aux when an
-        experiment is linked, or import pairs already on the dataset. Parsing runs
-        in your browser; summaries stay on this session for reduction.
+        experiment is linked, or import pairs already on the dataset. Parsing
+        runs in your browser; summaries stay on this session for reduction.
       </p>
 
       {!experimentId ? (
@@ -418,7 +421,10 @@ export function IngestStep({
       >
         <Upload className="text-muted h-8 w-8" aria-hidden />
         <div className="text-center">
-          <Label htmlFor={inputId} className="text-foreground text-sm font-medium">
+          <Label
+            htmlFor={inputId}
+            className="text-foreground text-sm font-medium"
+          >
             Upload line scan files
           </Label>
           <p className="text-muted mt-1 text-xs">
@@ -476,7 +482,9 @@ export function IngestStep({
                   >
                     {scan.hdrFileName}
                   </button>
-                  <p className="text-muted font-mono text-xs">{scan.ximFileName}</p>
+                  <p className="text-muted font-mono text-xs">
+                    {scan.ximFileName}
+                  </p>
                   <dl className="text-muted mt-2 grid gap-1 text-xs sm:grid-cols-2">
                     <div>
                       <dt className="inline">Type: </dt>
@@ -530,10 +538,7 @@ export function IngestStep({
         experimentId &&
         previewScan.hdrExperimentFileId &&
         previewScan.ximExperimentFileId ? (
-        <IngestHeatmapPreview
-          experimentId={experimentId}
-          scan={previewScan}
-        />
+        <IngestHeatmapPreview experimentId={experimentId} scan={previewScan} />
       ) : null}
     </div>
   );

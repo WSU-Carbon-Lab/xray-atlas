@@ -55,7 +55,11 @@ export {
   parseCageCarbonCountFromInput,
   SUPPORTED_CAGE_CARBON_COUNTS,
 } from "./utils/cage-smiles";
-export type { CageSmilesFailure, CageSmilesResult, CageSmilesSuccess } from "./utils/cage-smiles";
+export type {
+  CageSmilesFailure,
+  CageSmilesResult,
+  CageSmilesSuccess,
+} from "./utils/cage-smiles";
 export {
   buildDatabaseDepictionSvg,
   buildDrawCanvasOclDepiction,

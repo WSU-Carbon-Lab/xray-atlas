@@ -276,7 +276,8 @@ export const spectrumpointsRouter = createTRPCRouter({
       if (!allowed) {
         throw new TRPCError({
           code: "FORBIDDEN",
-          message: "You do not have permission to update KK delta for this experiment",
+          message:
+            "You do not have permission to update KK delta for this experiment",
         });
       }
 
@@ -292,7 +293,8 @@ export const spectrumpointsRouter = createTRPCRouter({
       if (rows.length !== ids.length) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "One or more spectrum point ids do not belong to this experiment",
+          message:
+            "One or more spectrum point ids do not belong to this experiment",
         });
       }
 

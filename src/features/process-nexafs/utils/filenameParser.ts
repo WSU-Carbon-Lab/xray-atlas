@@ -79,7 +79,9 @@ function parseModeMoleculeBasename(baseName: string): ParsedFilename | null {
     };
   }
 
-  const teyPolarizationMatch = /^TEY\s+polarization[_\s-]+(.+)$/i.exec(baseName);
+  const teyPolarizationMatch = /^TEY\s+polarization[_\s-]+(.+)$/i.exec(
+    baseName,
+  );
   if (teyPolarizationMatch) {
     const moleculeToken = teyPolarizationMatch[1]!.trim();
     return {
@@ -203,9 +205,7 @@ export function matchInstrumentIdFromParsedNexafsFilename(
     const hit = options.find((inst) => {
       const fn = inst.facilityName?.toUpperCase().replace(/\s+/g, "") ?? "";
       const facilityOk =
-        fn === facNorm ||
-        fn.includes(facNorm) ||
-        facNorm.includes(fn);
+        fn === facNorm || fn.includes(facNorm) || facNorm.includes(fn);
       const inUpper = inst.name.toUpperCase().replace(/\s+/g, "");
       const beamOk =
         inUpper === beamUpper ||
@@ -234,9 +234,7 @@ export function matchInstrumentIdFromParsedNexafsFilename(
     const byFac = options.find((inst) => {
       const fn = inst.facilityName?.toUpperCase().replace(/\s+/g, "") ?? "";
       return (
-        fn === parsedFac ||
-        fn.includes(parsedFac) ||
-        parsedFac.includes(fn)
+        fn === parsedFac || fn.includes(parsedFac) || parsedFac.includes(fn)
       );
     });
     if (byFac) return byFac.id;
@@ -252,16 +250,16 @@ export function normalizeEdge(edge: string | null): string | null {
 
   const edgeMap: Record<string, string> = {
     "C(K)": "C(K)",
-    "CK": "C(K)",
+    CK: "C(K)",
     "C K": "C(K)",
     "N(K)": "N(K)",
-    "NK": "N(K)",
+    NK: "N(K)",
     "N K": "N(K)",
     "O(K)": "O(K)",
-    "OK": "O(K)",
+    OK: "O(K)",
     "O K": "O(K)",
     "F(K)": "F(K)",
-    "FK": "F(K)",
+    FK: "F(K)",
     "F K": "F(K)",
   };
 
@@ -300,9 +298,7 @@ export function normalizeExperimentMode(mode: string | null): string | null {
   return modeMap[normalized] ?? normalized;
 }
 
-export function normalizeFacilityToken(
-  facility: string | null,
-): string | null {
+export function normalizeFacilityToken(facility: string | null): string | null {
   if (!facility) return null;
   const t = facility.trim();
   if (!t) return null;

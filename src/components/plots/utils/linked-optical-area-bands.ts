@@ -122,8 +122,7 @@ export function buildLinkedOpticalAreaBands(
     if (points.length === 0) {
       continue;
     }
-    const color =
-      primary.line?.color ?? primary.marker?.color ?? "#6b7280";
+    const color = primary.line?.color ?? primary.marker?.color ?? "#6b7280";
     const geometryKey =
       geometryKeyFromLinkedLegendId(primary.legendId) ||
       geometryKeyFromLinkedLegendId(companion.legendId) ||

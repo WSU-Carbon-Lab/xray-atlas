@@ -17,18 +17,12 @@ type NormalizationRegionHandlesProps = {
   dimensions: PlotDimensions;
   plotSvgRef: RefObject<SVGSVGElement | null>;
   energyDomain: [number, number];
-  onEdgeEnergyChange: (
-    edge: NormalizationRegionEdgeId,
-    energy: number,
-  ) => void;
+  onEdgeEnergyChange: (edge: NormalizationRegionEdgeId, energy: number) => void;
   /** Fires true while any normalization edge grip is held; false when all grips release. */
   onInteractionChange?: (active: boolean) => void;
 };
 
-function clampEnergy(
-  e: number,
-  domain: [number, number],
-): number {
+function clampEnergy(e: number, domain: [number, number]): number {
   const lo = Math.min(domain[0], domain[1]);
   const hi = Math.max(domain[0], domain[1]);
   return Math.min(hi, Math.max(lo, e));
@@ -58,15 +52,12 @@ export function NormalizationRegionHandles({
     [onInteractionChange],
   );
   const isDark = resolvedTheme === "dark";
-  const outline = isDark
-    ? "rgba(248,250,252,0.94)"
-    : "rgba(15,23,42,0.88)";
+  const outline = isDark ? "rgba(248,250,252,0.94)" : "rgba(15,23,42,0.88)";
 
-  const makeHandler =
-    (edge: NormalizationRegionEdgeId) => (energy: number) => {
-      const rounded = Math.round(energy * 100) / 100;
-      onEdgeEnergyChange(edge, clampEnergy(rounded, energyDomain));
-    };
+  const makeHandler = (edge: NormalizationRegionEdgeId) => (energy: number) => {
+    const rounded = Math.round(energy * 100) / 100;
+    onEdgeEnergyChange(edge, clampEnergy(rounded, energyDomain));
+  };
 
   const edges: {
     id: NormalizationRegionEdgeId;

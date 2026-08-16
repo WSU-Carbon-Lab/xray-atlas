@@ -160,7 +160,9 @@ export type AtlasExperimentPickerProps = {
   onGeometryByExperimentIdChange: (
     geometryByExperimentId: Record<string, string[]>,
   ) => void;
-  geometryByExperimentId: Readonly<Record<string, readonly string[] | undefined>>;
+  geometryByExperimentId: Readonly<
+    Record<string, readonly string[] | undefined>
+  >;
   /**
    * When set, Atlas experiment removal persists in one atomic update instead of three
    * separate callbacks that can race and restore removed rows.
@@ -211,7 +213,9 @@ export function AtlasExperimentPicker({
   );
 
   const addExperiment = (group: NexafsBrowseGroup) => {
-    if (atlasEntries.some((entry) => entry.experimentId === group.experimentId)) {
+    if (
+      atlasEntries.some((entry) => entry.experimentId === group.experimentId)
+    ) {
       return;
     }
     const entry = atlasEntryFromBrowseGroup(group);
@@ -340,9 +344,7 @@ export function AtlasExperimentPicker({
                     </p>
                     <p className="text-muted text-[11px]">
                       {entry.edgeLabel ?? "Edge unknown"}
-                      {entry.instrumentName
-                        ? ` · ${entry.instrumentName}`
-                        : ""}
+                      {entry.instrumentName ? ` · ${entry.instrumentName}` : ""}
                     </p>
                   </div>
                   <Button
@@ -357,7 +359,9 @@ export function AtlasExperimentPicker({
                   </Button>
                 </div>
                 {loadingSpectra ? (
-                  <p className="text-muted mt-2 text-[11px]">Loading spectra...</p>
+                  <p className="text-muted mt-2 text-[11px]">
+                    Loading spectra...
+                  </p>
                 ) : (
                   <ul className="mt-2 space-y-1">
                     {experimentCandidates.map((candidate) => (

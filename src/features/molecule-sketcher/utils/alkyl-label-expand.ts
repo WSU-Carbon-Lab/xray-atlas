@@ -61,7 +61,9 @@ export function alkylCarbonCountFromUserInput(input: string): number | null {
 /**
  * Reports whether `label` is a valid CnH2n+1 abbreviated alkyl custom label.
  */
-export function isAbbreviatedAlkylLabel(label: string | null | undefined): boolean {
+export function isAbbreviatedAlkylLabel(
+  label: string | null | undefined,
+): boolean {
   if (label === null || label === undefined || label.trim().length === 0) {
     return false;
   }
@@ -145,7 +147,10 @@ export function normalizeEditorAlkylCustomLabels(mol: Molecule): boolean {
   return touched;
 }
 
-export function expandAbbreviatedAlkylAtAtom(mol: Molecule, labeledAtom: number): boolean {
+export function expandAbbreviatedAlkylAtAtom(
+  mol: Molecule,
+  labeledAtom: number,
+): boolean {
   mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
   if (labeledAtom < 0 || labeledAtom >= mol.getAtoms()) return false;
   if (mol.getAtomicNo(labeledAtom) !== CARBON) return false;

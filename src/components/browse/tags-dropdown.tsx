@@ -80,7 +80,7 @@ export function TagsDropdown({
         key="clear"
         type="button"
         onClick={() => onSelectionChange(new Set())}
-        className="text-muted focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors hover:bg-default focus:outline-none focus-visible:ring-2"
+        className="text-muted focus-visible:ring-accent hover:bg-default flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2"
         aria-label="Clear all tag filters"
       >
         <XMarkIcon className="h-4 w-4 shrink-0" aria-hidden />
@@ -111,7 +111,7 @@ export function TagsDropdown({
               e.stopPropagation();
               handleCreateClick();
             }}
-            className="text-accent focus-visible:ring-accent flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors hover:bg-accent/10 focus:outline-none focus-visible:ring-2"
+            className="text-accent focus-visible:ring-accent hover:bg-accent/10 flex w-full items-center gap-2 rounded-md px-3 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2"
             aria-label={`Add "${trimmedSearch}" as new tag`}
           >
             <PlusIcon className="h-4 w-4 shrink-0" aria-hidden />

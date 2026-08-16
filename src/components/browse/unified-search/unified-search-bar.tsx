@@ -382,7 +382,7 @@ export function UnifiedSearchBar({
           id={listboxId}
           role="listbox"
           aria-label="Search suggestions"
-          className="border-border bg-surface shadow-surface-2 absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(480px,60vh)] overflow-y-auto rounded-xl border shadow-lg"
+          className="border-border bg-surface shadow-surface-2 absolute top-full right-0 left-0 z-50 mt-1 max-h-[min(480px,60vh)] overflow-y-auto rounded-xl border shadow-lg"
         >
           {hasQuery ? (
             <div className="py-1">
@@ -418,7 +418,7 @@ export function UnifiedSearchBar({
                   <span className="text-foreground min-w-0 flex-1 truncate">
                     {c.label}
                   </span>
-                  <span className="text-muted shrink-0 tabular-nums text-xs">
+                  <span className="text-muted shrink-0 text-xs tabular-nums">
                     {c.count}
                   </span>
                 </button>
@@ -440,7 +440,7 @@ export function UnifiedSearchBar({
               />
 
               <div className="mt-2">
-                <p className="text-accent mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+                <p className="text-accent mb-1.5 px-3 text-xs font-semibold tracking-wide uppercase">
                   Acquisition
                 </p>
                 <NexafsAcquisitionFilterPanel
@@ -450,7 +450,7 @@ export function UnifiedSearchBar({
               </div>
 
               <div className="mt-2">
-                <p className="text-blue-600 dark:text-blue-400 mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+                <p className="mb-1.5 px-3 text-xs font-semibold tracking-wide text-blue-600 uppercase dark:text-blue-400">
                   Verification
                 </p>
                 <NexafsVerificationFilterPanel

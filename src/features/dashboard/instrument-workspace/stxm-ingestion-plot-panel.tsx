@@ -222,7 +222,9 @@ export function StxmIngestionPlotPanel({
     useState<VisualizationMode>("graph");
   const [graphStyle, setGraphStyle] = useState<GraphStyle>("line");
   const [showBareAtomOverlay, setShowBareAtomOverlay] = useState(false);
-  const [bareAtomCurve, setBareAtomCurve] = useState<ReferenceCurve | null>(null);
+  const [bareAtomCurve, setBareAtomCurve] = useState<ReferenceCurve | null>(
+    null,
+  );
   const [linkImaginaryReal, setLinkImaginaryReal] = useState(false);
   const [isPlotNormalizationMode, setIsPlotNormalizationMode] = useState(false);
   const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
@@ -245,13 +247,7 @@ export function StxmIngestionPlotPanel({
         deltaSeries,
         chemicalFormula ?? result?.formula,
       ),
-    [
-      betaSeries,
-      chemicalFormula,
-      deltaSeries,
-      energyEv,
-      result?.formula,
-    ],
+    [betaSeries, chemicalFormula, deltaSeries, energyEv, result?.formula],
   );
 
   const availabilityBase = useMemo(
@@ -383,13 +379,7 @@ export function StxmIngestionPlotPanel({
     return () => {
       cancelled = true;
     };
-  }, [
-    channel,
-    chemicalFormula,
-    energyEv,
-    resolvedTheme,
-    showBareAtomOverlay,
-  ]);
+  }, [channel, chemicalFormula, energyEv, resolvedTheme, showBareAtomOverlay]);
 
   useEffect(() => {
     if (!chemicalFormula) {
@@ -538,7 +528,10 @@ export function StxmIngestionPlotPanel({
 
   const plotContext = useMemo(() => {
     if (isPlotNormalizationMode) {
-      return { kind: "normalize" as const, target: normalizationSelectionTarget };
+      return {
+        kind: "normalize" as const,
+        target: normalizationSelectionTarget,
+      };
     }
     if (isPeakSetMode) {
       return { kind: "peak-edit" as const };

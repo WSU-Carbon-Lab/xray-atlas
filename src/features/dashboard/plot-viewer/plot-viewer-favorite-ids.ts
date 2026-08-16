@@ -5,10 +5,9 @@
 /**
  * Orders browse groups to match `experimentIds`; drops ids with no resolved group row.
  */
-export function orderBrowseGroupsByExperimentIds<T extends { experimentId: string }>(
-  groups: readonly T[],
-  experimentIds: readonly string[],
-): T[] {
+export function orderBrowseGroupsByExperimentIds<
+  T extends { experimentId: string },
+>(groups: readonly T[], experimentIds: readonly string[]): T[] {
   const byId = new Map(groups.map((group) => [group.experimentId, group]));
   const ordered: T[] = [];
   for (const experimentId of experimentIds) {

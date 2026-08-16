@@ -52,7 +52,9 @@ export const ExportPlotModal = memo(function ExportPlotModal({
   plotArea,
   visibleTraceExportInfo = [],
 }: ExportPlotModalProps) {
-  const [exportConfig, setExportConfig] = useState<ExportConfig>(createDefaultExportConfig);
+  const [exportConfig, setExportConfig] = useState<ExportConfig>(
+    createDefaultExportConfig,
+  );
   const [exportPreviewUrl, setExportPreviewUrl] = useState("");
   const previewDebounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const seededRef = useRef(false);
@@ -62,7 +64,12 @@ export const ExportPlotModal = memo(function ExportPlotModal({
       seededRef.current = false;
       return;
     }
-    if (seededRef.current || !svgRef.current || visibleTraceExportInfo.length === 0) return;
+    if (
+      seededRef.current ||
+      !svgRef.current ||
+      visibleTraceExportInfo.length === 0
+    )
+      return;
     const svg = svgRef.current;
     const next: Record<string, { color?: string }> = {};
     visibleTraceExportInfo.forEach(({ id }, i) => {
@@ -85,7 +92,12 @@ export const ExportPlotModal = memo(function ExportPlotModal({
     });
   }, [isOpen, visibleTraceExportInfo]);
 
-  const { widthCm, heightCm } = getDimensionsFromConfig(exportConfig, plotWidth, plotHeight, plotArea);
+  const { widthCm, heightCm } = getDimensionsFromConfig(
+    exportConfig,
+    plotWidth,
+    plotHeight,
+    plotArea,
+  );
   const targetWidthPx = cmToPx(widthCm, exportConfig.dpi);
   const targetHeightPx = cmToPx(heightCm, exportConfig.dpi);
 
@@ -99,7 +111,12 @@ export const ExportPlotModal = memo(function ExportPlotModal({
       return;
     }
     const run = () => {
-      const dims = getDimensionsFromConfig(exportConfig, plotWidth, plotHeight, plotArea);
+      const dims = getDimensionsFromConfig(
+        exportConfig,
+        plotWidth,
+        plotHeight,
+        plotArea,
+      );
       const wPx = cmToPx(dims.widthCm, exportConfig.dpi);
       const hPx = cmToPx(dims.heightCm, exportConfig.dpi);
       const clone = svgRef.current!.cloneNode(true) as SVGSVGElement;
@@ -116,7 +133,15 @@ export const ExportPlotModal = memo(function ExportPlotModal({
     return () => {
       if (previewDebounceRef.current) clearTimeout(previewDebounceRef.current);
     };
-  }, [isOpen, exportConfig, plotWidth, plotHeight, plotArea, visibleTraceExportInfo, svgRef]);
+  }, [
+    isOpen,
+    exportConfig,
+    plotWidth,
+    plotHeight,
+    plotArea,
+    visibleTraceExportInfo,
+    svgRef,
+  ]);
 
   const buildExportSvg = useCallback(
     (opts: { viewBoxOnly?: boolean } = {}) => {
@@ -132,7 +157,15 @@ export const ExportPlotModal = memo(function ExportPlotModal({
       applyExportOverrides(clone, exportConfig, visibleTraceExportInfo);
       return clone;
     },
-    [svgRef, plotWidth, plotHeight, targetWidthPx, targetHeightPx, exportConfig, visibleTraceExportInfo],
+    [
+      svgRef,
+      plotWidth,
+      plotHeight,
+      targetWidthPx,
+      targetHeightPx,
+      exportConfig,
+      visibleTraceExportInfo,
+    ],
   );
 
   const exportAsSvg = useCallback(() => {
@@ -187,7 +220,14 @@ export const ExportPlotModal = memo(function ExportPlotModal({
       );
     };
     img.src = url;
-  }, [buildExportSvg, targetWidthPx, targetHeightPx, fillStyle, exportConfig.dpi, onClose]);
+  }, [
+    buildExportSvg,
+    targetWidthPx,
+    targetHeightPx,
+    fillStyle,
+    exportConfig.dpi,
+    onClose,
+  ]);
 
   const copyPngToClipboard = useCallback(() => {
     const clone = buildExportSvg();
@@ -212,7 +252,9 @@ export const ExportPlotModal = memo(function ExportPlotModal({
       canvas.toBlob(
         (b) => {
           if (!b) return;
-          void navigator.clipboard.write([new ClipboardItem({ "image/png": b })]);
+          void navigator.clipboard.write([
+            new ClipboardItem({ "image/png": b }),
+          ]);
           onClose();
         },
         "image/png",
@@ -234,10 +276,11 @@ export const ExportPlotModal = memo(function ExportPlotModal({
           <Label className="mb-3 font-medium text-(--text-primary)">
             Size and aspect
           </Label>
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {ASPECT_RATIOS.map((ar) => {
               const selected =
-                exportConfig.sizePreset.type === "aspect" && exportConfig.sizePreset.id === ar.id;
+                exportConfig.sizePreset.type === "aspect" &&
+                exportConfig.sizePreset.id === ar.id;
               const Icon =
                 ar.icon === "square"
                   ? Square2StackIcon
@@ -249,9 +292,12 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                   key={ar.id}
                   variant={selected ? "primary" : "outline"}
                   onPress={() =>
-                    setExportConfig((c) => ({ ...c, sizePreset: { type: "aspect", id: ar.id } }))
+                    setExportConfig((c) => ({
+                      ...c,
+                      sizePreset: { type: "aspect", id: ar.id },
+                    }))
                   }
-                  className="tabular-nums inline-flex items-center gap-2"
+                  className="inline-flex items-center gap-2 tabular-nums"
                 >
                   <Icon className="h-4 w-4 shrink-0" aria-hidden />
                   {ar.label}
@@ -259,7 +305,11 @@ export const ExportPlotModal = memo(function ExportPlotModal({
               );
             })}
             <Button
-              variant={exportConfig.sizePreset.type === "custom" ? "primary" : "outline"}
+              variant={
+                exportConfig.sizePreset.type === "custom"
+                  ? "primary"
+                  : "outline"
+              }
               onPress={() =>
                 setExportConfig((c) => ({
                   ...c,
@@ -278,13 +328,13 @@ export const ExportPlotModal = memo(function ExportPlotModal({
           </div>
         </section>
 
-        <section className="rounded-lg border border-(--border-default) bg-(--surface-1) overflow-hidden">
+        <section className="overflow-hidden rounded-lg border border-(--border-default) bg-(--surface-1)">
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-(--text-primary) [&::-webkit-details-marker]:hidden">
               <ChevronRightIcon className="h-4 w-4 transition-transform group-open:rotate-90" />
               Background
             </summary>
-            <div className="border-t border-(--border-default) px-3 py-2 space-y-2">
+            <div className="space-y-2 border-t border-(--border-default) px-3 py-2">
               {(
                 [
                   { value: "transparent" as const, label: "Transparent" },
@@ -313,13 +363,13 @@ export const ExportPlotModal = memo(function ExportPlotModal({
           </details>
         </section>
 
-        <section className="rounded-lg border border-(--border-default) bg-(--surface-1) overflow-hidden">
+        <section className="overflow-hidden rounded-lg border border-(--border-default) bg-(--surface-1)">
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-(--text-primary) [&::-webkit-details-marker]:hidden">
               <ChevronRightIcon className="h-4 w-4 transition-transform group-open:rotate-90" />
               Resolution (DPI)
             </summary>
-            <div className="border-t border-(--border-default) px-3 py-2 flex items-center gap-2">
+            <div className="flex items-center gap-2 border-t border-(--border-default) px-3 py-2">
               <Tooltip>
                 <Input
                   type="number"
@@ -330,26 +380,32 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                   onChange={(e) =>
                     setExportConfig((c) => ({
                       ...c,
-                      dpi: Math.max(72, Math.min(1200, Number(e.target.value) || 72)),
+                      dpi: Math.max(
+                        72,
+                        Math.min(1200, Number(e.target.value) || 72),
+                      ),
                     }))
                   }
                   className="w-24"
                   aria-label="DPI"
                 />
-                <Tooltip.Content>Pixels per inch for PNG export. 72 for screen, 300–600 for print.</Tooltip.Content>
+                <Tooltip.Content>
+                  Pixels per inch for PNG export. 72 for screen, 300–600 for
+                  print.
+                </Tooltip.Content>
               </Tooltip>
               <Label className="text-(--text-tertiary)">dpi</Label>
             </div>
           </details>
         </section>
 
-        <section className="rounded-lg border border-(--border-default) bg-(--surface-1) overflow-hidden">
+        <section className="overflow-hidden rounded-lg border border-(--border-default) bg-(--surface-1)">
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-(--text-primary) [&::-webkit-details-marker]:hidden">
               <ChevronRightIcon className="h-4 w-4 transition-transform group-open:rotate-90" />
               Font sizes
             </summary>
-            <div className="border-t border-(--border-default) px-3 py-2 grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 border-t border-(--border-default) px-3 py-2">
               <Label className="text-(--text-tertiary)">Axis labels</Label>
               <select
                 value={exportConfig.fontAxisLabel}
@@ -371,7 +427,10 @@ export const ExportPlotModal = memo(function ExportPlotModal({
               <select
                 value={exportConfig.fontTick}
                 onChange={(e) =>
-                  setExportConfig((c) => ({ ...c, fontTick: Number(e.target.value) }))
+                  setExportConfig((c) => ({
+                    ...c,
+                    fontTick: Number(e.target.value),
+                  }))
                 }
                 className="rounded-lg border border-(--border-default) bg-(--surface-2) px-2 py-1.5 text-(--text-primary)"
               >
@@ -419,13 +478,13 @@ export const ExportPlotModal = memo(function ExportPlotModal({
           </details>
         </section>
 
-        <section className="rounded-lg border border-(--border-default) bg-(--surface-1) overflow-hidden">
+        <section className="overflow-hidden rounded-lg border border-(--border-default) bg-(--surface-1)">
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-(--text-primary) [&::-webkit-details-marker]:hidden">
               <ChevronRightIcon className="h-4 w-4 transition-transform group-open:rotate-90" />
               Legend
             </summary>
-            <div className="border-t border-(--border-default) px-3 py-2 grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 border-t border-(--border-default) px-3 py-2">
               <Label className="text-(--text-tertiary)">Background</Label>
               <select
                 value={exportConfig.legendBackground}
@@ -451,7 +510,10 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                 onChange={(e) =>
                   setExportConfig((c) => ({
                     ...c,
-                    legendBorderRadius: Math.max(0, Math.min(24, Number(e.target.value) || 0)),
+                    legendBorderRadius: Math.max(
+                      0,
+                      Math.min(24, Number(e.target.value) || 0),
+                    ),
                   }))
                 }
                 className="w-20"
@@ -463,7 +525,10 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                 onChange={(e) =>
                   setExportConfig((c) => ({
                     ...c,
-                    legendColumns: Math.max(1, Math.min(10, Number(e.target.value) || 1)),
+                    legendColumns: Math.max(
+                      1,
+                      Math.min(10, Number(e.target.value) || 1),
+                    ),
                   }))
                 }
                 className="rounded-lg border border-(--border-default) bg-(--surface-2) px-2 py-1.5 text-(--text-primary)"
@@ -479,16 +544,18 @@ export const ExportPlotModal = memo(function ExportPlotModal({
           </details>
         </section>
 
-        <section className="rounded-lg border border-(--border-default) bg-(--surface-1) overflow-hidden">
+        <section className="overflow-hidden rounded-lg border border-(--border-default) bg-(--surface-1)">
           <details className="group">
             <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-(--text-primary) [&::-webkit-details-marker]:hidden">
               <ChevronRightIcon className="h-4 w-4 transition-transform group-open:rotate-90" />
               Axes
             </summary>
-            <div className="border-t border-(--border-default) px-3 py-2 grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 border-t border-(--border-default) px-3 py-2">
               <Tooltip>
                 <div>
-                  <Label className="text-(--text-tertiary)">Spine thickness</Label>
+                  <Label className="text-(--text-tertiary)">
+                    Spine thickness
+                  </Label>
                   <Input
                     type="number"
                     min={0.5}
@@ -498,18 +565,25 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                     onChange={(e) =>
                       setExportConfig((c) => ({
                         ...c,
-                        spineWidth: Math.max(0.5, Math.min(4, Number(e.target.value) || 1)),
+                        spineWidth: Math.max(
+                          0.5,
+                          Math.min(4, Number(e.target.value) || 1),
+                        ),
                       }))
                     }
                     className="w-24"
                     aria-label="Spine thickness"
                   />
                 </div>
-                <Tooltip.Content>Stroke width of the axis spine lines.</Tooltip.Content>
+                <Tooltip.Content>
+                  Stroke width of the axis spine lines.
+                </Tooltip.Content>
               </Tooltip>
               <Tooltip>
                 <div>
-                  <Label className="text-(--text-tertiary)">Tick thickness</Label>
+                  <Label className="text-(--text-tertiary)">
+                    Tick thickness
+                  </Label>
                   <Input
                     type="number"
                     min={0.5}
@@ -519,35 +593,43 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                     onChange={(e) =>
                       setExportConfig((c) => ({
                         ...c,
-                        tickStrokeWidth: Math.max(0.5, Math.min(3, Number(e.target.value) || 1)),
+                        tickStrokeWidth: Math.max(
+                          0.5,
+                          Math.min(3, Number(e.target.value) || 1),
+                        ),
                       }))
                     }
                     className="w-24"
                     aria-label="Tick thickness"
                   />
                 </div>
-                <Tooltip.Content>Stroke width of axis tick lines.</Tooltip.Content>
+                <Tooltip.Content>
+                  Stroke width of axis tick lines.
+                </Tooltip.Content>
               </Tooltip>
             </div>
           </details>
         </section>
 
         {visibleTraceExportInfo.length > 0 && (
-          <section className="rounded-lg border border-(--border-default) bg-(--surface-1) overflow-hidden">
+          <section className="overflow-hidden rounded-lg border border-(--border-default) bg-(--surface-1)">
             <details className="group">
               <summary className="flex cursor-pointer list-none items-center gap-2 px-3 py-2 font-medium text-(--text-primary) [&::-webkit-details-marker]:hidden">
                 <ChevronRightIcon className="h-4 w-4 transition-transform group-open:rotate-90" />
                 Trace appearance
               </summary>
-              <div className="border-t border-(--border-default) px-3 py-2 space-y-3">
+              <div className="space-y-3 border-t border-(--border-default) px-3 py-2">
                 {visibleTraceExportInfo.map(({ id, label }) => {
                   const over = exportConfig.traceOverrides[id] ?? {};
                   return (
                     <div
                       key={id}
-                      className="flex flex-wrap items-center gap-3 rounded-lg border border-(--border-subtle) p-2 bg-(--surface-2)"
+                      className="flex flex-wrap items-center gap-3 rounded-lg border border-(--border-subtle) bg-(--surface-2) p-2"
                     >
-                      <Label className="min-w-24 truncate font-medium text-(--text-secondary)" title={label}>
+                      <Label
+                        className="min-w-24 truncate font-medium text-(--text-secondary)"
+                        title={label}
+                      >
                         {label}
                       </Label>
                       <select
@@ -557,11 +639,14 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                             ...c,
                             traceOverrides: {
                               ...c.traceOverrides,
-                              [id]: { ...c.traceOverrides[id], lineStyle: e.target.value as ExportLineStyle },
+                              [id]: {
+                                ...c.traceOverrides[id],
+                                lineStyle: e.target.value as ExportLineStyle,
+                              },
                             },
                           }))
                         }
-                        className="rounded-lg border border-(--border-default) bg-(--surface-1) px-2 py-1.5 text-(--text-primary) text-sm"
+                        className="rounded-lg border border-(--border-default) bg-(--surface-1) px-2 py-1.5 text-sm text-(--text-primary)"
                         aria-label={`Line style for ${label}`}
                       >
                         {LINE_STYLE_OPTS.map((opt) => (
@@ -572,7 +657,9 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                       </select>
                       <Tooltip>
                         <div className="flex items-center gap-1.5">
-                          <Label className="text-(--text-tertiary) text-xs">Width</Label>
+                          <Label className="text-xs text-(--text-tertiary)">
+                            Width
+                          </Label>
                           <Input
                             type="number"
                             min={0.5}
@@ -595,10 +682,14 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                             aria-label={`Line width for ${label}`}
                           />
                         </div>
-                        <Tooltip.Content>Trace line width in export.</Tooltip.Content>
+                        <Tooltip.Content>
+                          Trace line width in export.
+                        </Tooltip.Content>
                       </Tooltip>
                       <div className="flex items-center gap-1.5">
-                        <Label className="text-(--text-tertiary) text-xs">Color</Label>
+                        <Label className="text-xs text-(--text-tertiary)">
+                          Color
+                        </Label>
                         <input
                           type="color"
                           value={over.color ?? "#6366f1"}
@@ -607,11 +698,14 @@ export const ExportPlotModal = memo(function ExportPlotModal({
                               ...c,
                               traceOverrides: {
                                 ...c.traceOverrides,
-                                [id]: { ...c.traceOverrides[id], color: e.target.value },
+                                [id]: {
+                                  ...c.traceOverrides[id],
+                                  color: e.target.value,
+                                },
                               },
                             }))
                           }
-                          className="h-8 w-8 rounded border border-(--border-default) cursor-pointer"
+                          className="h-8 w-8 cursor-pointer rounded border border-(--border-default)"
                           aria-label={`Color for ${label}`}
                         />
                       </div>
@@ -689,11 +783,9 @@ export const ExportPlotModal = memo(function ExportPlotModal({
         )}
 
         <section>
-          <h4 className="mb-2 font-medium text-(--text-primary)">
-            Preview
-          </h4>
+          <h4 className="mb-2 font-medium text-(--text-primary)">Preview</h4>
           <div
-            className="rounded-lg border border-(--border-default) p-3 flex items-center justify-center min-h-[140px]"
+            className="flex min-h-[140px] items-center justify-center rounded-lg border border-(--border-default) p-3"
             style={
               exportConfig.background === "transparent"
                 ? {
@@ -731,7 +823,7 @@ export const ExportPlotModal = memo(function ExportPlotModal({
           </p>
         </section>
 
-        <section className="flex flex-wrap gap-2 pt-2 border-t border-(--border-default)">
+        <section className="flex flex-wrap gap-2 border-t border-(--border-default) pt-2">
           <Tooltip>
             <Button
               variant="outline"
@@ -742,7 +834,9 @@ export const ExportPlotModal = memo(function ExportPlotModal({
               <DocumentDuplicateIcon className="h-4 w-4" />
               Copy PNG
             </Button>
-            <Tooltip.Content>Copy the preview as PNG to the clipboard.</Tooltip.Content>
+            <Tooltip.Content>
+              Copy the preview as PNG to the clipboard.
+            </Tooltip.Content>
           </Tooltip>
           <Tooltip>
             <Button

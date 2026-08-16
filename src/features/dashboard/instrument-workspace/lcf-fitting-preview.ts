@@ -1,4 +1,7 @@
-import type { DifferenceSpectrum, SpectrumPoint } from "~/components/plots/types";
+import type {
+  DifferenceSpectrum,
+  SpectrumPoint,
+} from "~/components/plots/types";
 import {
   buildLcfPlotOverlay,
   lcfEnergyOverlapRange,

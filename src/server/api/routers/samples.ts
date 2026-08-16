@@ -151,7 +151,10 @@ export const samplesRouter = createTRPCRouter({
 
           if (!existingSample) break;
 
-          const newRandom = Math.random().toString(36).substring(2, 8).toUpperCase();
+          const newRandom = Math.random()
+            .toString(36)
+            .substring(2, 8)
+            .toUpperCase();
           sampleIdentifier = `SAMPLE-${timestamp}-${newRandom}`;
           counter++;
         }
@@ -164,7 +167,8 @@ export const samplesRouter = createTRPCRouter({
         if (existingSample) {
           throw new TRPCError({
             code: "CONFLICT",
-            message: "A sample with this identifier already exists. Please choose another identifier.",
+            message:
+              "A sample with this identifier already exists. Please choose another identifier.",
           });
         }
       }
@@ -271,11 +275,15 @@ export const samplesRouter = createTRPCRouter({
           ...(input.solvent !== undefined
             ? { solvent: input.solvent?.trim() ?? null }
             : {}),
-          ...(input.thickness !== undefined ? { thickness: input.thickness } : {}),
+          ...(input.thickness !== undefined
+            ? { thickness: input.thickness }
+            : {}),
           ...(input.molecularWeight !== undefined
             ? { molecularweight: input.molecularWeight }
             : {}),
-          ...(resolvedVendorId !== undefined ? { vendorid: resolvedVendorId } : {}),
+          ...(resolvedVendorId !== undefined
+            ? { vendorid: resolvedVendorId }
+            : {}),
         },
         include: {
           vendors: true,

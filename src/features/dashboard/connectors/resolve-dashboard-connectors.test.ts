@@ -3,7 +3,10 @@ import {
   expect as bunExpect,
   it as bunIt,
 } from "bun:test";
-import { ALS_11012_INSTRUMENT_SLUG, ALS_5322_INSTRUMENT_SLUG } from "./bindings";
+import {
+  ALS_11012_INSTRUMENT_SLUG,
+  ALS_5322_INSTRUMENT_SLUG,
+} from "./bindings";
 import {
   listDashboardConnectorsFromDb,
   paginateDashboardConnectors,
@@ -80,7 +83,10 @@ describe("paginateDashboardConnectors", () => {
   ];
 
   it("returns the first page with total and hasMore", () => {
-    const page = paginateDashboardConnectors(sampleCards, { limit: 2, offset: 0 });
+    const page = paginateDashboardConnectors(sampleCards, {
+      limit: 2,
+      offset: 0,
+    });
 
     expect(page.items.length).toBe(2);
     expect(page.total).toBe(3);
@@ -90,7 +96,10 @@ describe("paginateDashboardConnectors", () => {
   });
 
   it("returns the final partial page without hasMore", () => {
-    const page = paginateDashboardConnectors(sampleCards, { limit: 2, offset: 2 });
+    const page = paginateDashboardConnectors(sampleCards, {
+      limit: 2,
+      offset: 2,
+    });
 
     expect(page.items.length).toBe(1);
     expect(page.total).toBe(3);
@@ -99,7 +108,10 @@ describe("paginateDashboardConnectors", () => {
   });
 
   it("returns an empty page when offset exceeds the catalog length", () => {
-    const page = paginateDashboardConnectors(sampleCards, { limit: 2, offset: 10 });
+    const page = paginateDashboardConnectors(sampleCards, {
+      limit: 2,
+      offset: 10,
+    });
 
     expect(page.items.length).toBe(0);
     expect(page.total).toBe(3);
@@ -133,7 +145,9 @@ describe("listDashboardConnectorsFromDb", () => {
       false,
     );
 
-    const primary = cards.find((card) => card.slug === ALS_5322_INSTRUMENT_SLUG);
+    const primary = cards.find(
+      (card) => card.slug === ALS_5322_INSTRUMENT_SLUG,
+    );
     expect(primary?.instrumentLabel).toBe("Beamline 5.3.2.2");
     expect(primary?.facilityLabel).toBe(ALS_FACILITY);
     expect(primary?.facilityId).toBe(ALS_FACILITY_ID);
@@ -195,10 +209,13 @@ describe("listDashboardConnectorsFromDb", () => {
   });
 
   it("does not emit binding-only cards when the database is empty", async () => {
-    const page = await listDashboardConnectorsFromDb(createMockDb([]) as never, {
-      limit: 9,
-      offset: 0,
-    });
+    const page = await listDashboardConnectorsFromDb(
+      createMockDb([]) as never,
+      {
+        limit: 9,
+        offset: 0,
+      },
+    );
     expect(page.total).toBe(0);
     expect(page.items.length).toBe(0);
     expect(page.hasMore).toBe(false);

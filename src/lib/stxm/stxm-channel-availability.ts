@@ -98,7 +98,9 @@ export function stxmHasPairedBetaDelta(
  * @param ctx Channel id plus region, reduction, molecule, and TEY monitor flags.
  * @returns True when the channel is allowed to be active and should produce plot points.
  */
-export function canComputeStxmChannel(ctx: StxmChannelAvailabilityContext): boolean {
+export function canComputeStxmChannel(
+  ctx: StxmChannelAvailabilityContext,
+): boolean {
   const {
     channel,
     hasRawSpectra,
@@ -206,7 +208,10 @@ export function describeStxmChannelUnavailableReason(
     return "Run KK reduction with beta and delta to view delta.";
   }
 
-  if (isStxmDerivedOpticalPlotChannel(channel) && !ctx.derivedOpticalAvailable) {
+  if (
+    isStxmDerivedOpticalPlotChannel(channel) &&
+    !ctx.derivedOpticalAvailable
+  ) {
     if (!ctx.hasBetaDelta) {
       return "Run KK reduction with beta and delta to unlock f, epsilon, and chi views.";
     }
@@ -319,7 +324,8 @@ export function buildStxmChannelAvailabilityContext(args: {
   const trimmedFormula = args.chemicalFormula?.trim() ?? "";
   const hasFormula = trimmedFormula.length > 0;
   const hasComputedRawSpectra = args.regionSpectra.length > 0;
-  const hasConfiguredSampleRegions = (args.configuredSampleRegionCount ?? 0) > 0;
+  const hasConfiguredSampleRegions =
+    (args.configuredSampleRegionCount ?? 0) > 0;
   const hasConfiguredIzero = args.configuredIzero === true;
   const hasIzeroRegion =
     args.regionSpectra.some((series) => series.isIzero) || hasConfiguredIzero;
@@ -327,8 +333,7 @@ export function buildStxmChannelAvailabilityContext(args: {
     args.regionSpectra.some((series) => !series.isIzero) ||
     hasConfiguredSampleRegions;
   const hasRawSpectra =
-    hasComputedRawSpectra ||
-    (hasConfiguredSampleRegions && hasConfiguredIzero);
+    hasComputedRawSpectra || (hasConfiguredSampleRegions && hasConfiguredIzero);
 
   return {
     channel: args.channel,

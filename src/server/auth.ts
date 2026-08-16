@@ -21,7 +21,11 @@ import {
   type UserSessionCapabilities,
 } from "~/server/auth/privileged-role";
 import { PrismaAdapterOrcid } from "~/server/auth/prisma-adapter-orcid";
-import { isLegacyUserUuidSegment, isValidOrcidUserId, parseOrcidForStorage } from "~/lib/orcid";
+import {
+  isLegacyUserUuidSegment,
+  isValidOrcidUserId,
+  parseOrcidForStorage,
+} from "~/lib/orcid";
 import { emitAuditEvent } from "~/server/audit";
 import { orcidOidcBaseUrl } from "~/server/auth/orcid-oidc-config";
 import { enrichUserProfileFromOrcidUserinfo } from "~/server/auth/orcid-userinfo";

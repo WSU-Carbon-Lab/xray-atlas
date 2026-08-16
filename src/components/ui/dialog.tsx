@@ -85,7 +85,7 @@ export function SimpleDialog({
               leaveTo="opacity-0 scale-95"
             >
               <Dialog.Panel
-                className={`relative flex max-h-[min(90vh,48rem)] min-h-0 w-full ${maxWidth} transform flex-col overflow-visible rounded-2xl border border-border bg-surface p-6 text-left align-middle text-foreground shadow-xl transition-all`}
+                className={`relative flex max-h-[min(90vh,48rem)] min-h-0 w-full ${maxWidth} border-border bg-surface text-foreground transform flex-col overflow-visible rounded-2xl border p-6 text-left align-middle shadow-xl transition-all`}
               >
                 <div
                   ref={onRacOverlayHostRef}
@@ -96,7 +96,7 @@ export function SimpleDialog({
                   <div className="mb-4 flex shrink-0 items-center justify-between">
                     <Dialog.Title
                       as="h3"
-                      className="text-lg font-medium leading-6 text-foreground"
+                      className="text-foreground text-lg leading-6 font-medium"
                     >
                       {title}
                     </Dialog.Title>
@@ -104,7 +104,7 @@ export function SimpleDialog({
                       type="button"
                       onClick={onClose}
                       aria-label="Close dialog"
-                      className="rounded-lg p-1 text-muted hover:bg-default hover:text-foreground"
+                      className="text-muted hover:bg-default hover:text-foreground rounded-lg p-1"
                     >
                       <XMarkIcon className="h-5 w-5" aria-hidden />
                     </button>

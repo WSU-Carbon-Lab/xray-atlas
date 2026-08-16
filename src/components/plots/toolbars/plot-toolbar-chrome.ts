@@ -9,8 +9,7 @@ const plotToolbarToggleSelectedClass =
   "data-[selected=true]:!bg-(--accent) data-[selected=true]:dark:!bg-(--accent) data-[selected=true]:text-(--accent-foreground) data-[selected=true]:dark:text-(--accent-foreground) data-[selected=true]:[&_svg]:text-(--accent-foreground) data-[selected=true]:dark:[&_svg]:text-(--accent-foreground) data-[selected=true]:shadow-sm";
 
 /** Idle segment fill: light inset on surface shell; dark grey on black shell. */
-const plotToolbarSegmentIdleFill =
-  "!bg-background dark:!bg-(--surface-2)";
+const plotToolbarSegmentIdleFill = "!bg-background dark:!bg-(--surface-2)";
 
 /** Hover on unselected segments. */
 const plotToolbarSegmentHoverFill =
@@ -65,11 +64,11 @@ export const plotToolbarGroupSeparatorHorizontalClass =
 export const plotToolbarAttachedToggleGroupHorizontalClass = "rounded-full";
 
 /** `ToggleButtonGroup` chrome for vertical segments inside one attached group. */
-export const plotToolbarAttachedToggleGroupVerticalClass = "w-full rounded-full";
+export const plotToolbarAttachedToggleGroupVerticalClass =
+  "w-full rounded-full";
 
 /** Horizontal channel picker popover: same attached pill chrome as plot rails. */
-export const plotToolbarAttachedHorizontalPickerShellClass =
-  `${plotToolbarAttachedShellClass} w-fit rounded-full`;
+export const plotToolbarAttachedHorizontalPickerShellClass = `${plotToolbarAttachedShellClass} w-fit rounded-full`;
 
 /**
  * Inner column for a vertical attached toolbar: stacks segment rows flush inside one shell pill.
@@ -90,26 +89,28 @@ const plotToolbarCompactGlyphToggleBase = `h-7 w-7 min-w-7 shrink-0 ${plotToolba
 /** Compact icon-only plot controls (split/coalesce) that must not overlap axis spines. */
 export const plotToolbarCompactIconToolClass = `h-7 w-7 min-w-7 ${plotToolbarSegmentIdleFill} text-(--text-primary) transition-colors ${plotToolbarSegmentHoverFill} ${plotToolbarSegmentDisabledFill}`;
 
-export const plotToolbarCompactGlyphToggleClass =
-  `${plotToolbarCompactGlyphToggleBase} rounded-full ${plotToolbarToggleSelectedClass}`;
+export const plotToolbarCompactGlyphToggleClass = `${plotToolbarCompactGlyphToggleBase} rounded-full ${plotToolbarToggleSelectedClass}`;
 
-export const plotToolbarGlyphToggleStandaloneClass =
-  `${plotToolbarGlyphToggleBase} rounded-full ${plotToolbarToggleSelectedClass}`;
+export const plotToolbarGlyphToggleStandaloneClass = `${plotToolbarGlyphToggleBase} rounded-full ${plotToolbarToggleSelectedClass}`;
 
-export const plotToolbarGlyphToggleGroupItemHorizontalClass =
-  `${plotToolbarGlyphToggleBase} rounded-none first:rounded-l-full last:rounded-r-full ${plotToolbarToggleSelectedClass}`;
+export const plotToolbarGlyphToggleGroupItemHorizontalClass = `${plotToolbarGlyphToggleBase} rounded-none first:rounded-l-full last:rounded-r-full ${plotToolbarToggleSelectedClass}`;
 
-export const plotToolbarGlyphToggleGroupItemVerticalClass =
-  `${plotToolbarGlyphToggleBase} rounded-none first:rounded-t-full last:rounded-b-full ${plotToolbarToggleSelectedClass}`;
+export const plotToolbarGlyphToggleGroupItemVerticalClass = `${plotToolbarGlyphToggleBase} rounded-none first:rounded-t-full last:rounded-b-full ${plotToolbarToggleSelectedClass}`;
 
-export const plotToolbarGlyphToggleClass = plotToolbarGlyphToggleStandaloneClass;
+export const plotToolbarGlyphToggleClass =
+  plotToolbarGlyphToggleStandaloneClass;
 
 export const plotToolbarBasisToggleGroupItemVerticalClass = `min-h-9 w-full min-w-9 px-2 ${plotToolbarSegmentIdleFill} text-(--text-primary) transition-colors rounded-none first:rounded-t-full last:rounded-b-full ${plotToolbarSegmentHoverFill} ${plotToolbarSegmentDisabledFill} ${plotToolbarToggleSelectedClass}`;
 
 /** @deprecated Prefer {@link plotToolbarBasisSegmentClass} when segments are not direct ToggleButtonGroup siblings. */
-export const plotToolbarBasisToggleClass = plotToolbarBasisToggleGroupItemVerticalClass;
+export const plotToolbarBasisToggleClass =
+  plotToolbarBasisToggleGroupItemVerticalClass;
 
-export type PlotToolbarBasisSegmentPosition = "first" | "middle" | "last" | "only";
+export type PlotToolbarBasisSegmentPosition =
+  | "first"
+  | "middle"
+  | "last"
+  | "only";
 
 /**
  * Muted fill for plot-rail controls that cannot be used (link off, unavailable channel, etc.).
@@ -174,5 +175,4 @@ export function plotToolbarLinkSegmentClass(
 export const plotToolbarToggleForcedSelectedClass =
   "!bg-(--accent) dark:!bg-(--accent) text-(--accent-foreground) dark:text-(--accent-foreground) shadow-sm [&_svg]:text-(--accent-foreground) dark:[&_svg]:text-(--accent-foreground)";
 
-export const plotToolbarDifferenceToggleClass =
-  `h-9 w-9 min-w-9 rounded-full ${plotToolbarSegmentIdleFill} text-(--text-primary) transition-colors ${plotToolbarSegmentHoverFill} ${plotToolbarSegmentDisabledFill} ${plotToolbarToggleSelectedClass}`;
+export const plotToolbarDifferenceToggleClass = `h-9 w-9 min-w-9 rounded-full ${plotToolbarSegmentIdleFill} text-(--text-primary) transition-colors ${plotToolbarSegmentHoverFill} ${plotToolbarSegmentDisabledFill} ${plotToolbarToggleSelectedClass}`;

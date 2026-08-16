@@ -1,5 +1,9 @@
 import path from "node:path";
-import type { PrismaClient, ExperimentType, ProcessMethod } from "~/prisma/client";
+import type {
+  PrismaClient,
+  ExperimentType,
+  ProcessMethod,
+} from "~/prisma/client";
 import {
   backlogPreparationCanonicalString,
   backlogPreparationSlugFromCanonical,
@@ -17,7 +21,9 @@ import {
   type NexafsJsonDatasetItem,
 } from "~/server/nexafs/nexafsJsonDatasetPoints";
 
-function determineProcessMethod(prepMethod: string | null | undefined): ProcessMethod {
+function determineProcessMethod(
+  prepMethod: string | null | undefined,
+): ProcessMethod {
   const raw = (prepMethod ?? "").toLowerCase();
   if (!raw) return "SOLVENT";
   if (raw.includes("dry")) return "DRY";
@@ -94,7 +100,9 @@ export async function resolveNexafsJsonDocumentToSourceRows(
   }>
 > {
   const techniqueToken = json.instrument.technique;
-  const experimentType = normalizeExperimentMode(techniqueToken) as ExperimentType | undefined;
+  const experimentType = normalizeExperimentMode(techniqueToken) as
+    | ExperimentType
+    | undefined;
   if (!experimentType) {
     throw new Error(`Unknown technique token: ${techniqueToken}`);
   }
@@ -120,7 +128,9 @@ export async function resolveNexafsJsonDocumentToSourceRows(
     select: { id: true, name: true },
   });
   if (!instrument) {
-    throw new Error(`Instrument not found in DB: ${instrumentName} @ ${facilityName}`);
+    throw new Error(
+      `Instrument not found in DB: ${instrumentName} @ ${facilityName}`,
+    );
   }
 
   const edgeInfo = parseEdgeTargetAndCore(json.instrument.edge);
@@ -146,12 +156,17 @@ export async function resolveNexafsJsonDocumentToSourceRows(
     select: { id: true, chemicalformula: true },
   });
   if (!molecule) {
-    throw new Error(`Molecule not found in DB for chemicalformula: ${moleculeFormula}`);
+    throw new Error(
+      `Molecule not found in DB for chemicalformula: ${moleculeFormula}`,
+    );
   }
 
-  const processMethod = determineProcessMethod(json.sample.preparation_method?.method);
+  const processMethod = determineProcessMethod(
+    json.sample.preparation_method?.method,
+  );
   const substrate =
-    experimentType === "TOTAL_ELECTRON_YIELD" || experimentType === "FLUORESCENT_YIELD"
+    experimentType === "TOTAL_ELECTRON_YIELD" ||
+    experimentType === "FLUORESCENT_YIELD"
       ? "Si"
       : null;
   const preparationCanonical = backlogPreparationCanonicalString({
@@ -161,8 +176,12 @@ export async function resolveNexafsJsonDocumentToSourceRows(
     processMethod,
     substrate,
   });
-  const preparationSlug = backlogPreparationSlugFromCanonical(preparationCanonical);
-  const identifier = formatBacklogSampleIdentifier(molecule.id, preparationSlug);
+  const preparationSlug =
+    backlogPreparationSlugFromCanonical(preparationCanonical);
+  const identifier = formatBacklogSampleIdentifier(
+    molecule.id,
+    preparationSlug,
+  );
   const sampleRow = await prisma.samples.findUnique({
     where: { identifier },
     select: { id: true, vendorid: true },
@@ -196,7 +215,10 @@ export async function resolveNexafsJsonDocumentToSourceRows(
       phi: g.phi,
     };
     rows.push({
-      matchKey: experimentSourceMatchKey({ ...bases, vendorId: vendorIdForKey }),
+      matchKey: experimentSourceMatchKey({
+        ...bases,
+        vendorId: vendorIdForKey,
+      }),
       moleculeId: molecule.id,
       vendorId: vendorIdForKey,
       edgeId: edge.id,

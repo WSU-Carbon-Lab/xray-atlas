@@ -10,8 +10,14 @@ export const openApiV1Spec = {
   servers: [{ url: "/api/v1", description: "Versioned API base path" }],
   tags: [
     { name: "Molecules", description: "Molecule catalog and edge summaries." },
-    { name: "Datasets", description: "Dataset summaries, DOI discovery, and exports." },
-    { name: "Compatibility", description: "Transition routes for legacy behavior." },
+    {
+      name: "Datasets",
+      description: "Dataset summaries, DOI discovery, and exports.",
+    },
+    {
+      name: "Compatibility",
+      description: "Transition routes for legacy behavior.",
+    },
     { name: "Contract", description: "OpenAPI contract discovery endpoint." },
   ],
   paths: {
@@ -40,7 +46,11 @@ export const openApiV1Spec = {
         description:
           "Returns paginated molecules with optional search and CAS/synonym filters.",
         parameters: [
-          { name: "q", in: "query", schema: { type: "string", maxLength: 256 } },
+          {
+            name: "q",
+            in: "query",
+            schema: { type: "string", maxLength: 256 },
+          },
           { name: "hasCas", in: "query", schema: { type: "boolean" } },
           {
             name: "synonymsCountMax",
@@ -81,7 +91,11 @@ export const openApiV1Spec = {
             required: true,
             schema: { type: "string", format: "uuid" },
           },
-          { name: "doi", in: "query", schema: { type: "string", maxLength: 512 } },
+          {
+            name: "doi",
+            in: "query",
+            schema: { type: "string", maxLength: 512 },
+          },
         ],
         responses: {
           200: { description: "Molecule edge summary response." },
@@ -96,9 +110,21 @@ export const openApiV1Spec = {
         tags: ["Datasets"],
         summary: "List dataset summaries",
         parameters: [
-          { name: "moleculeId", in: "query", schema: { type: "string", format: "uuid" } },
-          { name: "edgeId", in: "query", schema: { type: "string", format: "uuid" } },
-          { name: "doi", in: "query", schema: { type: "string", maxLength: 512 } },
+          {
+            name: "moleculeId",
+            in: "query",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "edgeId",
+            in: "query",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "doi",
+            in: "query",
+            schema: { type: "string", maxLength: 512 },
+          },
           {
             name: "limit",
             in: "query",
@@ -122,9 +148,22 @@ export const openApiV1Spec = {
         tags: ["Datasets"],
         summary: "Discover datasets from DOI",
         parameters: [
-          { name: "doi", in: "query", required: true, schema: { type: "string", minLength: 1 } },
-          { name: "moleculeId", in: "query", schema: { type: "string", format: "uuid" } },
-          { name: "edgeId", in: "query", schema: { type: "string", format: "uuid" } },
+          {
+            name: "doi",
+            in: "query",
+            required: true,
+            schema: { type: "string", minLength: 1 },
+          },
+          {
+            name: "moleculeId",
+            in: "query",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "edgeId",
+            in: "query",
+            schema: { type: "string", format: "uuid" },
+          },
         ],
         responses: {
           200: { description: "DOI-first discovery response." },
@@ -139,9 +178,21 @@ export const openApiV1Spec = {
         tags: ["Datasets"],
         summary: "Export dataset table",
         parameters: [
-          { name: "moleculeId", in: "query", schema: { type: "string", format: "uuid" } },
-          { name: "edgeId", in: "query", schema: { type: "string", format: "uuid" } },
-          { name: "doi", in: "query", schema: { type: "string", maxLength: 512 } },
+          {
+            name: "moleculeId",
+            in: "query",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "edgeId",
+            in: "query",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "doi",
+            in: "query",
+            schema: { type: "string", maxLength: 512 },
+          },
           {
             name: "format",
             in: "query",
@@ -150,7 +201,12 @@ export const openApiV1Spec = {
           {
             name: "limit",
             in: "query",
-            schema: { type: "integer", minimum: 1, maximum: 100000, default: 10000 },
+            schema: {
+              type: "integer",
+              minimum: 1,
+              maximum: 100000,
+              default: 10000,
+            },
           },
         ],
         responses: {
@@ -164,7 +220,8 @@ export const openApiV1Spec = {
       get: {
         tags: ["Compatibility"],
         summary: "Compatibility redirect route",
-        description: "Forwards query parameters to /api/molecules/search with HTTP 307.",
+        description:
+          "Forwards query parameters to /api/molecules/search with HTTP 307.",
         responses: {
           307: { description: "Temporary redirect to legacy route." },
         },

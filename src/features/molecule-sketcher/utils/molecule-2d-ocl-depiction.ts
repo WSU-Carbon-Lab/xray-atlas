@@ -9,7 +9,10 @@
 import type { Molecule } from "openchemlib";
 
 import { applyMoleculeSvgCpkThemeToElement } from "~/lib/molecule-svg-cpk-theme";
-import { applyMoleculeSvg3dBondDepthTiers, type BondDepthTier } from "~/lib/molecule-svg-3d-perspective";
+import {
+  applyMoleculeSvg3dBondDepthTiers,
+  type BondDepthTier,
+} from "~/lib/molecule-svg-3d-perspective";
 import type { CageDepictionMode } from "../molecule-draw-types";
 import type { CageBondDepthTierByMark } from "./cage-template-placement";
 import {
@@ -62,7 +65,8 @@ function readSvgTagAttribute(tag: string, name: string): string | null {
   return match?.[1] ?? null;
 }
 
-const OCL_ATOM_CIRCLE_TAG_RE = /<circle\b[^>]*\bid="[^"]+:Atom:(\d+)"[^>]*\/?>/gi;
+const OCL_ATOM_CIRCLE_TAG_RE =
+  /<circle\b[^>]*\bid="[^"]+:Atom:(\d+)"[^>]*\/?>/gi;
 
 /**
  * Parses the `viewBox` attribute from an OpenChemLib `toSVG` string.
@@ -76,7 +80,10 @@ export function parseOclSvgViewBox(svgText: string): OclSvgViewBox | null {
   if (match === null) {
     return null;
   }
-  const parts = (match[1] ?? "").trim().split(/\s+/).map((value) => Number.parseFloat(value));
+  const parts = (match[1] ?? "")
+    .trim()
+    .split(/\s+/)
+    .map((value) => Number.parseFloat(value));
   if (parts.length !== 4 || parts.some((value) => !Number.isFinite(value))) {
     return null;
   }
@@ -96,7 +103,9 @@ export function parseOclSvgViewBox(svgText: string): OclSvgViewBox | null {
  * @param svgText - Raw or themed SVG string from OpenChemLib `toSVG`.
  * @returns Atom index to circle center and radius in depiction viewBox units.
  */
-export function parseOclAtomCircles(svgText: string): Map<number, OclAtomCircle> {
+export function parseOclAtomCircles(
+  svgText: string,
+): Map<number, OclAtomCircle> {
   const circles = new Map<number, OclAtomCircle>();
   for (const match of svgText.matchAll(OCL_ATOM_CIRCLE_TAG_RE)) {
     const tag = match[0] ?? "";
@@ -104,8 +113,7 @@ export function parseOclAtomCircles(svgText: string): Map<number, OclAtomCircle>
     const cx = Number.parseFloat(readSvgTagAttribute(tag, "cx") ?? "");
     const cy = Number.parseFloat(readSvgTagAttribute(tag, "cy") ?? "");
     const radiusRaw = readSvgTagAttribute(tag, "r");
-    const radius =
-      radiusRaw === null ? 8 : Number.parseFloat(radiusRaw);
+    const radius = radiusRaw === null ? 8 : Number.parseFloat(radiusRaw);
     if (
       !Number.isFinite(atom) ||
       !Number.isFinite(cx) ||
@@ -234,7 +242,12 @@ export function buildDrawCanvasOclDepiction(
       ? cageBondDepthTierMapFromMarks(clone, resolved.depthMarks)
       : new Map<number, BondDepthTier>();
   if (depthTierMap.size > 0) {
-    rawSvg = applyMoleculeSvg3dBondDepthTiers(rawSvg, clone, depthTierMap, isDark);
+    rawSvg = applyMoleculeSvg3dBondDepthTiers(
+      rawSvg,
+      clone,
+      depthTierMap,
+      isDark,
+    );
   }
 
   const transform = parseOclDepictionViewTransform(clone, rawSvg);

@@ -1,8 +1,9 @@
-import type { DifferenceSpectrum, SpectrumPoint } from "~/components/plots/types";
+import type {
+  DifferenceSpectrum,
+  SpectrumPoint,
+} from "~/components/plots/types";
 import { channelDefinitionById } from "~/components/plots/data-rail";
-import {
-  beerLambertFromSummedSignals,
-} from "~/features/dashboard/lib/computeStxmIngestion";
+import { beerLambertFromSummedSignals } from "~/features/dashboard/lib/computeStxmIngestion";
 import {
   deriveStxmOpticalChannelSeries,
   ingestionChannelUsesRawIntensity,
@@ -261,7 +262,12 @@ function computeOdPointsFromRegionRaw(
       rawSignalTransform,
     );
     const rawabsError = Number.isFinite(odValue)
-      ? transformStxmRawIntensityErrorY(sigmaOd, odValue, "od", rawSignalTransform)
+      ? transformStxmRawIntensityErrorY(
+          sigmaOd,
+          odValue,
+          "od",
+          rawSignalTransform,
+        )
       : undefined;
     return {
       energy,
@@ -438,7 +444,9 @@ export function buildLegacyRegionCompanionSpectra(
         ),
       };
     })
-    .filter((spectrum) => stxmSpectrumPointsHaveFiniteAbsorption(spectrum.points));
+    .filter((spectrum) =>
+      stxmSpectrumPointsHaveFiniteAbsorption(spectrum.points),
+    );
 }
 
 export function resolvePrimaryRegionSeries(
@@ -454,7 +462,4 @@ export function resolvePrimaryRegionSeries(
   return sampleRegionSeriesList(regionSpectra)[0] ?? null;
 }
 
-export {
-  pointsFromRegionSeriesForChannel,
-  regionSeriesValidityMask,
-};
+export { pointsFromRegionSeriesForChannel, regionSeriesValidityMask };

@@ -282,7 +282,8 @@ export function DashboardHomePage() {
           icon={<Users className="h-4 w-4" />}
         >
           <p className="text-muted text-sm">
-            Create or manage attribution teams before exporting spectra to Atlas.
+            Create or manage attribution teams before exporting spectra to
+            Atlas.
           </p>
           <div className="mt-4 flex flex-wrap gap-3">
             <Link

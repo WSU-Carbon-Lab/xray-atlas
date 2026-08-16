@@ -8,8 +8,7 @@ import {
 
 export const metadata: Metadata = {
   title: "Privacy and Data Use",
-  description:
-    `Privacy, account data handling, and citation guidance for open datasets on ${site.name}.`,
+  description: `Privacy, account data handling, and citation guidance for open datasets on ${site.name}.`,
 };
 
 /**
@@ -46,9 +45,9 @@ export default function PrivacyPage() {
             Public catalog data
           </h2>
           <p className="text-muted">
-            Molecule identifiers, experimental metadata, and spectrum values
-            you browse or download are intended to be public and may be indexed
-            or cached by third-party services once published on the site.
+            Molecule identifiers, experimental metadata, and spectrum values you
+            browse or download are intended to be public and may be indexed or
+            cached by third-party services once published on the site.
           </p>
           <p className="text-muted">
             If your workflow requires non-public data, do not upload it to
@@ -99,18 +98,23 @@ export default function PrivacyPage() {
           </p>
           <div className="border-border bg-surface space-y-3 rounded-lg border p-4">
             <div>
-              <h3 className="text-foreground font-semibold">Individual dataset</h3>
+              <h3 className="text-foreground font-semibold">
+                Individual dataset
+              </h3>
               <p className="text-muted font-mono text-sm">
                 Creator(s). (Year). NEXAFS dataset: Molecule, edge, instrument
                 [Dataset]. {site.name}. https://doi.org/10.…
               </p>
               <p className="text-muted mt-2 text-xs">
-                Use the Cite control on browse cards for in-text, data-availability,
-                BibTeX, and full reference forms filled from the record.
+                Use the Cite control on browse cards for in-text,
+                data-availability, BibTeX, and full reference forms filled from
+                the record.
               </p>
             </div>
             <div>
-              <h3 className="text-foreground font-semibold">Entire collection</h3>
+              <h3 className="text-foreground font-semibold">
+                Entire collection
+              </h3>
               <p className="text-muted font-mono text-sm">
                 {collectionCitationExample}
               </p>
@@ -120,8 +124,8 @@ export default function PrivacyPage() {
             </div>
           </div>
           <p className="text-muted">
-            Citation is required when reusing hosted datasets (CC BY 4.0). Prefer
-            the minted dataset DOI when present.
+            Citation is required when reusing hosted datasets (CC BY 4.0).
+            Prefer the minted dataset DOI when present.
           </p>
         </section>
 

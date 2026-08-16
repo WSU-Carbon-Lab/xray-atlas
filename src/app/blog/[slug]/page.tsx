@@ -12,7 +12,10 @@ import {
 } from "~/components/blog/blog-breadcrumbs";
 import { BlogRelatedPosts } from "~/components/blog/blog-related-posts";
 import { BlogSeriesBox } from "~/components/blog/blog-series-box";
-import { BlogTableOfContents, hasBlogTableOfContents } from "~/components/blog/blog-toc";
+import {
+  BlogTableOfContents,
+  hasBlogTableOfContents,
+} from "~/components/blog/blog-toc";
 import { CopyLinkButton } from "~/components/blog/copy-link-button";
 import { BlogPostTagChips } from "~/components/blog/blog-post-tag-chips";
 import { MdxArticle } from "~/components/content/mdx-article";
@@ -20,7 +23,10 @@ import {
   blogCategoryRssHref,
   getBlogCategory,
 } from "~/lib/content/blog-categories";
-import { categoryReadNextPosts, relatedBlogPosts } from "~/lib/content/blog-related";
+import {
+  categoryReadNextPosts,
+  relatedBlogPosts,
+} from "~/lib/content/blog-related";
 import {
   adjacentBlogPosts,
   blogSeriesPartRows,
@@ -200,7 +206,7 @@ export default async function BlogPostPage({
       >
         <div className="hidden xl:block" aria-hidden="true" />
 
-        <div className="mx-auto w-full min-w-0 max-w-2xl xl:mx-0 xl:max-w-none">
+        <div className="mx-auto w-full max-w-2xl min-w-0 xl:mx-0 xl:max-w-none">
           <BlogBreadcrumbs items={breadcrumbItems} />
 
           <header className="mb-8 space-y-4">

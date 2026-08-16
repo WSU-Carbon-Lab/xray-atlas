@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import {
-  Button,
-  Input,
-  Label,
-  Spinner,
-  TextField,
-} from "@heroui/react";
+import { Button, Input, Label, Spinner, TextField } from "@heroui/react";
 import { Wand2 } from "lucide-react";
 import type {
   DashboardRegionsStepMetadata,
@@ -199,7 +193,8 @@ export function RegionsStep({
         </>
       ) : (
         <p className="text-muted text-sm">
-          Link an experiment and upload aux files to load the heatmap for region editing.
+          Link an experiment and upload aux files to load the heatmap for region
+          editing.
         </p>
       )}
     </div>
@@ -211,7 +206,8 @@ export function FitPlaceholderStep() {
     <div className="border-border bg-default/30 rounded-lg border border-dashed px-5 py-8">
       <p className="text-foreground text-sm font-medium">Blend fitting</p>
       <p className="text-muted mt-2 text-sm leading-relaxed">
-        Linear combination fitting against Atlas reference spectra. Ships in Phase 4.
+        Linear combination fitting against Atlas reference spectra. Ships in
+        Phase 4.
       </p>
     </div>
   );

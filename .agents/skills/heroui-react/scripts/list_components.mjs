@@ -22,7 +22,7 @@ async function fetchApi(endpoint) {
 
   try {
     const response = await fetch(url, {
-      headers: {"User-Agent": "HeroUI-Skill/1.0"},
+      headers: { "User-Agent": "HeroUI-Skill/1.0" },
       signal: AbortSignal.timeout(30000),
     });
 
@@ -46,7 +46,7 @@ async function fetchApi(endpoint) {
 async function fetchFallback() {
   try {
     const response = await fetch(LLMS_TXT_URL, {
-      headers: {"User-Agent": "HeroUI-Skill/1.0"},
+      headers: { "User-Agent": "HeroUI-Skill/1.0" },
       signal: AbortSignal.timeout(30000),
     });
 
@@ -118,7 +118,9 @@ async function main() {
   }
 
   if (!data || !data.components || data.components.length === 0) {
-    console.error("Error: Failed to fetch component list from API and fallback");
+    console.error(
+      "Error: Failed to fetch component list from API and fallback",
+    );
     process.exit(1);
   }
 

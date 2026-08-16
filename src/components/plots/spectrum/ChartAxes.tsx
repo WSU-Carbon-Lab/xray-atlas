@@ -20,7 +20,10 @@ export const ChartAxes = memo(function ChartAxes({
   themeColors: ChartThemeColors;
   showXAxisLabel?: boolean;
   yAxisLabel?: string;
-  yTickFormat?: (value: number | { valueOf(): number }, index: number) => string;
+  yTickFormat?: (
+    value: number | { valueOf(): number },
+    index: number,
+  ) => string;
 }) {
   if (!scales || !dimensions) return null;
 
@@ -62,23 +65,23 @@ export const ChartAxes = memo(function ChartAxes({
         strokeWidth={1}
       />
       <g data-export-axis-group="bottom">
-      <AxisBottom
-        top={axisBandTop}
-        left={left}
-        scale={scales.xScale}
-        stroke="transparent"
-        tickStroke={axisColor}
-        tickLength={-PLOT_CONFIG.axis.tickSize}
-        numTicks={8}
-        tickFormat={showXAxisLabel ? undefined : () => ""}
-        tickLabelProps={() => ({
-          fill: tickLabelColor,
-          fontSize: tickFontSize,
-          textAnchor: "middle",
-          fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
-          dy: tickPadding,
-        })}
-      />
+        <AxisBottom
+          top={axisBandTop}
+          left={left}
+          scale={scales.xScale}
+          stroke="transparent"
+          tickStroke={axisColor}
+          tickLength={-PLOT_CONFIG.axis.tickSize}
+          numTicks={8}
+          tickFormat={showXAxisLabel ? undefined : () => ""}
+          tickLabelProps={() => ({
+            fill: tickLabelColor,
+            fontSize: tickFontSize,
+            textAnchor: "middle",
+            fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
+            dy: tickPadding,
+          })}
+        />
       </g>
       {showXAxisLabel && axisBandHeight > 0 && (
         <text
@@ -94,54 +97,54 @@ export const ChartAxes = memo(function ChartAxes({
         </text>
       )}
       <g data-export-axis-group="left">
-      <AxisLeft
-        left={left}
-        top={top}
-        scale={scales.yScale}
-        stroke={axisColor}
-        tickStroke={axisColor}
-        tickLength={-PLOT_CONFIG.axis.tickSize}
-        tickFormat={yTickFormat}
-        tickLabelProps={() => ({
-          fill: tickLabelColor,
-          fontSize: tickFontSize,
-          textAnchor: "end",
-          fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
-          dx: -(tickPadding + 2),
-          dy: 0,
-        })}
-        labelProps={{
-          fill: tickLabelColor,
-          fontSize: 14,
-          textAnchor: "middle",
-          fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
-        }}
-        label={yAxisLabel}
-        labelOffset={PLOT_CONFIG.axis.labelPadding}
-      />
+        <AxisLeft
+          left={left}
+          top={top}
+          scale={scales.yScale}
+          stroke={axisColor}
+          tickStroke={axisColor}
+          tickLength={-PLOT_CONFIG.axis.tickSize}
+          tickFormat={yTickFormat}
+          tickLabelProps={() => ({
+            fill: tickLabelColor,
+            fontSize: tickFontSize,
+            textAnchor: "end",
+            fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
+            dx: -(tickPadding + 2),
+            dy: 0,
+          })}
+          labelProps={{
+            fill: tickLabelColor,
+            fontSize: 14,
+            textAnchor: "middle",
+            fontFamily: "var(--font-sans), Inter, system-ui, sans-serif",
+          }}
+          label={yAxisLabel}
+          labelOffset={PLOT_CONFIG.axis.labelPadding}
+        />
       </g>
       <g data-export-axis-group="top">
-      <AxisTop
-        top={top}
-        left={left}
-        scale={scales.xScale}
-        stroke={axisColor}
-        tickStroke={axisColor}
-        tickLength={-PLOT_CONFIG.axis.tickSize}
-        numTicks={8}
-        tickFormat={() => ""}
-      />
+        <AxisTop
+          top={top}
+          left={left}
+          scale={scales.xScale}
+          stroke={axisColor}
+          tickStroke={axisColor}
+          tickLength={-PLOT_CONFIG.axis.tickSize}
+          numTicks={8}
+          tickFormat={() => ""}
+        />
       </g>
       <g data-export-axis-group="right">
-      <AxisRight
-        left={left + plotWidth}
-        top={top}
-        scale={scales.yScale}
-        stroke={axisColor}
-        tickStroke={axisColor}
-        tickLength={-PLOT_CONFIG.axis.tickSize}
-        tickFormat={() => ""}
-      />
+        <AxisRight
+          left={left + plotWidth}
+          top={top}
+          scale={scales.yScale}
+          stroke={axisColor}
+          tickStroke={axisColor}
+          tickLength={-PLOT_CONFIG.axis.tickSize}
+          tickFormat={() => ""}
+        />
       </g>
     </g>
   );

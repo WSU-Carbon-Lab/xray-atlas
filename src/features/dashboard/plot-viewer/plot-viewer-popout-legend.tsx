@@ -12,7 +12,10 @@ import {
 import { PlotToolbarRichHint } from "~/components/plots/toolbars";
 import { PlotViewerCompactLegend } from "./plot-viewer-compact-legend";
 import { PlotViewerLegendDockPicker } from "./plot-viewer-legend-placement";
-import type { PlotViewerDescriptorField, PlotViewerLegendRow } from "./plot-viewer-legend";
+import type {
+  PlotViewerDescriptorField,
+  PlotViewerLegendRow,
+} from "./plot-viewer-legend";
 import {
   plotViewerPopoutLegendAsideClassName,
   plotViewerPopoutLegendDockIsHorizontal,
@@ -40,7 +43,10 @@ function PlotViewerPopoutLegendChevron({
   direction: PlotViewerPopoutLegendChevronDirection;
   className?: string;
 }) {
-  const props = { className: cn("h-3.5 w-3.5 shrink-0", className), "aria-hidden": true as const };
+  const props = {
+    className: cn("h-3.5 w-3.5 shrink-0", className),
+    "aria-hidden": true as const,
+  };
   switch (direction) {
     case "up":
       return <ChevronUp {...props} />;
@@ -77,7 +83,9 @@ export function PlotViewerPopoutLegend({
     dock,
     trayOpen,
   );
-  const trayToggleLabel = trayOpen ? "Collapse legend tray" : "Expand legend tray";
+  const trayToggleLabel = trayOpen
+    ? "Collapse legend tray"
+    : "Expand legend tray";
 
   if (!trayOpen) {
     return (

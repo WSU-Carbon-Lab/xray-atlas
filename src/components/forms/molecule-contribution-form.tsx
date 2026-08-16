@@ -68,7 +68,8 @@ import {
 } from "~/features/molecule-registry-workflow";
 import { validatePolymerStructureRequirement } from "~/lib/molecule-polymer-structure-validation";
 
-type CreateMoleculeResponse = inferRouterOutputs<AppRouter>["molecules"]["create"];
+type CreateMoleculeResponse =
+  inferRouterOutputs<AppRouter>["molecules"]["create"];
 
 /**
  * Registry contribute form for linking molecules into X-ray Atlas (metadata,
@@ -200,10 +201,13 @@ export const MoleculeContributionForm = forwardRef<
     [markIdentityDirty, setFormData],
   );
 
-  const handleSketchBookendsChange = useCallback((bookends: BookendMarksState) => {
-    setSketchBookends(bookends);
-    setStructureValidationError(null);
-  }, []);
+  const handleSketchBookendsChange = useCallback(
+    (bookends: BookendMarksState) => {
+      setSketchBookends(bookends);
+      setStructureValidationError(null);
+    },
+    [],
+  );
 
   const handleSvgDataUrlReady = useCallback((dataUrl: string | null) => {
     setSvgDataUrl(dataUrl);
@@ -248,8 +252,7 @@ export const MoleculeContributionForm = forwardRef<
     }
     void identifierSearchRef.current?.lookupFromSmiles(lookupSmiles, {
       registrySmiles,
-      components:
-        ctx.components.length > 0 ? ctx.components : undefined,
+      components: ctx.components.length > 0 ? ctx.components : undefined,
     });
   }, [formData.smiles]);
 
@@ -262,13 +265,15 @@ export const MoleculeContributionForm = forwardRef<
           ...prev,
           commonName: parsed.commonName || prev.commonName,
           iupacName: parsed.iupacName || prev.iupacName,
-          synonyms: parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
+          synonyms:
+            parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
           smiles: parsed.smiles || prev.smiles,
           inchi: parsed.inchi || prev.inchi,
           chemicalFormula: parsed.chemicalFormula || prev.chemicalFormula,
           casNumber: parsed.casNumber ?? prev.casNumber,
           pubchemCid: parsed.pubchemCid ?? prev.pubchemCid,
-          tagIds: parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
+          tagIds:
+            parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
         }));
         setPendingTags([]);
       } catch (err) {
@@ -294,13 +299,15 @@ export const MoleculeContributionForm = forwardRef<
           ...prev,
           commonName: parsed.commonName || prev.commonName,
           iupacName: parsed.iupacName || prev.iupacName,
-          synonyms: parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
+          synonyms:
+            parsed.synonyms.length > 0 ? parsed.synonyms : prev.synonyms,
           smiles: parsed.smiles || prev.smiles,
           inchi: parsed.inchi || prev.inchi,
           chemicalFormula: parsed.chemicalFormula || prev.chemicalFormula,
           casNumber: parsed.casNumber ?? prev.casNumber,
           pubchemCid: parsed.pubchemCid ?? prev.pubchemCid,
-          tagIds: parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
+          tagIds:
+            parsed.tagIds.length > 0 ? parsed.tagIds : (prev.tagIds ?? []),
         }));
         setPendingTags([]);
       } catch (err) {
@@ -399,10 +406,13 @@ export const MoleculeContributionForm = forwardRef<
       return;
     }
 
-    const polymerStructureCheck = validatePolymerStructureRequirement(formData, {
-      svgDataUrl,
-      sketchState: { bookends: sketchBookends },
-    });
+    const polymerStructureCheck = validatePolymerStructureRequirement(
+      formData,
+      {
+        svgDataUrl,
+        sketchState: { bookends: sketchBookends },
+      },
+    );
     if (!polymerStructureCheck.ok) {
       setStructureValidationError(polymerStructureCheck.message);
       setSubmitStatus({
@@ -764,7 +774,9 @@ export const MoleculeContributionForm = forwardRef<
               <InputGroup variant="secondary" fullWidth>
                 <InputGroup.Input
                   placeholder={
-                    compoundKind === "polymer" ? "C8H8 repeat unit" : "C82H86F4N8O2S5"
+                    compoundKind === "polymer"
+                      ? "C8H8 repeat unit"
+                      : "C82H86F4N8O2S5"
                   }
                   autoComplete="off"
                 />
@@ -793,7 +805,9 @@ export const MoleculeContributionForm = forwardRef<
               structureValidationError={structureValidationError}
               onSketchBookendsChange={handleSketchBookendsChange}
               onLookupIdentifiers={handleLookupIdentifiersFromStructure}
-              onStructureLookupContextChange={handleStructureLookupContextChange}
+              onStructureLookupContextChange={
+                handleStructureLookupContextChange
+              }
               lookupIdentifiersBusy={structureLookupBusy}
             />
           </Card.Content>
@@ -812,7 +826,9 @@ export const MoleculeContributionForm = forwardRef<
             variant="primary"
             isDisabled={isSubmitting || hasUnappliedMatch}
             className="focus-visible:ring-accent inline-flex items-center gap-2 focus:outline-none focus-visible:ring-2"
-            aria-label={isSubmitting ? "Saving registry entry" : "Save registry entry"}
+            aria-label={
+              isSubmitting ? "Saving registry entry" : "Save registry entry"
+            }
           >
             {isSubmitting ? (
               <>
@@ -823,7 +839,9 @@ export const MoleculeContributionForm = forwardRef<
               <>
                 <DocumentArrowUpIcon className="h-4 w-4 shrink-0" />
                 <span>
-                  {editingMoleculeId ? "Save registry entry" : "Create registry entry"}
+                  {editingMoleculeId
+                    ? "Save registry entry"
+                    : "Create registry entry"}
                 </span>
               </>
             )}

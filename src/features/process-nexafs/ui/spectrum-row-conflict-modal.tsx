@@ -75,7 +75,9 @@ function formatChannelSummary(group: {
     group.massabsorption !== undefined
       ? `mass abs ${formatOptionalChannel(group.massabsorption)}`
       : null,
-    group.beta !== undefined ? `beta ${formatOptionalChannel(group.beta)}` : null,
+    group.beta !== undefined
+      ? `beta ${formatOptionalChannel(group.beta)}`
+      : null,
   ].filter((value): value is string => value !== null);
   return channels.join(" · ");
 }
@@ -105,7 +107,7 @@ export function SpectrumEnergyConflictBanner({
     <div
       role="alert"
       aria-live="polite"
-      className="border-danger mb-3 flex flex-col gap-3 rounded-lg border bg-danger/10 px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
+      className="border-danger bg-danger/10 mb-3 flex flex-col gap-3 rounded-lg border px-3 py-3 sm:flex-row sm:items-center sm:justify-between"
     >
       <div className="flex min-w-0 items-start gap-3">
         <span className="bg-danger-soft-hover text-danger mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
@@ -148,9 +150,7 @@ export function SpectrumRowConflictModal({
 }: SpectrumRowConflictModalProps) {
   const [selections, setSelections] = useState<
     Map<string, SpectrumEnergyConflictResolutionChoice>
-  >(
-    () => new Map(),
-  );
+  >(() => new Map());
 
   useEffect(() => {
     if (!isOpen) return;
@@ -209,9 +209,14 @@ export function SpectrumRowConflictModal({
             continue;
           }
           const targetRow =
-            pick === "first" ? group.rows[0] : group.rows[group.rows.length - 1];
+            pick === "first"
+              ? group.rows[0]
+              : group.rows[group.rows.length - 1];
           if (targetRow) {
-            next.set(key, { kind: "keep-row", pointIndex: targetRow.pointIndex });
+            next.set(key, {
+              kind: "keep-row",
+              pointIndex: targetRow.pointIndex,
+            });
           }
         }
         return next;
@@ -275,137 +280,151 @@ export function SpectrumRowConflictModal({
         </div>
 
         <div className="space-y-5">
-          {[...groupsByGeometry.entries()].map(([geometryKey, geometryGroups]) => {
-            const representative = geometryGroups[0];
-            const theta = representative?.theta ?? Number.NaN;
-            const phi = representative?.phi ?? Number.NaN;
-            return (
-              <section
-                key={geometryKey}
-                aria-labelledby={`conflict-geometry-${geometryKey}`}
-                className="border-border rounded-lg border"
-              >
-                <div
-                  id={`conflict-geometry-${geometryKey}`}
-                  className="border-border bg-surface-secondary border-b px-3 py-2 text-sm font-semibold"
+          {[...groupsByGeometry.entries()].map(
+            ([geometryKey, geometryGroups]) => {
+              const representative = geometryGroups[0];
+              const theta = representative?.theta ?? Number.NaN;
+              const phi = representative?.phi ?? Number.NaN;
+              return (
+                <section
+                  key={geometryKey}
+                  aria-labelledby={`conflict-geometry-${geometryKey}`}
+                  className="border-border rounded-lg border"
                 >
-                  {groupGeometryLabel(theta, phi)}
-                </div>
-                <div className="divide-border divide-y">
-                  {geometryGroups.map((group) => {
-                    const groupKey = spectrumEnergyConflictGroupKey(
-                      group.theta,
-                      group.phi,
-                      group.energy,
-                    );
-                    const selectedChoice = selections.get(groupKey);
-                    const averageRow = averageSpectrumEnergyConflictRows(
-                      group.rows.map((row) => ({
-                        ...row,
-                        energy: group.energy,
-                        theta: row.theta,
-                        phi: row.phi,
-                      })),
-                    );
-                    return (
-                      <div key={groupKey} className="space-y-2 px-3 py-3">
-                        <Label className="text-foreground block text-sm font-medium">
-                          {formatStatNumber(group.energy)} eV
-                        </Label>
-                        <div
-                          role="radiogroup"
-                          aria-label={`Keep one row at ${group.energy} eV for ${groupGeometryLabel(group.theta, group.phi)}`}
-                          className="space-y-2"
-                        >
-                          {group.rows.map((row) => {
-                            const choice: SpectrumEnergyConflictResolutionChoice = {
-                              kind: "keep-row",
-                              pointIndex: row.pointIndex,
-                            };
-                            const inputId = choiceInputId(groupKey, choice);
-                            const checked = choicesEqual(selectedChoice, choice);
-                            return (
+                  <div
+                    id={`conflict-geometry-${geometryKey}`}
+                    className="border-border bg-surface-secondary border-b px-3 py-2 text-sm font-semibold"
+                  >
+                    {groupGeometryLabel(theta, phi)}
+                  </div>
+                  <div className="divide-border divide-y">
+                    {geometryGroups.map((group) => {
+                      const groupKey = spectrumEnergyConflictGroupKey(
+                        group.theta,
+                        group.phi,
+                        group.energy,
+                      );
+                      const selectedChoice = selections.get(groupKey);
+                      const averageRow = averageSpectrumEnergyConflictRows(
+                        group.rows.map((row) => ({
+                          ...row,
+                          energy: group.energy,
+                          theta: row.theta,
+                          phi: row.phi,
+                        })),
+                      );
+                      return (
+                        <div key={groupKey} className="space-y-2 px-3 py-3">
+                          <Label className="text-foreground block text-sm font-medium">
+                            {formatStatNumber(group.energy)} eV
+                          </Label>
+                          <div
+                            role="radiogroup"
+                            aria-label={`Keep one row at ${group.energy} eV for ${groupGeometryLabel(group.theta, group.phi)}`}
+                            className="space-y-2"
+                          >
+                            {group.rows.map((row) => {
+                              const choice: SpectrumEnergyConflictResolutionChoice =
+                                {
+                                  kind: "keep-row",
+                                  pointIndex: row.pointIndex,
+                                };
+                              const inputId = choiceInputId(groupKey, choice);
+                              const checked = choicesEqual(
+                                selectedChoice,
+                                choice,
+                              );
+                              return (
+                                <label
+                                  key={inputId}
+                                  htmlFor={inputId}
+                                  className={`border-border flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-sm ${
+                                    checked
+                                      ? "border-accent bg-accent/10"
+                                      : "bg-surface"
+                                  }`}
+                                >
+                                  <input
+                                    id={inputId}
+                                    type="radio"
+                                    name={groupKey}
+                                    className="mt-1"
+                                    checked={checked}
+                                    onChange={() =>
+                                      setSelection(groupKey, choice)
+                                    }
+                                  />
+                                  <span className="min-w-0 flex-1">
+                                    <span className="text-foreground block font-medium">
+                                      {group.rows.length === 2 &&
+                                      row === group.rows[0]
+                                        ? `First row (${row.pointIndex + 1})`
+                                        : group.rows.length === 2 &&
+                                            row === group.rows[1]
+                                          ? `Second row (${row.pointIndex + 1})`
+                                          : `Row ${row.pointIndex + 1}`}
+                                    </span>
+                                    <span className="text-muted mt-0.5 block text-xs">
+                                      {groupGeometryLabel(row.theta, row.phi)}
+                                    </span>
+                                    <span className="text-muted mt-0.5 block text-xs">
+                                      {formatChannelSummary(row)}
+                                    </span>
+                                  </span>
+                                </label>
+                              );
+                            })}
+                            {averageRow ? (
                               <label
-                                key={inputId}
-                                htmlFor={inputId}
+                                htmlFor={choiceInputId(groupKey, {
+                                  kind: "average",
+                                })}
                                 className={`border-border flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-sm ${
-                                  checked
+                                  choicesEqual(selectedChoice, {
+                                    kind: "average",
+                                  })
                                     ? "border-accent bg-accent/10"
                                     : "bg-surface"
                                 }`}
                               >
                                 <input
-                                  id={inputId}
+                                  id={choiceInputId(groupKey, {
+                                    kind: "average",
+                                  })}
                                   type="radio"
                                   name={groupKey}
                                   className="mt-1"
-                                  checked={checked}
+                                  checked={choicesEqual(selectedChoice, {
+                                    kind: "average",
+                                  })}
                                   onChange={() =>
-                                    setSelection(groupKey, choice)
+                                    setSelection(groupKey, { kind: "average" })
                                   }
                                 />
                                 <span className="min-w-0 flex-1">
                                   <span className="text-foreground block font-medium">
-                                    {group.rows.length === 2 && row === group.rows[0]
-                                      ? `First row (${row.pointIndex + 1})`
-                                      : group.rows.length === 2 &&
-                                          row === group.rows[1]
-                                        ? `Second row (${row.pointIndex + 1})`
-                                        : `Row ${row.pointIndex + 1}`}
+                                    Average merged row
                                   </span>
                                   <span className="text-muted mt-0.5 block text-xs">
-                                    {groupGeometryLabel(row.theta, row.phi)}
+                                    {formatChannelSummary(averageRow)}
                                   </span>
-                                  <span className="text-muted mt-0.5 block text-xs">
-                                    {formatChannelSummary(row)}
+                                  <span className="text-muted mt-1 block text-[11px]">
+                                    Averaged across {group.rows.length}{" "}
+                                    conflicting row
+                                    {group.rows.length === 1 ? "" : "s"}.
                                   </span>
                                 </span>
                               </label>
-                            );
-                          })}
-                          {averageRow ? (
-                            <label
-                              htmlFor={choiceInputId(groupKey, { kind: "average" })}
-                              className={`border-border flex cursor-pointer items-start gap-3 rounded-md border px-3 py-2 text-sm ${
-                                choicesEqual(selectedChoice, { kind: "average" })
-                                  ? "border-accent bg-accent/10"
-                                  : "bg-surface"
-                              }`}
-                            >
-                              <input
-                                id={choiceInputId(groupKey, { kind: "average" })}
-                                type="radio"
-                                name={groupKey}
-                                className="mt-1"
-                                checked={choicesEqual(selectedChoice, {
-                                  kind: "average",
-                                })}
-                                onChange={() =>
-                                  setSelection(groupKey, { kind: "average" })
-                                }
-                              />
-                              <span className="min-w-0 flex-1">
-                                <span className="text-foreground block font-medium">
-                                  Average merged row
-                                </span>
-                                <span className="text-muted mt-0.5 block text-xs">
-                                  {formatChannelSummary(averageRow)}
-                                </span>
-                                <span className="text-muted mt-1 block text-[11px]">
-                                  Averaged across {group.rows.length} conflicting row
-                                  {group.rows.length === 1 ? "" : "s"}.
-                                </span>
-                              </span>
-                            </label>
-                          ) : null}
+                            ) : null}
+                          </div>
                         </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </section>
-            );
-          })}
+                      );
+                    })}
+                  </div>
+                </section>
+              );
+            },
+          )}
         </div>
 
         <div className="flex justify-end gap-2 pt-2">

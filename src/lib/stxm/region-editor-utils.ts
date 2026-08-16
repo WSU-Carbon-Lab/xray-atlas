@@ -15,11 +15,18 @@ export type RegionDragState =
   | { kind: "region"; index: number; edge: "lo" | "hi" }
   | null;
 
-export function clampRegionValue(value: number, min: number, max: number): number {
+export function clampRegionValue(
+  value: number,
+  min: number,
+  max: number,
+): number {
   return Math.min(Math.max(value, min), max);
 }
 
-export function regionDisplayLabel(region: StxmSampleRegion, index: number): string {
+export function regionDisplayLabel(
+  region: StxmSampleRegion,
+  index: number,
+): string {
   const label = region.spotLabel.trim();
   return label.length > 0 ? label : `Region ${index + 1}`;
 }
@@ -30,7 +37,10 @@ export function findRegionDragTarget(
   izero: StxmIzeroBounds,
   regions: StxmSampleRegion[],
 ): NonNullable<RegionDragState> | null {
-  const candidates: Array<{ distance: number; drag: NonNullable<RegionDragState> }> = [
+  const candidates: Array<{
+    distance: number;
+    drag: NonNullable<RegionDragState>;
+  }> = [
     { distance: Math.abs(sample - izero.izeroLo), drag: { kind: "izero-lo" } },
     { distance: Math.abs(sample - izero.izeroHi), drag: { kind: "izero-hi" } },
   ];
@@ -127,6 +137,11 @@ export function setPureRegionRole(
 ): StxmSampleRegion[] {
   return regions.map((region) => ({
     ...region,
-    role: region.id === pureRegionId ? "pure" : region.role === "pure" ? "custom" : region.role,
+    role:
+      region.id === pureRegionId
+        ? "pure"
+        : region.role === "pure"
+          ? "custom"
+          : region.role,
   }));
 }

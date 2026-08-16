@@ -13,7 +13,9 @@ let nexafsAuxUploadDefaults: NexafsAuxUploadDefaults = {
 /**
  * Updates shared aux upload defaults used by global drag-drop and compact drop zones.
  */
-export function setNexafsAuxUploadDefaults(next: NexafsAuxUploadDefaults): void {
+export function setNexafsAuxUploadDefaults(
+  next: NexafsAuxUploadDefaults,
+): void {
   nexafsAuxUploadDefaults = next;
 }
 

@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import type { StxmIzeroBounds, StxmSampleRegion } from "~/lib/stxm/stxm-region-types";
+import type {
+  StxmIzeroBounds,
+  StxmSampleRegion,
+} from "~/lib/stxm/stxm-region-types";
 import { STXM_IZERO_COLOR } from "~/lib/stxm/region-colors";
 import {
   computeRowSums,
@@ -101,7 +104,13 @@ export function StxmRowSumTrace({
 
     const points: Array<{ x: number; y: number }> = [];
     for (let row = 0; row < rows; row += 1) {
-      const x = rowSumToTraceX(rowSums[row] ?? 0, vmin, vmax, plotLeft, plotWidth);
+      const x = rowSumToTraceX(
+        rowSums[row] ?? 0,
+        vmin,
+        vmax,
+        plotLeft,
+        plotWidth,
+      );
       const y = rowCenterPx(row, rows, height, qaxisPoints, sampleMin, yToPx);
       points.push({ x, y });
     }

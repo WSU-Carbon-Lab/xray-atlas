@@ -145,9 +145,7 @@ function PlotDataRailTrayTrigger<
   channelUnavailableDescription?: (id: TChannelId) => string | undefined;
   multiSelectMode?: boolean;
   traySelectedChannelIds?: ReadonlySet<TChannelId>;
-  onTraySelectedChannelIdsChange?: (
-    ids: ReadonlySet<TChannelId>,
-  ) => void;
+  onTraySelectedChannelIdsChange?: (ids: ReadonlySet<TChannelId>) => void;
 }) {
   const tray = definition.trays.find((t) => t.id === trayId);
   const popoverRows = useMemo(
@@ -334,9 +332,7 @@ function PlotDataRailTrayTrigger<
       );
 
   const pickerPortal =
-    isTrayOpen &&
-    menuPos != null &&
-    typeof document !== "undefined"
+    isTrayOpen && menuPos != null && typeof document !== "undefined"
       ? createPortal(
           <div
             ref={menuRef}
@@ -382,7 +378,7 @@ function PlotDataRailTrayTrigger<
                             }
                           >
                             <span
-                              className="font-mono text-xs font-semibold leading-none"
+                              className="font-mono text-xs leading-none font-semibold"
                               aria-hidden
                             >
                               {ch.glyph}
@@ -425,7 +421,7 @@ function PlotDataRailTrayTrigger<
           )}
         >
           <span
-            className="font-mono text-xs font-semibold leading-none"
+            className="font-mono text-xs leading-none font-semibold"
             aria-hidden
           >
             {rowGlyph}
@@ -548,9 +544,7 @@ export function PlotDataViewRail<
   );
 
   const showLinkSegments =
-    linkState != null &&
-    onLinkStateChange != null &&
-    (links?.length ?? 0) > 0;
+    linkState != null && onLinkStateChange != null && (links?.length ?? 0) > 0;
 
   type StackSegment =
     | { kind: "tray"; trayId: TTrayId }
@@ -604,7 +598,8 @@ export function PlotDataViewRail<
             const segmentClassName = plotToolbarBasisSegmentClass(
               basisSegmentPosition(basisSegmentIndex++, basisSegmentCount),
             );
-            const isMultiSelectTray = multiSelectTrayIds?.includes(trayId) ?? false;
+            const isMultiSelectTray =
+              multiSelectTrayIds?.includes(trayId) ?? false;
             const multiSelectedForTray = traySelectedChannelIds?.[trayId];
             return (
               <PlotDataRailTrayTrigger
@@ -648,8 +643,9 @@ export function PlotDataViewRail<
                 }}
                 segmentClassName={segmentClassName}
                 renderPopoverTrailing={
-                  renderTrayPopoverTrailing?.(trayId, () => setOpenTrayId(null)) ??
-                  null
+                  renderTrayPopoverTrailing?.(trayId, () =>
+                    setOpenTrayId(null),
+                  ) ?? null
                 }
                 channelUnavailableDescription={channelUnavailableDescription}
                 multiSelectMode={isMultiSelectTray}

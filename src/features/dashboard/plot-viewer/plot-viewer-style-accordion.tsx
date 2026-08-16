@@ -18,7 +18,10 @@ import type {
   PlotViewerExperimentColorMode,
   PlotViewerTraceStyleOverride,
 } from "./plot-viewer-style-overrides";
-import type { PlotViewerLineDash, PlotViewerMarkerSymbol } from "./plot-viewer-trace-styles";
+import type {
+  PlotViewerLineDash,
+  PlotViewerMarkerSymbol,
+} from "./plot-viewer-trace-styles";
 
 const ENCODINGS_ITEM_ID = "encodings";
 
@@ -26,39 +29,40 @@ function experimentAccordionId(experimentId: string): string {
   return `plot-viewer-style-${experimentId}`;
 }
 
-export type PlotViewerStyleAccordionProps = PlotViewerStyleMappingControlsProps & {
-  experimentItems: readonly PlotViewerExperimentStyleItem[];
-  onExperimentColorModeChange: (
-    experimentId: string,
-    mode: PlotViewerExperimentColorMode,
-    fixedColor: string | null,
-  ) => void;
-  onExperimentLineDashChange: (
-    experimentId: string,
-    lineDash: PlotViewerLineDash | null,
-  ) => void;
-  onExperimentLineWidthChange: (
-    experimentId: string,
-    lineWidth: number | null,
-  ) => void;
-  onExperimentMarkerChange: (
-    experimentId: string,
-    marker: PlotViewerMarkerSymbol | null,
-  ) => void;
-  onExperimentMarkerSizeChange: (
-    experimentId: string,
-    markerSize: number | null,
-  ) => void;
-  onExperimentMarkerEveryChange: (
-    experimentId: string,
-    markerEvery: number | null,
-  ) => void;
-  onTraceStyleOverrideChange: (
-    traceKey: string,
-    patch: Partial<PlotViewerTraceStyleOverride>,
-    clearKeys?: readonly (keyof PlotViewerTraceStyleOverride)[],
-  ) => void;
-};
+export type PlotViewerStyleAccordionProps =
+  PlotViewerStyleMappingControlsProps & {
+    experimentItems: readonly PlotViewerExperimentStyleItem[];
+    onExperimentColorModeChange: (
+      experimentId: string,
+      mode: PlotViewerExperimentColorMode,
+      fixedColor: string | null,
+    ) => void;
+    onExperimentLineDashChange: (
+      experimentId: string,
+      lineDash: PlotViewerLineDash | null,
+    ) => void;
+    onExperimentLineWidthChange: (
+      experimentId: string,
+      lineWidth: number | null,
+    ) => void;
+    onExperimentMarkerChange: (
+      experimentId: string,
+      marker: PlotViewerMarkerSymbol | null,
+    ) => void;
+    onExperimentMarkerSizeChange: (
+      experimentId: string,
+      markerSize: number | null,
+    ) => void;
+    onExperimentMarkerEveryChange: (
+      experimentId: string,
+      markerEvery: number | null,
+    ) => void;
+    onTraceStyleOverrideChange: (
+      traceKey: string,
+      patch: Partial<PlotViewerTraceStyleOverride>,
+      clearKeys?: readonly (keyof PlotViewerTraceStyleOverride)[],
+    ) => void;
+  };
 
 /**
  * Collapsible trace style settings: global encodings plus one accordion row per selected experiment.
@@ -75,15 +79,18 @@ export const PlotViewerStyleAccordion = memo(function PlotViewerStyleAccordion({
   onTraceStyleOverrideChange,
   ...mappingProps
 }: PlotViewerStyleAccordionProps) {
-  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(
-    () => readPlotViewerStyleAccordionExpandedKeys(),
+  const [expandedKeys, setExpandedKeys] = useState<Set<string>>(() =>
+    readPlotViewerStyleAccordionExpandedKeys(),
   );
 
-  const handleExpandedChange = useCallback((keys: Iterable<string | number>) => {
-    const next = new Set([...keys].map(String));
-    setExpandedKeys(next);
-    writePlotViewerStyleAccordionExpandedKeys(next);
-  }, []);
+  const handleExpandedChange = useCallback(
+    (keys: Iterable<string | number>) => {
+      const next = new Set([...keys].map(String));
+      setExpandedKeys(next);
+      writePlotViewerStyleAccordionExpandedKeys(next);
+    },
+    [],
+  );
 
   if (experimentItems.length === 0) {
     return null;
@@ -113,7 +120,7 @@ export const PlotViewerStyleAccordion = memo(function PlotViewerStyleAccordion({
           </Accordion.Trigger>
         </Accordion.Heading>
         <Accordion.Panel>
-          <Accordion.Body className="px-3 pb-2.5 pt-0.5">
+          <Accordion.Body className="px-3 pt-0.5 pb-2.5">
             <PlotViewerStyleMappingControls {...mappingProps} />
           </Accordion.Body>
         </Accordion.Panel>
@@ -146,7 +153,7 @@ export const PlotViewerStyleAccordion = memo(function PlotViewerStyleAccordion({
             </Accordion.Trigger>
           </Accordion.Heading>
           <Accordion.Panel>
-            <Accordion.Body className="px-2 pb-2 pt-1">
+            <Accordion.Body className="px-2 pt-1 pb-2">
               <PlotViewerExperimentTraceStyles
                 item={item}
                 onColorModeChange={onExperimentColorModeChange}

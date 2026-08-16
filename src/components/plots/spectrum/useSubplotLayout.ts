@@ -227,11 +227,7 @@ export function useSubplotLayout(
       );
     } else if (absorptionStats?.min != null && absorptionStats?.max != null) {
       mainAbsorptionDomain = yDomainWithMandatoryZeroForDelta(
-        linearYDomainWithPadding(
-          absorptionStats.min,
-          absorptionStats.max,
-          0.1,
-        ),
+        linearYDomainWithPadding(absorptionStats.min, absorptionStats.max, 0.1),
         yAxisQuantity,
       );
     } else {

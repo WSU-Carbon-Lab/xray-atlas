@@ -3,8 +3,7 @@
  * contribute form and server image pipeline.
  */
 
-export const MOLECULE_STRUCTURE_SVG_ACCEPT =
-  "image/svg+xml,.svg" as const;
+export const MOLECULE_STRUCTURE_SVG_ACCEPT = "image/svg+xml,.svg" as const;
 
 export const MOLECULE_STRUCTURE_SVG_MIME = "image/svg+xml" as const;
 
@@ -55,7 +54,10 @@ export function assertMoleculeStructureSvgUpload(
       `SVG size exceeds maximum allowed size of ${maxBytes / 1024 / 1024}MB`,
     );
   }
-  const head = buffer.subarray(0, Math.min(buffer.length, 4096)).toString("utf8").trim();
+  const head = buffer
+    .subarray(0, Math.min(buffer.length, 4096))
+    .toString("utf8")
+    .trim();
   if (!head.includes("<svg") && !head.includes("<?xml")) {
     throw new Error("Uploaded file is not valid SVG markup.");
   }

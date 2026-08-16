@@ -81,7 +81,9 @@ function ContributorRoleSelect({
       className="min-w-0 flex-1"
     >
       <Select.Trigger className="h-7 min-h-0 min-w-0 px-2">
-        <Select.Value className="truncate text-xs">{selectedLabel}</Select.Value>
+        <Select.Value className="truncate text-xs">
+          {selectedLabel}
+        </Select.Value>
         <Select.Indicator />
       </Select.Trigger>
       <Select.Popover>
@@ -137,9 +139,7 @@ export function ContributorHoverCard({
   const name = userDisplayName(user);
   const orcidValue = userOrcid(user);
   const roleLabel =
-    user.hoverRoleLabel?.trim() ??
-    user.tooltipSubtitle?.trim() ??
-    null;
+    user.hoverRoleLabel?.trim() ?? user.tooltipSubtitle?.trim() ?? null;
   const showOrcidOnlyName =
     user.isAtlasProfile === false && Boolean(orcidValue) && name === orcidValue;
   const imageUrl = normalizeProfileImageUrl(user.image);
@@ -161,7 +161,7 @@ export function ContributorHoverCard({
     >
       <div className="flex items-start gap-2">
         <ResearcherAvatar
-          displayName={showOrcidOnlyName ? orcidValue ?? name : name}
+          displayName={showOrcidOnlyName ? (orcidValue ?? name) : name}
           imageUrl={imageUrl}
           identitySeed={identitySeed(user)}
           isAtlasProfile={user.isAtlasProfile ?? Boolean(user.id?.trim())}
@@ -177,7 +177,7 @@ export function ContributorHoverCard({
           {user.id && !showOrcidOnlyName ? (
             <Link
               href={`/users/${user.id}`}
-              className="text-foreground focus-visible:ring-accent block truncate rounded-sm text-sm font-semibold transition-colors hover:text-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+              className="text-foreground focus-visible:ring-accent hover:text-accent block truncate rounded-sm text-sm font-semibold transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
               aria-label={`View ${name}'s profile`}
               title={name}
             >
@@ -220,7 +220,10 @@ export function ContributorHoverCard({
             </a>
           ) : (
             <p className="text-muted mt-1 inline-flex min-w-0 items-center gap-1 font-mono text-xs tabular-nums">
-              <ORCIDIcon className="h-3 w-3 shrink-0 opacity-70" authenticated />
+              <ORCIDIcon
+                className="h-3 w-3 shrink-0 opacity-70"
+                authenticated
+              />
               <span className="min-w-0 truncate">Not linked</span>
             </p>
           )}

@@ -18,7 +18,7 @@ type OrcidPersonJson = {
   } | null;
   addresses?: {
     address?: Array<{
-      "country"?: { value?: string | null } | null;
+      country?: { value?: string | null } | null;
     }> | null;
   } | null;
 };

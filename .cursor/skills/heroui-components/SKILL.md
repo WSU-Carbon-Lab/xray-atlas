@@ -19,8 +19,8 @@ Use with **typescript-web** spec and **heroui-theme** rule. **web-accessibility*
 
 ## Reference index
 
-| Topic | File |
-|--------|------|
+| Topic                                | File                                                                |
+| ------------------------------------ | ------------------------------------------------------------------- |
 | Imports, theme, Tailwind coexistence | [reference-theme-imports.md](references/reference-theme-imports.md) |
 
 ## Delegation

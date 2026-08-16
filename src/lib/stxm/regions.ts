@@ -213,7 +213,10 @@ function segmentSpatialRegions(
       return {
         rowLabels,
         labelNames: [
-          ...Array.from({ length: nSampleParts }, (_, index) => `sample_${index + 1}`),
+          ...Array.from(
+            { length: nSampleParts },
+            (_, index) => `sample_${index + 1}`,
+          ),
           "edge",
           "izero",
         ],
@@ -269,7 +272,9 @@ export function segmentedRegionBoundsFromImage(
     randomState,
   );
   const izeroLabel = Math.max(...rowLabels);
-  const sampleLabelCount = labelNames.filter((name) => name.startsWith("sample")).length;
+  const sampleLabelCount = labelNames.filter((name) =>
+    name.startsWith("sample"),
+  ).length;
   const sampleRowsByLabel = new Map<number, number[]>();
   const izeroRows: number[] = [];
   for (let row = 0; row < nRows; row += 1) {
@@ -366,7 +371,12 @@ export function barBoundsFromThreeRegions(
     const yMax = Math.max(...spatialAxis);
     const span = yMax - yMin;
     const margin = span * 0.05;
-    return [yMin + span * 0.45, yMax - margin, yMin + margin, yMin + span * 0.35];
+    return [
+      yMin + span * 0.45,
+      yMax - margin,
+      yMin + margin,
+      yMin + span * 0.35,
+    ];
   }
   const { rowLabels } = segmentSpatialRegions(
     image,
@@ -415,7 +425,11 @@ function movingAverage(values: Float64Array, window: number): Float64Array {
   for (let i = 0; i < values.length; i += 1) {
     let sum = 0;
     let count = 0;
-    for (let j = Math.max(0, i - half); j <= Math.min(values.length - 1, i + half); j += 1) {
+    for (
+      let j = Math.max(0, i - half);
+      j <= Math.min(values.length - 1, i + half);
+      j += 1
+    ) {
       sum += values[j] ?? 0;
       count += 1;
     }
@@ -441,7 +455,12 @@ export function autoSampleIzeroRegions(
     const yMax = Math.max(...spatialAxis);
     const span = yMax - yMin;
     const margin = span * 0.05;
-    return [yMin + span * 0.45, yMax - margin, yMin + margin, yMin + span * 0.35];
+    return [
+      yMin + span * 0.45,
+      yMax - margin,
+      yMin + margin,
+      yMin + span * 0.35,
+    ];
   }
 
   const profileRaw = new Float64Array(n);
@@ -484,8 +503,14 @@ export function autoSampleIzeroRegions(
   let barIzeroHi: number;
 
   if (izeroOnLeft) {
-    const izeroEnd = Math.min(Math.max(cliffIdx - bufferPixels, minRegionPixels - 1), n - 2);
-    const sampleStart = Math.min(Math.max(cliffIdx + 1 + bufferPixels, 1), n - minRegionPixels);
+    const izeroEnd = Math.min(
+      Math.max(cliffIdx - bufferPixels, minRegionPixels - 1),
+      n - 2,
+    );
+    const sampleStart = Math.min(
+      Math.max(cliffIdx + 1 + bufferPixels, 1),
+      n - minRegionPixels,
+    );
     if (izeroEnd < sampleStart) {
       barIzeroLo = spatialAxis[0] ?? 0;
       barIzeroHi = spatialAxis[izeroEnd] ?? 0;
@@ -498,8 +523,14 @@ export function autoSampleIzeroRegions(
       barIzeroHi = spatialAxis[n - 1] ?? 0;
     }
   } else {
-    const sampleEnd = Math.min(Math.max(cliffIdx - bufferPixels, minRegionPixels - 1), n - 2);
-    const izeroStart = Math.min(Math.max(cliffIdx + 1 + bufferPixels, 1), n - minRegionPixels);
+    const sampleEnd = Math.min(
+      Math.max(cliffIdx - bufferPixels, minRegionPixels - 1),
+      n - 2,
+    );
+    const izeroStart = Math.min(
+      Math.max(cliffIdx + 1 + bufferPixels, 1),
+      n - minRegionPixels,
+    );
     if (sampleEnd < izeroStart) {
       barSampleLo = spatialAxis[0] ?? 0;
       barSampleHi = spatialAxis[sampleEnd] ?? 0;
@@ -705,7 +736,9 @@ export function detectSampleRegionsFromProfile(
   for (const splitRow of splitRows) {
     const segmentEnd = splitRow - 1;
     if (segmentEnd - segmentStart + 1 >= minRegionRows) {
-      segments.push(spatialBoundsForRows(spatialAxis, segmentStart, segmentEnd));
+      segments.push(
+        spatialBoundsForRows(spatialAxis, segmentStart, segmentEnd),
+      );
       segmentStart = splitRow;
     }
   }

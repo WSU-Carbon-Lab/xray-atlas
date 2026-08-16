@@ -21,7 +21,10 @@ import {
   shortestSynonymsFromOrdered,
 } from "./molecule-display-helpers";
 import { MoleculeImageSVG } from "./molecule-image-svg";
-import type { MoleculeCardContext, MoleculeCardProps } from "./molecule-card-types";
+import type {
+  MoleculeCardContext,
+  MoleculeCardProps,
+} from "./molecule-card-types";
 import { CompactCard } from "./molecule-compact-card";
 import { FullCard, FullCardCarousel } from "./molecule-full-card";
 import { HeaderCard } from "./molecule-header-card";

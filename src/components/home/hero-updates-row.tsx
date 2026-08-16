@@ -27,7 +27,7 @@ export function HeroUpdatesRow({
         icon={BookOpenIcon}
       />
       {blogAnnouncement ? (
-        <div className="flex min-w-0 max-w-full justify-center">
+        <div className="flex max-w-full min-w-0 justify-center">
           {blogAnnouncement}
         </div>
       ) : null}

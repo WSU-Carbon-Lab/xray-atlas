@@ -88,7 +88,10 @@ export type OpticalLinkSplitSpectrumBodyProps = {
   readonly isDark: boolean;
   readonly dataXBounds: [number, number];
   readonly zoomedXDomain: [number, number] | null;
-  readonly onMarqueeZoom: (xDomain: [number, number], yDomain: [number, number]) => void;
+  readonly onMarqueeZoom: (
+    xDomain: [number, number],
+    yDomain: [number, number],
+  ) => void;
   readonly onResetZoom: () => void;
   readonly peaks: readonly Peak[];
   readonly selectedPeakId: string | null;
@@ -111,13 +114,9 @@ export type OpticalLinkSplitSpectrumBodyProps = {
 function plotInnerSize(dimensions: PlotDimensions) {
   return {
     width:
-      dimensions.width -
-      dimensions.margins.left -
-      dimensions.margins.right,
+      dimensions.width - dimensions.margins.left - dimensions.margins.right,
     height:
-      dimensions.height -
-      dimensions.margins.top -
-      dimensions.margins.bottom,
+      dimensions.height - dimensions.margins.top - dimensions.margins.bottom,
   };
 }
 
@@ -272,20 +271,25 @@ export function OpticalLinkSplitSpectrumBody({
     [crosshairDotsForRole],
   );
 
-  const stackedPlotSpan =
-    realPanelOffsetY + realInner.height;
+  const stackedPlotSpan = realPanelOffsetY + realInner.height;
   const zoomMode: ZoomMode = "horizontal";
 
   const pinStemTop = imaginaryPlot.dimensions.margins.top;
   const pinStemBottom =
-    imaginaryPlot.dimensions.height + realPlot.dimensions.height -
+    imaginaryPlot.dimensions.height +
+    realPlot.dimensions.height -
     realPlot.dimensions.margins.bottom;
 
   return (
     <>
       <defs>
         <clipPath id={imaginaryClipId}>
-          <rect x={0} y={0} width={imaginaryInner.width} height={imaginaryInner.height} />
+          <rect
+            x={0}
+            y={0}
+            width={imaginaryInner.width}
+            height={imaginaryInner.height}
+          />
         </clipPath>
         <clipPath id={realClipId}>
           <rect x={0} y={0} width={realInner.width} height={realInner.height} />
@@ -330,16 +334,16 @@ export function OpticalLinkSplitSpectrumBody({
         </g>
 
         {normalizationRegions &&
-          (selectionTarget !== null || showNormalizationShading) ? (
-            <NormalizationRegionBands
-              normalizationRegions={normalizationRegions}
-              xScale={imaginaryScales.xScale}
-              offsetX={imaginaryPlot.dimensions.margins.left}
-              offsetY={imaginaryPlot.dimensions.margins.top}
-              height={stackedPlotSpan}
-              plotInnerWidth={imaginaryInner.width}
-            />
-          ) : null}
+        (selectionTarget !== null || showNormalizationShading) ? (
+          <NormalizationRegionBands
+            normalizationRegions={normalizationRegions}
+            xScale={imaginaryScales.xScale}
+            offsetX={imaginaryPlot.dimensions.margins.left}
+            offsetY={imaginaryPlot.dimensions.margins.top}
+            height={stackedPlotSpan}
+            plotInnerWidth={imaginaryInner.width}
+          />
+        ) : null}
 
         <g
           ref={panGroupRef}
@@ -486,8 +490,7 @@ export function OpticalLinkSplitSpectrumBody({
         {pins.map((pin) => {
           const gripActive = selectedPinId === pin.id;
           const xGlobal =
-            imaginaryPlot.dimensions.margins.left +
-            zoomedXScale(pin.energy);
+            imaginaryPlot.dimensions.margins.left + zoomedXScale(pin.energy);
           const crosshairColor = themeColors.crosshair ?? themeColors.text;
           return (
             <line

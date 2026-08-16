@@ -91,7 +91,11 @@ export function buildStructureLookupComponents(
     bookends?.close !== null &&
     bookends?.close !== undefined
   ) {
-    const extraction = extractBookendRegion(copy, bookends.open, bookends.close);
+    const extraction = extractBookendRegion(
+      copy,
+      bookends.open,
+      bookends.close,
+    );
     if (extraction.ok) {
       addComponent(
         components,
@@ -165,7 +169,13 @@ export function structureLookupComponentsFromSmiles(
 
   const repeatMatch = /\[<\](.*)\[\>\]/.exec(trimmed);
   if (repeatMatch?.[1]) {
-    addComponent(components, seen, "repeat_unit", repeatMatch[1], "Repeat unit");
+    addComponent(
+      components,
+      seen,
+      "repeat_unit",
+      repeatMatch[1],
+      "Repeat unit",
+    );
   }
 
   return components;

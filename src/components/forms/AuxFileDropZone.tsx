@@ -11,7 +11,13 @@ import {
   TextField,
 } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { FileIcon, FileSpreadsheet, FileText, ImageIcon, X } from "lucide-react";
+import {
+  FileIcon,
+  FileSpreadsheet,
+  FileText,
+  ImageIcon,
+  X,
+} from "lucide-react";
 import {
   AUX_FILE_KIND_LABELS,
   AUX_FILE_KINDS,
@@ -195,8 +201,7 @@ export function AuxFileDropZone({
 
   const globalDropState = useOptionalGlobalFileDropZoneContext();
   const showGlobalOverlay = Boolean(
-    globalDropZoneId &&
-      globalDropState?.showOverlayForZone(globalDropZoneId),
+    globalDropZoneId && globalDropState?.showOverlayForZone(globalDropZoneId),
   );
 
   const pendingKind = pendingKindProp ?? localKind;
@@ -332,10 +337,7 @@ export function AuxFileDropZone({
     !showGlobalOverlay &&
     (hasMultiFile || (isHovering && totalStackCount > 0));
   const sampleFilledZone =
-    isCompact &&
-    scope === "sample" &&
-    !showGlobalOverlay &&
-    hasMultiFile;
+    isCompact && scope === "sample" && !showGlobalOverlay && hasMultiFile;
 
   const dropTargetProps = globalDropZoneId
     ? globalDropZoneProps(globalDropZoneId)
@@ -450,9 +452,7 @@ export function AuxFileDropZone({
                 hasQueuedInStack ? "text-[11px]" : "text-xs",
               )}
             >
-              {hasQueuedInStack
-                ? "Add more files"
-                : "Drop or click to browse"}
+              {hasQueuedInStack ? "Add more files" : "Drop or click to browse"}
             </p>
             <p
               className={cn(
@@ -587,7 +587,7 @@ export function AuxFileDropZone({
         <div>
           <h3
             id={`${inputId}-heading`}
-            className="text-muted text-sm font-medium leading-none"
+            className="text-muted text-sm leading-none font-medium"
           >
             {title}
           </h3>
@@ -616,7 +616,7 @@ export function AuxFileDropZone({
       <div>
         <h2
           id={`${inputId}-heading`}
-          className="text-muted text-sm font-medium leading-none"
+          className="text-muted text-sm leading-none font-medium"
         >
           {title}
         </h2>

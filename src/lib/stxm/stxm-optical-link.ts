@@ -135,8 +135,7 @@ export function buildStxmOpticalLinkPlotConfig(
     stxmImaginaryRoleForLink(activeChannel) ??
     stxmImaginaryRoleForLink(companionChannel);
   const realRole =
-    stxmRealRoleForLink(activeChannel) ??
-    stxmRealRoleForLink(companionChannel);
+    stxmRealRoleForLink(activeChannel) ?? stxmRealRoleForLink(companionChannel);
   if (imaginaryRole == null || realRole == null) {
     return null;
   }

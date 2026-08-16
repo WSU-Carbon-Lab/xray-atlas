@@ -50,7 +50,9 @@ export function MoleculeRegistryFaviconLinks({
               />
             </Link>
           </Tooltip.Trigger>
-          <Tooltip.Content placement="top">Open in CAS Registry</Tooltip.Content>
+          <Tooltip.Content placement="top">
+            Open in CAS Registry
+          </Tooltip.Content>
         </Tooltip>
       ) : (
         <Tooltip delay={0}>
@@ -108,7 +110,9 @@ export function MoleculeRegistryFaviconLinks({
               unoptimized
             />
           </span>
-          <Tooltip.Content placement="top">PubChem not available</Tooltip.Content>
+          <Tooltip.Content placement="top">
+            PubChem not available
+          </Tooltip.Content>
         </Tooltip>
       )}
     </div>

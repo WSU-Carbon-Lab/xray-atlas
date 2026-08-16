@@ -110,7 +110,9 @@ async function fetchPubChemCidsForQuery(
   return cids;
 }
 
-const PUBCHEM_LISTKEY_POLL_MS = [400, 700, 1000, 1200, 1500, 1800, 2000] as const;
+const PUBCHEM_LISTKEY_POLL_MS = [
+  400, 700, 1000, 1200, 1500, 1800, 2000,
+] as const;
 
 /**
  * Polls a PubChem asynchronous list key until CIDs are ready or attempts exhaust.
@@ -635,7 +637,10 @@ export const externalRouter = createTRPCRouter({
       const requestedType = input.type;
 
       try {
-        if (requestedType === "cid" || (requestedType === "auto" && /^\d+$/.test(trimmed))) {
+        if (
+          requestedType === "cid" ||
+          (requestedType === "auto" && /^\d+$/.test(trimmed))
+        ) {
           const candidates = await fetchPubChemCandidateSummaries([trimmed]);
           return {
             ok: true as const,
@@ -866,8 +871,7 @@ export const externalRouter = createTRPCRouter({
         ) {
           finalCommonName =
             synonyms.find(
-              (synonym) =>
-                synonym.toLowerCase() !== pubChemTitle.toLowerCase(),
+              (synonym) => synonym.toLowerCase() !== pubChemTitle.toLowerCase(),
             ) ?? query;
         }
       } else if (iupacName && !isLikelyIUPACName(iupacName)) {

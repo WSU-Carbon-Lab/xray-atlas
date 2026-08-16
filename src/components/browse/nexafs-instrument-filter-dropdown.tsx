@@ -66,7 +66,11 @@ export function NexafsInstrumentFilterDropdown({
               </span>
             </BrowseFilterTrigger>
           )}
-          renderContent={({ contentPositionClassName, contentProps, close }) => (
+          renderContent={({
+            contentPositionClassName,
+            contentProps,
+            close,
+          }) => (
             <PopoverMenuContent
               {...contentProps}
               className={`${contentPositionClassName} max-h-[min(320px,50vh)] overflow-y-auto rounded-xl py-1`}

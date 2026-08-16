@@ -162,9 +162,9 @@ export function StxmIngestionPlotDataRail({
         resolveCompanionId: (id: StxmIngestionPlotChannel) =>
           resolveStxmLinkedCompanionChannel(id, true) ??
           (isStxmRealChannel(id)
-            ? (Object.entries(STXM_LINKED_IMAGINARY_TO_REAL).find(
+            ? ((Object.entries(STXM_LINKED_IMAGINARY_TO_REAL).find(
                 ([, real]) => real === id,
-              )?.[0] as StxmIngestionPlotChannel | undefined) ?? null
+              )?.[0] as StxmIngestionPlotChannel | undefined) ?? null)
             : null),
       },
     ],

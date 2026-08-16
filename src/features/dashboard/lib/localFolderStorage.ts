@@ -65,7 +65,8 @@ function openDirectoryDb(): Promise<IDBDatabase> {
       }
     };
     request.onsuccess = () => resolve(request.result);
-    request.onerror = () => reject(request.error ?? new Error("IndexedDB open failed"));
+    request.onerror = () =>
+      reject(request.error ?? new Error("IndexedDB open failed"));
   });
 }
 
@@ -162,9 +163,7 @@ export function resolveFolderHandleKey(
   proposedKey?: string,
 ): string {
   return (
-    findRecentFolderHandleKey(displayName) ??
-    proposedKey ??
-    crypto.randomUUID()
+    findRecentFolderHandleKey(displayName) ?? proposedKey ?? crypto.randomUUID()
   );
 }
 

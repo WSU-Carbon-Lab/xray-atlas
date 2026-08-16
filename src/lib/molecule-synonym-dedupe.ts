@@ -41,7 +41,10 @@ export function appendUniqueMoleculeSynonym(
   candidate: string,
 ): string[] {
   const normalized = normalizeMoleculeSynonym(candidate);
-  if (normalized.length === 0 || moleculeSynonymIsDuplicate(normalized, existing)) {
+  if (
+    normalized.length === 0 ||
+    moleculeSynonymIsDuplicate(normalized, existing)
+  ) {
     return [...existing];
   }
   return [...existing, normalized];

@@ -58,7 +58,7 @@ export function MoleculeCardSkeleton() {
 export function NexafsExperimentCompactSkeleton() {
   return (
     <div
-      className="border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:border-border-default dark:bg-zinc-800"
+      className="border-border-default dark:border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:bg-zinc-800"
       aria-hidden
     >
       <div className="flex w-full flex-col p-3 @md/nexafscard:flex-row @md/nexafscard:items-center @md/nexafscard:gap-4">
@@ -66,12 +66,12 @@ export function NexafsExperimentCompactSkeleton() {
           <LoadingSkeleton className="h-11 w-11 shrink-0 rounded-lg @md/nexafscard:h-14 @md/nexafscard:w-14" />
           <div className="flex min-w-0 flex-1 flex-col gap-1 overflow-hidden py-0.5">
             <div className="flex min-w-0 items-center gap-x-2">
-              <LoadingSkeleton className="h-4 min-w-0 max-w-[12rem] flex-1 rounded" />
+              <LoadingSkeleton className="h-4 max-w-[12rem] min-w-0 flex-1 rounded" />
               <LoadingSkeleton className="h-4 w-4 shrink-0 rounded" />
             </div>
             <div className="flex h-5 max-w-full flex-nowrap items-center gap-x-1.5 overflow-hidden">
               <LoadingSkeleton className="h-4.5 w-12 shrink-0 rounded-full" />
-              <LoadingSkeleton className="h-4.5 min-w-[4.5rem] max-w-[9rem] flex-1 rounded-full" />
+              <LoadingSkeleton className="h-4.5 max-w-[9rem] min-w-[4.5rem] flex-1 rounded-full" />
               <LoadingSkeleton className="h-4.5 w-10 shrink-0 rounded-full" />
             </div>
           </div>

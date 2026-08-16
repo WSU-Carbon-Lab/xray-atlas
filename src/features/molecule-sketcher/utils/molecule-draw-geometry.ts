@@ -549,7 +549,10 @@ export function hitTestMolecule(
   let bestAtom = -1;
   let bestAtomDist = Number.POSITIVE_INFINITY;
   for (let a = 0; a < mol.getAllAtoms(); a += 1) {
-    const p = moleculeToScreen(transform, { x: mol.getAtomX(a), y: mol.getAtomY(a) });
+    const p = moleculeToScreen(transform, {
+      x: mol.getAtomX(a),
+      y: mol.getAtomY(a),
+    });
     const d = Math.hypot(p.x - pointer.x, p.y - pointer.y);
     const radius = atomPointerHitRadiusPx(mol, a, atomRadiusPx);
     if (d <= radius && d < bestAtomDist) {
@@ -564,8 +567,14 @@ export function hitTestMolecule(
   for (let b = 0; b < mol.getBonds(); b += 1) {
     const a0 = mol.getBondAtom(0, b);
     const a1 = mol.getBondAtom(1, b);
-    const p0 = moleculeToScreen(transform, { x: mol.getAtomX(a0), y: mol.getAtomY(a0) });
-    const p1 = moleculeToScreen(transform, { x: mol.getAtomX(a1), y: mol.getAtomY(a1) });
+    const p0 = moleculeToScreen(transform, {
+      x: mol.getAtomX(a0),
+      y: mol.getAtomY(a0),
+    });
+    const p1 = moleculeToScreen(transform, {
+      x: mol.getAtomX(a1),
+      y: mol.getAtomY(a1),
+    });
     const trimStart = bondEndpointTrimRadiusPx(mol, a0, atomRadiusPx);
     const trimEnd = bondEndpointTrimRadiusPx(mol, a1, atomRadiusPx);
     const [bp0, bp1] = trimSegmentEnds(p0, p1, trimStart, trimEnd);
@@ -721,7 +730,10 @@ export function distancePointToSegment(
   if (len2 <= 1e-12) {
     return Math.hypot(p.x - a.x, p.y - a.y);
   }
-  const t = Math.max(0, Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2));
+  const t = Math.max(
+    0,
+    Math.min(1, ((p.x - a.x) * dx + (p.y - a.y) * dy) / len2),
+  );
   return Math.hypot(p.x - (a.x + t * dx), p.y - (a.y + t * dy));
 }
 
@@ -767,7 +779,8 @@ export function pickDefaultSproutPosition(
   let bestGap = -1;
   for (let i = 0; i < angles.length; i += 1) {
     const a0 = angles[i]!;
-    const a1 = i + 1 < angles.length ? angles[i + 1]! : angles[0]! + 2 * Math.PI;
+    const a1 =
+      i + 1 < angles.length ? angles[i + 1]! : angles[0]! + 2 * Math.PI;
     const gap = a1 - a0;
     if (gap > bestGap) {
       bestGap = gap;
@@ -787,8 +800,7 @@ export function snapSproutPosition(
 ): DrawPoint {
   const dx = toward.x - from.x;
   const dy = toward.y - from.y;
-  const angle =
-    Math.hypot(dx, dy) <= 1e-9 ? 0 : Math.atan2(dy, dx);
+  const angle = Math.hypot(dx, dy) <= 1e-9 ? 0 : Math.atan2(dy, dx);
   const step = Math.PI / 6;
   const snapped = Math.round(angle / step) * step;
   return {
@@ -840,7 +852,10 @@ function offsetBondSegment(
 /** Fraction trimmed from each end of the inner line on ring double bonds (OCL style). */
 const RING_INNER_DOUBLE_BOND_END_TRIM_FRACTION = 0.16;
 
-function bondRingAtomIndices(mol: Molecule, bondIndex: number): number[] | null {
+function bondRingAtomIndices(
+  mol: Molecule,
+  bondIndex: number,
+): number[] | null {
   if (!mol.isRingBond(bondIndex)) {
     return null;
   }
@@ -924,10 +939,7 @@ export function bondRenderSegments(
   }
   if (order === 2) {
     const half = offsetPx / 2;
-    return [
-      offsetBondSegment(p0, p1, half),
-      offsetBondSegment(p0, p1, -half),
-    ];
+    return [offsetBondSegment(p0, p1, half), offsetBondSegment(p0, p1, -half)];
   }
   return [
     offsetBondSegment(p0, p1, -offsetPx),
@@ -979,7 +991,9 @@ export function bondRenderSegmentsWithRingAwareness(
   }
   const bondLen = Math.hypot(p1.x - p0.x, p1.y - p0.y);
   const trimPx =
-    ringInteriorSign === null ? 0 : bondLen * RING_INNER_DOUBLE_BOND_END_TRIM_FRACTION;
+    ringInteriorSign === null
+      ? 0
+      : bondLen * RING_INNER_DOUBLE_BOND_END_TRIM_FRACTION;
   const inner = offsetBondSegment(p0, p1, interiorSign * (offsetPx / 2));
   const shortenedInner =
     trimPx > 0 ? trimSegmentEnds(inner[0], inner[1], trimPx, trimPx) : inner;
@@ -992,10 +1006,7 @@ export function bondRenderSegmentsWithRingAwareness(
   if (offsetMode === "inside" && ringInteriorSign === null) {
     return bondRenderSegments(p0, p1, order, offsetPx);
   }
-  return [
-    [p0, p1],
-    shortenedInner,
-  ];
+  return [[p0, p1], shortenedInner];
 }
 
 /** Cycles manual double-bond offset modes for draw-tool toggling. */

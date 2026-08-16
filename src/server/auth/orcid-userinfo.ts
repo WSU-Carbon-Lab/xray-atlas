@@ -12,7 +12,8 @@ function displayNameFromUserinfo(profile: OrcidUserinfoProfile): string | null {
   if (profile.name && profile.name.trim().length > 0) {
     return profile.name.trim();
   }
-  const combined = `${profile.given_name ?? ""} ${profile.family_name ?? ""}`.trim();
+  const combined =
+    `${profile.given_name ?? ""} ${profile.family_name ?? ""}`.trim();
   return combined.length > 0 ? combined : null;
 }
 

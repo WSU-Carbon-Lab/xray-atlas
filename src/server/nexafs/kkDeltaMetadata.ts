@@ -97,7 +97,9 @@ export function parseKkDeltaMetadata(raw: unknown): KkDeltaMetadata | null {
     source,
     calculatedAt,
     calculatedByUserId:
-      typeof row.calculatedByUserId === "string" ? row.calculatedByUserId : null,
+      typeof row.calculatedByUserId === "string"
+        ? row.calculatedByUserId
+        : null,
     engineLabel:
       typeof engineLabel === "string" && engineLabel.length > 0
         ? engineLabel

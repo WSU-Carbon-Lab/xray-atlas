@@ -43,7 +43,9 @@ export function isDisallowedDestinationIp(ip: string): boolean {
     if (lower.startsWith("fe80:")) return true;
     if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
     if (lower.startsWith("ff")) return true;
-    const mapped = /^::ffff:(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(lower);
+    const mapped = /^::ffff:(\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})$/.exec(
+      lower,
+    );
     if (mapped) {
       const o = mapped.slice(1, 5).map((x) => Number(x));
       return isDisallowedIpv4Parts(o);
@@ -98,7 +100,9 @@ function assertSafeHttpUrlShape(raw: string): URL {
   return u;
 }
 
-async function assertHostnameResolvesToPublicIps(hostname: string): Promise<void> {
+async function assertHostnameResolvesToPublicIps(
+  hostname: string,
+): Promise<void> {
   const kind = isIP(hostname);
   if (kind === 4 || kind === 6) {
     if (isDisallowedDestinationIp(hostname)) {

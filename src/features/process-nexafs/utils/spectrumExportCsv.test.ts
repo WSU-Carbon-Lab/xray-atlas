@@ -91,5 +91,4 @@ describe("buildNexafsSpectrumExportCsv", () => {
     expect(header.includes("bare_atom_mu")).toBe(false);
     expect(result.omittedBareAtomColumns).toBe(true);
   });
-
 });

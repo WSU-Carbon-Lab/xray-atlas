@@ -4,10 +4,7 @@ import { useMemo, useState } from "react";
 import { Tabs } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import { Plus } from "lucide-react";
-import {
-  PopoverMenu,
-  PopoverMenuContent,
-} from "~/components/ui/popover-menu";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import type { DashboardPreviewAtlasEntry } from "~/lib/dashboard-processing-session";
 import type { SpectrumPoint } from "~/components/plots/types";
 import { geometryKeysForPoints } from "~/features/dashboard/plot-viewer/geometry-selection";
@@ -23,7 +20,9 @@ export type LcfAddComponentPickerProps = {
   componentTraceKeys: readonly string[];
   candidates: readonly LcfTraceCandidate[];
   atlasEntries: readonly DashboardPreviewAtlasEntry[];
-  geometryByExperimentId: Readonly<Record<string, readonly string[] | undefined>>;
+  geometryByExperimentId: Readonly<
+    Record<string, readonly string[] | undefined>
+  >;
   spectraByExperimentId: ReadonlyMap<string, SpectrumPoint[]>;
   onAddComponent: (traceKey: string) => void;
   onAtlasEntriesChange: (entries: DashboardPreviewAtlasEntry[]) => void;
@@ -84,7 +83,9 @@ export function LcfAddComponentPicker({
   );
 
   const addAtlasExperiment = (group: NexafsBrowseGroup) => {
-    if (atlasEntries.some((entry) => entry.experimentId === group.experimentId)) {
+    if (
+      atlasEntries.some((entry) => entry.experimentId === group.experimentId)
+    ) {
       return;
     }
     const entry = atlasEntryFromBrowseGroup(group);
@@ -201,7 +202,7 @@ export function LcfAddComponentPicker({
               />
               {atlasCandidates.length > 0 ? (
                 <div>
-                  <p className="text-muted mb-1 text-[10px] font-medium uppercase tracking-wide">
+                  <p className="text-muted mb-1 text-[10px] font-medium tracking-wide uppercase">
                     Atlas traces
                   </p>
                   {renderCandidateList(
@@ -212,7 +213,8 @@ export function LcfAddComponentPicker({
                 </div>
               ) : atlasEntries.length > 0 ? (
                 <p className="text-muted text-xs">
-                  Loading Atlas spectra or no geometries on the active channel yet.
+                  Loading Atlas spectra or no geometries on the active channel
+                  yet.
                 </p>
               ) : null}
             </Tabs.Panel>

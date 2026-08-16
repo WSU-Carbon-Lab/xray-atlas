@@ -105,7 +105,11 @@ function linkedAreaBandSwatchInner(
   color: string,
   topVariant: "solid" | "dash",
   bottomVariant: "solid" | "dash",
-): { container: CSSProperties; topLine: CSSProperties; bottomLine: CSSProperties } {
+): {
+  container: CSSProperties;
+  topLine: CSSProperties;
+  bottomLine: CSSProperties;
+} {
   const bandHeight = SWATCH_BOX_HEIGHT - 2;
   const lineStyle = (variant: "solid" | "dash"): CSSProperties =>
     variant === "solid"
@@ -208,11 +212,7 @@ export function LegendSwatch({
   /** Axis or foreground stroke for a subtle swatch keyline (light-mode contrast). */
   contrastStroke?: string;
 }) {
-  if (
-    graphStyle === "line" &&
-    markerOnLine &&
-    variant !== "band"
-  ) {
+  if (graphStyle === "line" && markerOnLine && variant !== "band") {
     const parts = lineWithMarkerSwatchInner(
       color,
       variant === "solid" ? "solid" : "dash",

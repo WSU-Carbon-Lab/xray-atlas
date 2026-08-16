@@ -10,7 +10,10 @@ import {
   FolderOpenIcon,
 } from "@heroicons/react/24/outline";
 import { skipToken } from "@tanstack/react-query";
-import type { DatasetState, ExperimentTypeOption } from "~/features/process-nexafs";
+import type {
+  DatasetState,
+  ExperimentTypeOption,
+} from "~/features/process-nexafs";
 import { EXPERIMENT_TYPE_OPTIONS } from "~/features/process-nexafs/constants";
 import {
   normalizeExperimentMode,
@@ -119,8 +122,7 @@ function DescriptorTabContent({
     const raw = parsed.experimentMode?.trim() ?? null;
     const normalized = raw ? normalizeExperimentMode(raw) : null;
     const mapped =
-      normalized &&
-      EXPERIMENT_TYPE_OPTIONS.some((o) => o.value === normalized)
+      normalized && EXPERIMENT_TYPE_OPTIONS.some((o) => o.value === normalized)
         ? (normalized as ExperimentTypeOption)
         : null;
     const mappedLabel = mapped

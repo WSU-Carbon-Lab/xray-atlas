@@ -45,7 +45,10 @@ export function MoleculeDetailLayoutClient({
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <div className="py-8">
         <div className="mb-6">
-          <nav aria-label="Breadcrumb" className="text-sm text-gray-600 dark:text-gray-400">
+          <nav
+            aria-label="Breadcrumb"
+            className="text-sm text-gray-600 dark:text-gray-400"
+          >
             <ol className="flex flex-wrap items-center gap-2">
               <li>
                 <Link

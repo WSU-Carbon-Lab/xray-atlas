@@ -28,8 +28,7 @@ export function withOpticalLinkSplitPanelLineDash(
 ): TraceData[] {
   const dash = lineDashForOpticalSplitPanel(panelRole);
   return traces.map((trace) => {
-    const color =
-      trace.line?.color ?? trace.marker?.color ?? "#6b7280";
+    const color = trace.line?.color ?? trace.marker?.color ?? "#6b7280";
     const width =
       typeof trace.line?.width === "number"
         ? trace.line.width

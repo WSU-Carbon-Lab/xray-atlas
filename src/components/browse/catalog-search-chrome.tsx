@@ -194,7 +194,7 @@ export function CatalogSearchChrome({
           id={listboxId}
           role="listbox"
           aria-label="Search suggestions"
-          className="border-border bg-surface shadow-surface-2 absolute left-0 right-0 top-full z-50 mt-1 max-h-[min(480px,60vh)] overflow-y-auto rounded-xl border shadow-lg"
+          className="border-border bg-surface shadow-surface-2 absolute top-full right-0 left-0 z-50 mt-1 max-h-[min(480px,60vh)] overflow-y-auto rounded-xl border shadow-lg"
         >
           {dropdown}
         </div>

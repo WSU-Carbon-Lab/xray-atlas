@@ -11,9 +11,7 @@ import {
 } from "~/features/dashboard/lib/buildBeamtimeCatalog";
 import type { StxmDirectoryLayout } from "~/features/dashboard/lib/resolveDirectoryLayout";
 import type { StxmDirectoryHandle } from "~/features/dashboard/lib/localDirectoryBrowser";
-import {
-  queryDirectoryReadPermission,
-} from "~/features/dashboard/lib/localFolderStorage";
+import { queryDirectoryReadPermission } from "~/features/dashboard/lib/localFolderStorage";
 import type { StxmCatalogEntry } from "~/lib/stxm";
 import { catalogEntryEnrichmentStatus } from "~/lib/stxm";
 import { showToast } from "~/components/ui/toast";
@@ -209,7 +207,8 @@ export function useExperimentCatalogLoad(
         return;
       }
       if (permission === "denied" || permission === "prompt") {
-        const message = "Folder read permission is required to list scan files.";
+        const message =
+          "Folder read permission is required to list scan files.";
         finalizeSession(generation, experimentName, {
           state: "error",
           error: message,
@@ -354,8 +353,7 @@ export function useExperimentCatalogLoad(
                 progress.phase,
                 progress.fromCache,
               );
-              const backgroundRefresh =
-                checkpointPainted && !forceRefresh;
+              const backgroundRefresh = checkpointPainted && !forceRefresh;
               setSnapshot((previous) => ({
                 ...previous,
                 entries: mergeCatalogEntriesPreservingThumbnails(
@@ -444,7 +442,10 @@ export function useExperimentCatalogLoad(
         return;
       }
 
-      if (!isActiveSession(generation, experimentName) || entries.length === 0) {
+      if (
+        !isActiveSession(generation, experimentName) ||
+        entries.length === 0
+      ) {
         return;
       }
 

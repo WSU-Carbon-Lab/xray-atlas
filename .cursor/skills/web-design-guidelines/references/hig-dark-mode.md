@@ -18,20 +18,19 @@ Dark Mode is a system-wide appearance setting that uses a dark color palette to 
 ```typescript
 // Recommended dark background hierarchy
 const darkBackgrounds = {
-  base: "#0f172a",      // Slate 900 - main background
-  elevated: "#1e293b",  // Slate 800 - cards, modals
-  overlay: "#334155",   // Slate 700 - dropdowns, popovers
+  base: "#0f172a", // Slate 900 - main background
+  elevated: "#1e293b", // Slate 800 - cards, modals
+  overlay: "#334155", // Slate 700 - dropdowns, popovers
 };
 
 // Avoid pure black (#000000) - too harsh
 // Exception: OLED optimization where true black is intentional
 // OLED-optimized dark background hierarchy
 const oledDarkBackgrounds = {
-  base: "#000000",      // Pure black for main background
-  elevated: "#18181b",  // Slightly raised surfaces (zinc 900)
-  overlay: "#27272a",   // Further elevated surfaces (zinc 800)
+  base: "#000000", // Pure black for main background
+  elevated: "#18181b", // Slightly raised surfaces (zinc 900)
+  overlay: "#27272a", // Further elevated surfaces (zinc 800)
 };
-
 ```
 
 ### Surface Elevation
@@ -75,29 +74,29 @@ className={`
 
 ### Maintain Readable Contrast
 
-| Purpose | Light Mode | Dark Mode |
-|---------|------------|-----------|
-| Primary text | `#0f172a` | `#f8fafc` |
-| Secondary text | `#475569` | `#cbd5e1` |
-| Tertiary text | `#94a3b8` | `#64748b` |
-| Disabled text | `#cbd5e1` | `#475569` |
+| Purpose        | Light Mode | Dark Mode |
+| -------------- | ---------- | --------- |
+| Primary text   | `#0f172a`  | `#f8fafc` |
+| Secondary text | `#475569`  | `#cbd5e1` |
+| Tertiary text  | `#94a3b8`  | `#64748b` |
+| Disabled text  | `#cbd5e1`  | `#475569` |
 
 ```tsx
 // Always pair light and dark variants
-className="text-gray-900 dark:text-gray-100"
-className="text-gray-600 dark:text-gray-400"
-className="text-gray-400 dark:text-gray-500"
+className = "text-gray-900 dark:text-gray-100";
+className = "text-gray-600 dark:text-gray-400";
+className = "text-gray-400 dark:text-gray-500";
 ```
 
 ### Avoid Pure White Text
 
 ```tsx
 // Bad: Pure white can be too harsh
-className="dark:text-white"
+className = "dark:text-white";
 
 // Good: Slightly off-white for comfort
-className="dark:text-gray-100"
-className="dark:text-slate-100"
+className = "dark:text-gray-100";
+className = "dark:text-slate-100";
 ```
 
 ## Color Adaptation
@@ -106,22 +105,22 @@ className="dark:text-slate-100"
 
 ```tsx
 // Semantic colors that adapt
-className="text-primary"      // Adapts automatically
-className="bg-surface"        // Adapts automatically
-className="border-default"    // Adapts automatically
+className = "text-primary"; // Adapts automatically
+className = "bg-surface"; // Adapts automatically
+className = "border-default"; // Adapts automatically
 ```
 
 ### Manual Adaptation for Custom Colors
 
 ```tsx
 // Accent colors need explicit dark variants
-className="text-accent dark:text-accent-light"
+className = "text-accent dark:text-accent-light";
 // #6366f1 (light) -> #818cf8 (dark)
 
 // Status colors adapt for visibility
-className="text-red-600 dark:text-red-400"
-className="text-green-600 dark:text-green-400"
-className="text-amber-600 dark:text-amber-400"
+className = "text-red-600 dark:text-red-400";
+className = "text-green-600 dark:text-green-400";
+className = "text-amber-600 dark:text-amber-400";
 ```
 
 ### Inverted Colors
@@ -146,14 +145,14 @@ Some elements need inverted treatment in dark mode:
 
 ```tsx
 // Borders should be subtle
-className="border-gray-200 dark:border-gray-700"
-className="border-gray-300 dark:border-gray-600"
+className = "border-gray-200 dark:border-gray-700";
+className = "border-gray-300 dark:border-gray-600";
 
 // Dividers
-className="divide-gray-200 dark:divide-gray-700"
+className = "divide-gray-200 dark:divide-gray-700";
 
 // Focus rings adapt
-className="focus:ring-accent dark:focus:ring-accent-light"
+className = "focus:ring-accent dark:focus:ring-accent-light";
 ```
 
 ### Border Visibility
@@ -198,10 +197,10 @@ className={`
 
 ```tsx
 // Slightly dim images in dark mode to reduce eye strain
-className="dark:brightness-90"
+className = "dark:brightness-90";
 
 // Or for very bright images
-className="dark:brightness-75 dark:contrast-125"
+className = "dark:brightness-75 dark:contrast-125";
 ```
 
 ### SVG Icons Adaptation
@@ -295,7 +294,7 @@ className={`
 
 ```tsx
 // layout.tsx
-import { ThemeProvider } from 'next-themes';
+import { ThemeProvider } from "next-themes";
 
 export default function RootLayout({ children }) {
   return (
@@ -313,13 +312,13 @@ export default function RootLayout({ children }) {
 ### Theme Toggle
 
 ```tsx
-import { useTheme } from 'next-themes';
+import { useTheme } from "next-themes";
 
 function ThemeToggle() {
   const { theme, setTheme } = useTheme();
 
   return (
-    <button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
+    <button onClick={() => setTheme(theme === "dark" ? "light" : "dark")}>
       <SunIcon className="h-5 w-5 dark:hidden" />
       <MoonIcon className="h-5 w-5 hidden dark:block" />
     </button>

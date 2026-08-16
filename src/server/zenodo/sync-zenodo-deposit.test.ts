@@ -103,7 +103,11 @@ function createMockDb(options?: {
       }) => {
         if (!depositRow.current) return { count: 0 };
         const state = depositRow.current.state;
-        if (state !== "pending" && state !== "failed" && state !== "depositing") {
+        if (
+          state !== "pending" &&
+          state !== "failed" &&
+          state !== "depositing"
+        ) {
           return { count: 0 };
         }
         depositRow.current = {

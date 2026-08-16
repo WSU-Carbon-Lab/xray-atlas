@@ -129,7 +129,9 @@ export const instrumentsRouter = createTRPCRouter({
         facilityId: z.string().uuid(),
         name: z.string().min(1, "Instrument name is required"),
         link: z.string().url().optional().nullable(),
-        status: z.enum(["active", "inactive", "under_maintenance"]).default("active"),
+        status: z
+          .enum(["active", "inactive", "under_maintenance"])
+          .default("active"),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -156,12 +158,15 @@ export const instrumentsRouter = createTRPCRouter({
       if (existing) {
         throw new TRPCError({
           code: "CONFLICT",
-          message: "An instrument with this name already exists at this facility",
+          message:
+            "An instrument with this name already exists at this facility",
         });
       }
 
       // Generate ID: facilityId_name (sanitized)
-      const sanitizedName = input.name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+      const sanitizedName = input.name
+        .replace(/[^a-zA-Z0-9]/g, "_")
+        .toLowerCase();
       const instrumentId = `${input.facilityId}_${sanitizedName}`;
 
       const instrument = await ctx.db.instruments.create({
@@ -240,7 +245,10 @@ export const instrumentsRouter = createTRPCRouter({
       z.object({
         id: z.string(),
         name: z.string().min(1).optional(),
-        link: z.union([z.string().url(), z.literal("")]).optional().nullable(),
+        link: z
+          .union([z.string().url(), z.literal("")])
+          .optional()
+          .nullable(),
         status: z.enum(["active", "inactive", "under_maintenance"]).optional(),
       }),
     )
@@ -269,7 +277,8 @@ export const instrumentsRouter = createTRPCRouter({
         if (duplicate) {
           throw new TRPCError({
             code: "CONFLICT",
-            message: "An instrument with this name already exists at this facility",
+            message:
+              "An instrument with this name already exists at this facility",
           });
         }
       }

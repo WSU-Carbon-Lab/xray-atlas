@@ -61,11 +61,7 @@ async function checkCanEdit(
   createdby: string | null,
 ): Promise<boolean> {
   if (createdby === userId) return true;
-  const contributor = await findMoleculeContributor(
-    prisma,
-    moleculeId,
-    userId,
-  );
+  const contributor = await findMoleculeContributor(prisma, moleculeId, userId);
   return contributor != null;
 }
 
@@ -75,12 +71,7 @@ async function ensureContributor(
   userId: string,
   contributionType: MoleculeContributionType,
 ): Promise<void> {
-  await upsertMoleculeContributor(
-    prisma,
-    moleculeId,
-    userId,
-    contributionType,
-  );
+  await upsertMoleculeContributor(prisma, moleculeId, userId, contributionType);
 }
 
 export const moleculesRouter = createTRPCRouter({
@@ -1152,7 +1143,9 @@ export const moleculesRouter = createTRPCRouter({
           },
           select: { moleculeid: true },
         });
-        favoritedSet = new Set(favorited.map((favorite) => favorite.moleculeid));
+        favoritedSet = new Set(
+          favorited.map((favorite) => favorite.moleculeid),
+        );
       }
 
       const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>

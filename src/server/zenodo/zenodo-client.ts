@@ -314,7 +314,9 @@ export function createZenodoClient(options: ZenodoClientOptions = {}) {
    *
    * @param depositionId - Zenodo deposition id.
    */
-  async function getDeposition(depositionId: number): Promise<ZenodoDeposition> {
+  async function getDeposition(
+    depositionId: number,
+  ): Promise<ZenodoDeposition> {
     return requestJson<ZenodoDeposition>(
       "GET",
       `/deposit/depositions/${depositionId}`,

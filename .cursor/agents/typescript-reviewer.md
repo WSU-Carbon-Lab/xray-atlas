@@ -11,10 +11,10 @@ When the diff is **Next.js App Router**, **TSX**, **tRPC**, or **HeroUI**, also 
 
 ## Skills to use (by topic)
 
-| Topic in diff | Skill |
-|---------------|--------|
+| Topic in diff                                                                                               | Skill                    |
+| ----------------------------------------------------------------------------------------------------------- | ------------------------ |
 | Bun workflow, tsconfig, eslint/format, interface/type/enum, `any`/`unknown` policy, imports, barrels, tests | **`general-typescript`** |
-| Generics, unions, exhaustive handling, `tsc` errors, type design | **`typescript-types`** |
+| Generics, unions, exhaustive handling, `tsc` errors, type design                                            | **`typescript-types`**   |
 
 If multiple areas apply, prioritize the skill that matches the **riskiest** or **largest** part of the change.
 

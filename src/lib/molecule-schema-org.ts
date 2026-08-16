@@ -25,8 +25,7 @@ export function buildMoleculeDetailSeoText(view: MoleculeView): {
   if (cas && cas.length > 0) idParts.push(`CAS ${cas}`);
   const cid = view.pubChemCid?.trim();
   if (cid && cid.length > 0) idParts.push(`PubChem CID ${cid}`);
-  const idClause =
-    idParts.length > 0 ? ` ${idParts.join("; ")}.` : "";
+  const idClause = idParts.length > 0 ? ` ${idParts.join("; ")}.` : "";
 
   const n = view.experimentCount ?? 0;
   const tail =

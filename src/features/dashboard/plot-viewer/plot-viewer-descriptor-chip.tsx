@@ -43,7 +43,8 @@ export function PlotViewerDescriptorChip({
           aria-label="Select legend descriptor columns"
           className={cn(
             "border-border bg-surface text-foreground hover:bg-default/40 focus-visible:ring-accent inline-flex h-8 shrink-0 cursor-pointer items-center gap-1 rounded-lg border px-2.5 text-xs transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-            selectedFields.length > 0 && "border-accent/40 bg-accent-soft text-accent",
+            selectedFields.length > 0 &&
+              "border-accent/40 bg-accent-soft text-accent",
           )}
         >
           <span className="max-w-[10rem] truncate">{triggerLabel}</span>

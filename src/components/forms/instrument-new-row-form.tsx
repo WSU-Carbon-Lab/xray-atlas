@@ -1,6 +1,9 @@
 "use client";
 
-import { ExclamationTriangleIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  ExclamationTriangleIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { Button, Tooltip } from "@heroui/react";
 import { InstrumentFieldsBlock } from "./instrument-fields-block";
 import { useInstrumentNameAvailability } from "./use-instrument-name-availability";

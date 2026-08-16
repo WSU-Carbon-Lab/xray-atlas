@@ -263,7 +263,9 @@ export function beerLambertFromSummedSignals(
     od.push(Math.log(i0Value / iSampleValue));
     const sigmaI0 = i0Err[index] ?? 0;
     const sigmaI = iSampleErr[index] ?? 0;
-    odErr.push(Math.sqrt((sigmaI0 / i0Value) ** 2 + (sigmaI / iSampleValue) ** 2));
+    odErr.push(
+      Math.sqrt((sigmaI0 / i0Value) ** 2 + (sigmaI / iSampleValue) ** 2),
+    );
   }
   return { od, odErr };
 }
@@ -378,7 +380,9 @@ export async function enrichRegionSpectraWithReduction(
           }
         }
       } else {
-        beta = toNumberArray(odToBeta(energyEv, Float64Array.from(od), thicknessCm));
+        beta = toNumberArray(
+          odToBeta(energyEv, Float64Array.from(od), thicknessCm),
+        );
         betaErr = toNumberArray(
           odErrToBetaErr(energyEv, Float64Array.from(odErr), thicknessCm),
         );

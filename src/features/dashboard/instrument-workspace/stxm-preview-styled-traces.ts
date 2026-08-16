@@ -43,7 +43,10 @@ import {
   buildPlotViewerStyledTraces,
   type PlotViewerCatalogMeta,
 } from "~/features/dashboard/plot-viewer/plot-viewer-styled-traces";
-import { buildPlotViewerTraceKey, parsePlotViewerTraceKey } from "~/features/dashboard/plot-viewer/plot-viewer-trace-key";
+import {
+  buildPlotViewerTraceKey,
+  parsePlotViewerTraceKey,
+} from "~/features/dashboard/plot-viewer/plot-viewer-trace-key";
 import { formatPlotViewerAngleDegrees } from "~/features/dashboard/plot-viewer/format-plot-viewer-geometry-label";
 import { resolvePlotViewerRegionDescriptor } from "~/features/dashboard/plot-viewer/plot-viewer-region-descriptor";
 import { geometryKeysForPoints } from "~/features/dashboard/plot-viewer/geometry-selection";
@@ -536,7 +539,9 @@ export type AtlasPreviewTraceCandidate = {
 export function listAtlasPreviewTraceCandidates(params: {
   atlasEntries: readonly DashboardPreviewAtlasEntry[];
   datasets: readonly DashboardPlotDatasetInput[];
-  geometryByExperimentId: Readonly<Record<string, readonly string[] | undefined>>;
+  geometryByExperimentId: Readonly<
+    Record<string, readonly string[] | undefined>
+  >;
 }): AtlasPreviewTraceCandidate[] {
   const candidates: AtlasPreviewTraceCandidate[] = [];
   for (const entry of params.atlasEntries) {

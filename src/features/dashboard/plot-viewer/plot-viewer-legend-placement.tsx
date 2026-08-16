@@ -128,12 +128,20 @@ export function PlotViewerLegendDockPicker({
               />
             </button>
           )}
-          renderContent={({ contentPositionClassName, contentProps, close }) => (
+          renderContent={({
+            contentPositionClassName,
+            contentProps,
+            close,
+          }) => (
             <PopoverMenuContent
               {...contentProps}
               className={cn(contentPositionClassName, "rounded-xl py-1")}
             >
-              <ul className="space-y-0.5 p-1" role="listbox" aria-label="Legend dock position">
+              <ul
+                className="space-y-0.5 p-1"
+                role="listbox"
+                aria-label="Legend dock position"
+              >
                 {DOCK_OPTIONS.map((option) => {
                   const Icon = option.icon;
                   const isActive = option.id === legendDock;
@@ -177,7 +185,7 @@ export function PlotViewerLegendPlacementToggle({
 }: PlotViewerLegendPlacementToggleProps) {
   return (
     <div className="flex flex-col gap-1">
-      <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+      <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
         Legend
       </Label>
       <ToggleButtonGroup

@@ -184,8 +184,7 @@ export function PlotViewerSelectionPanel({
     });
 
   const commonFilters = {
-    moleculeIds:
-      state.facets.mol.length > 0 ? state.facets.mol : undefined,
+    moleculeIds: state.facets.mol.length > 0 ? state.facets.mol : undefined,
     edgeIds: state.facets.edge.length > 0 ? state.facets.edge : undefined,
     instrumentIds:
       state.facets.instrument.length > 0 ? state.facets.instrument : undefined,
@@ -300,11 +299,7 @@ export function PlotViewerSelectionPanel({
       map.set(group.experimentId, group);
     }
     return map;
-  }, [
-    catalogGroups,
-    favoriteGroups,
-    selectedMetadataBrowseQuery.data?.groups,
-  ]);
+  }, [catalogGroups, favoriteGroups, selectedMetadataBrowseQuery.data?.groups]);
 
   const favoriteMutation = trpc.experiments.toggleFavorite.useMutation({
     onMutate: ({ experimentId }) => {
@@ -381,7 +376,9 @@ export function PlotViewerSelectionPanel({
       if (optimistic !== undefined) {
         return optimistic;
       }
-      return group.userHasFavorited || atlasFavoriteIds.includes(group.experimentId);
+      return (
+        group.userHasFavorited || atlasFavoriteIds.includes(group.experimentId)
+      );
     },
     [atlasFavoriteIds, optimisticFavorites],
   );
@@ -393,7 +390,10 @@ export function PlotViewerSelectionPanel({
     const source = hasSearchQuery
       ? (browseSearchQuery.data?.groups ?? [])
       : (browseListQuery.data?.groups ?? []);
-    const counts = new Map<string, { id: string; label: string; count: number }>();
+    const counts = new Map<
+      string,
+      { id: string; label: string; count: number }
+    >();
     for (const group of source) {
       const label = group.instrument.facilityName?.trim() ?? "Unknown facility";
       const id = normalizePlotViewerFacilityKey(label);
@@ -417,24 +417,27 @@ export function PlotViewerSelectionPanel({
   const isCatalogLoading =
     hasActiveCatalogFilter &&
     (!urlSynced ||
-      (hasSearchQuery ? browseSearchQuery.isLoading : browseListQuery.isLoading));
+      (hasSearchQuery
+        ? browseSearchQuery.isLoading
+        : browseListQuery.isLoading));
 
   const isFavoritesLoading =
     !urlSynced ||
     (isSignedIn && atlasFavoriteIdsQuery.isLoading) ||
     (atlasFavoriteIds.length > 0 && favoritesBrowseQuery.isLoading);
 
-  const activeBrowseQuery = hasSearchQuery ? browseSearchQuery : browseListQuery;
-  const catalogLoadError =
-    facetCountsQuery.isError
-      ? facetCountsQuery.error
-      : hasActiveCatalogFilter && activeBrowseQuery.isError
-        ? activeBrowseQuery.error
-        : favoritesBrowseQuery.isError
-          ? favoritesBrowseQuery.error
-          : isSignedIn && atlasFavoriteIdsQuery.isError
-            ? atlasFavoriteIdsQuery.error
-            : null;
+  const activeBrowseQuery = hasSearchQuery
+    ? browseSearchQuery
+    : browseListQuery;
+  const catalogLoadError = facetCountsQuery.isError
+    ? facetCountsQuery.error
+    : hasActiveCatalogFilter && activeBrowseQuery.isError
+      ? activeBrowseQuery.error
+      : favoritesBrowseQuery.isError
+        ? favoritesBrowseQuery.error
+        : isSignedIn && atlasFavoriteIdsQuery.isError
+          ? atlasFavoriteIdsQuery.error
+          : null;
 
   const handleCatalogRetry = useCallback(() => {
     void facetCountsQuery.refetch();
@@ -524,7 +527,9 @@ export function PlotViewerSelectionPanel({
   return (
     <aside className="border-border bg-surface flex h-full min-h-0 w-[260px] shrink-0 flex-col overflow-hidden rounded-lg border sm:w-[280px]">
       <div className="border-border bg-surface shrink-0 border-b px-3 py-3">
-        <h2 className="text-foreground text-sm font-semibold">Dataset picker</h2>
+        <h2 className="text-foreground text-sm font-semibold">
+          Dataset picker
+        </h2>
         <p className="text-muted mt-1 text-xs leading-snug">
           Search Atlas catalog datasets and overlay spectra on one plot.
         </p>
@@ -553,7 +558,7 @@ export function PlotViewerSelectionPanel({
           </SearchField>
 
           <div className="flex items-center justify-between gap-2">
-            <p className="text-muted text-xs font-medium uppercase tracking-wide">
+            <p className="text-muted text-xs font-medium tracking-wide uppercase">
               Facets
             </p>
             <Button size="sm" variant="ghost" onPress={onClearFacets}>
@@ -604,7 +609,7 @@ export function PlotViewerSelectionPanel({
           {hasActiveCatalogFilter ? (
             <section className="flex flex-col gap-2">
               <div className="flex items-center justify-between gap-2">
-                <p className="text-muted text-xs font-medium uppercase tracking-wide">
+                <p className="text-muted text-xs font-medium tracking-wide uppercase">
                   Results
                 </p>
                 {isCatalogLoading ? <Spinner size="sm" /> : null}
@@ -644,7 +649,7 @@ export function PlotViewerSelectionPanel({
 
           <section className="flex flex-col gap-2">
             <div className="flex items-center justify-between gap-2">
-              <p className="text-muted text-xs font-medium uppercase tracking-wide">
+              <p className="text-muted text-xs font-medium tracking-wide uppercase">
                 Favorites
               </p>
               {isFavoritesLoading ? <Spinner size="sm" /> : null}
@@ -667,10 +672,13 @@ export function PlotViewerSelectionPanel({
                       isFavorited={resolveIsFavorited(group)}
                       favoritePending={
                         favoriteMutation.isPending &&
-                        favoriteMutation.variables?.experimentId === experimentId
+                        favoriteMutation.variables?.experimentId ===
+                          experimentId
                       }
                       onToggleSelect={() => handleToggleDataset(experimentId)}
-                      onToggleFavorite={() => handleToggleFavorite(experimentId)}
+                      onToggleFavorite={() =>
+                        handleToggleFavorite(experimentId)
+                      }
                       onGuestFavoritePress={handleGuestFavoritePress}
                     />
                   );
@@ -684,7 +692,7 @@ export function PlotViewerSelectionPanel({
       <Separator className="bg-border" />
 
       <div className="shrink-0 px-3 py-3">
-        <p className="text-muted mb-2 text-xs font-medium uppercase tracking-wide">
+        <p className="text-muted mb-2 text-xs font-medium tracking-wide uppercase">
           Selected datasets ({state.datasets.length})
         </p>
         {selectedDatasetRows.length === 0 ? (
@@ -713,7 +721,6 @@ export function PlotViewerSelectionPanel({
           </ul>
         )}
       </div>
-
     </aside>
   );
 }

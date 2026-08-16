@@ -5,9 +5,7 @@ import {
   SampleMetadataInsetGroup,
   SampleMetadataSectionCaption,
 } from "~/components/nexafs/sample-metadata-chrome-shared";
-import {
-  samplePreparationUsesSolvent,
-} from "~/lib/sample-process-method-link";
+import { samplePreparationUsesSolvent } from "~/lib/sample-process-method-link";
 import type { SampleProcessingMode } from "~/lib/sample-aux-preparation";
 import { SampleFormInsetTextRow } from "./sample-form-inset-field";
 import {

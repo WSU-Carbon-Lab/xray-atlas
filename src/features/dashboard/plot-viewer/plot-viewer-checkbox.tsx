@@ -29,15 +29,13 @@ export function PlotViewerCheckbox({
   contentClassName,
 }: PlotViewerCheckboxProps) {
   return (
-    <Checkbox
-      isSelected={isSelected}
-      onChange={onChange}
-      className={className}
-    >
+    <Checkbox isSelected={isSelected} onChange={onChange} className={className}>
       <Checkbox.Control className={plotViewerCheckboxControlClassName}>
         <Checkbox.Indicator className={plotViewerCheckboxIndicatorClassName} />
       </Checkbox.Control>
-      <Checkbox.Content className={contentClassName}>{children}</Checkbox.Content>
+      <Checkbox.Content className={contentClassName}>
+        {children}
+      </Checkbox.Content>
     </Checkbox>
   );
 }

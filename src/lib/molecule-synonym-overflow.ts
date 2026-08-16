@@ -35,7 +35,8 @@ function isExcludedSynonym(
   excludeNames: readonly string[],
 ): boolean {
   return excludeNames.some(
-    (ref) => ref.trim().length > 0 && moleculeSynonymMatchesReference(synonym, ref),
+    (ref) =>
+      ref.trim().length > 0 && moleculeSynonymMatchesReference(synonym, ref),
   );
 }
 

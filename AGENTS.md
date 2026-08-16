@@ -3,9 +3,11 @@
 X-ray Atlas is a collaborative platform for sharing and exploring Near-Edge X-ray Absorption Fine Structure (NEXAFS) spectroscopy data. This guide is a quickstart for contributors to the project.
 
 ## Fundamental Concepts
+
 NEXAFS probes the excited electronic structure of atoms and molecules. Electrons begin in core electronic states tightly bound to the nucleus, and are excited to higher energy unoccupied bound and semi-bound states. This excitation probability is determined by the alignment of the incident X-ray energy with the excitation energy, overlap between the core orbital and the excited state orbital, and the alignment between the incident X-ray polarization and the transition dipole moment. Because of this, NEXAFS spectra are sensitive to the local chemical environment, bonding geometry, electronic structure, and molecular orientation.
 
 ### Important Data Processing Concepts
+
 NEXAFS experiments measure the absorption of X-rays as a function of incident X-ray energy and incident X-ray angle. The absorption is then normalized using one of many methods to remove background contributions and determine a quantitative measure of the excited electronic structure. There are two main types of normalization:
 
 - Stable Monitor: Here we identify a region of the spectrum that is stable for energies associated with no absorption, below the absorption edge. We pair this with a region of relatively stable absorption values above the absorption edge. We then calculate a relative scaling factor and background shift needed to shift the spectrum such that the pre-edge region is zero, and the post-edge region is one.
@@ -13,32 +15,39 @@ NEXAFS experiments measure the absorption of X-rays as a function of incident X-
 - Bare Atom: Here we assume that far from the edge, the absorption is dominated by continuum dynamics described by the excitation of core electrons into unbound continuum states. In this case, the relatively stable pre- and post-edge regions more closely align with polynomial functions of energy, instead of a constant value. To normalize this, we first calculate the bare atom absorption for the molecule. Then, in the pre- and post-edge regions, we select a subset of points that relatively follow the bare atom absorption curve. We then calculate a linear fit to this subset of points to determine a scale factor and background shift needed to align the experimental spectrum with the bare atom absorption curve.
 
 ### Other Important Processing Concepts
+
 - Another core feature of analysis is the ability to select peaks in the spectrum and assign them to different electronic states. This is often done manually by the user, with assignments that can be nearly meaningless due to the lack of exact information about the electronic structure of the molecule. For example, it is common to assign pi* transitions to all transitions before the isospectic point, and sigma* transitions to all transitions after the isospectic point.
 - For angle-resolved experiments, it is often useful to calculate the difference spectrum between two different angles. This is done by subtracting the spectrum at the higher angle from the spectrum at the lower angle.
 
 # Project Structure
 
 ## `src/app` (Next.js App Router)
+
 `src/app` is responsible for routing composition and page-level orchestration. Treat it as the "shape of the site" layer: route groups, layouts, pages, loading states, and parallel route slots (modals).
 
 ### Root layout + metadata
+
 - `layout.tsx` defines the shared application shell (providers, layout chrome, and any root-level UI scaffolding)
 - `metadata.ts` centralizes defaults; route segments can override via their own `metadata.ts`
 
 ### Route groups (parentheses)
+
 - Parentheses folders like `(home)`, `(auth)`, `(protected)`, `(public)` are route groups: they organize code and can apply wrappers, but they do not directly affect the URL path
 - This repo uses route groups to keep URL structure stable while changing auth/protection behavior and shared wrappers
 
 ### Pages and route segments
+
 - `page.tsx` under a route segment renders the main UI for that URL
 - `loading.tsx` provides route-level loading UI (example: `src/app/(home)/loading.tsx`)
 - Dynamic and nested segments live under folders like `facilities/[slug]`, `molecules/[id]`, and similar
 
 ### Public HTTP endpoints (Next route handlers)
+
 - `src/app/api/*` contains request handlers for HTTP endpoints that are not "tRPC router calls"
 - Example nesting: `src/app/api/auth`, `src/app/api/physics/*`, `src/app/api/trpc/[trpc]`
 
 ### Modals (parallel routes + intercepting routes)
+
 - The modal system is implemented via the parallel route slot `@modal`
 - `src/app/@modal/default.tsx` is the default modal slot content (normally renders nothing)
 - Modal content lives in `src/app/@modal/...`
@@ -46,9 +55,11 @@ NEXAFS experiments measure the absorption of X-rays as a function of incident X-
   - `(.)` indicates an intercepting route at the current level: it renders into the `@modal` slot while the underlying page remains the active base route
 
 ## `src/components` (Component Library)
+
 `src/components` contains reusable UI components and UI-only domain display pieces. These are intended to be composed by `src/app` routes and by feature libraries in `src/features`.
 
 Key folders:
+
 - `auth/`: authentication-related UI components
 - `feedback/`: loading, empty, and error UI
 - `forms/`: reusable form building blocks used by contribution and filtering flows
@@ -62,9 +73,11 @@ Key folders:
 - Top-level single-purpose files (for example `csv-upload.tsx`) should live here if they are UI-only
 
 ## `src/features` (Feature Libraries)
+
 `src/features` holds feature-level workflow logic that is larger than a single reusable component, but is still primarily UI/interaction orchestration rather than server/data access.
 
 Current structure:
+
 - `process-nexafs/`
   - `components/`: feature UI blocks for each processing sub-section
   - `ui/`: presentational UI used by the processing workflow
@@ -77,9 +90,11 @@ Current structure:
 Design intent: keep multi-step workflow concerns in `src/features`, and keep pure processing utilities in `src/features/*/utils` (or `src/lib` if they are broader/pure enough to share across features).
 
 ## `src/hooks` (Cross-cutting React hooks)
+
 `src/hooks` stores client-side hooks that are reused across multiple components/routes.
 
 Current structure:
+
 - `useRealtimeFavorites.ts`: realtime subscription for favorites lists
 - `useRealtimeFavoriteEntity.ts`: realtime subscription for a single entity favorite + derived counts
 - `useRealtimeExperimentFavorites.ts`: realtime subscription for experiment favorites
@@ -88,9 +103,11 @@ Current structure:
 Design intent: these hooks should focus on data subscription/state synchronization, not on rendering.
 
 ## `src/lib` (Shared client/server logic)
+
 `src/lib` contains shared helpers and small domain utilities that are reused across multiple feature/component layers. Keep it framework-agnostic where possible.
 
 Key pieces in this repo:
+
 - Molecule helpers
   - `molecule-slug.ts`: slug creation rules (used for consistent routing/lookups)
   - `molecule-autosuggest.ts`: autosuggest/query helper logic
@@ -105,9 +122,11 @@ Key pieces in this repo:
   - `dev-mock-data.ts`, `noop.ts`
 
 ## `src/server` (Server-side domain + tRPC)
+
 `src/server` owns server execution concerns: auth wiring, DB access, secure configuration, storage integrations, and tRPC router definitions.
 
 Key folders/files:
+
 - `api/`
   - `root.ts`: API router root
   - `routers/`: individual tRPC routers (`molecules.ts`, `experiments.ts`, `spectrumpoints.ts`, `facilities.ts`, `instruments.ts`, etc.)
@@ -121,33 +140,41 @@ Key folders/files:
 Design intent: `src/server` is the only place that should directly depend on secure credentials, Prisma client usage, and server-only runtimes.
 
 ## `src/trpc` (tRPC client wiring)
+
 `src/trpc` is the client/server integration layer for using the tRPC types and hooks.
 
 Key files:
+
 - `client.tsx`: client-side tRPC setup/providers
 - `server.ts`: server integration helpers (SSR/Server Components patterns as applicable)
 
 ## `src/types` (Shared DTOs / domain types)
+
 `src/types` contains type-only contracts that multiple layers share.
 
 Current types:
+
 - `molecule.ts`: molecule DTO/type contracts used across UI and API boundaries
 - `upload.ts`: upload-related payload/type contracts
 
 Design intent: prefer `src/types` for shared domain/DTO typing rather than duplicating shapes in components/features.
 
 ## `src/utils` (Small utilities)
+
 Small utilities that don't belong in `src/lib` but are widely reused.
 
 Current piece:
+
 - `getBaseUrl.ts`: base URL resolution used for absolute links/callback URLs
 
 ## `src/styles` (Global styling)
+
 Global styling and Tailwind entry CSS.
 
 - `globals.css`: Tailwind base layers + global CSS variables/utilities
 
 ## Design Intent Summary
+
 - `src/app` defines routing, layouts, and the modal parallel-route slot (`@modal`), including intercepting routes (`(.)`) used to render overlays.
 - `src/components` is the reusable UI surface.
 - `src/features` composes multiple UI components and client-side workflow logic into feature-level experiences.
@@ -193,7 +220,6 @@ Implementation reference: `src/server/api/routers/admin.ts` (`updateUser`, `setU
 
 **Admin favicon URL sampling (role accent):** The server fetches remote icons only inside **admin-only** procedures after URL validation. Residual DNS timing risk is accepted at that trust boundary; stricter pinning is optional if the threat model changes.
 
-
 # Agent Memory
 
 ## Learned User Preferences
@@ -225,7 +251,9 @@ Implementation reference: `src/server/api/routers/admin.ts` (`updateUser`, `setU
 - Wiki docs (`/wiki/*`): two-branch MDX tree—landing at `/wiki` (`content/wiki/index.mdx`), science under `/wiki/nexafs/*`, platform under `/wiki/atlas/*`; `/wiki/api/*` stays static TSX. Prose lives in `content/wiki/` compiled at render time via `next-mdx-remote-client` in `src/components/content/mdx-article.tsx` (optional catch-all `src/app/wiki/[[...slug]]`; not `@next/mdx` or `next.config.js` MDX). Zod frontmatter in `src/lib/content/schema.ts`, loader in `src/lib/content/wiki-loader.ts`, citations from `content/references.bib`. Shared embeds in `src/components/content/embeds/` (`CtaLink`, `UploadColumnsReference`, `OpticalConstantsExample`, `SpectralSpacingDemo`, `OpticalConstantsPlotEmbed`) register in `wikiMdxComponents`. Navigation in `wiki-doc-nav.ts`: three left-rail topics (Start here, NEXAFS, Using X-ray Atlas) plus `wikiPageSections` keyed by pathname for per-page right-rail outlines; section `id`s must match `rehype-slug` on MDX headings—spread `{ children, ...props }` (or destructure `className` and merge with `cn`) on MDX element overrides so slug ids and plugin attributes reach the DOM. Legacy wiki URLs 308-redirect in `next.config.js` (for example `/wiki/contributions` → `/wiki/atlas/contributing`, `/wiki/data-representation/optical-constants` → `/wiki/nexafs/optical-constants`). Upload CSV template at `/wiki/atlas/uploading-data/template`. `draft: true` MDX 404s in production; dev fixture `content/wiki/pipeline-check.mdx`. Data Insights developer notes live in `docs/data-insights.md`, not the public wiki. Shell chrome in `wiki-doc-shell.tsx`; nested breadcrumbs via `wikiDocBreadcrumbTrail`; Copy Page targets `[data-wiki-main]` with `Square2Stack`. Transcribe authored wiki copy verbatim; preserve `{/* [HUMAN] */}` comments; do not rewrite physics prose unless asked. Reader-facing KK copy states Ben Watts / kkcalc lineage and makima interpolation to uploaded spectrum energy samples. **Blog** (`/blog`, `/blog/[slug]`, `/blog/category/[category]`, `/blog/rss.xml`, per-category `/blog/category/{slug}/rss.xml`): blog-only branches use **`blog/`** prefix; flat MDX in `content/blog/` via `blog-loader.ts` and `blogFrontmatterSchema` (optional `YYYY-MM-DD-` filename prefix stripped for slug); four fixed categories in `blog-categories.ts` (`BLOG_CATEGORIES`: `releases`, `technical`, `perspectives`, `guides`) are the single source for Zod schema, routes, hero kickers, and RSS—do not duplicate category strings. Post pagination (**Previous** / **Next**): **Previous** is the chronologically older post and **Next** is the newer post (issue #101 semantics)—do not invert neighbor assignment. Post typography: **Newsreader** registered in `src/app/blog/layout.tsx` as `--font-display` with explicit **Georgia/Cambria/Times** serif fallbacks so headings stay serif when Firefox privacy blocks the webfont. Post layout: centered article column with wide-screen **`BlogCategoryReadNext`** rail (**Read next in {category}**); compact same-category links below on narrow viewports. `draft: true` 404s post routes in production; **In the works** teasers require `draft: true` plus `teaser: true` or a custom teaser string (`isBlogTeaser`/`getBlogTeaserTitle`); published posts ignore stale `teaser` flags. Blog index filter bar syncs category/tag/sort to `location.hash` via `history.replaceState`—not `useSearchParams`—so `/blog` stays static; cards stay server-rendered. Post pages use `BlogTableOfContents`, `blogPostJsonLd`, related posts (`blog-related.ts`), and optional `series` frontmatter (`blog-series.ts`). Images live under `content/blog/blog-assets/` (flat or per-post subdirs such as `beta-uploading-data/data.png`) served at `/blog/blog-assets/...` via `src/app/blog/blog-assets/[...path]/route.ts`; blog MDX uses `src/components/blog/blog-mdx-components.tsx` (`BlogMdxParagraph` must not wrap `<figure>` in `<p>`) and `resolveBlogHeroImageUrl` remaps `/blog-assets/…` → `/blog/blog-assets/…`; import `katex/dist/katex.min.css` in `MdxArticle` so blog math does not duplicate MathML fallback text. What's New (`getWhatsNewSummary`, `whats-new-seen.ts`) highlights the newest **`releases`** category post, else the newest published post; seen-state is client `localStorage` only—never call `cookies()` in root layout or header chrome. Home hero uses `HeroUpdatesRow` and `WhatsNewHeroBadge`; footer links `/blog`. Do not touch `content/wiki/**`, wiki loader/nav, or `next.config.js` when extending blog-only work.
 - **Vercel / Speed Insights TTFB hotspots:** root `layout.tsx` awaits `getWhatsNewSummary()` (can scan all blog MDX) on every route; `/about` runs uncached Prisma (`collaborators.getAll`, `getCoreMaintainers`); `/blog/[slug]` may call `getBlogEntries()` for one slug; `/users/[orcid]` is client-only with post-hydration tRPC (`getById` may call GitHub). `/` scores well because popular molecules load client-side after paint. Content routes lack explicit `revalidate`/ISR; `next.config.js` has no `optimizePackageImports` yet. Co-locate Vercel function region with Supabase; reuse `cachePublicCatalogRead` / `unstable_cache` for other public server reads. `/about/roadmap` adds live GitHub activity with `revalidate` ~600s.
 - Dashboard STXM integration (`feat/dashboard-stxm-5322`): routes `/dashboard` (instrument connector catalog) and `/dashboard/instruments/[slug]` (beamline workspace; ALS 5.3.2.2 is `als-5322` beta). **`src/app/dashboard/layout.tsx`** breaks out of root `max-w-7xl` for a full-width dashboard shell on all nested routes. Feature UI lives in `src/features/dashboard/`; browser STXM numerics and parsers in `src/lib/stxm/`; shared plot shell via `DatasetVisualizationShell` and `VisualizationToggle` (graph/table only for STXM); shared layout dimensions in `src/features/dashboard/instrument-workspace/stxm-ingestion-layout.ts` (leaf module—region editor and plot panel must not cross-import); STXM raw channels use unified **`PlotDataViewRail` Rw tray** (I₀, Iₜ, Iₑ, Rw, 01, μ) with Signal/1/s/log transform, multi-select raw channels, and split stacking when multiple traces or linked β/δ; phased plans in `docs/dashboard-stxm-integration-plan.md` and `docs/dashboard-stxm-nexafs-parity-plan.md`. Experiment catalog writes checkpoint **`.xray-atlas-stxm-catalog.json`** per experiment folder; **`useExperimentCatalogLoad`** aborts in-flight catalog builds on folder switch; file browser is **line-scan-first** (image/focus scans in collapsed accordions). **Lazy hdr classification** via `probeHdrScanFromText` (first **4096 B** peek for `Type`); line scans classify and render first; full axis parse and non-line-scan thumbnails deferred. **Beamtime folder discovery** uses `listBeamtimeExperimentFolders`: when any child matches dated beamtime naming, **list all visible sibling directories** (standalone stxm parity), with broader date tokens and `.hdr`-child fallback via `resolveDirectoryLayout`. Local beamtime catalog builds hdr metadata first with async thumbnails; dedupe recent folders by display name. ALS BL5321 layout: beamline root folders contain month-named experiment subfolders. **Session persistence** per `scanId`: `regionsCache` for sample/izero bounds and film **normalization windows**; molecule via `resolveMoleculeMetadataForScan`; preview auto-cache in `sync-stxm-preview-cache.ts` with downsampled `regionSpectraCache` on reduce/keep-in-cache. **Preview spectra** compare hub (`stxm-preview-compare-view`, `stxm-preview-styled-traces`, selection panel) reuses plot-viewer style encodings and legend—not shareable URL state yet. **Dashboard plot viewer** at `/dashboard/plot` is the **unified catalog analysis canvas** for overlaying published NEXAFS datasets—distinct from STXM ingestion; **`useDashboardPlotSpectra`** is the primary Supabase egress consumer when it bulk-fetches `spectrumpoints` (up to 10k rows per experiment)—keep catalog metadata-only until spectra are explicitly needed. Plot column uses tall viewport height with **`PlotContainer fillContainer`** (no forced 640px min-height floor). Code in `src/features/dashboard/plot-viewer/` with **shareable URL state** in `plot-viewer-url-state.ts` / `use-plot-viewer-url-state.ts`: `q`, `datasets`, `channel`, facet keys, `geom`, descriptor columns `desc`, style encodings `colorBy` / `lineBy` / `markerBy`, `legendPlacement` (`inplot` | `panel`), pop-out `legendDock` (`top` | `bottom` | `left` | `right`), and hidden traces `hidden`. Left **faceted checkbox picker** via `experiments.browseList`, `browseSearch`, and `facetCounts`; default scroll shows **Favorites** (Atlas experiment favorites only—no session pins); **Results** appear only after search or facet engagement (`plot-viewer-catalog-filter.ts`). **`geometry-selection.ts`** merges all geometry keys when a dataset is added until the user narrows. **Style mapping** maps dimensions to color, line style, and markers with per-experiment and per-trace overrides; experiment **fixed color** uses an Igor-inspired preset grid (`plot-viewer-fixed-color-panel.tsx`), not `HexColorSelector`. **Legend**: N-column descriptor rows with marker-aware swatches—in-plot overlay or pop-out docked panel with collapsible full-height vertical strip (`PlotViewerPopoutLegend`), not a sticky table above the plot. Reuses **`SpectrumPlot`** (`plotContext: explore`); **trayable/collapsible** left panel; high-contrast checkboxes (`plot-viewer-checkbox.tsx`); **subplot toggle** for θ/φ small multiples (`traceStackSplitView`, `TraceStackSplitSpectrumBody`). **Instrument connector registry** (`src/features/dashboard/connectors/`): `listDashboardConnectorsFromDb` emits one paginated card per `instruments` row (default page size 9), overlaying `matchInstrumentToDashboardBinding` slug/description/readiness (`beta`|`ready`|`not_ready`); unmatched instruments stay **Coming soon**. Cards link **View instrument** to `/facilities/{facilitySlug}#instrument-{instrumentId}` and workspace routes via `dashboardInstrumentWorkspaceHref`. Facility instrument pages render `InstrumentConnectorClaimSection` with GitHub issue templates `.github/ISSUE_TEMPLATE/beamline-claim.yml` and `instrument-connector-request.yml` (`~/lib/github-beamline-issues.ts`). **Facilities browse/detail** at `/facilities/[slug]` (`~/lib/facility-slug.ts`, acronym redirects via `~/lib/facility-slug-aliases.ts`); browse cards use `facilityDetailHrefFromName` and pass `faviconUrl`. **Beamline scientist** stewards on `instrument_steward` (`~/server/instruments/instrument-steward-authz.ts`); UI copy is **beamline scientist** (not site `app_role` Contributor). **Facility website/favicon**: `facilities.websiteurl`/`faviconurl`, `FacilityIcon` with building glyph fallback, `FacilityWebsiteAdminCard`; `facilities.updateWebsite`/`refreshFavicon` use **`manageUsersProcedure`**.
+
 <!-- VERCEL BEST PRACTICES START -->
+
 ## Best practices for developing on Vercel
 
 These defaults are optimized for AI coding agents (and humans) working on apps that deploy to Vercel.
@@ -247,6 +275,7 @@ These defaults are optimized for AI coding agents (and humans) working on apps t
 - Enable Web Analytics + Speed Insights early
 - Use AI Gateway for model routing, set AI_GATEWAY_API_KEY, using a model string (e.g. 'anthropic/claude-sonnet-4.6'); Gateway is already default in the AI SDK. Always curl https://ai-gateway.vercel.sh/v1/models first; never trust model IDs from memory
 - For durable agent loops or untrusted code: use Workflow (pause/resume/state) + Sandbox; use Vercel MCP for secure infra access
+
 <!-- VERCEL BEST PRACTICES END -->
 
 <!-- DO NOT EDIT THIS BLOCK IT IS MANAGED BY DOTAGENTS -->
@@ -312,6 +341,7 @@ This codebase is maintained by contributors with physics PhDs and extensive back
 For **Next.js / T3 / HeroUI** web work, also load the **TypeScript web** bundle guidance and its related skills/rules by name.
 
 Minimum bundle load for TypeScript/JavaScript:
+
 - Load skills: `general-typescript` and `typescript-types` (as needed).
 - Enable rule `typescript-base.mdc` for TypeScript/TSX/MTS/CTS sources.
 - When diffs need deeper help, consider delegating to subagents: `typescript-reviewer`, `typescript-types`, and `typescript-refactor`.
@@ -390,20 +420,20 @@ If a **Bun** command differs by version, use **`bun --help`** or the [Bun docume
 
 Load these **skills** by **name** when the task matches (each skill’s own `SKILL.md` and references hold the full detail). Installed skills usually live under `.cursor/skills/` (or your editor’s equivalent).
 
-| Skill | Use it for |
-|-------|------------|
+| Skill                  | Use it for                                                                                                                                                                                                          |
+| ---------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **general-typescript** | Hub: **Bun** workflow, **tsc** / **tsconfig**, **interface** / **type** / **enum** choices, **no `any`**, **`unknown` only with explicit approval**, ESM, lint/test, JSDoc/TSDoc, pointers to **typescript-types**. |
-| **typescript-types** | Deep **TypeScript**: discriminated unions, **exhaustive** `switch`, generics, **`satisfies`**, branding, conditional types at maintainable complexity, fixing checker output without widening. |
+| **typescript-types**   | Deep **TypeScript**: discriminated unions, **exhaustive** `switch`, generics, **`satisfies`**, branding, conditional types at maintainable complexity, fixing checker output without widening.                      |
 
 ### Cursor: subagents
 
 Delegate by **subagent name** when a focused pass is better than inline editing. Subagents usually live under `.cursor/agents/` (or your editor’s equivalent).
 
-| Subagent | Use it for |
-|----------|------------|
+| Subagent                | Use it for                                                                                       |
+| ----------------------- | ------------------------------------------------------------------------------------------------ |
 | **typescript-reviewer** | Reviewing changes: Bun hygiene, **strict** typing, async correctness, tests, public API clarity. |
-| **typescript-types** | Deep typing: generics, unions, inference fixes, exhaustive handling, `tsc` errors. |
-| **typescript-refactor** | Structure: cycles, barrel files, oversized modules, clear sync vs async layering. |
+| **typescript-types**    | Deep typing: generics, unions, inference fixes, exhaustive handling, `tsc` errors.               |
+| **typescript-refactor** | Structure: cycles, barrel files, oversized modules, clear sync vs async layering.                |
 
 ### Cursor: rules
 
@@ -425,14 +455,14 @@ Delegate by **subagent name** when a focused pass is better than inline editing.
 
 Treat these as **fixed responsibilities**. Do not substitute parallel libraries for the same job (for example, no second component kit, no alternate ORM, no REST hand-rolled where **tRPC** is the contract).
 
-| Layer | Tool | Role |
-|--------|------|------|
-| Framework | **Next.js** (App Router) | Routing, RSC/SSR, metadata, layouts, streaming, route handlers |
-| End-to-end API | **tRPC** | Type-safe procedures, routers, and client; server/client boundary for app data fetching |
-| Persistence | **Prisma** | Schema, migrations, queries, transactions; **only** ORM for database access |
-| Validation | **Zod** | Runtime parsing and static inference for **tRPC inputs**, **forms**, **env**, **URL search params**, and cross-boundary DTOs |
-| Styling | **Tailwind CSS** | Utility layout and spacing; **design tokens** come from theme variables, not ad-hoc hex/rgb sprawl |
-| Components | **HeroUI** | **Only** allowed component library for interactive and styled primitives (buttons, inputs, modals, etc.) |
+| Layer          | Tool                     | Role                                                                                                                         |
+| -------------- | ------------------------ | ---------------------------------------------------------------------------------------------------------------------------- |
+| Framework      | **Next.js** (App Router) | Routing, RSC/SSR, metadata, layouts, streaming, route handlers                                                               |
+| End-to-end API | **tRPC**                 | Type-safe procedures, routers, and client; server/client boundary for app data fetching                                      |
+| Persistence    | **Prisma**               | Schema, migrations, queries, transactions; **only** ORM for database access                                                  |
+| Validation     | **Zod**                  | Runtime parsing and static inference for **tRPC inputs**, **forms**, **env**, **URL search params**, and cross-boundary DTOs |
+| Styling        | **Tailwind CSS**         | Utility layout and spacing; **design tokens** come from theme variables, not ad-hoc hex/rgb sprawl                           |
+| Components     | **HeroUI**               | **Only** allowed component library for interactive and styled primitives (buttons, inputs, modals, etc.)                     |
 
 Optional T3-adjacent pieces (auth, analytics, etc.) follow whatever this repository already wires; they must not replace **Prisma**, **tRPC**, **Zod**, **Tailwind**, or **HeroUI** in those rows.
 
@@ -504,16 +534,16 @@ Optional T3-adjacent pieces (auth, analytics, etc.) follow whatever this reposit
 
 Use these folders consistently. If the repo uses `src/`, all paths below are under **`src/`**; otherwise map the same names at the project root.
 
-| Folder | Purpose | Put here | Do not put here |
-|--------|---------|----------|-----------------|
-| **`app/`** | App Router **filesystem** | `page`, `layout`, `loading`, `error`, `not-found`, `route`, `template`; colocated tests if the project allows; **minimal** logic—compose from **features** / **components** | Heavy Prisma queries; large reusable UI; generic string helpers |
-| **`features/`** | **Vertical slices** by product domain | Feature UI sections, feature hooks, feature types, thin wrappers calling **tRPC** or server actions | Generic design-system primitives; global singletons |
-| **`components/`** | **Shared UI** with **HeroUI** | Reusable presentational pieces, layout primitives, HeroUI wrappers with app tokens | Domain business rules; direct **Prisma** |
-| **`server/`** | **Server-only** orchestration | **tRPC** setup, **routers**, **procedures**, context, auth wiring, server actions touching **Prisma** | React components; client hooks |
-| **`lib/`** | **App wiring** | **tRPC** client/provider, **Prisma** export, `cn()`, validated **env** | Feature screens; raw UI |
-| **`utils/`** | **Small pure** helpers | Pure functions: formatting, ids—**no** React, **Prisma**, **tRPC** | Database; JSX |
-| **`common/`** | **Cross-feature contracts** | Shared types, enums, error code unions, DTO types not inferred from Zod when needed | React components; raw Prisma models as “the” API type |
-| **`styles/`** | **Global** presentation | **`globals.css`**, Tailwind `@import` chain, HeroUI theme hooks | One-off component CSS unless standardized |
+| Folder            | Purpose                               | Put here                                                                                                                                                                    | Do not put here                                                 |
+| ----------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | --------------------------------------------------------------- |
+| **`app/`**        | App Router **filesystem**             | `page`, `layout`, `loading`, `error`, `not-found`, `route`, `template`; colocated tests if the project allows; **minimal** logic—compose from **features** / **components** | Heavy Prisma queries; large reusable UI; generic string helpers |
+| **`features/`**   | **Vertical slices** by product domain | Feature UI sections, feature hooks, feature types, thin wrappers calling **tRPC** or server actions                                                                         | Generic design-system primitives; global singletons             |
+| **`components/`** | **Shared UI** with **HeroUI**         | Reusable presentational pieces, layout primitives, HeroUI wrappers with app tokens                                                                                          | Domain business rules; direct **Prisma**                        |
+| **`server/`**     | **Server-only** orchestration         | **tRPC** setup, **routers**, **procedures**, context, auth wiring, server actions touching **Prisma**                                                                       | React components; client hooks                                  |
+| **`lib/`**        | **App wiring**                        | **tRPC** client/provider, **Prisma** export, `cn()`, validated **env**                                                                                                      | Feature screens; raw UI                                         |
+| **`utils/`**      | **Small pure** helpers                | Pure functions: formatting, ids—**no** React, **Prisma**, **tRPC**                                                                                                          | Database; JSX                                                   |
+| **`common/`**     | **Cross-feature contracts**           | Shared types, enums, error code unions, DTO types not inferred from Zod when needed                                                                                         | React components; raw Prisma models as “the” API type           |
+| **`styles/`**     | **Global** presentation               | **`globals.css`**, Tailwind `@import` chain, HeroUI theme hooks                                                                                                             | One-off component CSS unless standardized                       |
 
 **Import direction (ideal):** **`app`** and **`features`** may import **`components`**, **`lib`**, **`utils`**, **`common`**, and **`server`** (types only from server where split). **`utils`** and **`common`** stay low—no imports from **`features`** or **`app`**. **`server`** must not import client-only modules.
 
@@ -524,22 +554,22 @@ Use these folders consistently. If the repo uses `src/`, all paths below are und
 
 ### Cursor: skills
 
-| Skill | Use it for |
-|-------|------------|
-| **general-typescript** | Bun, strict TS, tests, ESM, async |
-| **typescript-types** | Deep typing at the tRPC/Zod boundary |
-| **typescript-web** | This spec: RSC/client boundaries, stack overview |
-| **web-trpc-api** | Auth context, queries vs mutations, Zod, errors, REST bridge |
-| **web-url-search-state** | `searchParams`, shareable URLs, Zod parsers |
-| **heroui-components** | HeroUI-only UI, theme tokens, v3 imports |
+| Skill                    | Use it for                                                   |
+| ------------------------ | ------------------------------------------------------------ |
+| **general-typescript**   | Bun, strict TS, tests, ESM, async                            |
+| **typescript-types**     | Deep typing at the tRPC/Zod boundary                         |
+| **typescript-web**       | This spec: RSC/client boundaries, stack overview             |
+| **web-trpc-api**         | Auth context, queries vs mutations, Zod, errors, REST bridge |
+| **web-url-search-state** | `searchParams`, shareable URLs, Zod parsers                  |
+| **heroui-components**    | HeroUI-only UI, theme tokens, v3 imports                     |
 
 ### Cursor: subagents
 
-| Subagent | Use it for |
-|----------|------------|
-| **web-ui-reviewer** | HeroUI, forms, loading/empty states, component boundaries |
-| **web-api-reviewer** | tRPC authz, Zod, Prisma usage, REST handlers |
-| **heroui-implementation** | HeroUI import/version/compound-component consistency |
+| Subagent                  | Use it for                                                |
+| ------------------------- | --------------------------------------------------------- |
+| **web-ui-reviewer**       | HeroUI, forms, loading/empty states, component boundaries |
+| **web-api-reviewer**      | tRPC authz, Zod, Prisma usage, REST handlers              |
+| **heroui-implementation** | HeroUI import/version/compound-component consistency      |
 
 ### Cursor: rules
 

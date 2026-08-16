@@ -12,10 +12,7 @@ type ExpectAssertions = {
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
-const it = bunIt as (
-  name: string,
-  fn: () => void | Promise<void>,
-) => void;
+const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
 const OWNER_ORCID = "0000-0001-2345-6789";

@@ -2,10 +2,7 @@
 
 import { useCallback } from "react";
 import { trpc } from "~/trpc/client";
-import {
-  sha256HexFromFile,
-  type AuxFileScope,
-} from "~/lib/aux-file-client";
+import { sha256HexFromFile, type AuxFileScope } from "~/lib/aux-file-client";
 import type { PendingAuxFile } from "~/features/process-nexafs/types";
 
 export type AuxUploadProgress = Record<string, number>;

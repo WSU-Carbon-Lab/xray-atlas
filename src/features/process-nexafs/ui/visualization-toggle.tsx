@@ -163,7 +163,9 @@ export function VisualizationToggle({
             <button
               type="button"
               onClick={() => onModeChange("aux")}
-              className={mode === "aux" ? activeButtonClass : inactiveButtonClass}
+              className={
+                mode === "aux" ? activeButtonClass : inactiveButtonClass
+              }
             >
               <FolderIcon className="h-4 w-4" />
               <span>Metadata</span>
@@ -185,7 +187,9 @@ export function VisualizationToggle({
                   type="button"
                   onClick={() => onGraphStyleChange(style)}
                   className={
-                    graphStyle === style ? activeButtonClass : inactiveButtonClass
+                    graphStyle === style
+                      ? activeButtonClass
+                      : inactiveButtonClass
                   }
                 >
                   {getStyleIcon(style)}

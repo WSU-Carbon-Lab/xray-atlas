@@ -43,7 +43,9 @@ describe("moleculeSvgMarkupToDataUrl", () => {
     expect(dataUrl.startsWith("data:image/svg+xml;base64,")).toBe(true);
     const base64 = dataUrl.slice("data:image/svg+xml;base64,".length);
     const decoded = Buffer.from(base64, "base64").toString("utf8");
-    expect(decoded).toContain(MOLECULE_SVG_FONT_FAMILY.split(",")[0] ?? "Geist");
+    expect(decoded).toContain(
+      MOLECULE_SVG_FONT_FAMILY.split(",")[0] ?? "Geist",
+    );
     expect(decoded).toContain("&quot;Segoe UI&quot;");
     expect(decoded).not.toContain('BlinkMacSystemFont, "Segoe');
   });

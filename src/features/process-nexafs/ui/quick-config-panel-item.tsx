@@ -26,24 +26,18 @@ export function QuickConfigPanelItem({
 
   const getStatusIcon = () => {
     if (statusInfo.status === "complete") {
-      return (
-        <CheckCircleIcon className="h-4 w-4 text-success" />
-      );
+      return <CheckCircleIcon className="text-success h-4 w-4" />;
     }
     if (statusInfo.status === "error") {
-      return (
-        <ExclamationTriangleIcon className="h-4 w-4 text-danger" />
-      );
+      return <ExclamationTriangleIcon className="text-danger h-4 w-4" />;
     }
-    return (
-      <div className="border-warning h-4 w-4 rounded-full border-2" />
-    );
+    return <div className="border-warning h-4 w-4 rounded-full border-2" />;
   };
 
   return (
     <div
       className={`hover:bg-default cursor-pointer p-3 transition-colors ${
-        isActive ? "bg-accent/10 border-l-2 border-accent" : ""
+        isActive ? "bg-accent/10 border-accent border-l-2" : ""
       }`}
       onClick={onSelect}
     >

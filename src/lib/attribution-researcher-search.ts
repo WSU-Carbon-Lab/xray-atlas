@@ -1,7 +1,4 @@
-import {
-  normalizeOrcidUserInput,
-  orcidUserIdSchema,
-} from "~/lib/orcid";
+import { normalizeOrcidUserInput, orcidUserIdSchema } from "~/lib/orcid";
 
 /** How an attribution picker query should be interpreted. */
 export type AttributionSearchMode = "full_orcid" | "partial_orcid" | "text";

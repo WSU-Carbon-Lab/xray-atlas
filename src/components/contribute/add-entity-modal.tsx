@@ -50,7 +50,11 @@ export function AddEntityModal({
   const open = () => setIsOpen(true);
 
   const cardVariant =
-    variant === "header" ? "header" : variant === "compact" ? "compact" : "default";
+    variant === "header"
+      ? "header"
+      : variant === "compact"
+        ? "compact"
+        : "default";
 
   return (
     <>
@@ -99,9 +103,7 @@ export function AddEntityModal({
                         {title}
                       </Dialog.Title>
                       {description && (
-                        <p className="text-muted mt-1 text-sm">
-                          {description}
-                        </p>
+                        <p className="text-muted mt-1 text-sm">{description}</p>
                       )}
                     </div>
                     <button

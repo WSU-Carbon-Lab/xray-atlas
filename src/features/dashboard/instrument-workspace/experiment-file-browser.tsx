@@ -50,7 +50,10 @@ function catalogProgressLabel(input: {
   if (!input.loading) {
     return null;
   }
-  if (input.entryCount > 0 && (input.scanPhase === "cache" || input.fromCache)) {
+  if (
+    input.entryCount > 0 &&
+    (input.scanPhase === "cache" || input.fromCache)
+  ) {
     return `Refreshing ${input.entryCount} cached scan${input.entryCount === 1 ? "" : "s"}…`;
   }
   if (input.scanPhase === "cache" || input.fromCache) {

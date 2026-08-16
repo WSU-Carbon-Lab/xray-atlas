@@ -3,7 +3,12 @@ import type { SpectrumYAxisQuantity } from "./types";
 /**
  * Raw detector signal channels shared across STXM ingestion and future NEXAFS raw views.
  */
-export type SpectrumRawSignalChannelId = "i0" | "it" | "ie" | "sample" | "inv-i0";
+export type SpectrumRawSignalChannelId =
+  | "i0"
+  | "it"
+  | "ie"
+  | "sample"
+  | "inv-i0";
 
 /**
  * Edge-normalized spectroscopy channels (OD family and mass absorption).
@@ -22,11 +27,7 @@ export type SpectrumImaginaryChannelId =
   | "im-chi";
 
 /** Real optical-constant channels. */
-export type SpectrumRealChannelId =
-  | "delta"
-  | "f1"
-  | "re-epsilon"
-  | "re-chi";
+export type SpectrumRealChannelId = "delta" | "f1" | "re-epsilon" | "re-chi";
 
 /**
  * Canonical Y-channel identifiers for spectrum plot data rails (STXM ingestion today;

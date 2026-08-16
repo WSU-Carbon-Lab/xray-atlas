@@ -5,10 +5,7 @@ import { useSession } from "next-auth/react";
 import { Plus } from "lucide-react";
 import { cn } from "@heroui/styles";
 import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
-import {
-  PopoverMenu,
-  PopoverMenuContent,
-} from "~/components/ui/popover-menu";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
   canAddBeamlineScientist,
   instrumentStewardsForAvatarDisplay,
@@ -62,11 +59,7 @@ export function InstrumentBeamlineScientistAttributionRow({
         Claim beamline
       </a>
       {stewardAvatarUsers.length > 0 ? (
-        <ContributorAvatarGroup
-          users={stewardAvatarUsers}
-          size="sm"
-          max={8}
-        />
+        <ContributorAvatarGroup users={stewardAvatarUsers} size="sm" max={8} />
       ) : null}
       {canAdd ? (
         <PopoverMenu
@@ -86,7 +79,11 @@ export function InstrumentBeamlineScientistAttributionRow({
               <Plus className="size-4" aria-hidden />
             </button>
           )}
-          renderContent={({ close, contentProps, contentPositionClassName }) => (
+          renderContent={({
+            close,
+            contentProps,
+            contentPositionClassName,
+          }) => (
             <PopoverMenuContent
               {...contentProps}
               className={cn(

@@ -18,7 +18,10 @@ function assertStrictlyIncreasing(name: string, xs: readonly number[]): void {
   }
 }
 
-function makimaKnotDerivatives(x: readonly number[], y: readonly number[]): number[] {
+function makimaKnotDerivatives(
+  x: readonly number[],
+  y: readonly number[],
+): number[] {
   const n = x.length;
   if (n < 4) {
     throw new RangeError(
@@ -42,7 +45,9 @@ function makimaKnotDerivatives(x: readonly number[], y: readonly number[]): numb
   const mk = (j: number): number => {
     const v = m[j];
     if (v === undefined) {
-      throw new RangeError("makima segment buffer is incomplete for this knot count");
+      throw new RangeError(
+        "makima segment buffer is incomplete for this knot count",
+      );
     }
     return v;
   };
@@ -242,7 +247,9 @@ export function alignKkDeltaToSpectrumEnergyAxis(
   relTol = 1e-9,
 ): number[] {
   if (kkEnergyEvAsc.length !== kkDeltaAsc.length) {
-    throw new RangeError("kkEnergyEvAsc and kkDeltaAsc must have the same length");
+    throw new RangeError(
+      "kkEnergyEvAsc and kkDeltaAsc must have the same length",
+    );
   }
   assertStrictlyIncreasing("targetEnergyEvAsc", targetEnergyEvAsc);
   assertStrictlyIncreasing("kkEnergyEvAsc", kkEnergyEvAsc);

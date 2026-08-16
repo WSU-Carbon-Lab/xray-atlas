@@ -1,5 +1,8 @@
 import type { DescriptorTraceLegendConfig } from "~/components/plots/types";
-import type { PlotViewerDescriptorField, PlotViewerLegendRow } from "./plot-viewer-legend";
+import type {
+  PlotViewerDescriptorField,
+  PlotViewerLegendRow,
+} from "./plot-viewer-legend";
 import {
   DEFAULT_PLOT_VIEWER_DESCRIPTOR_FIELDS,
   plotViewerDescriptorColumnTitle,

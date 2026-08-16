@@ -22,7 +22,8 @@ export function FacilityCardCompact({
   instrumentCount,
   faviconUrl,
 }: FacilityCardCompactProps) {
-  const location = [city, country].filter(Boolean).join(", ") || "Location unknown";
+  const location =
+    [city, country].filter(Boolean).join(", ") || "Location unknown";
 
   const facilityTypeLabel = {
     SYNCHROTRON: "Synchrotron",
@@ -46,7 +47,9 @@ export function FacilityCardCompact({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div className="min-w-0 flex-1">
-            <h3 className="text-foreground truncate text-lg font-bold">{name}</h3>
+            <h3 className="text-foreground truncate text-lg font-bold">
+              {name}
+            </h3>
             <div className="text-muted mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm">
               <span>{location}</span>
               <span aria-hidden className="text-muted">

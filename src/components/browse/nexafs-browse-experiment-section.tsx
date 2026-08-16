@@ -196,9 +196,7 @@ export function NexafsBrowseExperimentSection({
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
   const listQueryReady =
-    urlSynced ||
-    Boolean(lockedMoleculeId) ||
-    Boolean(deepLinkExperimentId);
+    urlSynced || Boolean(lockedMoleculeId) || Boolean(deepLinkExperimentId);
 
   const effectiveMoleculeIds: string[] = lockedMoleculeId
     ? [lockedMoleculeId]

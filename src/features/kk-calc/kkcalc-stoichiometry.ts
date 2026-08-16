@@ -178,7 +178,9 @@ function parseChemicalFormulaInner(remainder: string): StoichiometryTerm[] {
   const rest = m[5] ?? "";
   const count = numStr.length > 0 ? Number(numStr) : 1;
   if (!Number.isFinite(count) || count <= 0) {
-    throw new RangeError(`Invalid stoichiometric count in formula: ${remainder}`);
+    throw new RangeError(
+      `Invalid stoichiometric count in formula: ${remainder}`,
+    );
   }
   let head: StoichiometryTerm[] = [];
   if (paren == null || paren.length === 0) {

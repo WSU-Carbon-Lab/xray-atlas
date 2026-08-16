@@ -21,12 +21,18 @@ export interface BondDepthTierStyle {
  * @param isDark - When true, use the dark UI palette.
  * @returns Style map keyed by depth tier.
  */
-export function bondDepthTierStyles(isDark: boolean): Record<BondDepthTier, BondDepthTierStyle> {
+export function bondDepthTierStyles(
+  isDark: boolean,
+): Record<BondDepthTier, BondDepthTierStyle> {
   const frontStroke = bondStrokeHexForMoleculeSvgTheme(isDark);
   const backStroke = isDark ? "#8a8a8a" : "#6b7280";
   return {
     front: { stroke: frontStroke, opacity: 1, strokeWidthScale: 1 },
-    back: { stroke: backStroke, opacity: isDark ? 0.42 : 0.38, strokeWidthScale: 0.92 },
+    back: {
+      stroke: backStroke,
+      opacity: isDark ? 0.42 : 0.38,
+      strokeWidthScale: 0.92,
+    },
   };
 }
 
@@ -65,7 +71,11 @@ function appendDepthFilterStyle(el: Element, t: number): void {
   );
 }
 
-function applyBondTierStyle(el: Element, tier: BondDepthTier, isDark: boolean): void {
+function applyBondTierStyle(
+  el: Element,
+  tier: BondDepthTier,
+  isDark: boolean,
+): void {
   const styles = bondDepthTierStyles(isDark)[tier];
   el.setAttribute("stroke", styles.stroke);
   if (tier === "back") {

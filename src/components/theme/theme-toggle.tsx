@@ -39,7 +39,7 @@ export function ThemeToggle() {
       type="button"
       onClick={mounted ? handleToggle : undefined}
       disabled={!mounted}
-      className="border-border bg-surface flex h-10 w-10 items-center justify-center rounded-lg border text-foreground transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+      className="border-border bg-surface text-foreground hover:bg-default focus-visible:ring-accent flex h-10 w-10 items-center justify-center rounded-lg border transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
       aria-label={
         mounted
           ? isDark

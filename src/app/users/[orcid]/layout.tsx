@@ -43,7 +43,10 @@ export async function generateMetadata({
       ? ` ${moleculesAuthored} molecule record${moleculesAuthored === 1 ? "" : "s"} contributed.`
       : "";
 
-  const description = `Public contributor profile for ${displayName} on X-ray Atlas.${countPhrase}`.replace(/\s+/g, " ").trim();
+  const description =
+    `Public contributor profile for ${displayName} on X-ray Atlas.${countPhrase}`
+      .replace(/\s+/g, " ")
+      .trim();
 
   return {
     title: `${displayName} profile`,

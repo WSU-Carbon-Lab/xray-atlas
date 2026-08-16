@@ -2,8 +2,7 @@
  * Matches ALS beamtime folder names such as `2025_10(October)`, `2026-03(March)`,
  * `2024_06`, or `2024_06 (June)`.
  */
-export const EXPERIMENT_FOLDER_PATTERN =
-  /^\d{4}[-_.]\d{1,2}(?:\s*\([^)]+\))?$/;
+export const EXPERIMENT_FOLDER_PATTERN = /^\d{4}[-_.]\d{1,2}(?:\s*\([^)]+\))?$/;
 
 /**
  * Returns true when `name` matches the beamtime experiment folder naming convention.
@@ -43,8 +42,7 @@ export function experimentSortKey(name: string): [number, number, string] {
   base = base.replace(/_/g, "-").replace(/\./g, "-");
   const parts = base.split("-");
   const year = Number.parseInt(parts[0] ?? "", 10);
-  const month =
-    parts.length > 1 ? Number.parseInt(parts[1] ?? "1", 10) : 1;
+  const month = parts.length > 1 ? Number.parseInt(parts[1] ?? "1", 10) : 1;
   if (Number.isNaN(year)) {
     return [0, 0, name];
   }

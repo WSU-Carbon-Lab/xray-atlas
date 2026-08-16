@@ -28,8 +28,7 @@ export function SubToolButton({
 }: SubToolButtonProps) {
   const baseClasses =
     "flex h-10 items-center justify-center gap-1.5 rounded-lg border transition-colors disabled:cursor-not-allowed disabled:opacity-50";
-  const activeClasses =
-    "border-border bg-default text-muted shadow-sm";
+  const activeClasses = "border-border bg-default text-muted shadow-sm";
   const inactiveClasses =
     "border-border bg-surface hover:bg-default text-foreground";
   const sizeClasses = iconOnly ? "w-10" : "flex-1";

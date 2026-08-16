@@ -22,8 +22,7 @@ export default async function SandboxLayout({
   if (!session?.user?.id) {
     redirect("/sign-in");
   }
-  const allowed =
-    session.user.canAccessLabs || session.user.canManageUsers;
+  const allowed = session.user.canAccessLabs || session.user.canManageUsers;
   if (!allowed) {
     redirect("/");
   }

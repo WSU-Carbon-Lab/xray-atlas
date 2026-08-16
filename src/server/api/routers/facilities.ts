@@ -79,14 +79,23 @@ export const facilitiesRouter = createTRPCRouter({
         name: z.string().min(1, "Facility name is required"),
         city: z.string().optional().nullable(),
         country: z.string().optional().nullable(),
-        facilityType: z.enum(["SYNCHROTRON", "FREE_ELECTRON_LASER", "LAB_SOURCE"]),
-        instruments: z.array(
-          z.object({
-            name: z.string().min(1, "Instrument name is required"),
-            link: z.string().url().optional().nullable(),
-            status: z.enum(["active", "inactive", "under_maintenance"]).default("active"),
-          }),
-        ).optional().default([]),
+        facilityType: z.enum([
+          "SYNCHROTRON",
+          "FREE_ELECTRON_LASER",
+          "LAB_SOURCE",
+        ]),
+        instruments: z
+          .array(
+            z.object({
+              name: z.string().min(1, "Instrument name is required"),
+              link: z.string().url().optional().nullable(),
+              status: z
+                .enum(["active", "inactive", "under_maintenance"])
+                .default("active"),
+            }),
+          )
+          .optional()
+          .default([]),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -119,7 +128,9 @@ export const facilitiesRouter = createTRPCRouter({
       // Create instruments with proper IDs
       if (input.instruments.length > 0) {
         const instrumentsToCreate = input.instruments.map((inst) => {
-          const sanitizedName = inst.name.replace(/[^a-zA-Z0-9]/g, "_").toLowerCase();
+          const sanitizedName = inst.name
+            .replace(/[^a-zA-Z0-9]/g, "_")
+            .toLowerCase();
           const instrumentId = `${facility.id}_${sanitizedName}`;
           return {
             id: instrumentId,
@@ -375,7 +386,9 @@ export const facilitiesRouter = createTRPCRouter({
         });
       }
 
-      const faviconUrl = await resolveFacilityFaviconForPersist(facility.websiteurl);
+      const faviconUrl = await resolveFacilityFaviconForPersist(
+        facility.websiteurl,
+      );
 
       return ctx.db.facilities.update({
         where: { id: input.facilityId },

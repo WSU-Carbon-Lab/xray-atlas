@@ -65,7 +65,9 @@ describe("coreSampleMetadataSections", () => {
       }),
     );
 
-    const preparation = sections.find((section) => section.title === "Preparation");
+    const preparation = sections.find(
+      (section) => section.title === "Preparation",
+    );
     expect(preparation?.rows.map((row) => row.label)).toEqual([
       "Process method",
       "Substrate",

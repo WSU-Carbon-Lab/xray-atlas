@@ -34,7 +34,10 @@ function resolveInstrumentConnectorState(
   readiness: DashboardConnectorReadiness;
   workspaceSlug: string | undefined;
 } {
-  const binding = matchInstrumentToDashboardBinding(instrumentName, facilityName);
+  const binding = matchInstrumentToDashboardBinding(
+    instrumentName,
+    facilityName,
+  );
   const readiness = binding?.readiness ?? "not_ready";
 
   return {
@@ -84,19 +87,24 @@ export function InstrumentConnectorClaimSection({
       aria-label={`Dashboard connector status for ${instrumentName}`}
     >
       <div className="flex flex-wrap items-center gap-2">
-        <p className="text-foreground text-sm font-medium">Dashboard workspace</p>
+        <p className="text-foreground text-sm font-medium">
+          Dashboard workspace
+        </p>
         <DashboardConnectorReadinessBadge readiness={readiness} />
       </div>
 
       {sectionView.showWorkspaceLink && workspaceHref ? (
         <div className="mt-2 flex flex-col gap-2">
           <p className="text-muted text-sm leading-snug">
-            Browser-side analysis software is available for this instrument on the
-            contributor dashboard.
+            Browser-side analysis software is available for this instrument on
+            the contributor dashboard.
           </p>
           <Link
             href={workspaceHref}
-            className={cn(buttonVariants({ variant: "primary", size: "sm" }), "w-fit")}
+            className={cn(
+              buttonVariants({ variant: "primary", size: "sm" }),
+              "w-fit",
+            )}
             aria-label={`Open dashboard workspace for ${instrumentName}`}
           >
             Open workspace
@@ -114,10 +122,12 @@ export function InstrumentConnectorClaimSection({
 
       {sectionView.showNoWorkspaceNarrative ? (
         <ol className="text-muted mt-3 list-decimal space-y-1 ps-5 text-sm leading-snug">
-          <li>Submit a claim issue so maintainers can verify your affiliation.</li>
           <li>
-            After approval, open a connector request with example data, processing code,
-            and a processed CSV derived from your as-is files.
+            Submit a claim issue so maintainers can verify your affiliation.
+          </li>
+          <li>
+            After approval, open a connector request with example data,
+            processing code, and a processed CSV derived from your as-is files.
           </li>
         </ol>
       ) : null}
@@ -130,8 +140,8 @@ export function InstrumentConnectorClaimSection({
 
       {sectionView.hasWorkspace ? (
         <p className="text-muted mt-3 text-sm leading-snug">
-          Beamline staff can submit a claim issue to verify affiliation with this
-          instrument.
+          Beamline staff can submit a claim issue to verify affiliation with
+          this instrument.
         </p>
       ) : null}
 
@@ -142,7 +152,9 @@ export function InstrumentConnectorClaimSection({
               href={connectorIssueUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "sm" }),
+              )}
               aria-label={`Request dashboard connector for ${instrumentName} on GitHub`}
             >
               Request connector

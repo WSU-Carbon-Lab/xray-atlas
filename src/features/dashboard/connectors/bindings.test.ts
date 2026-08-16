@@ -75,16 +75,22 @@ describe("dashboard connector bindings", () => {
   });
 
   it("registers only implemented workspace slugs", () => {
-    const slugs = listDashboardConnectorBindings().map((binding) => binding.slug);
+    const slugs = listDashboardConnectorBindings().map(
+      (binding) => binding.slug,
+    );
     expect(slugs).toContain(ALS_5322_INSTRUMENT_SLUG);
     expect(slugs).toContain(ALS_11012_INSTRUMENT_SLUG);
     expect(slugs.includes("als-5321")).toBe(false);
     expect(slugs.includes("als-731")).toBe(false);
     expect(slugs.includes("ansto-sxr")).toBe(false);
-    expect(resolveDashboardConnectorBinding(ALS_11012_INSTRUMENT_SLUG)?.readiness).toBe(
-      "not_ready",
+    expect(
+      resolveDashboardConnectorBinding(ALS_11012_INSTRUMENT_SLUG)?.readiness,
+    ).toBe("not_ready");
+    expect(isDashboardWorkspaceAccessible(ALS_11012_INSTRUMENT_SLUG)).toBe(
+      false,
     );
-    expect(isDashboardWorkspaceAccessible(ALS_11012_INSTRUMENT_SLUG)).toBe(false);
-    expect(isAllowedDashboardInstrumentSlug(ALS_11012_INSTRUMENT_SLUG)).toBe(false);
+    expect(isAllowedDashboardInstrumentSlug(ALS_11012_INSTRUMENT_SLUG)).toBe(
+      false,
+    );
   });
 });

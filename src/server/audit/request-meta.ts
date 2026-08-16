@@ -11,9 +11,7 @@ export interface AuditRequestMeta {
  * Extracts client IP and user agent from HTTP headers using the same forwarded-header
  * precedence as tRPC context construction.
  */
-export function extractAuditRequestMeta(
-  headers: Headers,
-): AuditRequestMeta {
+export function extractAuditRequestMeta(headers: Headers): AuditRequestMeta {
   return {
     sourceIp: getClientIpFromHeaders(headers),
     userAgent: headers.get("user-agent")?.trim() ?? null,

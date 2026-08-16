@@ -15,7 +15,10 @@ function isSaturatedCarbonChainBond(mol: Molecule, bond: number): boolean {
   return mol.getAtomicNo(a0) === CARBON && mol.getAtomicNo(a1) === CARBON;
 }
 
-function buildTerminalCarbonPathFromLeaf(mol: Molecule, leaf: number): number[] | null {
+function buildTerminalCarbonPathFromLeaf(
+  mol: Molecule,
+  leaf: number,
+): number[] | null {
   if (mol.getAtomicNo(leaf) !== CARBON || mol.getConnAtoms(leaf) !== 1) {
     return null;
   }

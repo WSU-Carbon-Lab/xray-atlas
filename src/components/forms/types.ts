@@ -35,7 +35,10 @@ export type FacilityListItemForIdentity = {
   facilitytype: FacilityType;
 };
 
-export type RegisteredInstrumentStatusChipColor = "success" | "default" | "warning";
+export type RegisteredInstrumentStatusChipColor =
+  | "success"
+  | "default"
+  | "warning";
 
 export type RegisteredInstrumentStatusPresentation = {
   label: string;

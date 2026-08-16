@@ -348,7 +348,9 @@ export function resolveRegionsMetadataForScanWithIngestionFallback(
 }
 
 /** Parses persisted JSON step metadata from the database with safe fallbacks. */
-export function parseDashboardStepMetadata(value: unknown): DashboardStepMetadata {
+export function parseDashboardStepMetadata(
+  value: unknown,
+): DashboardStepMetadata {
   const parsed = dashboardStepMetadataSchema.safeParse(value);
   if (parsed.success) {
     return parsed.data;
@@ -449,7 +451,10 @@ export type DashboardWorkspaceSessionRef = {
  * multiple opens of the same root folder.
  */
 export function dashboardWorkspaceShortcutKey(
-  session: Pick<DashboardWorkspaceSessionRef, "instrumentSlug" | "stepMetadata">,
+  session: Pick<
+    DashboardWorkspaceSessionRef,
+    "instrumentSlug" | "stepMetadata"
+  >,
 ): string {
   const workspace = session.stepMetadata.workspace;
   const folderKey =
@@ -467,10 +472,9 @@ function sessionUpdatedAtMs(updatedAt: Date | string): number {
 /**
  * Returns the newest session per workspace shortcut key, ordered by recency.
  */
-export function selectRecentWorkspaceSessions<T extends DashboardWorkspaceSessionRef>(
-  sessions: T[],
-  limit: number,
-): T[] {
+export function selectRecentWorkspaceSessions<
+  T extends DashboardWorkspaceSessionRef,
+>(sessions: T[], limit: number): T[] {
   const newestByKey = new Map<string, T>();
   const sorted = [...sessions].sort(
     (left, right) =>

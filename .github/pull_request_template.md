@@ -26,7 +26,6 @@ If you selected Level 2 or Level 3, include at least one sentence describing how
 
 ## Screenshots (if UI changes)
 
-Before | After
---- | ---
-img | img
-
+| Before | After |
+| ------ | ----- |
+| img    | img   |

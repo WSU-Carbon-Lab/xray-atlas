@@ -135,8 +135,7 @@ function useHorizontalScrollEdgeFades(
       const overflow = el.scrollWidth > el.clientWidth + 2;
       setEdges({
         left: overflow && el.scrollLeft > 2,
-        right:
-          overflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
+        right: overflow && el.scrollLeft + el.clientWidth < el.scrollWidth - 2,
       });
     };
 
@@ -208,8 +207,7 @@ const layerTransforms: Record<
     filled: "translate(0.8rem, -0.3rem) rotate(14deg) scale(1.04)",
   },
   front: {
-    idle: (px, py, rot) =>
-      `translate(${px}px, ${py}px) rotate(${rot}deg)`,
+    idle: (px, py, rot) => `translate(${px}px, ${py}px) rotate(${rot}deg)`,
     active: "translateY(-0.375rem) scale(1.05)",
     filled: "translateY(-0.5rem) scale(1.06)",
   },
@@ -325,8 +323,14 @@ function StackedPageLayer({
           : file
             ? cn(accentClasses.border, accentClasses.bg, accentClasses.text)
             : cn(
-                isFront ? "border-border bg-surface" : "border-border bg-surface-2",
-                isFront ? (active ? "text-foreground" : "text-muted") : "text-muted",
+                isFront
+                  ? "border-border bg-surface"
+                  : "border-border bg-surface-2",
+                isFront
+                  ? active
+                    ? "text-foreground"
+                    : "text-muted"
+                  : "text-muted",
               ),
         file && "pointer-events-auto",
       )}
@@ -495,9 +499,7 @@ export function StackedPageDropVisual({
   const pointerRotate = (pointerX - 50) * 0.14;
 
   const hasQueuedFiles = files.length > 0;
-  const visibleFiles = hasQueuedFiles
-    ? files.slice(-maxStackLayers)
-    : [];
+  const visibleFiles = hasQueuedFiles ? files.slice(-maxStackLayers) : [];
   const showScroller =
     expandToGridOnHover && isStackHovered && hasQueuedFiles && !isDragHighlight;
 

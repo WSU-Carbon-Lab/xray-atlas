@@ -45,7 +45,10 @@ export interface UseNexafsSpectrumBrowseModelResult {
   spectrumYAxisQuantity: SpectrumYAxisQuantity;
   channelAvailability: NexafsPlotChannelAvailability;
   referenceCurves: ReferenceCurve[];
-  normalizationRegions: { pre: [number, number] | null; post: [number, number] | null };
+  normalizationRegions: {
+    pre: [number, number] | null;
+    post: [number, number] | null;
+  };
   showNormalizationShading: boolean;
   odAvailable: boolean;
   absorptionAvailable: boolean;

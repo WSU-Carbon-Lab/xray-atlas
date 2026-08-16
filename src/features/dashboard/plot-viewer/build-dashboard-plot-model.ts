@@ -10,7 +10,10 @@ import {
   type NexafsPlotChannelId,
 } from "~/features/process-nexafs/nexafs-plot-channels";
 import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
-import { filterPointsByGeometryKeys, geometryKeyFromPoint } from "./geometry-keys";
+import {
+  filterPointsByGeometryKeys,
+  geometryKeyFromPoint,
+} from "./geometry-keys";
 
 export type DashboardPlotDatasetInput = {
   experimentId: string;

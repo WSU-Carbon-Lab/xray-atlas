@@ -28,8 +28,10 @@ export function useVisxScales(
   return useMemo(() => {
     if (!dimensions) return null;
 
-    const plotWidth = dimensions.width - dimensions.margins.left - dimensions.margins.right;
-    const plotHeight = dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
+    const plotWidth =
+      dimensions.width - dimensions.margins.left - dimensions.margins.right;
+    const plotHeight =
+      dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
 
     const PAD_X_FRACTION = 0.032;
     const PAD_Y_FRACTION = 0.08;

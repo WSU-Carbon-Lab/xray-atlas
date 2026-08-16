@@ -5,7 +5,10 @@ import { useMemo } from "react";
 import { bondDepthTierStyles } from "~/lib/molecule-svg-3d-perspective";
 
 import type { CageOrbitWireframeFrame } from "../utils/cage-template-placement";
-import { MOLECULE_2D_BOND_LINE_CAP, MOLECULE_2D_BOND_STROKE_WIDTH } from "../utils/molecule-2d-depiction-style";
+import {
+  MOLECULE_2D_BOND_LINE_CAP,
+  MOLECULE_2D_BOND_STROKE_WIDTH,
+} from "../utils/molecule-2d-depiction-style";
 import {
   moleculeToScreen,
   type DrawViewTransform,
@@ -43,7 +46,8 @@ export function CageOrbitFastLayer({
       const start = moleculeToScreen(baseTransform, { x: bond.x0, y: bond.y0 });
       const end = moleculeToScreen(baseTransform, { x: bond.x1, y: bond.y1 });
       const style = tierStyles[bond.tier];
-      const strokeWidth = MOLECULE_2D_BOND_STROKE_WIDTH * style.strokeWidthScale;
+      const strokeWidth =
+        MOLECULE_2D_BOND_STROKE_WIDTH * style.strokeWidthScale;
       return (
         <line
           key={`${bond.atom0}:${bond.atom1}:${index}`}

@@ -25,7 +25,7 @@ export default async function DashboardLayout({
     redirect("/sign-in");
   }
   return (
-    <div className="relative mx-[calc(-50vw+50%)] box-border flex w-screen max-w-[100vw] min-h-0 flex-1 flex-col px-3 py-4 sm:px-4">
+    <div className="relative mx-[calc(-50vw+50%)] box-border flex min-h-0 w-screen max-w-[100vw] flex-1 flex-col px-3 py-4 sm:px-4">
       {children}
     </div>
   );

@@ -51,11 +51,13 @@ Application code is licensed under the [MIT License](LICENSE). Contributed datas
 Each dataset has a minted DOI. When using X-ray Atlas data, cite:
 
 **Individual dataset:**
+
 ```
 [Dataset Name] [DOI]. Adapted from [Original Publication]. Hosted by X-Ray Atlas.
 ```
 
 **Entire collection:**
+
 ```
 X-Ray Atlas [Collection DOI]. Accessed [Date].
 ```

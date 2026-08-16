@@ -371,7 +371,9 @@ export function resolveStxmSessionPreview(
   return {
     ...preview,
     ingestionCache:
-      Object.keys(ingestionCache).length > 0 ? ingestionCache : preview.ingestionCache,
+      Object.keys(ingestionCache).length > 0
+        ? ingestionCache
+        : preview.ingestionCache,
     regionSpectraCache:
       Object.keys(regionSpectraCache).length > 0
         ? regionSpectraCache

@@ -81,11 +81,14 @@ export function PreviewSpectraTab({
     [atlasEntries, groupByExperimentId],
   );
 
-  const { datasets, spectraByExperimentId, isLoading: atlasSpectraLoading } =
-    useDashboardPlotSpectra(catalogSelections, {
-      enabled: atlasExperimentIds.length > 0,
-      geometryKeysByExperimentId: atlasGeometryByExperimentId,
-    });
+  const {
+    datasets,
+    spectraByExperimentId,
+    isLoading: atlasSpectraLoading,
+  } = useDashboardPlotSpectra(catalogSelections, {
+    enabled: atlasExperimentIds.length > 0,
+    geometryKeysByExperimentId: atlasGeometryByExperimentId,
+  });
 
   const geometrySyncRef = useRef<string>("");
   useEffect(() => {
@@ -196,7 +199,13 @@ export function PreviewSpectraTab({
         ],
       });
     }
-  }, [atlasCandidates, candidateKeySet, candidates, compareTraceKeys, stxmCandidates]);
+  }, [
+    atlasCandidates,
+    candidateKeySet,
+    candidates,
+    compareTraceKeys,
+    stxmCandidates,
+  ]);
 
   const catalogMetaByExperimentId = useMemo(() => {
     const map = new Map<
@@ -320,7 +329,9 @@ export function PreviewSpectraTab({
     });
   };
 
-  const handleGeometryChange = (geometryByExperimentId: Record<string, string[]>) => {
+  const handleGeometryChange = (
+    geometryByExperimentId: Record<string, string[]>,
+  ) => {
     void onPersistPreview({
       ...previewMetadata,
       atlasGeometryByExperimentId: geometryByExperimentId,

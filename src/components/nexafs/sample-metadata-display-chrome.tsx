@@ -128,7 +128,9 @@ function SampleMetadataReadSection({
   return (
     <section aria-labelledby={sectionId}>
       {hideCaption ? (
-        <p className="text-muted/80 mb-1.5 px-1 text-xs font-medium">{section.title}</p>
+        <p className="text-muted/80 mb-1.5 px-1 text-xs font-medium">
+          {section.title}
+        </p>
       ) : (
         <SampleMetadataSectionCaption title={section.title} />
       )}
@@ -155,7 +157,9 @@ export function SampleMetadataSectionBlock({
   hideCaption?: boolean;
   variant?: "core" | "extended";
 }) {
-  return <SampleMetadataReadSection section={section} hideCaption={hideCaption} />;
+  return (
+    <SampleMetadataReadSection section={section} hideCaption={hideCaption} />
+  );
 }
 
 export function SampleMetadataPanelHeading({
@@ -167,8 +171,12 @@ export function SampleMetadataPanelHeading({
 }) {
   return (
     <div className="min-w-0">
-      <h3 className="text-foreground text-lg font-semibold tracking-tight">{title}</h3>
-      <p className="text-muted mt-1 max-w-2xl text-[13px] leading-relaxed">{description}</p>
+      <h3 className="text-foreground text-lg font-semibold tracking-tight">
+        {title}
+      </h3>
+      <p className="text-muted mt-1 max-w-2xl text-[13px] leading-relaxed">
+        {description}
+      </p>
     </div>
   );
 }
@@ -191,7 +199,10 @@ export function SampleMetadataReadView({
       ))}
 
       {extendedSections.length > 0 ? (
-        <section aria-labelledby="nexafs-sample-extended-heading" className="flex flex-col gap-3">
+        <section
+          aria-labelledby="nexafs-sample-extended-heading"
+          className="flex flex-col gap-3"
+        >
           <SampleMetadataSectionCaption
             title="Extended preparation"
             trailing={`${extendedRowCount} detail${extendedRowCount === 1 ? "" : "s"}`}
@@ -236,7 +247,8 @@ export function SampleMetadataEmptyExtendedHint() {
         No extended preparation details yet.
       </p>
       <p className="text-muted/70 mt-1 text-xs leading-relaxed">
-        Edit to add spin coating, solution chemistry, annealing, and other metadata.
+        Edit to add spin coating, solution chemistry, annealing, and other
+        metadata.
       </p>
     </div>
   );
@@ -245,11 +257,10 @@ export function SampleMetadataEmptyExtendedHint() {
 export function SampleMetadataEmptyState() {
   return (
     <div className="border-border/40 flex flex-col items-center gap-2 rounded-2xl border border-dashed px-6 py-10 text-center">
-      <BeakerIcon
-        className="text-muted/60 h-8 w-8 stroke-[1.25]"
-        aria-hidden
-      />
-      <p className="text-muted text-[13px]">No sample details were recorded for this dataset.</p>
+      <BeakerIcon className="text-muted/60 h-8 w-8 stroke-[1.25]" aria-hidden />
+      <p className="text-muted text-[13px]">
+        No sample details were recorded for this dataset.
+      </p>
     </div>
   );
 }

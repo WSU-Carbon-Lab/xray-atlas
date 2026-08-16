@@ -46,7 +46,9 @@ export function verificationFilterChoiceFromCatalog(filters: {
 /**
  * Maps a verification chip selection to `verifiedOnly` and `verificationSource`.
  */
-export function catalogFiltersFromVerificationChoice(choice: VerificationFilterChoice): {
+export function catalogFiltersFromVerificationChoice(
+  choice: VerificationFilterChoice,
+): {
   verifiedOnly: boolean;
   verificationSource: VerificationSource;
 } {

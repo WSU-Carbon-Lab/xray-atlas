@@ -36,9 +36,7 @@ export function resolveStxmCatalogEntryForScanId(
 
   const hdrHint = previewEntry?.hdrFileName?.trim().toLowerCase();
   if (hdrHint) {
-    const byHdr = catalog.find(
-      (row) => row.basename.toLowerCase() === hdrHint,
-    );
+    const byHdr = catalog.find((row) => row.basename.toLowerCase() === hdrHint);
     if (byHdr) {
       return byHdr;
     }

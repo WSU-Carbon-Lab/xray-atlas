@@ -40,10 +40,7 @@ import {
   contributorRoleLabel,
   type DataCiteContributorType,
 } from "~/lib/datacite-contributor-types";
-import {
-  normalizeOrcidUserInput,
-  orcidUserIdSchema,
-} from "~/lib/orcid";
+import { normalizeOrcidUserInput, orcidUserIdSchema } from "~/lib/orcid";
 import { trpc } from "~/trpc/client";
 
 export type TeamMemberDraft = {
@@ -59,7 +56,11 @@ type TeamEditorDialogProps = {
   onSaved: () => void;
 };
 
-function AttributionRoleListItem({ option }: { option: AttributionRoleOption }) {
+function AttributionRoleListItem({
+  option,
+}: {
+  option: AttributionRoleOption;
+}) {
   return (
     <ListBox.Item
       id={option.contributorType}
@@ -69,10 +70,14 @@ function AttributionRoleListItem({ option }: { option: AttributionRoleOption }) 
         <span className="text-foreground flex flex-wrap items-center gap-1.5 font-medium">
           <span>{option.label}</span>
           {option.subtitle ? (
-            <span className="text-muted text-xs font-normal">{option.subtitle}</span>
+            <span className="text-muted text-xs font-normal">
+              {option.subtitle}
+            </span>
           ) : null}
         </span>
-        <span className="text-muted text-xs leading-snug">{option.description}</span>
+        <span className="text-muted text-xs leading-snug">
+          {option.description}
+        </span>
       </div>
       <ListBox.ItemIndicator />
     </ListBox.Item>
@@ -89,7 +94,9 @@ type TeamOrcidSearchPickerProps = {
   helperText: string;
   selectedOrcid: string | null;
   selectedDisplayName: string | null;
-  onSelect: (value: { orcid: string; displayName: string | null } | null) => void;
+  onSelect: (
+    value: { orcid: string; displayName: string | null } | null,
+  ) => void;
 };
 
 function TeamOrcidSearchPicker({
@@ -191,12 +198,20 @@ function TeamOrcidSearchPicker({
         allowsEmptyCollection
       >
         <ComboBox.InputGroup>
-          <Input id={id} placeholder="Search by name or ORCID" autoComplete="off" />
+          <Input
+            id={id}
+            placeholder="Search by name or ORCID"
+            autoComplete="off"
+          />
           <ComboBox.Trigger />
         </ComboBox.InputGroup>
         <ComboBox.Popover>
           <div data-attribution-nested-overlay="true">
-            <ScrollShadow className="max-h-40 min-h-0" hideScrollBar orientation="vertical">
+            <ScrollShadow
+              className="max-h-40 min-h-0"
+              hideScrollBar
+              orientation="vertical"
+            >
               <ListBox aria-label={`${label} search results`}>
                 {searchResults.map((hit) => (
                   <ListBox.Item
@@ -214,8 +229,12 @@ function TeamOrcidSearchPicker({
                         className="h-7 w-7 shrink-0"
                       />
                       <div className="min-w-0">
-                        <p className="text-foreground truncate text-sm">{hit.displayName}</p>
-                        <p className="text-muted font-mono text-xs">{hit.orcid}</p>
+                        <p className="text-foreground truncate text-sm">
+                          {hit.displayName}
+                        </p>
+                        <p className="text-muted font-mono text-xs">
+                          {hit.orcid}
+                        </p>
                       </div>
                     </div>
                     <ListBox.ItemIndicator />
@@ -309,11 +328,16 @@ function TeamEditorDialog({
   const [name, setName] = useState("");
   const [institution, setInstitution] = useState("");
   const [researchGroupName, setResearchGroupName] = useState("");
-  const [groupType, setGroupType] = useState<AttributionTeamGroupType>("beamtime");
+  const [groupType, setGroupType] =
+    useState<AttributionTeamGroupType>("beamtime");
   const [piOrcid, setPiOrcid] = useState<string | null>(null);
   const [piDisplayName, setPiDisplayName] = useState<string | null>(null);
-  const [experimentLeadOrcid, setExperimentLeadOrcid] = useState<string | null>(null);
-  const [experimentLeadDisplayName, setExperimentLeadDisplayName] = useState<string | null>(null);
+  const [experimentLeadOrcid, setExperimentLeadOrcid] = useState<string | null>(
+    null,
+  );
+  const [experimentLeadDisplayName, setExperimentLeadDisplayName] = useState<
+    string | null
+  >(null);
   const [description, setDescription] = useState("");
   const [members, setMembers] = useState<TeamMemberDraft[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -438,11 +462,17 @@ function TeamEditorDialog({
   const handleAddMember = useCallback(() => {
     const orcid = resolveOrcidForAdd();
     if (!orcid) {
-      setMemberError("Select a researcher from the list or enter a valid ORCID iD");
+      setMemberError(
+        "Select a researcher from the list or enter a valid ORCID iD",
+      );
       return;
     }
     const key = `${orcid}:${roleDraft}`;
-    if (members.some((member) => `${member.orcid}:${member.contributorType}` === key)) {
+    if (
+      members.some(
+        (member) => `${member.orcid}:${member.contributorType}` === key,
+      )
+    ) {
       setMemberError("This person already has that role on the team");
       return;
     }
@@ -471,7 +501,9 @@ function TeamEditorDialog({
     const payload = {
       name: trimmedName,
       institution: institution.trim() ? institution.trim() : null,
-      researchGroupName: researchGroupName.trim() ? researchGroupName.trim() : null,
+      researchGroupName: researchGroupName.trim()
+        ? researchGroupName.trim()
+        : null,
       groupType,
       piOrcid,
       experimentLeadOrcid,
@@ -513,7 +545,8 @@ function TeamEditorDialog({
                   placeholder="2026 Spring beamtime"
                 />
                 <p className="text-muted text-xs">
-                  Short label for this saved roster (for example a campaign or upload batch).
+                  Short label for this saved roster (for example a campaign or
+                  upload batch).
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
@@ -534,7 +567,8 @@ function TeamEditorDialog({
                   placeholder="Lab or group name"
                 />
                 <p className="text-muted text-xs">
-                  Distinct from the team label above; use the lab or research group identity.
+                  Distinct from the team label above; use the lab or research
+                  group identity.
                 </p>
               </div>
             </div>
@@ -594,9 +628,13 @@ function TeamEditorDialog({
             </div>
 
             <div className="space-y-2">
-              <p className="text-foreground text-sm font-semibold">Additional members</p>
+              <p className="text-foreground text-sm font-semibold">
+                Additional members
+              </p>
               {members.length === 0 ? (
-                <p className="text-muted text-xs">Add researchers with preset attribution roles.</p>
+                <p className="text-muted text-xs">
+                  Add researchers with preset attribution roles.
+                </p>
               ) : (
                 <ul className="border-border divide-border divide-y rounded-lg border">
                   {members.map((member) => (
@@ -661,12 +699,19 @@ function TeamEditorDialog({
                 allowsEmptyCollection
               >
                 <ComboBox.InputGroup>
-                  <Input placeholder="Search by name or ORCID" autoComplete="off" />
+                  <Input
+                    placeholder="Search by name or ORCID"
+                    autoComplete="off"
+                  />
                   <ComboBox.Trigger />
                 </ComboBox.InputGroup>
                 <ComboBox.Popover>
                   <div data-attribution-nested-overlay="true">
-                    <ScrollShadow className="max-h-48 min-h-0" hideScrollBar orientation="vertical">
+                    <ScrollShadow
+                      className="max-h-48 min-h-0"
+                      hideScrollBar
+                      orientation="vertical"
+                    >
                       <ListBox aria-label="Researcher search results">
                         {searchResults.map((hit) => (
                           <ListBox.Item
@@ -684,8 +729,12 @@ function TeamEditorDialog({
                                 className="h-7 w-7 shrink-0"
                               />
                               <div className="min-w-0">
-                                <p className="text-foreground truncate text-sm">{hit.displayName}</p>
-                                <p className="text-muted font-mono text-xs">{hit.orcid}</p>
+                                <p className="text-foreground truncate text-sm">
+                                  {hit.displayName}
+                                </p>
+                                <p className="text-muted font-mono text-xs">
+                                  {hit.orcid}
+                                </p>
                               </div>
                             </div>
                             <ListBox.ItemIndicator />
@@ -720,17 +769,26 @@ function TeamEditorDialog({
                 </Select.Trigger>
                 <Select.Popover>
                   <div data-attribution-nested-overlay="true">
-                    <ScrollShadow className="max-h-56 min-h-0" hideScrollBar orientation="vertical">
+                    <ScrollShadow
+                      className="max-h-56 min-h-0"
+                      hideScrollBar
+                      orientation="vertical"
+                    >
                       <ListBox aria-label="Member roles" className="p-1">
                         {roleOptionSections.map((section, sectionIndex) => (
                           <Fragment key={section.tier}>
-                            {sectionIndex > 0 ? <Separator className="my-1" /> : null}
+                            {sectionIndex > 0 ? (
+                              <Separator className="my-1" />
+                            ) : null}
                             <ListBox.Section>
                               <Header className="text-muted px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
                                 {section.sectionLabel}
                               </Header>
                               {section.options.map((option) => (
-                                <AttributionRoleListItem key={option.contributorType} option={option} />
+                                <AttributionRoleListItem
+                                  key={option.contributorType}
+                                  option={option}
+                                />
                               ))}
                             </ListBox.Section>
                           </Fragment>
@@ -740,23 +798,42 @@ function TeamEditorDialog({
                   </div>
                 </Select.Popover>
               </Select>
-              <Button type="button" variant="secondary" size="sm" onPress={handleAddMember}>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                onPress={handleAddMember}
+              >
                 Add to team
               </Button>
               {memberError ? (
-                <ErrorMessage className="text-danger text-xs">{memberError}</ErrorMessage>
+                <ErrorMessage className="text-danger text-xs">
+                  {memberError}
+                </ErrorMessage>
               ) : null}
             </div>
 
             {formError ? (
-              <ErrorMessage className="text-danger text-xs">{formError}</ErrorMessage>
+              <ErrorMessage className="text-danger text-xs">
+                {formError}
+              </ErrorMessage>
             ) : null}
 
             <div className="flex justify-end gap-2 pt-2">
-              <Button type="button" variant="ghost" onPress={onClose} isDisabled={isPending}>
+              <Button
+                type="button"
+                variant="ghost"
+                onPress={onClose}
+                isDisabled={isPending}
+              >
                 Cancel
               </Button>
-              <Button type="button" variant="primary" onPress={handleSave} isDisabled={isPending}>
+              <Button
+                type="button"
+                variant="primary"
+                onPress={handleSave}
+                isDisabled={isPending}
+              >
                 {isEdit ? "Save team" : "Create team"}
               </Button>
             </div>
@@ -803,8 +880,8 @@ export function AttributionTeamsPage() {
             Attribution teams
           </h1>
           <p className="text-muted mt-1 max-w-2xl text-sm leading-relaxed">
-            Teams you own or belong to. Save beamtime groups with preset DataCite
-            roles, then bulk-add them when crediting NEXAFS datasets.
+            Teams you own or belong to. Save beamtime groups with preset
+            DataCite roles, then bulk-add them when crediting NEXAFS datasets.
           </p>
         </div>
         <Button variant="primary" onPress={openCreate}>
@@ -842,13 +919,17 @@ export function AttributionTeamsPage() {
               <div className="min-w-0">
                 <p className="text-foreground font-semibold">{team.name}</p>
                 {team.researchGroupName ? (
-                  <p className="text-muted mt-0.5 text-sm">{team.researchGroupName}</p>
+                  <p className="text-muted mt-0.5 text-sm">
+                    {team.researchGroupName}
+                  </p>
                 ) : null}
                 {team.institution ? (
                   <p className="text-muted text-sm">{team.institution}</p>
                 ) : null}
                 {team.description ? (
-                  <p className="text-muted mt-0.5 text-sm">{team.description}</p>
+                  <p className="text-muted mt-0.5 text-sm">
+                    {team.description}
+                  </p>
                 ) : null}
                 <p className="text-muted mt-1 text-xs">
                   {groupTypeLabel(team.groupType)}

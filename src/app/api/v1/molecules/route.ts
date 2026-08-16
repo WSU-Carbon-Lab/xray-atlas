@@ -17,7 +17,9 @@ export async function GET(request: Request): Promise<NextResponse> {
       ...(query.q
         ? {
             OR: [
-              { iupacname: { contains: query.q, mode: "insensitive" as const } },
+              {
+                iupacname: { contains: query.q, mode: "insensitive" as const },
+              },
               { inchi: { contains: query.q, mode: "insensitive" as const } },
               { smiles: { contains: query.q, mode: "insensitive" as const } },
               {
@@ -26,12 +28,19 @@ export async function GET(request: Request): Promise<NextResponse> {
                   mode: "insensitive" as const,
                 },
               },
-              { casnumber: { contains: query.q, mode: "insensitive" as const } },
-              { pubchemcid: { contains: query.q, mode: "insensitive" as const } },
+              {
+                casnumber: { contains: query.q, mode: "insensitive" as const },
+              },
+              {
+                pubchemcid: { contains: query.q, mode: "insensitive" as const },
+              },
               {
                 moleculesynonyms: {
                   some: {
-                    synonym: { contains: query.q, mode: "insensitive" as const },
+                    synonym: {
+                      contains: query.q,
+                      mode: "insensitive" as const,
+                    },
                   },
                 },
               },
@@ -73,7 +82,11 @@ export async function GET(request: Request): Promise<NextResponse> {
           },
         },
       },
-      orderBy: [{ favoritecount: "desc" }, { viewcount: "desc" }, { iupacname: "asc" }],
+      orderBy: [
+        { favoritecount: "desc" },
+        { viewcount: "desc" },
+        { iupacname: "asc" },
+      ],
       skip: requiresSynonymCountFilter ? 0 : query.offset,
       take: requiresSynonymCountFilter ? 1000 : query.limit + 1,
     });
@@ -82,7 +95,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       query.synonymsCountMax === undefined
         ? molecules
         : molecules.filter(
-            (molecule) => molecule._count.moleculesynonyms <= query.synonymsCountMax!,
+            (molecule) =>
+              molecule._count.moleculesynonyms <= query.synonymsCountMax!,
           );
 
     const page = requiresSynonymCountFilter
@@ -125,7 +139,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     });
   } catch (error) {
     if (error instanceof ZodError) {
-      return jsonError(error.issues[0]?.message ?? "Invalid query parameters.", 400);
+      return jsonError(
+        error.issues[0]?.message ?? "Invalid query parameters.",
+        400,
+      );
     }
     return jsonError("Failed to list molecules.", 500);
   }

@@ -84,9 +84,7 @@ function segmentVariantFromMarkerPercent(
     }
     acc = next;
   }
-  return segments.length > 0
-    ? segments[segments.length - 1]!.variant
-    : null;
+  return segments.length > 0 ? segments[segments.length - 1]!.variant : null;
 }
 
 /**
@@ -111,8 +109,7 @@ export function MetricTierSegmentedBar({
   const normalized = useMemo(() => {
     const raw = segments.map((s) => ({
       ...s,
-      widthFrac:
-        Number.isFinite(s.percent) && s.percent >= 0 ? s.percent : 0,
+      widthFrac: Number.isFinite(s.percent) && s.percent >= 0 ? s.percent : 0,
     }));
     const total = raw.reduce((a, s) => a + s.widthFrac, 0);
     if (total <= 0) return raw.map((s) => ({ ...s, widthPct: 0 }));
@@ -133,7 +130,9 @@ export function MetricTierSegmentedBar({
       ? segmentVariantFromMarkerPercent(segments, marker.percentAlongBar)
       : null;
   const markerRingClass =
-    markerVariant != null ? VARIANT_MARKER_RING[markerVariant] : "border-border";
+    markerVariant != null
+      ? VARIANT_MARKER_RING[markerVariant]
+      : "border-border";
 
   const onKeyNav = useCallback(
     (e: KeyboardEvent, index: number) => {
@@ -141,7 +140,9 @@ export function MetricTierSegmentedBar({
       e.preventDefault();
       const dir = e.key === "ArrowRight" ? 1 : -1;
       const next = (index + dir + normalized.length) % normalized.length;
-      const el = document.getElementById(`metric-tier-seg-${normalized[next]!.id}`);
+      const el = document.getElementById(
+        `metric-tier-seg-${normalized[next]!.id}`,
+      );
       el?.focus();
     },
     [normalized],
@@ -216,20 +217,26 @@ export function MetricTierSegmentedBar({
           ) : null}
         </div>
       </div>
-      <p id={detailId} className="text-muted mt-2 min-h-[2.5rem] text-xs leading-snug">
+      <p
+        id={detailId}
+        className="text-muted mt-2 min-h-[2.5rem] text-xs leading-snug"
+      >
         {activeSegment ? (
           <>
             <span className="text-foreground font-semibold tabular-nums">
               {activeSegment.percent.toFixed(0)}%
+            </span>{" "}
+            <span className="text-foreground font-medium">
+              {activeSegment.label}
+            </span>{" "}
+            <span className="text-muted">
+              ({activeSegment.rangeDescription})
             </span>
-            {" "}
-            <span className="text-foreground font-medium">{activeSegment.label}</span>
-            {" "}
-            <span className="text-muted">({activeSegment.rangeDescription})</span>
           </>
         ) : (
           <span>
-            Hover or focus a segment for share and spacing range. Tab and arrow keys move between segments.
+            Hover or focus a segment for share and spacing range. Tab and arrow
+            keys move between segments.
           </span>
         )}
       </p>

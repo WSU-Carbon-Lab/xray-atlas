@@ -57,9 +57,6 @@ export function getTraceLabel(trace: TraceData, index: number): string {
   return typeof trace.name === "string" ? trace.name : `Trace ${index + 1}`;
 }
 
-export function getTraceColor(
-  trace: TraceData,
-  fallback: string,
-): string {
+export function getTraceColor(trace: TraceData, fallback: string): string {
   return trace.line?.color ?? trace.marker?.color ?? fallback;
 }

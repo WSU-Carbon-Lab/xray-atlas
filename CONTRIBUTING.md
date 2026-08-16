@@ -27,13 +27,13 @@ Thank you for your interest in contributing to X-ray Atlas. This guide covers de
 
 Before you begin, ensure you have the following installed:
 
-| Tool | Version | Installation |
-|------|---------|--------------|
-| **Bun** | >= 1.0 | [bun.sh](https://bun.sh/) |
-| **Node.js** | >= 20 | [nodejs.org](https://nodejs.org/) |
-| **Git** | >= 2.0 | [git-scm.com](https://git-scm.com/) |
-| **ngrok** | Latest | [ngrok.com](https://ngrok.com/) |
-| **Infisical CLI** | Latest | [infisical.com](https://infisical.com/docs/cli/overview) |
+| Tool              | Version | Installation                                             |
+| ----------------- | ------- | -------------------------------------------------------- |
+| **Bun**           | >= 1.0  | [bun.sh](https://bun.sh/)                                |
+| **Node.js**       | >= 20   | [nodejs.org](https://nodejs.org/)                        |
+| **Git**           | >= 2.0  | [git-scm.com](https://git-scm.com/)                      |
+| **ngrok**         | Latest  | [ngrok.com](https://ngrok.com/)                          |
+| **Infisical CLI** | Latest  | [infisical.com](https://infisical.com/docs/cli/overview) |
 
 ### Installing Prerequisites
 
@@ -91,11 +91,11 @@ X-ray Atlas is **Infisical-first**: Infisical is the single source of truth for 
 
 #### Environment Profiles
 
-| Environment | Use Case |
-|-------------|----------|
-| `dev` | Local development (also read by `bun dev`) |
-| `staging` | Preview deployments (synced to Vercel Preview) |
-| `prod` | Production (synced to Vercel Production; read-only for most contributors) |
+| Environment | Use Case                                                                  |
+| ----------- | ------------------------------------------------------------------------- |
+| `dev`       | Local development (also read by `bun dev`)                                |
+| `staging`   | Preview deployments (synced to Vercel Preview)                            |
+| `prod`      | Production (synced to Vercel Production; read-only for most contributors) |
 
 #### If you need a real `.env` file
 
@@ -305,12 +305,12 @@ OAuth providers like ORCID require HTTPS and non-localhost URLs. Use ngrok to cr
 
 #### Troubleshooting OAuth with ngrok
 
-| Issue | Solution |
-|-------|----------|
+| Issue                   | Solution                                          |
+| ----------------------- | ------------------------------------------------- |
 | 503 Service Unavailable | Ensure `bun dev` is running before ngrok connects |
-| Configuration Error | Verify `AUTH_URL` matches your ngrok URL exactly |
-| Cookies not persisting | Check that ngrok URL uses HTTPS |
-| State mismatch | Clear browser cookies and retry |
+| Configuration Error     | Verify `AUTH_URL` matches your ngrok URL exactly  |
+| Cookies not persisting  | Check that ngrok URL uses HTTPS                   |
+| State mismatch          | Clear browser cookies and retry                   |
 
 ---
 
@@ -328,25 +328,25 @@ bun dev:tunnel
 
 ### Available Scripts
 
-| Command | Description |
-|---------|-------------|
-| `bun dev` | Start dev server with Turbopack |
-| `bun dev:tunnel` | Start dev server with ngrok tunnel |
-| `bun build` | Build for production |
-| `bun start` | Start production server |
-| `bun check` | Run linting and type checking |
-| `bun lint` | Run oxlint (type-aware) |
-| `bun lint:fix` | Fix auto-fixable oxlint issues |
-| `bun format:check` | Check oxfmt formatting |
-| `bun format:write` | Fix oxfmt formatting |
-| `bun typecheck` | Run TypeScript type checking |
-| `bun db:generate` | Create Prisma migration |
-| `bun db:migrate` | Apply Prisma migrations |
-| `bun db:migrate:run` | Check DIRECT_URL, then apply migrations (Supabase-friendly) |
-| `bun db:migrate:check` | Validate DIRECT_URL only |
+| Command                   | Description                                                   |
+| ------------------------- | ------------------------------------------------------------- |
+| `bun dev`                 | Start dev server with Turbopack                               |
+| `bun dev:tunnel`          | Start dev server with ngrok tunnel                            |
+| `bun build`               | Build for production                                          |
+| `bun start`               | Start production server                                       |
+| `bun check`               | Run linting and type checking                                 |
+| `bun lint`                | Run oxlint (type-aware)                                       |
+| `bun lint:fix`            | Fix auto-fixable oxlint issues                                |
+| `bun format:check`        | Check oxfmt formatting                                        |
+| `bun format:write`        | Fix oxfmt formatting                                          |
+| `bun typecheck`           | Run TypeScript type checking                                  |
+| `bun db:generate`         | Create Prisma migration                                       |
+| `bun db:migrate`          | Apply Prisma migrations                                       |
+| `bun db:migrate:run`      | Check DIRECT_URL, then apply migrations (Supabase-friendly)   |
+| `bun db:migrate:check`    | Validate DIRECT_URL only                                      |
 | `bun db:bootstrap:admins` | Grant administrator role from ADMIN_BOOTSTRAP_EMAILS / ORCIDS |
-| `bun db:push` | Push schema changes (dev only) |
-| `bun db:studio` | Open Prisma Studio |
+| `bun db:push`             | Push schema changes (dev only)                                |
+| `bun db:studio`           | Open Prisma Studio                                            |
 
 **Keep `package.json`'s `scripts` list to durable, ongoing commands only.** One-off migration, backfill, or audit scripts belong in `scripts/` and can be run directly with `bun scripts/<name>.ts` — they don't need a permanent `package.json` entry. Once a one-off script has served its purpose, delete both the script file and its entry rather than leaving it as accumulated cruft. If you're adding something you expect the team to run repeatedly (not a single migration event), that's the case for a real script entry — raise it in your PR description so reviewers know a new command is being added.
 
@@ -411,16 +411,16 @@ type(scope): description
 
 Types:
 
-| Type | Description |
-|------|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation changes |
-| `style` | Code style changes (formatting) |
-| `refactor` | Code refactoring |
-| `perf` | Performance improvements |
-| `test` | Adding or updating tests |
-| `chore` | Maintenance tasks |
+| Type       | Description                     |
+| ---------- | ------------------------------- |
+| `feat`     | New feature                     |
+| `fix`      | Bug fix                         |
+| `docs`     | Documentation changes           |
+| `style`    | Code style changes (formatting) |
+| `refactor` | Code refactoring                |
+| `perf`     | Performance improvements        |
+| `test`     | Adding or updating tests        |
+| `chore`    | Maintenance tasks               |
 
 Examples:
 
@@ -637,9 +637,9 @@ If you selected Level 2 or Level 3, include at least one sentence describing how
 
 ## Screenshots (if UI changes)
 
-Before | After
---- | ---
-img | img
+| Before | After |
+| ------ | ----- |
+| img    | img   |
 ```
 
 ### AI Usage in PRs

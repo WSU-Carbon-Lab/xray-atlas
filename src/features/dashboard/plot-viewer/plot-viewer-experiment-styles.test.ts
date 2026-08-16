@@ -16,7 +16,10 @@ const describe = bunDescribe as (name: string, fn: () => void) => void;
 const it = bunIt as (name: string, fn: () => void) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
-function trace(experimentId: string, geometryKey: string): PlotViewerStyledTrace {
+function trace(
+  experimentId: string,
+  geometryKey: string,
+): PlotViewerStyledTrace {
   return {
     traceKey: buildPlotViewerTraceKey(experimentId, geometryKey),
     experimentId,

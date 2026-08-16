@@ -67,15 +67,18 @@ export type PlotViewerExperimentStyleItem = {
 };
 
 function compactTraceLabel(trace: PlotViewerStyledTrace): string {
-  const parts = [trace.descriptors.thetaPhi, trace.descriptors.instrument].filter(
-    (part) => part.trim().length > 0,
-  );
+  const parts = [
+    trace.descriptors.thetaPhi,
+    trace.descriptors.instrument,
+  ].filter((part) => part.trim().length > 0);
   return parts.join(" · ");
 }
 
 function styleOverrideFlags(
   traceKey: string,
-  traceOverrides: Readonly<Record<string, PlotViewerTraceStyleOverride>> | undefined,
+  traceOverrides:
+    | Readonly<Record<string, PlotViewerTraceStyleOverride>>
+    | undefined,
 ): {
   hasColorOverride: boolean;
   hasLineDashOverride: boolean;
@@ -225,7 +228,8 @@ export function buildPlotViewerExperimentStyleItems(params: {
             experimentLineWidthOverrides: params.experimentLineWidthOverrides,
             experimentMarkerOverrides: params.experimentMarkerOverrides,
             experimentMarkerSizeOverrides: params.experimentMarkerSizeOverrides,
-            experimentMarkerEveryOverrides: params.experimentMarkerEveryOverrides,
+            experimentMarkerEveryOverrides:
+              params.experimentMarkerEveryOverrides,
             traceOverrides: {},
           })
         : {

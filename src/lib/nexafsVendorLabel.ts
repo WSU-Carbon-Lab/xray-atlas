@@ -1,4 +1,6 @@
-export function formatNexafsVendorLabel(raw: string | null | undefined): string {
+export function formatNexafsVendorLabel(
+  raw: string | null | undefined,
+): string {
   if (!raw) return "";
   return raw
     .trim()
@@ -32,14 +34,19 @@ const VENDOR_CANONICAL_BY_KEY: Record<string, string> = {
   "nano-c inc": "Nano-C, Inc.",
 };
 
-export function canonicalizeNexafsVendorName(raw: string | null | undefined): string {
+export function canonicalizeNexafsVendorName(
+  raw: string | null | undefined,
+): string {
   if (!raw) return "";
   const trimmed = raw.trim();
   if (!trimmed) return "";
   const key = vendorAliasKey(trimmed);
   const mapped = VENDOR_CANONICAL_BY_KEY[key];
   if (mapped) return mapped;
-  if (key.includes("sigma") && (key.includes("aldrich") || key.includes("adritch"))) {
+  if (
+    key.includes("sigma") &&
+    (key.includes("aldrich") || key.includes("adritch"))
+  ) {
     return "Sigma-Aldrich";
   }
   if (/\bnano[\s-]*c\b/.test(key) && key.includes("nanostr")) {

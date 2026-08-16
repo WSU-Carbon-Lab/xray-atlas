@@ -25,8 +25,7 @@ export function usePasskeyEnrollmentGate(
   );
 
   const isChecking =
-    isSignedIn &&
-    (sessionStatus === "loading" || enrollmentQuery.isLoading);
+    isSignedIn && (sessionStatus === "loading" || enrollmentQuery.isLoading);
 
   const needsPasskeyEnrollment =
     isSignedIn && enrollmentQuery.data?.enrolled === false;

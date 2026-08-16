@@ -100,10 +100,9 @@ export function prunePlotViewerHiddenTraceIdsForDatasets(
  * Filters styled traces by hidden keys; when every trace would be removed, returns the
  * original list so the plot never renders empty solely from legend toggles.
  */
-export function filterPlotViewerTracesByHiddenIds<T extends { traceKey: string }>(
-  traces: readonly T[],
-  hiddenTraceIds: readonly string[],
-): T[] {
+export function filterPlotViewerTracesByHiddenIds<
+  T extends { traceKey: string },
+>(traces: readonly T[], hiddenTraceIds: readonly string[]): T[] {
   if (hiddenTraceIds.length === 0 || traces.length === 0) {
     return [...traces];
   }

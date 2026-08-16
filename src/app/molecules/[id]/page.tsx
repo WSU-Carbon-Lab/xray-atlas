@@ -45,7 +45,11 @@ function MoleculeNexafsBrowse() {
 
 function MoleculeNexafsBrowseFallback() {
   return (
-    <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
+    <div
+      className="space-y-3"
+      aria-busy
+      aria-label="Loading NEXAFS experiments"
+    >
       {Array.from({ length: 6 }).map((_, i) => (
         <NexafsExperimentCompactSkeleton key={i} />
       ))}

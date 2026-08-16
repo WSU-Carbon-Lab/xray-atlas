@@ -45,7 +45,9 @@ describe("facility slug helpers", () => {
     expect(resolveFacilitySlugAlias("NSLSII")).toBe(
       "national-synchrotron-light-source-ii",
     );
-    expect(resolveFacilitySlugAlias("ansto")).toBe("the-australian-synchrotron");
+    expect(resolveFacilitySlugAlias("ansto")).toBe(
+      "the-australian-synchrotron",
+    );
     expect(resolveFacilitySlugAlias("unknown-acronym")).toBe(null);
     expect(resolveFacilitySlugAlias("advanced-light-source")).toBe(null);
   });

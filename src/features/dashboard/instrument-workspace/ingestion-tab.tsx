@@ -253,7 +253,8 @@ export function IngestionTab({
   const [rawSignalTransform, setRawSignalTransform] =
     useState<StxmRawSignalTransformMode>(() =>
       migrateStxmRawSignalTransformMode(
-        scanRegionsMetadata?.rawSignalTransform ?? scanRegionsMetadata?.i0PlotScale,
+        scanRegionsMetadata?.rawSignalTransform ??
+          scanRegionsMetadata?.i0PlotScale,
       ),
     );
   const [displayChannel, setDisplayChannel] =
@@ -271,9 +272,9 @@ export function IngestionTab({
   const [result, setResult] = useState<StxmIngestionResult | null>(
     scanIngestionMetadata ? persistedToRuntime(scanIngestionMetadata) : null,
   );
-  const [regionSpectra, setRegionSpectra] = useState<StxmRegionSpectrumSeries[]>(
-    [],
-  );
+  const [regionSpectra, setRegionSpectra] = useState<
+    StxmRegionSpectrumSeries[]
+  >([]);
   const [intensityGlitches, setIntensityGlitches] = useState<
     StxmIntensityGlitchRecord[]
   >(scanRegionsMetadata?.intensityGlitches ?? []);
@@ -369,10 +370,13 @@ export function IngestionTab({
   const pendingRecomputeRef = useRef(false);
   const debouncePersistRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const debounceRawRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const debouncePipelineRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debouncePipelineRef = useRef<ReturnType<typeof setTimeout> | null>(
+    null,
+  );
   const isDraggingRef = useRef(false);
   const regionHydrationRef = useRef<StxmRegionHydrationState>(null);
-  const normalizationHydrationRef = useRef<StxmNormalizationHydrationState>(null);
+  const normalizationHydrationRef =
+    useRef<StxmNormalizationHydrationState>(null);
   const pipelineGenerationRef = useRef(0);
   const pipelineInflightRef = useRef(0);
   const regionSpectraGenerationRef = useRef(0);
@@ -410,10 +414,7 @@ export function IngestionTab({
           }
         : null;
       if (!izero || regions.length === 0) {
-        if (
-          !linkedMoleculeFields &&
-          !scanRegionsMetadata?.linkedMoleculeId
-        ) {
+        if (!linkedMoleculeFields && !scanRegionsMetadata?.linkedMoleculeId) {
           return null;
         }
         return mergeLinkedMoleculeIntoRegionsMetadata(
@@ -484,9 +485,8 @@ export function IngestionTab({
       if (!regionPersistEnabledRef.current || !sessionReadyRef.current) {
         return;
       }
-      const regionsPayload = buildRegionsPersistPayloadRef.current?.(
-        outgoingScanId,
-      );
+      const regionsPayload =
+        buildRegionsPersistPayloadRef.current?.(outgoingScanId);
       if (regionsPayload) {
         void onPersistRegions(regionsPayload);
       }
@@ -496,7 +496,8 @@ export function IngestionTab({
       const previewUpdate = buildStxmPreviewCacheUpdate({
         scanId: outgoingScanId,
         scanLabel,
-        edgeLabel: inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv)?.label,
+        edgeLabel: inferStxmEdgeFromEnergyRange(energyMinEv, energyMaxEv)
+          ?.label,
         hdrFileName: hdrFile.name,
         ximFileName: ximFile.name,
         moleculeId: molecule?.id,
@@ -576,7 +577,8 @@ export function IngestionTab({
     setPlotScaleMode(scanRegionsMetadata?.plotScaleMode ?? "log");
     setRawSignalTransform(
       migrateStxmRawSignalTransformMode(
-        scanRegionsMetadata?.rawSignalTransform ?? scanRegionsMetadata?.i0PlotScale,
+        scanRegionsMetadata?.rawSignalTransform ??
+          scanRegionsMetadata?.i0PlotScale,
       ),
     );
     setRegionEditorTrayOpen(scanRegionsMetadata?.regionEditorTrayOpen ?? true);
@@ -612,8 +614,10 @@ export function IngestionTab({
     };
   }, [hdrFile, scanId, ximFile]);
 
-  const hasSessionRegionBounds = stxmSessionHasRegionBounds(scanRegionsMetadata);
-  const hasSessionNormalization = stxmSessionHasNormalization(scanRegionsMetadata);
+  const hasSessionRegionBounds =
+    stxmSessionHasRegionBounds(scanRegionsMetadata);
+  const hasSessionNormalization =
+    stxmSessionHasNormalization(scanRegionsMetadata);
 
   useEffect(() => {
     if (!loaded || activeScanIdRef.current !== scanId) {
@@ -691,17 +695,12 @@ export function IngestionTab({
 
   const isTeyExperiment = useMemo(
     () =>
-      loaded
-        ? inferStxmTeyExperiment(loaded.header.raw, hdrFile.name)
-        : false,
+      loaded ? inferStxmTeyExperiment(loaded.header.raw, hdrFile.name) : false,
     [hdrFile.name, loaded],
   );
 
   const hasIeData = useMemo(
-    () =>
-      Boolean(
-        result?.iTe?.length === (result?.energyEv.length ?? 0),
-      ),
+    () => Boolean(result?.iTe?.length === (result?.energyEv.length ?? 0)),
     [result],
   );
 
@@ -797,10 +796,10 @@ export function IngestionTab({
               Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
             runKkDelta:
               Boolean(resolvedFormula) &&
-              (readStxmComputeConsentGranted() || readKkBrowserConsentGranted()),
+              (readStxmComputeConsentGranted() ||
+                readKkBrowserConsentGranted()),
           });
-        } catch {
-        }
+        } catch {}
       }
       if (generation !== regionSpectraGenerationRef.current) {
         return null;
@@ -847,17 +846,34 @@ export function IngestionTab({
         clearTimeout(debounceRawRef.current);
       }
     };
-  }, [izero, loaded, normalization, recomputeRawSpectra, regions, resolvedFormula, schedulePersistRegions, thicknessCm, weightingMode]);
+  }, [
+    izero,
+    loaded,
+    normalization,
+    recomputeRawSpectra,
+    regions,
+    resolvedFormula,
+    schedulePersistRegions,
+    thicknessCm,
+    weightingMode,
+  ]);
 
   useEffect(() => {
     schedulePersistRegions();
-  }, [linkedMolecule, normalization, regionEditorTrayOpen, schedulePersistRegions]);
+  }, [
+    linkedMolecule,
+    normalization,
+    regionEditorTrayOpen,
+    schedulePersistRegions,
+  ]);
 
   const schedulePersistPreviewMolecule = useCallback(() => {
     if (!sessionReady || !linkedMolecule || !previewMetadata?.spectra.length) {
       return;
     }
-    const existing = previewMetadata.spectra.find((row) => row.scanId === scanId);
+    const existing = previewMetadata.spectra.find(
+      (row) => row.scanId === scanId,
+    );
     if (!existing || existing.moleculeId === linkedMolecule.id) {
       return;
     }
@@ -886,185 +902,187 @@ export function IngestionTab({
     return () => clearTimeout(timer);
   }, [schedulePersistPreviewMolecule]);
 
-  const runPipeline = useCallback(async (options?: RunPipelineOptions) => {
-    const previewOnly = options?.previewOnly ?? false;
-    if (!loaded || !izero || regions.length === 0 || !normalization) {
-      return;
-    }
-    if (!previewOnly) {
-      pipelineInflightRef.current += 1;
-      setIsReducing(true);
-    }
-    const generation = pipelineGenerationRef.current + 1;
-    pipelineGenerationRef.current = generation;
-    const kkConsentGranted =
-      readStxmComputeConsentGranted() || readKkBrowserConsentGranted();
-    try {
-      const bounds = multiRegionToLegacyBounds(regions, izero, pureRegionId);
-      const thickness = Number.parseFloat(thicknessCm);
-      const pipelineResult = await computeStxmIngestion({
-        image: loaded.oriented.image,
-        spatial: loaded.oriented.spatial,
-        energyEv: loaded.oriented.energyEv,
-        bounds,
-        weightingMode,
-        normalization,
-        formula: resolvedFormula,
-        thicknessCm: Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
-        runKkDelta:
-          Boolean(resolvedFormula) && (!previewOnly || kkConsentGranted),
-        hdrText: loaded.header.raw,
-        hdrFileName: hdrFile.name,
-      });
-      if (generation !== pipelineGenerationRef.current) {
+  const runPipeline = useCallback(
+    async (options?: RunPipelineOptions) => {
+      const previewOnly = options?.previewOnly ?? false;
+      if (!loaded || !izero || regions.length === 0 || !normalization) {
         return;
       }
-      const enrichedSpectra = await recomputeRawSpectra();
-      if (generation !== pipelineGenerationRef.current) {
-        return;
+      if (!previewOnly) {
+        pipelineInflightRef.current += 1;
+        setIsReducing(true);
       }
-      resultRef.current = pipelineResult;
-      setResult(pipelineResult);
-      setPipelineEpoch(generation);
-      const glitches = detectStxmIntensityGlitches(
-        pipelineResult.i0,
-        pipelineResult.iSample,
-        pipelineResult.energyEv,
-      ).map(
-        (glitch): StxmIntensityGlitchRecord => ({
+      const generation = pipelineGenerationRef.current + 1;
+      pipelineGenerationRef.current = generation;
+      const kkConsentGranted =
+        readStxmComputeConsentGranted() || readKkBrowserConsentGranted();
+      try {
+        const bounds = multiRegionToLegacyBounds(regions, izero, pureRegionId);
+        const thickness = Number.parseFloat(thicknessCm);
+        const pipelineResult = await computeStxmIngestion({
+          image: loaded.oriented.image,
+          spatial: loaded.oriented.spatial,
+          energyEv: loaded.oriented.energyEv,
+          bounds,
+          weightingMode,
+          normalization,
+          formula: resolvedFormula,
+          thicknessCm:
+            Number.isFinite(thickness) && thickness > 0 ? thickness : 1e-4,
+          runKkDelta:
+            Boolean(resolvedFormula) && (!previewOnly || kkConsentGranted),
+          hdrText: loaded.header.raw,
+          hdrFileName: hdrFile.name,
+        });
+        if (generation !== pipelineGenerationRef.current) {
+          return;
+        }
+        const enrichedSpectra = await recomputeRawSpectra();
+        if (generation !== pipelineGenerationRef.current) {
+          return;
+        }
+        resultRef.current = pipelineResult;
+        setResult(pipelineResult);
+        setPipelineEpoch(generation);
+        const glitches = detectStxmIntensityGlitches(
+          pipelineResult.i0,
+          pipelineResult.iSample,
+          pipelineResult.energyEv,
+        ).map((glitch): StxmIntensityGlitchRecord => ({
           energyIndex: glitch.energyIndex,
           energyEv: glitch.energyEv,
           reason: glitch.reason,
           i0: glitch.i0,
           it: glitch.it,
-        }),
-      );
-      setIntensityGlitches(glitches);
-      if (previewOnly) {
-        return;
-      }
-      if (!sessionReadyRef.current) {
-        return;
-      }
-      const persisted = ingestionResultToPersisted(pipelineResult, scanId);
-      const { sampleMask, izeroMask } = sampleIzeroMasks(
-        loaded.oriented.spatial,
-        bounds.sampleLo,
-        bounds.sampleHi,
-        bounds.izeroLo,
-        bounds.izeroHi,
-      );
-      const spectrum = reduceTwoRegion(
-        loaded.oriented.image,
-        sampleMask,
-        izeroMask,
-        loaded.oriented.energyEv,
-        "sample",
-        weightingMode,
-      );
-      void (async () => {
-        try {
-          await onPersistIngestion(persisted);
-          if (generation !== pipelineGenerationRef.current) {
-            return;
-          }
-          await onPersistReduce({
-            scanId,
-            spectra: [regionSpectrumToRecord(spectrum)],
-            computedAt: new Date().toISOString(),
-            method: "two_region",
-          });
-          const previewUpdate = buildStxmPreviewCacheUpdate({
-            scanId,
-            scanLabel,
-            edgeLabel: inferredEdge?.label,
-            hdrFileName: hdrFile.name,
-            ximFileName: ximFile.name,
-            moleculeId: linkedMolecule?.id,
-            moleculeName:
-              linkedMolecule?.commonName?.trim() ??
-              linkedMolecule?.iupacName?.trim() ??
-              undefined,
-            previewMetadata: previewMetadataRef.current,
-            ingestionResult: pipelineResult,
-            regionSpectra: enrichedSpectra ?? regionSpectra,
-            standardOverlays,
-            hdrText: loaded.header.raw,
-          });
-          if (previewUpdate) {
-            previewMetadataRef.current = previewUpdate;
-            await onPersistPreview(previewUpdate);
-          }
-        } catch (persistError) {
-          if (generation !== pipelineGenerationRef.current) {
-            return;
-          }
-          showToast(
-            persistError instanceof Error
-              ? persistError.message
-              : "Failed to save spectra",
-            "error",
-          );
-        }
-      })();
-    } catch (error) {
-      if (generation !== pipelineGenerationRef.current) {
-        return;
-      }
-      if (error instanceof Error && error.message === "KK_CONSENT_REQUIRED") {
+        }));
+        setIntensityGlitches(glitches);
         if (previewOnly) {
           return;
         }
-        if (kkConsentGranted) {
-          showToast(
-            "KK calculation blocked despite session consent; reload and try again.",
-            "error",
-          );
+        if (!sessionReadyRef.current) {
           return;
         }
-        pendingRecomputeRef.current = true;
-        setKkConsentOpen(true);
-        return;
-      }
-      if (!previewOnly) {
-        showToast(
-          error instanceof Error ? error.message : "Reduction failed",
-          "error",
+        const persisted = ingestionResultToPersisted(pipelineResult, scanId);
+        const { sampleMask, izeroMask } = sampleIzeroMasks(
+          loaded.oriented.spatial,
+          bounds.sampleLo,
+          bounds.sampleHi,
+          bounds.izeroLo,
+          bounds.izeroHi,
         );
-      }
-    } finally {
-      if (!previewOnly) {
-        pipelineInflightRef.current -= 1;
-        if (pipelineInflightRef.current <= 0) {
-          pipelineInflightRef.current = 0;
-          setIsReducing(false);
+        const spectrum = reduceTwoRegion(
+          loaded.oriented.image,
+          sampleMask,
+          izeroMask,
+          loaded.oriented.energyEv,
+          "sample",
+          weightingMode,
+        );
+        void (async () => {
+          try {
+            await onPersistIngestion(persisted);
+            if (generation !== pipelineGenerationRef.current) {
+              return;
+            }
+            await onPersistReduce({
+              scanId,
+              spectra: [regionSpectrumToRecord(spectrum)],
+              computedAt: new Date().toISOString(),
+              method: "two_region",
+            });
+            const previewUpdate = buildStxmPreviewCacheUpdate({
+              scanId,
+              scanLabel,
+              edgeLabel: inferredEdge?.label,
+              hdrFileName: hdrFile.name,
+              ximFileName: ximFile.name,
+              moleculeId: linkedMolecule?.id,
+              moleculeName:
+                linkedMolecule?.commonName?.trim() ??
+                linkedMolecule?.iupacName?.trim() ??
+                undefined,
+              previewMetadata: previewMetadataRef.current,
+              ingestionResult: pipelineResult,
+              regionSpectra: enrichedSpectra ?? regionSpectra,
+              standardOverlays,
+              hdrText: loaded.header.raw,
+            });
+            if (previewUpdate) {
+              previewMetadataRef.current = previewUpdate;
+              await onPersistPreview(previewUpdate);
+            }
+          } catch (persistError) {
+            if (generation !== pipelineGenerationRef.current) {
+              return;
+            }
+            showToast(
+              persistError instanceof Error
+                ? persistError.message
+                : "Failed to save spectra",
+              "error",
+            );
+          }
+        })();
+      } catch (error) {
+        if (generation !== pipelineGenerationRef.current) {
+          return;
+        }
+        if (error instanceof Error && error.message === "KK_CONSENT_REQUIRED") {
+          if (previewOnly) {
+            return;
+          }
+          if (kkConsentGranted) {
+            showToast(
+              "KK calculation blocked despite session consent; reload and try again.",
+              "error",
+            );
+            return;
+          }
+          pendingRecomputeRef.current = true;
+          setKkConsentOpen(true);
+          return;
+        }
+        if (!previewOnly) {
+          showToast(
+            error instanceof Error ? error.message : "Reduction failed",
+            "error",
+          );
+        }
+      } finally {
+        if (!previewOnly) {
+          pipelineInflightRef.current -= 1;
+          if (pipelineInflightRef.current <= 0) {
+            pipelineInflightRef.current = 0;
+            setIsReducing(false);
+          }
         }
       }
-    }
-  }, [
-    izero,
-    loaded,
-    normalization,
-    hdrFile.name,
-    inferredEdge?.label,
-    linkedMolecule?.commonName,
-    linkedMolecule?.iupacName,
-    linkedMolecule?.id,
-    onPersistIngestion,
-    onPersistPreview,
-    onPersistReduce,
-    pureRegionId,
-    recomputeRawSpectra,
-    regionSpectra,
-    scanId,
-    scanLabel,
-    standardOverlays,
-    ximFile.name,
-    regions,
-    resolvedFormula,
-    thicknessCm,
-    weightingMode,
-  ]);
+    },
+    [
+      izero,
+      loaded,
+      normalization,
+      hdrFile.name,
+      inferredEdge?.label,
+      linkedMolecule?.commonName,
+      linkedMolecule?.iupacName,
+      linkedMolecule?.id,
+      onPersistIngestion,
+      onPersistPreview,
+      onPersistReduce,
+      pureRegionId,
+      recomputeRawSpectra,
+      regionSpectra,
+      scanId,
+      scanLabel,
+      standardOverlays,
+      ximFile.name,
+      regions,
+      resolvedFormula,
+      thicknessCm,
+      weightingMode,
+    ],
+  );
 
   const schedulePersistExport = useCallback(() => {
     if (!sessionReady) {
@@ -1223,9 +1241,7 @@ export function IngestionTab({
       return;
     }
     if (result) {
-      await onPersistIngestion(
-        ingestionResultToPersisted(result, scanId),
-      );
+      await onPersistIngestion(ingestionResultToPersisted(result, scanId));
     }
     previewMetadataRef.current = previewUpdate;
     await onPersistPreview(previewUpdate);
@@ -1279,7 +1295,9 @@ export function IngestionTab({
 
   if (loadError || !loaded || !izero || !normalization) {
     return (
-      <p className="text-danger text-sm">{loadError ?? "Unable to load scan."}</p>
+      <p className="text-danger text-sm">
+        {loadError ?? "Unable to load scan."}
+      </p>
     );
   }
 
@@ -1393,7 +1411,8 @@ export function IngestionTab({
 
       {reduceMetadata?.spectra.length ? (
         <p className="text-muted text-xs">
-          Last reduce: {reduceMetadata.computedAt.slice(0, 19).replace("T", " ")}
+          Last reduce:{" "}
+          {reduceMetadata.computedAt.slice(0, 19).replace("T", " ")}
           {result?.kkEngineLabel && readKkBrowserConsentGranted()
             ? ` | KK: ${result.kkEngineLabel}`
             : null}

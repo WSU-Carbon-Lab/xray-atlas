@@ -8,10 +8,7 @@ import type { SpectrumPoint, GeometryGroup } from "../types";
 /**
  * Build geometry label from theta and phi values
  */
-export function buildGeometryLabel(
-  theta?: number,
-  phi?: number,
-): string {
+export function buildGeometryLabel(theta?: number, phi?: number): string {
   const thetaLabel =
     typeof theta === "number" && Number.isFinite(theta)
       ? `θ=${theta.toFixed(1)}°`
@@ -105,9 +102,7 @@ export function filterPointsByGeometry(
 
     if (!hasGeometry) {
       // If selected geometry is null/undefined, match fixed geometry points
-      return (
-        geometry.theta === undefined && geometry.phi === undefined
-      );
+      return geometry.theta === undefined && geometry.phi === undefined;
     }
 
     const thetaMatch =

@@ -118,7 +118,7 @@ export function SourcePaperPublicationsEditor({
       <div>
         <h2
           id="source-publication-heading"
-          className="text-muted text-sm font-medium leading-none"
+          className="text-muted text-sm leading-none font-medium"
         >
           Source publication
         </h2>

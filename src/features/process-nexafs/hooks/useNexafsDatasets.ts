@@ -67,9 +67,7 @@ type UseNexafsDatasetsOptions = {
    * Resolves a filename molecule token (for example `ZnPc`) to an Atlas molecule id.
    * Prefer exact synonym / common-name matches.
    */
-  resolveMoleculeIdFromToken?: (
-    token: string,
-  ) => Promise<string | null>;
+  resolveMoleculeIdFromToken?: (token: string) => Promise<string | null>;
 };
 
 function readOptionalFloat(
@@ -139,8 +137,7 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           if (d.id !== datasetId) {
             return d;
           }
-          const patch =
-            typeof updates === "function" ? updates(d) : updates;
+          const patch = typeof updates === "function" ? updates(d) : updates;
           return { ...d, ...patch };
         }),
       );
@@ -285,7 +282,8 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         });
 
         const challengeMessages = challenges.map((c) => c.message);
-        const preflight = preflightSpectrumPointsEnergyUniqueness(spectrumPoints);
+        const preflight =
+          preflightSpectrumPointsEnergyUniqueness(spectrumPoints);
 
         if (!preflight.ok) {
           setEnergyConflictModal({
@@ -508,7 +506,9 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
 
               const csvGeometryDefaults: Partial<DatasetState> = {};
               if (!detected.phi) {
-                csvGeometryDefaults.fixedPhi = String(DEFAULT_UPLOAD_PHI_DEGREES);
+                csvGeometryDefaults.fixedPhi = String(
+                  DEFAULT_UPLOAD_PHI_DEGREES,
+                );
               }
 
               const baseSampleInfo = createEmptyDatasetState(file).sampleInfo;
@@ -620,7 +620,15 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         }
       }
     },
-    [updateDataset, edgeOptions, instrumentOptions, vendors, showToast, batchInstrumentId, resolveMoleculeIdFromToken],
+    [
+      updateDataset,
+      edgeOptions,
+      instrumentOptions,
+      vendors,
+      showToast,
+      batchInstrumentId,
+      resolveMoleculeIdFromToken,
+    ],
   );
 
   useEffect(() => {
@@ -800,20 +808,19 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
     setEnergyConflictModal(null);
   }, []);
 
-  const requestEnergyConflictResolution = useCallback(
-    (datasetId: string) => {
-      const dataset = datasetsRef.current.find((entry) => entry.id === datasetId);
-      if (!dataset) return;
-      const groups = detectSpectrumEnergyConflictGroups(dataset.spectrumPoints);
-      if (groups.length === 0) return;
-      setActiveDatasetId(datasetId);
-      setEnergyConflictModal({ datasetId, groups });
-    },
-    [],
-  );
+  const requestEnergyConflictResolution = useCallback((datasetId: string) => {
+    const dataset = datasetsRef.current.find((entry) => entry.id === datasetId);
+    if (!dataset) return;
+    const groups = detectSpectrumEnergyConflictGroups(dataset.spectrumPoints);
+    if (groups.length === 0) return;
+    setActiveDatasetId(datasetId);
+    setEnergyConflictModal({ datasetId, groups });
+  }, []);
 
   const handleEnergyConflictResolve = useCallback(
-    (resolutionByGroupKey: Map<string, SpectrumEnergyConflictResolutionChoice>) => {
+    (
+      resolutionByGroupKey: Map<string, SpectrumEnergyConflictResolutionChoice>,
+    ) => {
       if (!energyConflictModal) return;
       const dataset = datasetsRef.current.find(
         (entry) => entry.id === energyConflictModal.datasetId,

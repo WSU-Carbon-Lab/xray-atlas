@@ -67,7 +67,9 @@ export function RegistryDepictionThumbnail({
     <div
       className={cn(
         shellClass,
-        enlargeable ? "cursor-zoom-in focus-visible:ring-accent focus:outline-none focus-visible:ring-2" : undefined,
+        enlargeable
+          ? "cursor-zoom-in focus-visible:ring-accent focus:outline-none focus-visible:ring-2"
+          : undefined,
       )}
       aria-label={label}
       role={enlargeable ? "button" : undefined}
@@ -85,7 +87,7 @@ export function RegistryDepictionThumbnail({
       }
     >
       <div
-        className="h-full w-full [&_svg]:block [&_svg]:h-full [&_svg]:w-full [&_svg]:max-h-full [&_svg]:max-w-full"
+        className="h-full w-full [&_svg]:block [&_svg]:h-full [&_svg]:max-h-full [&_svg]:w-full [&_svg]:max-w-full"
         dangerouslySetInnerHTML={{ __html: svgMarkup }}
       />
     </div>
