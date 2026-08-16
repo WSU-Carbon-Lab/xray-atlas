@@ -76,7 +76,10 @@ export function buildDatabasePrepSnapshotSvg(
     bookends?.open ?? null,
     bookends?.close ?? null,
   );
-  const bracketMarkup = serializeBookendBracketSvgMarkup(bracketPaths, bondStroke);
+  const bracketMarkup = serializeBookendBracketSvgMarkup(
+    bracketPaths,
+    bondStroke,
+  );
   const { x, y, width: viewWidth, height: viewHeight } = depiction.viewBox;
 
   const fontFamilyAttr = moleculeSvgFontFamilyXmlAttribute();

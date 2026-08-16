@@ -170,7 +170,9 @@ export function parseChemicalFormula(formula: string): ElementCountMap {
     }
     const symbol = formula.slice(start, index);
     if (!ATOMIC_WEIGHTS[symbol]) {
-      throw new Error(`Unknown element symbol '${symbol}' in chemical formula.`);
+      throw new Error(
+        `Unknown element symbol '${symbol}' in chemical formula.`,
+      );
     }
     return symbol;
   };

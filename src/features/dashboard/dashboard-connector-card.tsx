@@ -28,7 +28,9 @@ export function DashboardConnectorCard({
   return (
     <div className="border-border bg-default/20 flex flex-col gap-2 rounded-lg border px-4 py-4">
       <div className="flex flex-col gap-1">
-        <p className="text-muted text-xs leading-snug">{connector.facilityLabel}</p>
+        <p className="text-muted text-xs leading-snug">
+          {connector.facilityLabel}
+        </p>
         <div className="flex flex-wrap items-center gap-2">
           <p className="text-foreground text-sm font-semibold">
             {connector.instrumentLabel}

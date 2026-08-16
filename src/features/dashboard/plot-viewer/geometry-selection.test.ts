@@ -31,15 +31,17 @@ function point(
 
 describe("mergeGeometryKeysOnDatasetAdd", () => {
   it("seeds all keys when the current selection is empty", () => {
-    expect(
-      mergeGeometryKeysOnDatasetAdd([], ["55:0", "20:0"]),
-    ).toEqual(["55:0", "20:0"]);
+    expect(mergeGeometryKeysOnDatasetAdd([], ["55:0", "20:0"])).toEqual([
+      "55:0",
+      "20:0",
+    ]);
   });
 
   it("unions keys without dropping existing selections", () => {
-    expect(
-      mergeGeometryKeysOnDatasetAdd(["55:0"], ["20:0", "55:0"]),
-    ).toEqual(["55:0", "20:0"]);
+    expect(mergeGeometryKeysOnDatasetAdd(["55:0"], ["20:0", "55:0"])).toEqual([
+      "55:0",
+      "20:0",
+    ]);
   });
 });
 
@@ -47,11 +49,7 @@ describe("pruneGeometryKeysOnDatasetRemove", () => {
   it("removes keys that belonged only to the removed dataset", () => {
     const remaining = new Set(["55:0"]);
     expect(
-      pruneGeometryKeysOnDatasetRemove(
-        ["55:0", "20:0"],
-        ["20:0"],
-        remaining,
-      ),
+      pruneGeometryKeysOnDatasetRemove(["55:0", "20:0"], ["20:0"], remaining),
     ).toEqual(["55:0"]);
   });
 
@@ -85,10 +83,7 @@ describe("reconcileGeometryKeysAfterSpectraLoad", () => {
 
   it("prunes stale geometry keys after datasets change", () => {
     const spectra = new Map<string, SpectrumPoint[]>([
-      [
-        "exp-a",
-        [point(280, 0.1, { od: 0.1, theta: 55, phi: 0 })],
-      ],
+      ["exp-a", [point(280, 0.1, { od: 0.1, theta: 55, phi: 0 })]],
     ]);
     expect(
       reconcileGeometryKeysAfterSpectraLoad(

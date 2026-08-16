@@ -33,9 +33,7 @@ function measureTextWidthPx(
   return ctx.measureText(text).width;
 }
 
-export function computeGeometryLegendBoxHeight(
-  rowCount: number,
-): number {
+export function computeGeometryLegendBoxHeight(rowCount: number): number {
   const rowGaps = rowCount > 0 ? (rowCount - 1) * LEGEND_GAP : 0;
   const panelHeight =
     LEGEND_PADDING * 2 +
@@ -59,7 +57,9 @@ export type GeometryLegendWidthInput = {
  * header/angle text so the SVG frame and foreignObject fit content before
  * ResizeObserver refinement.
  */
-export function computeGeometryLegendWidth(input: GeometryLegendWidthInput): number {
+export function computeGeometryLegendWidth(
+  input: GeometryLegendWidthInput,
+): number {
   const {
     plotWidth,
     angleDisplays,
@@ -74,7 +74,9 @@ export function computeGeometryLegendWidth(input: GeometryLegendWidthInput): num
   const measureAngle = (text: string) =>
     measureTextWidthPx(text, LEGEND_FONT_SIZE, 500);
 
-  const usesPairColumns = angleDisplays.some((display) => display.mode === "pair");
+  const usesPairColumns = angleDisplays.some(
+    (display) => display.mode === "pair",
+  );
   let angleColWidth = 40;
   if (usesPairColumns) {
     const thetaWidth = Math.max(
@@ -125,7 +127,10 @@ export function computeGeometryLegendWidth(input: GeometryLegendWidthInput): num
   );
 }
 
-export function geometryLegendPanelDimensions(boxWidth: number, boxHeight: number): {
+export function geometryLegendPanelDimensions(
+  boxWidth: number,
+  boxHeight: number,
+): {
   panelWidth: number;
   panelHeight: number;
 } {

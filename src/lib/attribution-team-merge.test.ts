@@ -60,9 +60,7 @@ describe("mergeTeamMembersIntoDatasetAttributions", () => {
     });
     expect(result.length).toBe(2);
     expect(
-      result.some(
-        (row) => row.orcid === PEER && row.role === "DataCollector",
-      ),
+      result.some((row) => row.orcid === PEER && row.role === "DataCollector"),
     ).toBe(true);
     expect(
       result.some(
@@ -167,9 +165,7 @@ describe("mergeTeamMembersIntoDatasetAttributions", () => {
       uploaderHasContributionAgreement: true,
     });
     expect(
-      result.some(
-        (row) => row.orcid === PEER && row.role === "DataCurator",
-      ),
+      result.some((row) => row.orcid === PEER && row.role === "DataCurator"),
     ).toBe(false);
     expect(
       result.some(
@@ -208,9 +204,7 @@ describe("mergeTeamMembersIntoDatasetAttributions", () => {
     });
 
     expect(
-      result.some(
-        (row) => row.orcid === PEER && row.role === "Supervisor",
-      ),
+      result.some((row) => row.orcid === PEER && row.role === "Supervisor"),
     ).toBe(true);
     expect(
       result.some(

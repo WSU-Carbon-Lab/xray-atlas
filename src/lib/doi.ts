@@ -42,9 +42,10 @@ export type PublicationLookupQueryMode = "doi" | "text";
  * @param query - Trimmed user input from the source-paper DOI field.
  * @returns `doi` when the string normalizes to a canonical DOI body; otherwise `text`.
  */
-export function classifyPublicationLookupQuery(
-  query: string,
-): { mode: PublicationLookupQueryMode; normalizedDoi: string | null } {
+export function classifyPublicationLookupQuery(query: string): {
+  mode: PublicationLookupQueryMode;
+  normalizedDoi: string | null;
+} {
   const trimmed = query.trim();
   if (!trimmed) {
     return { mode: "text", normalizedDoi: null };

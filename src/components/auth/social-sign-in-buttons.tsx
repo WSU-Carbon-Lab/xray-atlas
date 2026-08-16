@@ -60,8 +60,7 @@ export function SocialSignInButtons({
     onPasskeyError?.("");
     const result = await runPasskeyClientAuth({
       callbackUrl,
-      errorFallback:
-        "Passkey sign-in failed. Try again or sign in with ORCID.",
+      errorFallback: "Passkey sign-in failed. Try again or sign in with ORCID.",
       incompleteFallback: "Passkey sign-in did not complete. Try again.",
     });
     if (!result.ok) {
@@ -114,11 +113,11 @@ export function SocialSignInButtons({
         </Tooltip.Content>
       </Tooltip>
       <div className="relative mt-2 flex w-full items-center">
-        <div className="flex-1 border-t border-border-default" />
-        <span className="px-3 text-xs font-medium uppercase tracking-wide text-text-tertiary">
+        <div className="border-border-default flex-1 border-t" />
+        <span className="text-text-tertiary px-3 text-xs font-medium tracking-wide uppercase">
           OR CONTINUE WITH
         </span>
-        <div className="flex-1 border-t border-border-default" />
+        <div className="border-border-default flex-1 border-t" />
       </div>
       <Tooltip delay={0}>
         <Tooltip.Trigger>
@@ -127,7 +126,7 @@ export function SocialSignInButtons({
             variant="tertiary"
             onPress={handlePasskey}
           >
-            <Key className="h-5 w-5 shrink-0 text-text-primary" />
+            <Key className="text-text-primary h-5 w-5 shrink-0" />
             Sign in with Passkey
           </Button>
         </Tooltip.Trigger>

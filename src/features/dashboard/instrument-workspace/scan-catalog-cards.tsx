@@ -15,7 +15,9 @@ const STAGGER_MS = 35;
 /**
  * Formats the energy span on a catalog row for compact scan cards.
  */
-export function formatCatalogEntryEnergy(entry: StxmCatalogEntry): string | null {
+export function formatCatalogEntryEnergy(
+  entry: StxmCatalogEntry,
+): string | null {
   if (entry.energyMinEv !== null && entry.energyMaxEv !== null) {
     if (Math.abs(entry.energyMinEv - entry.energyMaxEv) < 0.05) {
       return `${entry.energyMinEv.toFixed(1)} eV`;
@@ -68,6 +70,7 @@ function ScanPreview({ entry }: ScanPreviewProps) {
             </span>
           ) : null}
           {hasThumbnail ? (
+            // oxlint-disable-next-line next/no-img-element -- client-generated data: URL thumbnail; next/image has nothing to optimize here
             <img
               src={entry.thumbnailDataUrl ?? undefined}
               alt=""
@@ -184,4 +187,3 @@ export function HorizontalScanCatalogRow({
     </ScrollShadow>
   );
 }
-

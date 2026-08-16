@@ -129,7 +129,10 @@ export function bondMarksEqual(a: DrawBondMark, b: DrawBondMark): boolean {
  * @param bond - Bond index to validate.
  * @returns A user-facing error message, or null when the bond is markable.
  */
-export function validateMarkableBond(mol: Molecule, bond: number): string | null {
+export function validateMarkableBond(
+  mol: Molecule,
+  bond: number,
+): string | null {
   if (bond < 0 || bond >= mol.getBonds()) {
     return "That bond no longer exists.";
   }
@@ -175,7 +178,11 @@ function cutOnCopy(
     if (bond < 0) {
       return null;
     }
-    resolved.push({ atomA: cut.mark.atomA, atomB: cut.mark.atomB, label: cut.label });
+    resolved.push({
+      atomA: cut.mark.atomA,
+      atomB: cut.mark.atomB,
+      label: cut.label,
+    });
   }
 
   for (const cut of resolved) {
@@ -268,12 +275,18 @@ export function extractBookendRegion(
   closeMark: DrawBondMark,
 ): BookendExtraction {
   if (bondMarksEqual(openMark, closeMark)) {
-    return { ok: false, error: "Opening and closing bookends must sit on different bonds." };
+    return {
+      ok: false,
+      error: "Opening and closing bookends must sit on different bonds.",
+    };
   }
   const openBond = resolveBondMark(mol, openMark);
   const closeBond = resolveBondMark(mol, closeMark);
   if (openBond < 0 || closeBond < 0) {
-    return { ok: false, error: "A bookend bond no longer exists; replace the bookends." };
+    return {
+      ok: false,
+      error: "A bookend bond no longer exists; replace the bookends.",
+    };
   }
   const openError = validateMarkableBond(mol, openBond);
   if (openError !== null) {
@@ -289,7 +302,10 @@ export function extractBookendRegion(
     { mark: closeMark, label: 2 },
   ]);
   if (cut === null) {
-    return { ok: false, error: "A bookend bond no longer exists; replace the bookends." };
+    return {
+      ok: false,
+      error: "A bookend bond no longer exists; replace the bookends.",
+    };
   }
 
   let repeatSmiles: string | null = null;
@@ -306,7 +322,8 @@ export function extractBookendRegion(
       if (repeatSmiles !== null) {
         return {
           ok: false,
-          error: "Bookends bracket an ambiguous region; place them on one linear chain.",
+          error:
+            "Bookends bracket an ambiguous region; place them on one linear chain.",
         };
       }
       repeatSmiles = smiles;
@@ -335,11 +352,19 @@ export function extractBookendRegion(
   const rightEndSmiles =
     rightSmiles === null ? null : replaceWildcardLabel(rightSmiles, 2, "[*]");
 
-  const leftText = leftEndSmiles === null ? "" : stripTerminalStars(leftEndSmiles);
-  const rightText = rightEndSmiles === null ? "" : stripTerminalStars(rightEndSmiles);
+  const leftText =
+    leftEndSmiles === null ? "" : stripTerminalStars(leftEndSmiles);
+  const rightText =
+    rightEndSmiles === null ? "" : stripTerminalStars(rightEndSmiles);
   const bigSmiles = `${leftText}{${repeatUnitSmiles}}${rightText}`;
 
-  return { ok: true, repeatUnitSmiles, leftEndSmiles, rightEndSmiles, bigSmiles };
+  return {
+    ok: true,
+    repeatUnitSmiles,
+    leftEndSmiles,
+    rightEndSmiles,
+    bigSmiles,
+  };
 }
 
 /**
@@ -362,7 +387,10 @@ export function cutChunkFragments(
   marks: DrawBondMark[],
 ): ChunkCutResult {
   if (marks.length === 0) {
-    return { ok: false, error: "Place at least one block cut on an acyclic single bond." };
+    return {
+      ok: false,
+      error: "Place at least one block cut on an acyclic single bond.",
+    };
   }
   for (let i = 0; i < marks.length; i += 1) {
     for (let j = i + 1; j < marks.length; j += 1) {
@@ -376,7 +404,10 @@ export function cutChunkFragments(
   for (const mark of marks) {
     const bond = resolveBondMark(mol, mark);
     if (bond < 0) {
-      return { ok: false, error: "A block cut bond no longer exists; clear the cuts." };
+      return {
+        ok: false,
+        error: "A block cut bond no longer exists; clear the cuts.",
+      };
     }
     const error = validateMarkableBond(mol, bond);
     if (error !== null) {
@@ -389,7 +420,10 @@ export function cutChunkFragments(
     marks.map((mark, i) => ({ mark, label: i + 1 })),
   );
   if (cut === null) {
-    return { ok: false, error: "A block cut bond no longer exists; clear the cuts." };
+    return {
+      ok: false,
+      error: "A block cut bond no longer exists; clear the cuts.",
+    };
   }
 
   const allLabels = marks.map((_, i) => i + 1);
@@ -411,7 +445,11 @@ export function cutChunkFragments(
     .map((fragment) => {
       let text = fragment.smiles;
       for (const label of fragment.cutLabels) {
-        text = replaceWildcardLabel(text, label, label % 2 === 1 ? "[<]" : "[>]");
+        text = replaceWildcardLabel(
+          text,
+          label,
+          label % 2 === 1 ? "[<]" : "[>]",
+        );
       }
       return `{${text}}`;
     })

@@ -116,8 +116,9 @@ const enforcePasskeyForContribute = t.middleware(async ({ ctx, next }) => {
 });
 
 /** Mutations that create or modify contributed scientific records require passkey enrollment. */
-export const contributeWriteProcedure =
-  protectedProcedure.use(enforcePasskeyForContribute);
+export const contributeWriteProcedure = protectedProcedure.use(
+  enforcePasskeyForContribute,
+);
 
 const enforceContributeSubmitAal = t.middleware(async ({ ctx, next }) => {
   if (!ctx.userId) {
@@ -188,8 +189,9 @@ const enforceAdminSessionAal = t.middleware(async ({ ctx, next }) => {
  *
  * The export name is historical (`privilegedWriteProcedure`); behavior is destructive-write AAL2 only.
  */
-export const privilegedWriteProcedure =
-  protectedProcedure.use(enforceDestructiveSessionAal);
+export const privilegedWriteProcedure = protectedProcedure.use(
+  enforceDestructiveSessionAal,
+);
 
 /**
  * Authenticated writes that require user-administration permission but not passkey session AAL.

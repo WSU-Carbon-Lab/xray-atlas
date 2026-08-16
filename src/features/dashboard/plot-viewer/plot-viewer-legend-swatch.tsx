@@ -11,7 +11,9 @@ export type PlotViewerLegendSwatchProps = {
 /**
  * Renders a plot-viewer legend swatch with line dash and optional decimated marker glyph.
  */
-export function PlotViewerLegendSwatch({ swatch }: PlotViewerLegendSwatchProps) {
+export function PlotViewerLegendSwatch({
+  swatch,
+}: PlotViewerLegendSwatchProps) {
   const presentation = resolveTraceLegendSwatchPresentation(swatch);
   return (
     <LegendSwatch

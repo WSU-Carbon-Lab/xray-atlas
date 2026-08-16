@@ -1,7 +1,10 @@
 "use client";
 
 import React from "react";
-import { ArrowPathIcon, ExclamationTriangleIcon } from "@heroicons/react/24/outline";
+import {
+  ArrowPathIcon,
+  ExclamationTriangleIcon,
+} from "@heroicons/react/24/outline";
 import { DefaultButton as Button } from "../ui/button";
 
 function sanitizePublicErrorMessage(message: string | undefined): string {
@@ -49,7 +52,9 @@ export function ErrorState({
       <ExclamationTriangleIcon className="text-danger h-12 w-12" aria-hidden />
       <div className="text-center">
         <h3 className="text-foreground text-lg font-semibold">{title}</h3>
-        <p className="text-muted mt-2 max-w-md text-sm leading-relaxed">{displayMessage}</p>
+        <p className="text-muted mt-2 max-w-md text-sm leading-relaxed">
+          {displayMessage}
+        </p>
       </div>
       {onRetry ? (
         <Button onPress={onRetry} variant="outline">

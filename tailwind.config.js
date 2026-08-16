@@ -30,7 +30,12 @@ const config = {
       },
       fontFamily: {
         sans: ["var(--font-geist-sans)", "Inter", "system-ui", "sans-serif"],
-        mono: ["var(--font-geist-mono)", "JetBrains Mono", "Fira Code", "monospace"],
+        mono: [
+          "var(--font-geist-mono)",
+          "JetBrains Mono",
+          "Fira Code",
+          "monospace",
+        ],
         display: ["var(--font-geist-sans)", "system-ui", "sans-serif"],
       },
       boxShadow: {

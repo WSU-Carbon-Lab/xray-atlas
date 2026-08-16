@@ -2,10 +2,10 @@
 
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import { MoleculeDisplay } from "@/components/molecules/molecule-display";
+import { MoleculeDisplay } from "~/components/molecules/molecule-display";
 import { MoleculeNexafsTabs } from "./molecule-nexafs-tabs";
 import { MoleculeDetailProvider } from "./molecule-detail-context";
-import { ToastContainer, useToast } from "@/components/ui/toast";
+import { ToastContainer, useToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 import type { MoleculeView } from "~/types/molecule";
 
@@ -45,7 +45,10 @@ export function MoleculeDetailLayoutClient({
       <ToastContainer toasts={toasts} onRemove={removeToast} />
       <div className="py-8">
         <div className="mb-6">
-          <nav aria-label="Breadcrumb" className="text-sm text-gray-600 dark:text-gray-400">
+          <nav
+            aria-label="Breadcrumb"
+            className="text-sm text-gray-600 dark:text-gray-400"
+          >
             <ol className="flex flex-wrap items-center gap-2">
               <li>
                 <Link

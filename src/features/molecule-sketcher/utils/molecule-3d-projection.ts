@@ -43,7 +43,10 @@ function matRotateZ(rad: number): number[] {
  * @param view - User yaw, pitch, and roll.
  * @returns Row-major 3×3 matrix applied before perspective divide.
  */
-export function combinedViewMatrix(intrinsicRows: number[], view: View3d): number[] {
+export function combinedViewMatrix(
+  intrinsicRows: number[],
+  view: View3d,
+): number[] {
   const Rz = matRotateZ(view.roll);
   const Ry = matRotateY(view.yaw);
   const Rx = matRotateX(view.pitch);
@@ -635,9 +638,15 @@ export function computeBondVisibility(
   maxY += spanY * pad;
 
   const toGx = (x: number) =>
-    Math.max(0, Math.min(gridSize - 1, ((x - minX) / (maxX - minX)) * (gridSize - 1)));
+    Math.max(
+      0,
+      Math.min(gridSize - 1, ((x - minX) / (maxX - minX)) * (gridSize - 1)),
+    );
   const toGy = (y: number) =>
-    Math.max(0, Math.min(gridSize - 1, ((y - minY) / (maxY - minY)) * (gridSize - 1)));
+    Math.max(
+      0,
+      Math.min(gridSize - 1, ((y - minY) / (maxY - minY)) * (gridSize - 1)),
+    );
 
   const depthBuf = new Float32Array(gridSize * gridSize).fill(-Infinity);
   const winnerBuf = new Int32Array(gridSize * gridSize).fill(-1);
@@ -682,7 +691,10 @@ export function computeBondVisibility(
       const gy = Math.round(toGy(py));
       if (gx < 0 || gy < 0 || gx >= gridSize || gy >= gridSize) continue;
       const cell = gy * gridSize + gx;
-      if (winnerBuf[cell] === b.bondIndex && Math.abs(depthBuf[cell]! - z) < 1e-9) {
+      if (
+        winnerBuf[cell] === b.bondIndex &&
+        Math.abs(depthBuf[cell]! - z) < 1e-9
+      ) {
         winSamples[b.bondIndex]! += 1;
       }
     }

@@ -11,4 +11,5 @@ export function buildWikiNexafsUploadTemplateCsv(): string {
   return buildNexafsUploadTemplateCsv();
 }
 
-export const WIKI_NEXAFS_UPLOAD_TEMPLATE_FILENAME = "nexafs-upload-template.csv";
+export const WIKI_NEXAFS_UPLOAD_TEMPLATE_FILENAME =
+  "nexafs-upload-template.csv";

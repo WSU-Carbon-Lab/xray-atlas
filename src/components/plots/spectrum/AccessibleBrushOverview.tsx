@@ -81,7 +81,10 @@ export function AccessibleBrushOverview({
       const xV = t.x;
       const yV = t.y;
       if (!Array.isArray(xV) || !Array.isArray(yV) || xV.length !== yV.length)
-        return { points: [] as Array<{ x: number; y: number }>, color: themeColors.text };
+        return {
+          points: [] as Array<{ x: number; y: number }>,
+          color: themeColors.text,
+        };
       const points = xV
         .map((x, i) => ({ x, y: yV[i]! }))
         .filter(
@@ -129,7 +132,10 @@ export function AccessibleBrushOverview({
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent) => {
       const span = brushDomain[1] - brushDomain[0];
-      const step = Math.max((xDomain[1] - xDomain[0]) * KEYBOARD_STEP_FRACTION, span * 0.02);
+      const step = Math.max(
+        (xDomain[1] - xDomain[0]) * KEYBOARD_STEP_FRACTION,
+        span * 0.02,
+      );
       let newX0 = brushDomain[0];
       let newX1 = brushDomain[1];
       if (e.key === "ArrowLeft") {

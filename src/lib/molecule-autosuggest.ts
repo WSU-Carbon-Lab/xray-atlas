@@ -57,4 +57,3 @@ export function toSimpleHeaderResult(item: AutosuggestItem): {
     chemicalFormula: item.chemicalFormula,
   };
 }
-

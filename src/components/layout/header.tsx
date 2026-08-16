@@ -7,7 +7,7 @@ import { Home, Info, Upload, Search, ChevronDown } from "lucide-react";
 import { WSULogoIcon } from "../icons";
 import { GitHubStarsLink } from "./github-stars-link";
 import { useSession } from "next-auth/react";
-import { CustomUserButton } from "@/components/ui/avatar";
+import { CustomUserButton } from "~/components/ui/avatar";
 import { SignInButton } from "../auth/sign-in-button";
 import { ThemeToggle } from "../theme/theme-toggle";
 import {

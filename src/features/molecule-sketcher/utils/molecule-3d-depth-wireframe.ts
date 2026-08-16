@@ -78,7 +78,9 @@ export function getSessionIntrinsicBasis(session: Molecule3dSession): number[] {
   return session.rPca;
 }
 
-export function cloneMolecule3dSession(session: Molecule3dSession): Molecule3dSession {
+export function cloneMolecule3dSession(
+  session: Molecule3dSession,
+): Molecule3dSession {
   const mol3d = MoleculeCtor.fromMolfile(session.mol3d.toMolfileV3());
   return {
     mol3d,
@@ -153,7 +155,6 @@ export type OclDepiction3dSvgPack = {
   strippedMolfileV3: string;
 };
 
-
 export function computeMergedNormalizedPlaneCoords(
   session: Molecule3dSession,
   view: View3d,
@@ -188,8 +189,7 @@ function planeArraysToScreenMap(
     Math.min(cw / spanU, ch / spanW) * Math.max(0.25, Math.min(4, view.zoom));
   const cu = (minU + maxU) / 2;
   const cwp = (minW + maxW) / 2;
-  const toSx = (u: number) =>
-    opts.width / 2 + (u - cu) * scale + view.panPx.x;
+  const toSx = (u: number) => opts.width / 2 + (u - cu) * scale + view.panPx.x;
   const toSy = (w: number) =>
     opts.height / 2 - (w - cwp) * scale + view.panPx.y;
   return { toSx, toSy, scale };
@@ -213,7 +213,11 @@ export function computeSessionDepictionLayout(
   return { planeX: x, planeY: y, toSx, toSy, scale };
 }
 
-function applyPlaneCoordsToMolecule(mol: Molecule, x: number[], y: number[]): void {
+function applyPlaneCoordsToMolecule(
+  mol: Molecule,
+  x: number[],
+  y: number[],
+): void {
   const n = mol.getAtoms();
   for (let i = 0; i < n; i += 1) {
     mol.setAtomX(i, x[i]!);
@@ -403,7 +407,10 @@ function mmffEnergy(mol: Molecule): number {
   return Number.POSITIVE_INFINITY;
 }
 
-function bestConformer3d(template: Molecule, cageHeavy: boolean): Molecule | null {
+function bestConformer3d(
+  template: Molecule,
+  cageHeavy: boolean,
+): Molecule | null {
   const seeds = cageHeavy ? [0x31d4] : [0x7e57];
   let best: Molecule | null = null;
   let bestE = Number.POSITIVE_INFINITY;

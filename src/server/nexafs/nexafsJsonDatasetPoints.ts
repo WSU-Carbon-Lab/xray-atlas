@@ -15,7 +15,11 @@ export type NexafsJsonDatasetItem = {
     phi?: number | null;
   };
   energy?: { signal?: number[]; energy?: number[] };
-  intensity?: { signal?: number[]; intensity?: number[]; absorption?: number[] };
+  intensity?: {
+    signal?: number[];
+    intensity?: number[];
+    absorption?: number[];
+  };
   absorption?: { signal?: number[]; absorption?: number[] };
   method?: string;
 };
@@ -29,14 +33,16 @@ export function parseNexafsDatasetToSpectrumPoints(
     const thetaRaw = geometry.e_field_polar ?? geometry.theta;
     const phiRaw = geometry.e_field_azimuth ?? geometry.phi;
 
-    const theta = typeof thetaRaw === "number" ? thetaRaw : Number.parseFloat(String(thetaRaw));
-    const phi = typeof phiRaw === "number" ? phiRaw : Number.parseFloat(String(phiRaw));
+    const theta =
+      typeof thetaRaw === "number"
+        ? thetaRaw
+        : Number.parseFloat(String(thetaRaw));
+    const phi =
+      typeof phiRaw === "number" ? phiRaw : Number.parseFloat(String(phiRaw));
     if (!Number.isFinite(theta) || !Number.isFinite(phi)) continue;
 
     const energyArr =
-      datasetItem.energy?.signal ??
-      datasetItem.energy?.energy ??
-      [];
+      datasetItem.energy?.signal ?? datasetItem.energy?.energy ?? [];
     const absorptionArr =
       datasetItem.intensity?.signal ??
       datasetItem.intensity?.intensity ??
@@ -56,7 +62,9 @@ export function parseNexafsDatasetToSpectrumPoints(
   return points;
 }
 
-export function buildPolarizationGroupsWithIndices(points: NexafsParsedSpectrumPoint[]) {
+export function buildPolarizationGroupsWithIndices(
+  points: NexafsParsedSpectrumPoint[],
+) {
   const groupToIndices = new Map<string, number[]>();
   for (let idx = 0; idx < points.length; idx++) {
     const p = points[idx]!;

@@ -1,7 +1,11 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { MagnifyingGlassIcon, PlusIcon, XMarkIcon } from "@heroicons/react/24/outline";
+import {
+  MagnifyingGlassIcon,
+  PlusIcon,
+  XMarkIcon,
+} from "@heroicons/react/24/outline";
 import { SimpleDialog } from "~/components/ui/dialog";
 import { trpc } from "~/trpc/client";
 import { toMoleculeSearchResult } from "~/lib/molecule-autosuggest";
@@ -230,8 +234,7 @@ export function ExperimentSelectModal({
     const raw = parsed.experimentMode?.trim() ?? null;
     const normalized = raw ? normalizeExperimentMode(raw) : null;
     const mapped =
-      normalized &&
-      EXPERIMENT_TYPE_OPTIONS.some((o) => o.value === normalized)
+      normalized && EXPERIMENT_TYPE_OPTIONS.some((o) => o.value === normalized)
         ? (normalized as ExperimentTypeOption)
         : null;
     const mappedLabel = mapped
@@ -287,13 +290,15 @@ export function ExperimentSelectModal({
           </div>
         ) : null}
         <p className="text-muted-foreground text-sm">
-          Choose the technique that matches this spectrum. This maps to
-          database NEXAFS experiment kinds (TEY, PEY, FY, TRANS).
+          Choose the technique that matches this spectrum. This maps to database
+          NEXAFS experiment kinds (TEY, PEY, FY, TRANS).
           {currentLabel ? (
             <>
               {" "}
               Current:{" "}
-              <span className="text-foreground font-medium">{currentLabel}</span>
+              <span className="text-foreground font-medium">
+                {currentLabel}
+              </span>
               .
             </>
           ) : null}
@@ -355,7 +360,8 @@ export function EdgeSelectModal({
       >
         <div className="space-y-4">
           <p className="text-muted-foreground text-sm">
-            Required: choose the absorption edge for this dataset (e.g. C K, Zn L).
+            Required: choose the absorption edge for this dataset (e.g. C K, Zn
+            L).
           </p>
           <div className="border-border max-h-64 space-y-1 overflow-y-auto rounded-lg border p-2">
             {edges.length === 0 && (

@@ -24,7 +24,7 @@ export function StxmPreviewChannelSelect({
 }: StxmPreviewChannelSelectProps) {
   return (
     <div className="flex flex-col gap-1">
-      <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+      <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
         Channel
       </Label>
       <Select
@@ -55,15 +55,19 @@ export function StxmPreviewChannelSelect({
               <ListBox.Item
                 key={optionId}
                 id={optionId}
-                textValue={channelDefinitionById(
-                  STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
-                  optionId,
-                ).label}
+                textValue={
+                  channelDefinitionById(
+                    STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+                    optionId,
+                  ).label
+                }
               >
-                {channelDefinitionById(
-                  STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
-                  optionId,
-                ).label}
+                {
+                  channelDefinitionById(
+                    STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION,
+                    optionId,
+                  ).label
+                }
                 <ListBox.ItemIndicator />
               </ListBox.Item>
             ))}

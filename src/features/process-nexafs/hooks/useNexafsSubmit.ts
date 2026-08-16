@@ -2,7 +2,7 @@
 
 import { useState, useCallback } from "react";
 import { trpc } from "~/trpc/client";
-import type { ToastType } from "@/components/ui/toast";
+import type { ToastType } from "~/components/ui/toast";
 import { uploadQueuedAuxFiles } from "~/hooks/useAuxFileUpload";
 import { sampleAuxFieldsHasData } from "~/components/forms/SampleAuxAccordion";
 import type { DatasetState, PendingAuxFile } from "../types";

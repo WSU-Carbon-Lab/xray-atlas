@@ -31,7 +31,7 @@ export function BrowseTabs() {
       <Tabs.ListContainer className="w-full min-w-0">
         <Tabs.List
           aria-label="Browse sections"
-          className="border-border bg-surface flex min-h-12 w-full min-w-0 flex-wrap gap-0.5 rounded-xl border p-1 *:flex *:min-h-10 *:flex-1 *:items-center *:justify-center *:gap-2 *:rounded-lg *:px-3 *:text-sm *:font-medium *:text-muted *:transition-colors *:[&_svg]:block sm:flex-nowrap sm:*:min-w-0"
+          className="border-border bg-surface *:text-muted flex min-h-12 w-full min-w-0 flex-wrap gap-0.5 rounded-xl border p-1 *:flex *:min-h-10 *:flex-1 *:items-center *:justify-center *:gap-2 *:rounded-lg *:px-3 *:text-sm *:font-medium *:transition-colors sm:flex-nowrap sm:*:min-w-0 *:[&_svg]:block"
         >
           <Tabs.Tab
             id="molecules"

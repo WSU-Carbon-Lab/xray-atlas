@@ -50,7 +50,9 @@ function isCiphertextFormat(value: string): boolean {
   return /^v\d+:/.test(value);
 }
 
-function parseCiphertext(value: string): { version: number; payloadB64: string } | null {
+function parseCiphertext(
+  value: string,
+): { version: number; payloadB64: string } | null {
   const match = /^v(\d+):(.+)$/.exec(value);
   if (!match) return null;
   const payloadB64 = match[2];
@@ -74,7 +76,10 @@ export function encryptOAuthToken(value: string): string {
   const nonce = randomBytes(NONCE_LENGTH_BYTES);
   const cipher = createCipheriv(CIPHER_ALG, keyBytes, nonce);
 
-  const ciphertext = Buffer.concat([cipher.update(value, "utf8"), cipher.final()]);
+  const ciphertext = Buffer.concat([
+    cipher.update(value, "utf8"),
+    cipher.final(),
+  ]);
   const tag = cipher.getAuthTag();
 
   const payload = Buffer.concat([nonce, ciphertext, tag]);
@@ -116,12 +121,18 @@ export function decryptOAuthToken(value: string): string | null {
 
   const nonce = payload.subarray(0, NONCE_LENGTH_BYTES);
   const tag = payload.subarray(payload.length - TAG_LENGTH_BYTES);
-  const ciphertext = payload.subarray(NONCE_LENGTH_BYTES, payload.length - TAG_LENGTH_BYTES);
+  const ciphertext = payload.subarray(
+    NONCE_LENGTH_BYTES,
+    payload.length - TAG_LENGTH_BYTES,
+  );
 
   try {
     const decipher = createDecipheriv(CIPHER_ALG, keyBytes, nonce);
     decipher.setAuthTag(tag);
-    const plaintext = Buffer.concat([decipher.update(ciphertext), decipher.final()]);
+    const plaintext = Buffer.concat([
+      decipher.update(ciphertext),
+      decipher.final(),
+    ]);
     return plaintext.toString("utf8");
   } catch {
     return null;
@@ -151,4 +162,3 @@ export function decryptNullableOAuthToken(value: string | null): string | null {
   if (value === null) return null;
   return decryptOAuthToken(value);
 }
-

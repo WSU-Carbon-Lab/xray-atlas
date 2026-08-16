@@ -56,8 +56,7 @@ function lineDashForOpticalRole(
   role: OpticalLinkChannelRole,
   config: OpticalLinkPlotConfig,
 ): "solid" | "dash" {
-  const panelRole =
-    role === config.imaginaryRole ? "imaginary" : "real";
+  const panelRole = role === config.imaginaryRole ? "imaginary" : "real";
   return lineDashForOpticalSplitPanel(panelRole);
 }
 
@@ -141,8 +140,7 @@ export function buildLinkedOpticalCompanionTraces(args: {
     const theta = resolveFiniteAngle(primary, group, "theta");
     const phi = resolveFiniteAngle(primary, group, "phi");
 
-    const color =
-      primary.line?.color ?? primary.marker?.color ?? "#6b7280";
+    const color = primary.line?.color ?? primary.marker?.color ?? "#6b7280";
     const imaginaryTraceId = `link-imaginary-${key}`;
     const realTraceId = `link-real-${key}`;
     const imaginaryLineDash = lineDashForOpticalRole(
@@ -177,9 +175,7 @@ export function buildLinkedOpticalCompanionTraces(args: {
       mode: "lines+markers",
       name: `${companionRole}-${key}`,
       legendId:
-        companionRole === config.imaginaryRole
-          ? imaginaryTraceId
-          : realTraceId,
+        companionRole === config.imaginaryRole ? imaginaryTraceId : realTraceId,
       x: group.energies,
       y: group.absorptions,
       theta: group.theta,
@@ -285,11 +281,5 @@ export function useLinkedOpticalTraces(
       angleColumnTitle: built.angleColumnTitle,
       active: true,
     };
-  }, [
-    primaryTraces,
-    geometryKeys,
-    config,
-    showThetaData,
-    showPhiData,
-  ]);
+  }, [primaryTraces, geometryKeys, config, showThetaData, showPhiData]);
 }

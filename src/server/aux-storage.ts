@@ -37,16 +37,12 @@ const AUX_MIME_WHITELIST = new Set([
   "chemical/x-pdb",
 ]);
 
-const supabase = createClient(
-  env.SUPABASE_URL,
-  env.SUPABASE_SERVICE_ROLE_KEY,
-  {
-    auth: {
-      autoRefreshToken: false,
-      persistSession: false,
-    },
+const supabase = createClient(env.SUPABASE_URL, env.SUPABASE_SERVICE_ROLE_KEY, {
+  auth: {
+    autoRefreshToken: false,
+    persistSession: false,
   },
-);
+});
 
 /**
  * Rejects MIME types outside the aux whitelist and always rejects SVG (XSS vector in browsers).
@@ -180,10 +176,12 @@ export async function headAuxStorageObject(args: {
     ? args.path.slice(args.path.lastIndexOf("/") + 1)
     : args.path;
 
-  const { data, error } = await supabase.storage.from(args.bucket).list(folder, {
-    search: name,
-    limit: 1,
-  });
+  const { data, error } = await supabase.storage
+    .from(args.bucket)
+    .list(folder, {
+      search: name,
+      limit: 1,
+    });
 
   if (error) {
     throw new Error(`Failed to verify upload in storage: ${error.message}`);

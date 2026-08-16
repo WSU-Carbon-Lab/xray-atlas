@@ -22,7 +22,8 @@ export const VisxGrid = memo(function VisxGrid({
 }) {
   if (!scales || !dimensions) return null;
 
-  const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
+  const themeColors =
+    themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
   const gridColor = themeColors.grid;
 
   const plotWidth =

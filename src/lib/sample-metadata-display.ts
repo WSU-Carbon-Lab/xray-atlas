@@ -63,7 +63,13 @@ const EXTENDED_AUX_SECTIONS: Array<{
 }> = [
   {
     title: "Processing",
-    keys: ["processingMode", "wetMethod", "dryMethod", "wetMethodOther", "dryMethodOther"],
+    keys: [
+      "processingMode",
+      "wetMethod",
+      "dryMethod",
+      "wetMethodOther",
+      "dryMethodOther",
+    ],
   },
   {
     title: "Spin coating",
@@ -122,7 +128,9 @@ const EXTENDED_AUX_SECTIONS: Array<{
   },
 ];
 
-function formatProcessMethod(value: ProcessMethod | null | undefined): string | null {
+function formatProcessMethod(
+  value: ProcessMethod | null | undefined,
+): string | null {
   if (value == null) {
     return null;
   }
@@ -211,7 +219,11 @@ export function coreSampleMetadataRows(input: {
     pushRow(rows, "Thickness (nm)", formatNumericValue(input.thickness));
   }
   if (input.molecularweight != null && Number.isFinite(input.molecularweight)) {
-    pushRow(rows, "Molecular weight (g/mol)", formatNumericValue(input.molecularweight));
+    pushRow(
+      rows,
+      "Molecular weight (g/mol)",
+      formatNumericValue(input.molecularweight),
+    );
   }
   const vendorName = input.vendorName?.trim() ?? null;
   const vendorUrl = input.vendorUrl?.trim() ?? null;

@@ -26,13 +26,15 @@ const TRAY_META: Record<
   imaginary: {
     trayGlyph: "β",
     trayLabel: "Imaginary optical constants",
-    trayDescription: "β, atomic f₂, Im(ε), and Im(χ) from reduced spectrum data.",
+    trayDescription:
+      "β, atomic f₂, Im(ε), and Im(χ) from reduced spectrum data.",
     defaultChannelId: "beta",
   },
   real: {
     trayGlyph: "δ",
     trayLabel: "Real optical constants",
-    trayDescription: "δ, atomic f₁, Re(ε), and Re(χ) from reduced spectrum data.",
+    trayDescription:
+      "δ, atomic f₁, Re(ε), and Re(χ) from reduced spectrum data.",
     defaultChannelId: "delta",
   },
 };
@@ -121,7 +123,8 @@ const CHANNEL_COPY: Record<
   },
   signal_it: {
     label: "It",
-    description: "Summed pure/sample-region transmitted intensity through the film.",
+    description:
+      "Summed pure/sample-region transmitted intensity through the film.",
   },
   signal_ie: {
     label: "Ie",
@@ -151,7 +154,8 @@ const CHANNEL_COPY: Record<
   },
   "im-epsilon": {
     label: "Im(ε)",
-    description: "Imaginary part of dielectric permittivity from stored beta and delta.",
+    description:
+      "Imaginary part of dielectric permittivity from stored beta and delta.",
   },
   "im-chi": {
     label: "Im(χ)",
@@ -169,7 +173,8 @@ const CHANNEL_COPY: Record<
   },
   "re-epsilon": {
     label: "Re(ε)",
-    description: "Real part of dielectric permittivity from stored beta and delta.",
+    description:
+      "Real part of dielectric permittivity from stored beta and delta.",
   },
   "re-chi": {
     label: "Re(χ)",

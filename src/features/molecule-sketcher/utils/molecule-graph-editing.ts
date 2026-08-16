@@ -23,7 +23,10 @@ import {
   abbreviateTerminalAlkylChains,
   countAbbreviableAlkylTails,
 } from "./carbon-chain-abbr";
-import { collectAtomsOnSideOfBond, findBondIndex } from "./bond-fragment-transforms";
+import {
+  collectAtomsOnSideOfBond,
+  findBondIndex,
+} from "./bond-fragment-transforms";
 import {
   abbreviateNitrileGroups,
   countCoalescibleNitrileGroups,
@@ -38,7 +41,12 @@ import {
   snapSproutPosition,
   type DrawPoint,
 } from "./molecule-draw-geometry";
-import type { AbbreviatedAlkylTailSpec, CageDepictionMode, DrawBondKind, RingTemplateCategory } from "../molecule-draw-types";
+import type {
+  AbbreviatedAlkylTailSpec,
+  CageDepictionMode,
+  DrawBondKind,
+  RingTemplateCategory,
+} from "../molecule-draw-types";
 import {
   buildCageTemplateLayout,
   cageBondDepthTierIndicesToMarks,
@@ -47,7 +55,11 @@ import {
   ringTemplateUsesCageProjection,
   type CageBondDepthTierByMark,
 } from "./cage-template-placement";
-import { applyView3dAxisPreset, defaultView3d, type View3d } from "./molecule-3d-depth-wireframe";
+import {
+  applyView3dAxisPreset,
+  defaultView3d,
+  type View3d,
+} from "./molecule-3d-depth-wireframe";
 
 /**
  * Common heteroatom symbols offered in the element palette, ordered by
@@ -237,7 +249,14 @@ export function attachAbbreviatedAlkylTail(
     options?.toward !== undefined
       ? snapSproutPosition(from, options.toward, DRAW_STANDARD_BOND_LENGTH)
       : pickDefaultSproutPosition(mol, attachAtom);
-  const { atom, bond } = addBondedAtom(mol, attachAtom, target.x, target.y, 6, "single");
+  const { atom, bond } = addBondedAtom(
+    mol,
+    attachAtom,
+    target.x,
+    target.y,
+    6,
+    "single",
+  );
   mol.setAtomCustomLabel(atom, formatAlkylCnH2nPlus1(spec.carbonCount));
   normalizeEditorAlkylCustomLabels(mol);
   mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
@@ -309,7 +328,11 @@ export function connectAtoms(
 export function cycleBondOrder(mol: Molecule, bond: number): DrawBondKind {
   const current = drawBondKindOf(mol, bond);
   const next: DrawBondKind =
-    current === "single" ? "double" : current === "double" ? "triple" : "single";
+    current === "single"
+      ? "double"
+      : current === "double"
+        ? "triple"
+        : "single";
   mol.setBondType(bond, oclBondTypeForKind(next));
   mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
   return next;
@@ -323,7 +346,11 @@ export function cycleBondOrder(mol: Molecule, bond: number): DrawBondKind {
  * @param kind - Target bond kind.
  * @throws RangeError when the bond index is out of range.
  */
-export function setBondKind(mol: Molecule, bond: number, kind: DrawBondKind): void {
+export function setBondKind(
+  mol: Molecule,
+  bond: number,
+  kind: DrawBondKind,
+): void {
   assertBondIndex(mol, bond);
   mol.setBondType(bond, oclBondTypeForKind(kind));
   mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
@@ -357,7 +384,11 @@ export function atomicNoForSymbol(symbol: string): number {
  * @param symbol - Element symbol (for example `N`, `O`, `Cl`).
  * @throws Error when the symbol is unknown; RangeError when out of range.
  */
-export function setAtomElement(mol: Molecule, atom: number, symbol: string): void {
+export function setAtomElement(
+  mol: Molecule,
+  atom: number,
+  symbol: string,
+): void {
   assertAtomIndex(mol, atom);
   mol.setAtomicNo(atom, atomicNoForSymbol(symbol));
   mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
@@ -373,7 +404,11 @@ export function setAtomElement(mol: Molecule, atom: number, symbol: string): voi
  *   no clamping here).
  * @throws RangeError when the atom index is out of range.
  */
-export function setAtomChargeValue(mol: Molecule, atom: number, charge: number): void {
+export function setAtomChargeValue(
+  mol: Molecule,
+  atom: number,
+  charge: number,
+): void {
   assertAtomIndex(mol, atom);
   mol.setAtomCharge(atom, charge);
   mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
@@ -403,7 +438,10 @@ export function deleteAtomCascade(mol: Molecule, atom: number): void {
  * @param atoms - Atom indices to delete; duplicates are ignored.
  * @throws RangeError when any atom index is out of range.
  */
-export function deleteAtomsCascade(mol: Molecule, atoms: readonly number[]): void {
+export function deleteAtomsCascade(
+  mol: Molecule,
+  atoms: readonly number[],
+): void {
   const uniqueDescending = [...new Set(atoms)].sort((a, b) => b - a);
   for (const atom of uniqueDescending) {
     deleteAtomCascade(mol, atom);
@@ -462,7 +500,9 @@ export interface PrepareForDatabaseCounts {
  * @param mol - Molecule to prepare; mutated in place.
  * @returns Counts of alkyl and nitrile abbreviations applied.
  */
-export function prepareMoleculeForDatabase(mol: Molecule): PrepareForDatabaseCounts {
+export function prepareMoleculeForDatabase(
+  mol: Molecule,
+): PrepareForDatabaseCounts {
   const alkylAbbreviated = abbreviateTerminalAlkylChains(mol);
   const nitrileAbbreviated = abbreviateNitrileGroups(mol);
   mol.ensureHelperArrays(MoleculeCtor.cHelperRings);
@@ -486,7 +526,9 @@ export interface MoleculeDatabasePrepAssessment {
  * @param mol - Molecule to assess; not mutated.
  * @returns Counts of pending abbreviations and human-readable warnings.
  */
-export function assessMoleculeDatabasePrep(mol: Molecule): MoleculeDatabasePrepAssessment {
+export function assessMoleculeDatabasePrep(
+  mol: Molecule,
+): MoleculeDatabasePrepAssessment {
   const abbreviableAlkylTails = countAbbreviableAlkylTails(mol);
   const coalescibleNitriles = countCoalescibleNitrileGroups(mol);
   const warnings: string[] = [];
@@ -844,7 +886,10 @@ function chooseFusionOrientation(
   let bestDistance = Number.NEGATIVE_INFINITY;
   for (const swapTemplateEnds of [false, true]) {
     for (const flip180 of [false, true]) {
-      const { template: trial } = prepareTemplateMolecule(templateSmiles, options);
+      const { template: trial } = prepareTemplateMolecule(
+        templateSmiles,
+        options,
+      );
       trial.ensureHelperArrays(MoleculeCtor.cHelperRings);
       alignTemplateOnTargetBond(
         trial,
@@ -857,9 +902,7 @@ function chooseFusionOrientation(
       const centroid = templateNewAtomsCentroid(trial, skip);
       const centroidSide = bondSideScore(target, aA, aB, centroid);
       const separation =
-        bulkSign === 0
-          ? Math.abs(centroidSide)
-          : centroidSide * -bulkSign;
+        bulkSign === 0 ? Math.abs(centroidSide) : centroidSide * -bulkSign;
       if (separation > bestDistance) {
         bestDistance = separation;
         best = { swapTemplateEnds, flip180 };

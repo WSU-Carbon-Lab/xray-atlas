@@ -24,4 +24,3 @@ export function canonicalMoleculeSlugFromView(m: MoleculeSlugSource): string {
     .find((s) => s.length > 0);
   return slugifyMoleculeSynonym(first ?? "molecule");
 }
-

@@ -4,8 +4,8 @@ import type { ComponentType, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Button } from "@heroui/react";
-import { HeroUpdatesRow } from "@/components/home/hero-updates-row";
-import { AccentNavChip } from "@/components/ui/accent-nav-chip";
+import { HeroUpdatesRow } from "~/components/home/hero-updates-row";
+import { AccentNavChip } from "~/components/ui/accent-nav-chip";
 import { cn } from "@heroui/styles";
 import { Upload } from "lucide-react";
 import {
@@ -15,10 +15,10 @@ import {
   ChevronRightIcon,
   InformationCircleIcon,
 } from "@heroicons/react/24/outline";
-import { CatalogHeroSearch } from "@/components/home/catalog-hero-search";
-import { MoleculeCard } from "@/components/molecules/molecule-display";
-import { MoleculeCardSkeleton } from "@/components/feedback/loading-state";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
+import { CatalogHeroSearch } from "~/components/home/catalog-hero-search";
+import { MoleculeCard } from "~/components/molecules/molecule-display";
+import { MoleculeCardSkeleton } from "~/components/feedback/loading-state";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import { trpc } from "~/trpc/client";
 import { useRouter } from "next/navigation";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";

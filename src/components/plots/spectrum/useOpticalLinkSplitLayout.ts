@@ -90,10 +90,7 @@ export function useOpticalLinkSplitLayout(
 
     let energyDomain: [number, number];
     if (extents.energyExtent) {
-      energyDomain = [
-        extents.energyExtent.min,
-        extents.energyExtent.max,
-      ];
+      energyDomain = [extents.energyExtent.min, extents.energyExtent.max];
     } else if (energyStats?.min != null && energyStats?.max != null) {
       energyDomain = [energyStats.min, energyStats.max];
     } else {
@@ -131,13 +128,9 @@ export function useOpticalLinkSplitLayout(
       yDomain: [number, number],
     ) => {
       const plotWidth =
-        dimensions.width -
-        dimensions.margins.left -
-        dimensions.margins.right;
+        dimensions.width - dimensions.margins.left - dimensions.margins.right;
       const plotHeight =
-        dimensions.height -
-        dimensions.margins.top -
-        dimensions.margins.bottom;
+        dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
       const xScale = scaleLinear<number>({
         domain: energyDomain,
         range: [0, plotWidth],

@@ -10,7 +10,8 @@ function asYamlValue(value: unknown, indent = 0): string {
   const pad = " ".repeat(indent);
   if (value === null) return "null";
   if (typeof value === "string") return JSON.stringify(value);
-  if (typeof value === "number" || typeof value === "boolean") return String(value);
+  if (typeof value === "number" || typeof value === "boolean")
+    return String(value);
   if (Array.isArray(value)) {
     if (value.length === 0) return "[]";
     return value
@@ -41,9 +42,14 @@ function asYamlValue(value: unknown, indent = 0): string {
 
 export async function GET(request: Request): Promise<NextResponse> {
   const requestUrl = new URL(request.url);
-  const parsed = formatSchema.safeParse(Object.fromEntries(requestUrl.searchParams));
+  const parsed = formatSchema.safeParse(
+    Object.fromEntries(requestUrl.searchParams),
+  );
   if (!parsed.success) {
-    return NextResponse.json({ error: "Invalid format parameter." }, { status: 400 });
+    return NextResponse.json(
+      { error: "Invalid format parameter." },
+      { status: 400 },
+    );
   }
 
   if (parsed.data.format === "yaml") {

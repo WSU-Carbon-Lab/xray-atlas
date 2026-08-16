@@ -248,7 +248,6 @@ export function resolveStxmSessionRegions(
   if (!session) {
     return undefined;
   }
-  const entry = session.scans[scanId];
   const preview = session.preview ?? defaultStxmSessionPreview();
   return resolveRegionsMetadataForScanWithIngestionFallback(
     {
@@ -372,7 +371,9 @@ export function resolveStxmSessionPreview(
   return {
     ...preview,
     ingestionCache:
-      Object.keys(ingestionCache).length > 0 ? ingestionCache : preview.ingestionCache,
+      Object.keys(ingestionCache).length > 0
+        ? ingestionCache
+        : preview.ingestionCache,
     regionSpectraCache:
       Object.keys(regionSpectraCache).length > 0
         ? regionSpectraCache

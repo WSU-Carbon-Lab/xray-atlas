@@ -22,7 +22,10 @@ export type ChannelProvenanceStatus =
   | "derived_with_assumptions"
   | "missing";
 
-export type ChannelProvenance = Record<UploadedChannel, ChannelProvenanceStatus>;
+export type ChannelProvenance = Record<
+  UploadedChannel,
+  ChannelProvenanceStatus
+>;
 
 export type ValidationCheckStatus = "pass" | "warn" | "skip";
 
@@ -142,7 +145,10 @@ function finiteValues(points: SpectrumPoint[], key: UploadedChannel): number[] {
   return values;
 }
 
-function hasFiniteErrors(points: SpectrumPoint[], key: UploadedChannel): boolean {
+function hasFiniteErrors(
+  points: SpectrumPoint[],
+  key: UploadedChannel,
+): boolean {
   for (const point of points) {
     const error =
       key === "rawabs"
@@ -314,8 +320,8 @@ export function buildValidationSummary(args: {
           pair.mass !== 0,
       );
     if (pairs.length === 0) return "skip";
-    const relative = pairs.map((pair) =>
-      Math.abs(pair.beta - pair.mass) / Math.abs(pair.mass),
+    const relative = pairs.map(
+      (pair) => Math.abs(pair.beta - pair.mass) / Math.abs(pair.mass),
     );
     const median = [...relative].sort((a, b) => a - b)[
       Math.floor(relative.length / 2)
@@ -391,7 +397,9 @@ export function buildQualityScores(args: {
         spacingSamples.length;
   const snrValues = Object.values(perChannel)
     .map((entry) => entry.snr)
-    .filter((value): value is number => value != null && Number.isFinite(value));
+    .filter(
+      (value): value is number => value != null && Number.isFinite(value),
+    );
   const snrNorm =
     snrValues.length === 0
       ? null

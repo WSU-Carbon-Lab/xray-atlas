@@ -85,8 +85,7 @@ export function ensureUploaderOwnerAttribution(
   }
   const normalizedUploader = parseOrcidForStorage(uploaderOrcid);
   const hasUploader = rows.some(
-    (row) =>
-      row.role === "DataCurator" && row.orcid === normalizedUploader,
+    (row) => row.role === "DataCurator" && row.orcid === normalizedUploader,
   );
   if (hasUploader) {
     return rows;
@@ -124,7 +123,10 @@ export async function buildContributorInsertRows(
   sessionOrcid: string | null = null,
 ): Promise<ExperimentContributorInsertRow[]> {
   const orcids = [...new Set(rows.map((row) => row.orcid))];
-  const userContextByOrcid = await loadContributorUserContextByOrcid(db, orcids);
+  const userContextByOrcid = await loadContributorUserContextByOrcid(
+    db,
+    orcids,
+  );
   return buildContributorRowsWithClaimStatus(
     rows,
     userContextByOrcid,
@@ -194,7 +196,10 @@ export async function mapContributorRowsToDto(
   const roleSlugsByOrcid = new Map<string, string[]>();
   for (const row of rows) {
     if (!roleSlugsByOrcid.has(row.orcidid)) {
-      const caps = await getUserSessionCapabilities(db as PrismaClient, row.orcidid);
+      const caps = await getUserSessionCapabilities(
+        db as PrismaClient,
+        row.orcidid,
+      );
       roleSlugsByOrcid.set(row.orcidid, caps.roleSlugs);
     }
   }

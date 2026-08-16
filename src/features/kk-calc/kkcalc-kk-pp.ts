@@ -93,7 +93,9 @@ export function kkPpImaginaryPolyToRealAsf(
       const symb3 =
         (1 - (x2Eq || x1Eq ? 1 : 0)) *
         (c0 * E * E + c1 * E + c2 + c3 * E ** -1 + c4 * E ** -2) *
-        Math.log(Math.abs((X2 - E + (x2Eq ? 1 : 0)) / (X1 - E + (x1Eq ? 1 : 0))));
+        Math.log(
+          Math.abs((X2 - E + (x2Eq ? 1 : 0)) / (X1 - E + (x1Eq ? 1 : 0))),
+        );
 
       acc += symb2 - symb1 - symb3;
     }
@@ -161,8 +163,7 @@ export function kkPpImaginaryPolyToRealAsf(
     const c2 = coef(imagCoefs, seg, 2);
     const c3 = coef(imagCoefs, seg, 3);
     const c4 = coef(imagCoefs, seg, 4);
-    const poly =
-      c0 * xe * xe + c1 * xe + c2 + c3 * xe ** -1 + c4 * xe ** -2;
+    const poly = c0 * xe * xe + c1 * xe + c2 + c3 * xe ** -1 + c4 * xe ** -2;
     val[q] = poly * Math.log(Math.abs((x2s[q]! - xe) / (x1s[q]! - xe)));
   }
 

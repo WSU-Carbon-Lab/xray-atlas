@@ -60,10 +60,7 @@ export function BlogCategoryReadNext({
   if (variant === "rail") {
     return (
       <section aria-labelledby={headingId}>
-        <h2
-          id={headingId}
-          className="text-foreground mb-3 text-sm font-medium"
-        >
+        <h2 id={headingId} className="text-foreground mb-3 text-sm font-medium">
           Read next in {category.label}
         </h2>
         <ReadNextList posts={posts} />

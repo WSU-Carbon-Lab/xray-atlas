@@ -4,8 +4,14 @@ import {
   it as bunIt,
 } from "bun:test";
 
-import { bareAtomBetaFromHenkeCompoundF2, henkeCompoundF2AtEv } from "./kkcalc-henke-f2";
-import { imaginaryAsfToOpticalBeta, numberDensityFromMassDensity } from "./kkcalc-conversions";
+import {
+  bareAtomBetaFromHenkeCompoundF2,
+  henkeCompoundF2AtEv,
+} from "./kkcalc-henke-f2";
+import {
+  imaginaryAsfToOpticalBeta,
+  numberDensityFromMassDensity,
+} from "./kkcalc-conversions";
 import {
   formulaMassFromComposition,
   parseChemicalFormula,
@@ -39,7 +45,11 @@ describe("bareAtomBetaFromHenkeCompoundF2", () => {
   it("returns finite positive beta across a short pre-edge to post-edge grid", () => {
     const composition = parseChemicalFormula("C72H14O2");
     const targetEnergyEv = [280, 284.5, 290, 300, 310];
-    const beta = bareAtomBetaFromHenkeCompoundF2(composition, targetEnergyEv, 1);
+    const beta = bareAtomBetaFromHenkeCompoundF2(
+      composition,
+      targetEnergyEv,
+      1,
+    );
     for (const b of beta) {
       expect(Number.isFinite(b)).toBe(true);
       expect(b).toBeGreaterThan(0);

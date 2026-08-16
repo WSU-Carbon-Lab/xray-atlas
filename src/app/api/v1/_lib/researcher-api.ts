@@ -4,15 +4,12 @@ import { normalizeDoi } from "~/lib/doi";
 
 export { normalizeDoi } from "~/lib/doi";
 
-const truthyBoolean = z.enum(["true", "false"]).transform((value) => value === "true");
+const truthyBoolean = z
+  .enum(["true", "false"])
+  .transform((value) => value === "true");
 
 const optionalUuid = z.string().uuid().optional();
-const optionalNonEmpty = z
-  .string()
-  .trim()
-  .min(1)
-  .max(512)
-  .optional();
+const optionalNonEmpty = z.string().trim().min(1).max(512).optional();
 
 const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),

@@ -29,8 +29,7 @@ export function computeOpticalLinkSplitToggleAnchor(params: {
     const real = params.opticalSplitLayout.realPlot.dimensions;
     const imaginaryInnerHeight =
       imag.height - imag.margins.top - imag.margins.bottom;
-    const realPanelOffsetY =
-      imag.height + real.margins.top - imag.margins.top;
+    const realPanelOffsetY = imag.height + real.margins.top - imag.margins.top;
     const imaginaryInnerBottom = imag.margins.top + imaginaryInnerHeight;
     const realInnerTop = realPanelOffsetY + real.margins.top;
     return {

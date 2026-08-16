@@ -2,14 +2,14 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { SignInButton } from "@/components/auth/sign-in-button";
+import { SignInButton } from "~/components/auth/sign-in-button";
 import {
   AddNexafsCard,
   AddMoleculeCard,
   AddFacilityCard,
   ContributeAccessGate,
   ContributionAgreementModal,
-} from "@/components/contribute";
+} from "~/components/contribute";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";

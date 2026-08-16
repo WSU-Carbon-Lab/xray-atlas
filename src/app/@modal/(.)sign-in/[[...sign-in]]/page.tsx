@@ -4,7 +4,7 @@ import { Suspense, Fragment } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { Dialog, Transition } from "@headlessui/react";
 import { XMarkIcon } from "@heroicons/react/24/outline";
-import { SocialSignInButtons } from "@/components/auth/social-sign-in-buttons";
+import { SocialSignInButtons } from "~/components/auth/social-sign-in-buttons";
 
 function getSafeRedirectTarget(callbackUrl: string | null): string {
   const raw = callbackUrl ?? "/";
@@ -40,7 +40,7 @@ function SignInModalContent() {
 
   return (
     <Transition appear show={true} as={Fragment}>
-      <Dialog as="div" className="relative z-modal" onClose={handleClose}>
+      <Dialog as="div" className="z-modal relative" onClose={handleClose}>
         <Transition.Child
           as={Fragment}
           enter="ease-out duration-300"
@@ -64,11 +64,11 @@ function SignInModalContent() {
               leaveFrom="opacity-100 scale-100"
               leaveTo="opacity-0 scale-95"
             >
-              <Dialog.Panel className="w-full max-w-md transform overflow-hidden rounded-2xl border border-border-default bg-surface-1 p-6 text-left align-middle shadow-xl transition-[opacity,transform] duration-200">
+              <Dialog.Panel className="border-border-default bg-surface-1 w-full max-w-md transform overflow-hidden rounded-2xl border p-6 text-left align-middle shadow-xl transition-[opacity,transform] duration-200">
                 <div className="mb-4 flex items-start justify-between">
                   <Dialog.Title
                     as="h2"
-                    className="text-xl font-semibold text-text-primary"
+                    className="text-text-primary text-xl font-semibold"
                   >
                     Sign in to X-ray Atlas
                   </Dialog.Title>
@@ -76,12 +76,12 @@ function SignInModalContent() {
                     type="button"
                     onClick={handleClose}
                     aria-label="Close sign in modal"
-                    className="cursor-pointer rounded-lg border border-red-500 bg-red-50 p-2 text-red-600 transition-[background-color,border-color,transform] duration-150 hover:bg-red-100 hover:border-red-600 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 active:scale-[0.98] dark:border-red-600 dark:bg-red-950/30 dark:text-red-400 dark:hover:bg-red-950/50 dark:hover:border-red-500"
+                    className="cursor-pointer rounded-lg border border-red-500 bg-red-50 p-2 text-red-600 transition-[background-color,border-color,transform] duration-150 hover:border-red-600 hover:bg-red-100 focus-visible:ring-2 focus-visible:ring-red-500 focus-visible:ring-offset-2 active:scale-[0.98] dark:border-red-600 dark:bg-red-950/30 dark:text-red-400 dark:hover:border-red-500 dark:hover:bg-red-950/50"
                   >
                     <XMarkIcon className="h-5 w-5" aria-hidden="true" />
                   </button>
                 </div>
-                <p className="mb-6 text-sm text-text-secondary">
+                <p className="text-text-secondary mb-6 text-sm">
                   New accounts are created with{" "}
                   <a
                     href="https://orcid.org"
@@ -91,12 +91,11 @@ function SignInModalContent() {
                   >
                     ORCID
                   </a>
-                  . GitHub sign-in works after you link GitHub from your profile. Passkeys remain
-                  available but are not fully supported yet.
+                  . GitHub sign-in works after you link GitHub from your
+                  profile. Passkeys remain available but are not fully supported
+                  yet.
                 </p>
-                <SocialSignInButtons
-                  callbackUrl={safeCallbackUrl}
-                />
+                <SocialSignInButtons callbackUrl={safeCallbackUrl} />
               </Dialog.Panel>
             </Transition.Child>
           </div>

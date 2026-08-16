@@ -5,7 +5,10 @@ import {
   isPlotViewerTraceHidden,
   plotViewerHiddenTraceIdSet,
 } from "./plot-viewer-hidden-traces";
-import type { PlotViewerDescriptorField, PlotViewerLegendRow } from "./plot-viewer-legend";
+import type {
+  PlotViewerDescriptorField,
+  PlotViewerLegendRow,
+} from "./plot-viewer-legend";
 import {
   DEFAULT_PLOT_VIEWER_DESCRIPTOR_FIELDS,
   plotViewerDescriptorColumnTitle,
@@ -75,13 +78,13 @@ export function PlotViewerCompactLegend({
       <table className="w-full min-w-[240px] border-collapse text-xs">
         <thead>
           <tr className="text-muted border-border border-b">
-            <th className="pb-1.5 pe-3 text-start font-medium whitespace-nowrap">
+            <th className="pe-3 pb-1.5 text-start font-medium whitespace-nowrap">
               {channelColumnTitle}
             </th>
             {activeDescriptorFields.map((field) => (
               <th
                 key={field}
-                className="pb-1.5 pe-3 text-start font-medium whitespace-nowrap last:pe-0"
+                className="pe-3 pb-1.5 text-start font-medium whitespace-nowrap last:pe-0"
               >
                 {plotViewerDescriptorColumnTitle(field, { geometryKeys })}
               </th>
@@ -119,7 +122,7 @@ export function PlotViewerCompactLegend({
                 {activeDescriptorFields.map((field) => (
                   <td
                     key={`${row.traceKey}:${field}`}
-                    className="py-1 pe-3 min-w-0 max-w-[14rem] truncate whitespace-nowrap last:pe-0"
+                    className="max-w-[14rem] min-w-0 truncate py-1 pe-3 whitespace-nowrap last:pe-0"
                   >
                     {row.values[field] ?? "—"}
                   </td>

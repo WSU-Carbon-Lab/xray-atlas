@@ -76,10 +76,10 @@ export function applyExportOverrides(
     const lines = Array.from(group.querySelectorAll("line"));
     if (lines.length === 0) return;
     const withLength = lines.map((line) => {
-      const x1 = Number(line.getAttribute("x1")) ?? 0;
-      const y1 = Number(line.getAttribute("y1")) ?? 0;
-      const x2 = Number(line.getAttribute("x2")) ?? 0;
-      const y2 = Number(line.getAttribute("y2")) ?? 0;
+      const x1 = Number(line.getAttribute("x1") ?? "0");
+      const y1 = Number(line.getAttribute("y1") ?? "0");
+      const x2 = Number(line.getAttribute("x2") ?? "0");
+      const y2 = Number(line.getAttribute("y2") ?? "0");
       const len = Math.hypot(x2 - x1, y2 - y1);
       return { line, len };
     });
@@ -101,12 +101,17 @@ export function applyExportOverrides(
     if (!over) return;
     const stroke = over.color;
     const strokeWidth = over.lineWidth;
-    const strokeDasharray = over.lineStyle != null ? strokeDasharrayForStyle(over.lineStyle) : undefined;
+    const strokeDasharray =
+      over.lineStyle != null
+        ? strokeDasharrayForStyle(over.lineStyle)
+        : undefined;
     g.querySelectorAll("path, line").forEach((el) => {
       if (!(el instanceof SVGElement)) return;
       if (stroke != null) el.setAttribute("stroke", stroke);
-      if (strokeWidth != null) el.setAttribute("stroke-width", String(strokeWidth));
-      if (strokeDasharray != null) el.setAttribute("stroke-dasharray", strokeDasharray);
+      if (strokeWidth != null)
+        el.setAttribute("stroke-width", String(strokeWidth));
+      if (strokeDasharray != null)
+        el.setAttribute("stroke-dasharray", strokeDasharray);
     });
   });
 }

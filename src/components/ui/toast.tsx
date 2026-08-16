@@ -75,7 +75,7 @@ function ToastItem({ toast, onRemove }: ToastProps) {
         className={`h-5 w-5 shrink-0 ${iconStyles[toast.type]}`}
         aria-hidden
       />
-      <p className="flex-1 text-sm font-medium text-foreground">
+      <p className="text-foreground flex-1 text-sm font-medium">
         {toast.message}
       </p>
       <button
@@ -111,7 +111,7 @@ export function ToastContainer({
 
   return (
     <div
-      className="pointer-events-none z-toast fixed bottom-4 left-1/2 flex -translate-x-1/2 flex-col gap-2"
+      className="z-toast pointer-events-none fixed bottom-4 left-1/2 flex -translate-x-1/2 flex-col gap-2"
       aria-live="polite"
       aria-relevant="additions text"
     >

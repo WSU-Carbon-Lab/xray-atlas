@@ -331,7 +331,7 @@ export const FullCardCarousel = memo(function FullCardCarousel({
         >
           <Link
             href={`/molecules/${canonicalMoleculeSlugFromView(props.molecule)}`}
-            className="text-text-primary hover:text-accent dark:hover:text-accent-light min-w-0 flex-1 line-clamp-3 text-lg leading-tight font-bold wrap-break-word transition-colors"
+            className="text-text-primary hover:text-accent dark:hover:text-accent-light line-clamp-3 min-w-0 flex-1 text-lg leading-tight font-bold wrap-break-word transition-colors"
             onClick={(e) => e.stopPropagation()}
           >
             {props.primaryName}

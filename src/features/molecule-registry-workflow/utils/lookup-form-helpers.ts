@@ -83,7 +83,8 @@ export function applyPubChemResultToForm(
         iupacName: displayName,
         commonName:
           prev.commonName.trim().length > 0 ? prev.commonName : commonName,
-        synonyms: importedSynonyms.length > 0 ? importedSynonyms : prev.synonyms,
+        synonyms:
+          importedSynonyms.length > 0 ? importedSynonyms : prev.synonyms,
         inchi: result.inchi ?? prev.inchi,
         smiles: result.smiles ?? prev.smiles,
         chemicalFormula: result.chemicalFormula ?? prev.chemicalFormula,
@@ -94,7 +95,8 @@ export function applyPubChemResultToForm(
 
     return {
       ...prev,
-      iupacName: prev.iupacName.trim().length > 0 ? prev.iupacName : displayName,
+      iupacName:
+        prev.iupacName.trim().length > 0 ? prev.iupacName : displayName,
       commonName:
         prev.commonName.trim().length > 0 ? prev.commonName : commonName,
       synonyms:
@@ -137,7 +139,10 @@ export function promoteSynonymToPreferredName(
       normalizeMoleculeSynonym(synonym).toLowerCase() !==
       normalizedPreferred.toLowerCase(),
   );
-  if (prior.length > 0 && prior.toLowerCase() !== normalizedPreferred.toLowerCase()) {
+  if (
+    prior.length > 0 &&
+    prior.toLowerCase() !== normalizedPreferred.toLowerCase()
+  ) {
     nextSynonyms = appendUniqueMoleculeSynonym(nextSynonyms, prior);
   }
   return { commonName: normalizedPreferred, synonyms: nextSynonyms };

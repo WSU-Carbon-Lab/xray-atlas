@@ -9,7 +9,10 @@ import { config as loadEnvFile } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
-const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repoRoot = path.resolve(
+  path.dirname(fileURLToPath(import.meta.url)),
+  "..",
+);
 
 function loadEnv(): void {
   loadEnvFile({ path: path.join(repoRoot, ".env") });
@@ -61,7 +64,12 @@ function main(): void {
     }
     process.exit(1);
   }
-  console.log(JSON.stringify({ ok: true, message: "DIRECT_URL is suitable for prisma migrate" }));
+  console.log(
+    JSON.stringify({
+      ok: true,
+      message: "DIRECT_URL is suitable for prisma migrate",
+    }),
+  );
 }
 
 main();

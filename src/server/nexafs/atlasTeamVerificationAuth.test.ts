@@ -14,7 +14,10 @@ const describe = bunDescribe as (name: string, fn: () => void) => void;
 const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
-function createCapsMockDb(roleSlugs: string[], canAccessLabs: boolean): PrismaClient {
+function createCapsMockDb(
+  roleSlugs: string[],
+  canAccessLabs: boolean,
+): PrismaClient {
   return {
     userAppRole: {
       findMany: async () =>

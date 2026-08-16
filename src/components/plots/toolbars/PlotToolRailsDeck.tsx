@@ -8,13 +8,7 @@
  * spines (left/right/top/bottom margins) so controls sit inside the plot frame and avoid tick labels.
  */
 
-import {
-  Children,
-  memo,
-  useMemo,
-  useState,
-  type ReactNode,
-} from "react";
+import { Children, memo, useMemo, useState, type ReactNode } from "react";
 import {
   Button,
   ButtonGroup,
@@ -295,7 +289,9 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
               <PlotToolbarGroupSeparator orientation="horizontal" />
             </>
           ) : null}
-          <div className="flex w-full flex-col items-center gap-1">{analysisTools}</div>
+          <div className="flex w-full flex-col items-center gap-1">
+            {analysisTools}
+          </div>
         </Toolbar>
       ),
     };
@@ -360,7 +356,11 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
       >
         <Button
           isIconOnly
-          aria-label={isTrayMode ? "Dock plot toolbars" : "Float plot toolbars in tray mode"}
+          aria-label={
+            isTrayMode
+              ? "Dock plot toolbars"
+              : "Float plot toolbars in tray mode"
+          }
           onPress={() => setIsTrayMode((prev) => !prev)}
           className={TRAY_MODE_TOGGLE_CLASS}
           style={{ left: insetLeft, top: insetTop }}
@@ -406,123 +406,131 @@ export const PlotToolRailsDeck = memo(function PlotToolRailsDeck({
 
       {isTrayMode ? (
         <>
-      <div
-        className="pointer-events-auto absolute z-30 flex justify-center"
-        style={{ left: topRailLeft, top: insetTop, width: topRailWidth }}
-        onMouseEnter={() => setHoveredSide("top")}
-        onMouseLeave={() => setHoveredSide((prev) => (prev === "top" ? null : prev))}
-      >
-        {hoveredSide !== "top" ? (
-          <PlotToolbarRichHint
-            title="Top handle"
-            description="Hover here to show the top plot toolbar."
-            placement="bottom"
+          <div
+            className="pointer-events-auto absolute z-30 flex justify-center"
+            style={{ left: topRailLeft, top: insetTop, width: topRailWidth }}
+            onMouseEnter={() => setHoveredSide("top")}
+            onMouseLeave={() =>
+              setHoveredSide((prev) => (prev === "top" ? null : prev))
+            }
           >
-            <Button
-              isIconOnly
-              aria-label="Reveal top plot toolbar"
-              className={HANDLE_BUTTON_CLASS}
-            >
-              <GripHorizontal className="h-4 w-4" />
-            </Button>
-          </PlotToolbarRichHint>
-        ) : null}
-        {hoveredSide === "top" && topRail?.isAvailable ? (
-          <div className="flex w-full justify-center">{topRail.render()}</div>
-        ) : null}
-      </div>
-
-      <div
-        className="pointer-events-auto absolute z-30 flex justify-center"
-        style={{
-          left: bottomRailLeft,
-          bottom: insetBottom,
-          width: bottomRailWidth,
-        }}
-        onMouseEnter={() => setHoveredSide("bottom")}
-        onMouseLeave={() =>
-          setHoveredSide((prev) => (prev === "bottom" ? null : prev))
-        }
-      >
-        {hoveredSide !== "bottom" ? (
-          <PlotToolbarRichHint
-            title="Bottom handle"
-            description="Hover here to show the bottom plot toolbar when present."
-            placement="top"
-          >
-            <Button
-              isIconOnly
-              aria-label="Reveal bottom plot toolbar"
-              className={HANDLE_BUTTON_CLASS}
-            >
-              <GripHorizontal className="h-4 w-4" />
-            </Button>
-          </PlotToolbarRichHint>
-        ) : null}
-        {hoveredSide === "bottom" && bottomRail?.isAvailable ? (
-          <div className="flex w-full justify-center">{bottomRail.render()}</div>
-        ) : null}
-      </div>
-
-      {leftRail?.isAvailable ? (
-        <div
-          className="pointer-events-auto absolute top-1/2 z-30 -translate-y-1/2"
-          style={{ left: insetLeft }}
-          onMouseEnter={() => setHoveredSide("left")}
-          onMouseLeave={() => setHoveredSide((prev) => (prev === "left" ? null : prev))}
-        >
-          {hoveredSide !== "left" ? (
-            <PlotToolbarRichHint
-              title="Left handle"
-              description="Hover here to show the left data-view rail."
-              placement="right"
-            >
-              <Button
-                isIconOnly
-                aria-label="Reveal left plot toolbar"
-                className={HANDLE_BUTTON_CLASS}
+            {hoveredSide !== "top" ? (
+              <PlotToolbarRichHint
+                title="Top handle"
+                description="Hover here to show the top plot toolbar."
+                placement="bottom"
               >
-                <GripVertical className="h-4 w-4" />
-              </Button>
-            </PlotToolbarRichHint>
-          ) : null}
-          {hoveredSide === "left" ? (
-            <div className="absolute left-0 top-1/2 -translate-y-1/2">
-              {leftRail.render()}
+                <Button
+                  isIconOnly
+                  aria-label="Reveal top plot toolbar"
+                  className={HANDLE_BUTTON_CLASS}
+                >
+                  <GripHorizontal className="h-4 w-4" />
+                </Button>
+              </PlotToolbarRichHint>
+            ) : null}
+            {hoveredSide === "top" && topRail?.isAvailable ? (
+              <div className="flex w-full justify-center">
+                {topRail.render()}
+              </div>
+            ) : null}
+          </div>
+
+          <div
+            className="pointer-events-auto absolute z-30 flex justify-center"
+            style={{
+              left: bottomRailLeft,
+              bottom: insetBottom,
+              width: bottomRailWidth,
+            }}
+            onMouseEnter={() => setHoveredSide("bottom")}
+            onMouseLeave={() =>
+              setHoveredSide((prev) => (prev === "bottom" ? null : prev))
+            }
+          >
+            {hoveredSide !== "bottom" ? (
+              <PlotToolbarRichHint
+                title="Bottom handle"
+                description="Hover here to show the bottom plot toolbar when present."
+                placement="top"
+              >
+                <Button
+                  isIconOnly
+                  aria-label="Reveal bottom plot toolbar"
+                  className={HANDLE_BUTTON_CLASS}
+                >
+                  <GripHorizontal className="h-4 w-4" />
+                </Button>
+              </PlotToolbarRichHint>
+            ) : null}
+            {hoveredSide === "bottom" && bottomRail?.isAvailable ? (
+              <div className="flex w-full justify-center">
+                {bottomRail.render()}
+              </div>
+            ) : null}
+          </div>
+
+          {leftRail?.isAvailable ? (
+            <div
+              className="pointer-events-auto absolute top-1/2 z-30 -translate-y-1/2"
+              style={{ left: insetLeft }}
+              onMouseEnter={() => setHoveredSide("left")}
+              onMouseLeave={() =>
+                setHoveredSide((prev) => (prev === "left" ? null : prev))
+              }
+            >
+              {hoveredSide !== "left" ? (
+                <PlotToolbarRichHint
+                  title="Left handle"
+                  description="Hover here to show the left data-view rail."
+                  placement="right"
+                >
+                  <Button
+                    isIconOnly
+                    aria-label="Reveal left plot toolbar"
+                    className={HANDLE_BUTTON_CLASS}
+                  >
+                    <GripVertical className="h-4 w-4" />
+                  </Button>
+                </PlotToolbarRichHint>
+              ) : null}
+              {hoveredSide === "left" ? (
+                <div className="absolute top-1/2 left-0 -translate-y-1/2">
+                  {leftRail.render()}
+                </div>
+              ) : null}
             </div>
           ) : null}
-        </div>
-      ) : null}
 
-      <div
-        className="pointer-events-auto absolute top-1/2 z-30 -translate-y-1/2"
-        style={{ right: insetRight }}
-        onMouseEnter={() => setHoveredSide("right")}
-        onMouseLeave={() =>
-          setHoveredSide((prev) => (prev === "right" ? null : prev))
-        }
-      >
-        {hoveredSide !== "right" ? (
-          <PlotToolbarRichHint
-            title="Right handle"
-            description="Hover here to show the right analysis rail."
-            placement="left"
+          <div
+            className="pointer-events-auto absolute top-1/2 z-30 -translate-y-1/2"
+            style={{ right: insetRight }}
+            onMouseEnter={() => setHoveredSide("right")}
+            onMouseLeave={() =>
+              setHoveredSide((prev) => (prev === "right" ? null : prev))
+            }
           >
-            <Button
-              isIconOnly
-              aria-label="Reveal right plot toolbar"
-              className={HANDLE_BUTTON_CLASS}
-            >
-              <GripVertical className="h-4 w-4" />
-            </Button>
-          </PlotToolbarRichHint>
-        ) : null}
-        {hoveredSide === "right" && rightRail?.isAvailable ? (
-          <div className="absolute right-0 top-1/2 -translate-y-1/2">
-            {rightRail.render()}
+            {hoveredSide !== "right" ? (
+              <PlotToolbarRichHint
+                title="Right handle"
+                description="Hover here to show the right analysis rail."
+                placement="left"
+              >
+                <Button
+                  isIconOnly
+                  aria-label="Reveal right plot toolbar"
+                  className={HANDLE_BUTTON_CLASS}
+                >
+                  <GripVertical className="h-4 w-4" />
+                </Button>
+              </PlotToolbarRichHint>
+            ) : null}
+            {hoveredSide === "right" && rightRail?.isAvailable ? (
+              <div className="absolute top-1/2 right-0 -translate-y-1/2">
+                {rightRail.render()}
+              </div>
+            ) : null}
           </div>
-        ) : null}
-      </div>
         </>
       ) : null}
     </div>

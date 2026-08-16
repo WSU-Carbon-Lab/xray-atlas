@@ -19,8 +19,8 @@ Use with **typescript-web** spec. Complements **web-trpc-api** (server data) by 
 
 ## Reference index
 
-| Topic | File |
-|--------|------|
+| Topic                    | File                                                                |
+| ------------------------ | ------------------------------------------------------------------- |
 | Parsing, navigation, RSC | [reference-search-params.md](references/reference-search-params.md) |
 
 ## Delegation

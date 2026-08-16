@@ -120,7 +120,8 @@ export function ApplyTeamAttributionForm({
       <div>
         <p className="text-foreground text-sm font-semibold">Add from team</p>
         <p className="text-muted mt-0.5 text-xs">
-          Merges preset roles into this dataset. You stay credited as data curator.
+          Merges preset roles into this dataset. You stay credited as data
+          curator.
         </p>
       </div>
 
@@ -203,7 +204,9 @@ export function ApplyTeamAttributionForm({
       ) : null}
 
       {applyError ? (
-        <ErrorMessage className="text-danger text-xs">{applyError}</ErrorMessage>
+        <ErrorMessage className="text-danger text-xs">
+          {applyError}
+        </ErrorMessage>
       ) : null}
 
       <div className="flex justify-end gap-2">

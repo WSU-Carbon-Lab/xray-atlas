@@ -1,8 +1,5 @@
 import type { PrismaClient } from "~/prisma/client";
-import {
-  isLegacyUserUuidSegment,
-  orcidUserIdSchema,
-} from "~/lib/orcid";
+import { isLegacyUserUuidSegment, orcidUserIdSchema } from "~/lib/orcid";
 
 export { isLegacyUserUuidSegment } from "~/lib/orcid";
 

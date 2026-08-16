@@ -124,7 +124,8 @@ export const MOLECULE_2D_SUBSCRIPT_FONT_SCALE = 0.72;
 export const MOLECULE_2D_SUBSCRIPT_BASELINE_SHIFT_EM = -0.28;
 
 /** Atom label font weight; aligned with {@link MOLECULE_SVG_LABEL_FONT_WEIGHT}. */
-export const MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT = MOLECULE_SVG_LABEL_FONT_WEIGHT;
+export const MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT =
+  MOLECULE_SVG_LABEL_FONT_WEIGHT;
 
 /** Vertical offset applied to centered atom labels (baseline tweak). */
 export const MOLECULE_2D_ATOM_LABEL_Y_OFFSET = 4.5;
@@ -223,7 +224,10 @@ export function molecule2dAtomLabelFill(
  * CnH2n+1 custom label (database-style alkyl tail stub). Depiction hides the
  * stub vertex and renders one bond from the neighbor to the label.
  */
-export function isAbbreviatedAlkylTailStub(mol: Molecule, atom: number): boolean {
+export function isAbbreviatedAlkylTailStub(
+  mol: Molecule,
+  atom: number,
+): boolean {
   if (mol.getAtomicNo(atom) !== 6) {
     return false;
   }
@@ -237,7 +241,10 @@ export function isAbbreviatedAlkylTailStub(mol: Molecule, atom: number): boolean
  * Returns the sole neighbor of an abbreviated alkyl tail stub, or -1 when
  * `atom` is not a stub.
  */
-export function abbreviatedAlkylTailNeighbor(mol: Molecule, atom: number): number {
+export function abbreviatedAlkylTailNeighbor(
+  mol: Molecule,
+  atom: number,
+): number {
   if (!isAbbreviatedAlkylTailStub(mol, atom)) {
     return -1;
   }
@@ -266,18 +273,26 @@ export function shouldShowMolecule2dAtomLabel(options: {
  * Normalizes bond stroke widths on an OCL-generated SVG root so lines match
  * {@link MOLECULE_2D_BOND_STROKE_WIDTH}. Call after CPK theming.
  */
-export function applyMolecule2dBondStrokeWidthToSvgRoot(svgRoot: Element): void {
+export function applyMolecule2dBondStrokeWidthToSvgRoot(
+  svgRoot: Element,
+): void {
   svgRoot.querySelectorAll("line").forEach((lineElem) => {
     const stroke = lineElem.getAttribute("stroke");
     const opacity = lineElem.getAttribute("opacity");
     if (stroke && stroke !== "none" && opacity !== "0") {
-      lineElem.setAttribute("stroke-width", String(MOLECULE_2D_BOND_STROKE_WIDTH));
+      lineElem.setAttribute(
+        "stroke-width",
+        String(MOLECULE_2D_BOND_STROKE_WIDTH),
+      );
     }
   });
   svgRoot.querySelectorAll("path").forEach((pathElem) => {
     const stroke = pathElem.getAttribute("stroke");
     if (stroke && stroke !== "none") {
-      pathElem.setAttribute("stroke-width", String(MOLECULE_2D_BOND_STROKE_WIDTH));
+      pathElem.setAttribute(
+        "stroke-width",
+        String(MOLECULE_2D_BOND_STROKE_WIDTH),
+      );
     }
   });
 }

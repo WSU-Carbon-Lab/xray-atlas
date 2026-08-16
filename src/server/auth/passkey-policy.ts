@@ -3,11 +3,11 @@ import {
   getUserSessionCapabilities,
   type UserSessionCapabilities,
 } from "~/server/auth/privileged-role";
+import { isAal3Eligible, type AuthenticatorAalFields } from "~/server/auth/aal";
 import {
-  isAal3Eligible,
-  type AuthenticatorAalFields,
-} from "~/server/auth/aal";
-import { countActivePasskeys, userHasActivePasskey } from "~/server/auth/passkey-enrollment";
+  countActivePasskeys,
+  userHasActivePasskey,
+} from "~/server/auth/passkey-enrollment";
 
 type PasskeyPolicyDb = Pick<PrismaClient, "authenticator" | "user">;
 

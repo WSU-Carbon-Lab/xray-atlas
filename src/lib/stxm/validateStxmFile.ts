@@ -58,7 +58,10 @@ export function isAllowedStxmFilename(filename: string): boolean {
  * @param kind - Parsed kind from {@link stxmFileKindFromName}.
  * @throws {StxmValidationError} When size is non-positive or above the kind cap.
  */
-export function validateStxmFileSize(sizeBytes: number, kind: StxmFileKind): void {
+export function validateStxmFileSize(
+  sizeBytes: number,
+  kind: StxmFileKind,
+): void {
   if (!Number.isFinite(sizeBytes) || sizeBytes <= 0) {
     throw new StxmValidationError(`${kind} file is empty or has invalid size`);
   }

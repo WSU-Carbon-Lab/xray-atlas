@@ -117,7 +117,9 @@ export function angleDisplayForSpectrumGeometryGroup(
     return { mode: "single", label: formatAngleDegrees(phi) };
   }
   if (finiteTheta && finitePhi) {
-    if (spectrumGeometryLegendUsesPairColumns(showThetaData, showPhiData, split)) {
+    if (
+      spectrumGeometryLegendUsesPairColumns(showThetaData, showPhiData, split)
+    ) {
       return {
         mode: "pair",
         thetaLabel: formatAngleDegrees(theta),

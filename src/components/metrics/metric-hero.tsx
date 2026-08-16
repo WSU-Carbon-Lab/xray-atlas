@@ -51,7 +51,9 @@ export function MetricHeroSummary({ hero, className }: MetricHeroSummaryProps) {
       : "text-foreground";
 
   return (
-    <div className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-1", className)}>
+    <div
+      className={cn("flex flex-wrap items-baseline gap-x-2 gap-y-1", className)}
+    >
       <span
         className={cn(
           "text-2xl font-semibold tabular-nums tracking-tight sm:text-3xl",

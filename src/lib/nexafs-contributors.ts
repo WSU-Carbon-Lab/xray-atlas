@@ -79,9 +79,9 @@ function parseRoleInput(raw: string | undefined): DataCiteContributorType[] {
 function toContributorPerson(row: ContributorInput): NexafsContributorPerson {
   const orcid = row.orcid.trim();
   const roles = mergeRoleList(
-    (row.roles ?? []).map((r) => normalizeStoredContributorRole(r)).filter(
-      (r): r is DataCiteContributorType => r != null,
-    ),
+    (row.roles ?? [])
+      .map((r) => normalizeStoredContributorRole(r))
+      .filter((r): r is DataCiteContributorType => r != null),
     parseRoleInput(row.role),
   );
   return {

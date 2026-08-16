@@ -61,14 +61,13 @@ export function usePlotDataRail<
   buildPlotPoints,
   initialChannelId,
   onUnavailableSelect,
-}: UsePlotDataRailArgs<TChannelId, TTrayId>): UsePlotDataRailResult<TChannelId> {
+}: UsePlotDataRailArgs<
+  TChannelId,
+  TTrayId
+>): UsePlotDataRailResult<TChannelId> {
   const fallbackId = useMemo(
     () =>
-      initialActiveChannelId(
-        definition,
-        isChannelAvailable,
-        initialChannelId,
-      ),
+      initialActiveChannelId(definition, isChannelAvailable, initialChannelId),
     [definition, initialChannelId, isChannelAvailable],
   );
 
@@ -91,7 +90,10 @@ export function usePlotDataRail<
   const setActiveChannelId = useCallback(
     (id: TChannelId) => {
       if (!isChannelAvailable(id)) {
-        onUnavailableSelect?.(id, "This data view is not available for this dataset.");
+        onUnavailableSelect?.(
+          id,
+          "This data view is not available for this dataset.",
+        );
         return;
       }
       setActiveChannelIdState(id);

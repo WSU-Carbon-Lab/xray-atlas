@@ -22,7 +22,10 @@ export function DashboardConnectorReadinessBadge({
   className,
 }: DashboardConnectorReadinessBadgeProps) {
   const resolvedLabel =
-    label ?? (readiness !== undefined ? dashboardConnectorReadinessBadge(readiness) : null);
+    label ??
+    (readiness !== undefined
+      ? dashboardConnectorReadinessBadge(readiness)
+      : null);
 
   if (!resolvedLabel) {
     return null;

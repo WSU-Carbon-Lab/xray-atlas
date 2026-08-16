@@ -115,11 +115,14 @@ export function ExperimentAttributionEditSection({
     serverAttributions,
   ]);
 
-  const handleAttributionsChange = useCallback((change: DatasetAttributionChange) => {
-    setDraftAttributions((previous) =>
-      typeof change === "function" ? change(previous) : change,
-    );
-  }, []);
+  const handleAttributionsChange = useCallback(
+    (change: DatasetAttributionChange) => {
+      setDraftAttributions((previous) =>
+        typeof change === "function" ? change(previous) : change,
+      );
+    },
+    [],
+  );
 
   const isDirty = useMemo(() => {
     if (!hydratedFromServer) {
@@ -130,7 +133,9 @@ export function ExperimentAttributionEditSection({
 
   const handleSave = useCallback(() => {
     const rows = filterValidOrcidAttributions(draftAttributions);
-    const uploaderCount = rows.filter((row) => row.role === "DataCurator").length;
+    const uploaderCount = rows.filter(
+      (row) => row.role === "DataCurator",
+    ).length;
     if (uploaderCount !== 1) {
       showToast("Exactly one data curator (uploader) is required", "error");
       return;

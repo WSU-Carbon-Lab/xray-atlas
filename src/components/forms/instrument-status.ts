@@ -1,4 +1,7 @@
-import type { InstrumentFormData, RegisteredInstrumentStatusPresentation } from "./types";
+import type {
+  InstrumentFormData,
+  RegisteredInstrumentStatusPresentation,
+} from "./types";
 
 export function parseInstrumentStatus(s: string): InstrumentFormData["status"] {
   if (s === "inactive" || s === "under_maintenance" || s === "active") {

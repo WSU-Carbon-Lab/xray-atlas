@@ -110,7 +110,6 @@ describe("filterValidOrcidAttributions", () => {
     expect(result.length).toBe(1);
     expect(result[0]?.orcid).toBe(ORCID);
   });
-
 });
 
 describe("datasetAttributionRowsForAvatarDisplay", () => {

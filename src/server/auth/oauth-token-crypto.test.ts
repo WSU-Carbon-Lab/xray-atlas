@@ -54,11 +54,9 @@ describe("oauth-token-crypto", () => {
     const value = "tamper-me";
     const encrypted = encryptOAuthToken(value);
     const lastChar = encrypted.slice(-1);
-    const tamperedLast =
-      lastChar === "A" ? "B" : lastChar === "B" ? "C" : "A";
+    const tamperedLast = lastChar === "A" ? "B" : lastChar === "B" ? "C" : "A";
     const tampered = `${encrypted.slice(0, -1)}${tamperedLast}`;
     const decrypted = decryptOAuthToken(tampered);
     expect(decrypted).toBe(null);
   });
 });
-

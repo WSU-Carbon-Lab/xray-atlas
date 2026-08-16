@@ -18,13 +18,15 @@ Typography is fundamental to great design - it should be legible, accessible, an
 ```css
 :root {
   /* Sans-serif for UI */
-  --font-sans: "Geist Sans", "Inter", system-ui, -apple-system, 
-               BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-  
+  --font-sans:
+    "Geist Sans", "Inter", system-ui, -apple-system, BlinkMacSystemFont,
+    "Segoe UI", Roboto, sans-serif;
+
   /* Monospace for code and data */
-  --font-mono: "Geist Mono", "JetBrains Mono", "Fira Code", 
-               ui-monospace, SFMono-Regular, Menlo, Monaco, monospace;
-  
+  --font-mono:
+    "Geist Mono", "JetBrains Mono", "Fira Code", ui-monospace, SFMono-Regular,
+    Menlo, Monaco, monospace;
+
   /* Display for large headlines (optional) */
   --font-display: "Geist Sans", system-ui, sans-serif;
 }
@@ -34,30 +36,30 @@ Typography is fundamental to great design - it should be legible, accessible, an
 
 ```tsx
 // Default body text - uses sans
-className="font-sans"
+className = "font-sans";
 
 // Code, data values, technical content
-className="font-mono"
+className = "font-mono";
 
 // Display headlines (if using different weight/style)
-className="font-display"
+className = "font-display";
 ```
 
 ## Type Scale
 
 ### Recommended Scale
 
-| Name | Size | Line Height | Weight | Usage |
-|------|------|-------------|--------|-------|
-| `text-xs` | 12px | 1.4 | 400 | Captions, metadata |
-| `text-sm` | 14px | 1.5 | 400 | Secondary text, labels |
-| `text-base` | 16px | 1.6 | 400 | Body text (default) |
-| `text-lg` | 18px | 1.6 | 400 | Lead paragraphs |
-| `text-xl` | 20px | 1.5 | 500-600 | Small headings |
-| `text-2xl` | 24px | 1.4 | 600 | Section headings |
-| `text-3xl` | 30px | 1.3 | 600-700 | Page headings |
-| `text-4xl` | 36px | 1.2 | 700 | Display headings |
-| `text-5xl` | 48px | 1.1 | 700 | Hero headlines |
+| Name        | Size | Line Height | Weight  | Usage                  |
+| ----------- | ---- | ----------- | ------- | ---------------------- |
+| `text-xs`   | 12px | 1.4         | 400     | Captions, metadata     |
+| `text-sm`   | 14px | 1.5         | 400     | Secondary text, labels |
+| `text-base` | 16px | 1.6         | 400     | Body text (default)    |
+| `text-lg`   | 18px | 1.6         | 400     | Lead paragraphs        |
+| `text-xl`   | 20px | 1.5         | 500-600 | Small headings         |
+| `text-2xl`  | 24px | 1.4         | 600     | Section headings       |
+| `text-3xl`  | 30px | 1.3         | 600-700 | Page headings          |
+| `text-4xl`  | 36px | 1.2         | 700     | Display headings       |
+| `text-5xl`  | 48px | 1.1         | 700     | Hero headlines         |
 
 ### Minimum Sizes
 
@@ -81,12 +83,12 @@ className="font-display"
 // Always use proper heading hierarchy
 <article>
   <h1 className="text-4xl font-bold">Page Title</h1>
-  
+
   <section>
     <h2 className="text-2xl font-semibold">Section</h2>
-    
+
     <h3 className="text-xl font-semibold">Subsection</h3>
-    
+
     <h4 className="text-lg font-medium">Sub-subsection</h4>
   </section>
 </article>
@@ -117,19 +119,19 @@ className="font-display"
 
 ```tsx
 // Tight: headings, single lines
-className="leading-tight"  // 1.25
+className = "leading-tight"; // 1.25
 
 // Snug: compact UI text
-className="leading-snug"   // 1.375
+className = "leading-snug"; // 1.375
 
 // Normal: default, most text
-className="leading-normal" // 1.5
+className = "leading-normal"; // 1.5
 
 // Relaxed: long-form reading
-className="leading-relaxed" // 1.625
+className = "leading-relaxed"; // 1.625
 
 // Loose: very open, decorative
-className="leading-loose"  // 2
+className = "leading-loose"; // 2
 ```
 
 ### Line Length (Measure)
@@ -170,10 +172,10 @@ className="leading-loose"  // 2
 
 ```tsx
 const weights = {
-  normal: 400,    // Body text
-  medium: 500,    // Emphasized text, labels
-  semibold: 600,  // Subheadings, buttons
-  bold: 700,      // Headings, strong emphasis
+  normal: 400, // Body text
+  medium: 500, // Emphasized text, labels
+  semibold: 600, // Subheadings, buttons
+  bold: 700, // Headings, strong emphasis
 };
 ```
 
@@ -270,24 +272,24 @@ className="tabular-nums"
 
 ```tsx
 // Primary: main content
-className="text-gray-900 dark:text-gray-100"
+className = "text-gray-900 dark:text-gray-100";
 
 // Secondary: supporting text
-className="text-gray-600 dark:text-gray-400"
+className = "text-gray-600 dark:text-gray-400";
 
 // Tertiary: captions, metadata
-className="text-gray-500 dark:text-gray-500"
+className = "text-gray-500 dark:text-gray-500";
 
 // Disabled
-className="text-gray-400 dark:text-gray-600"
+className = "text-gray-400 dark:text-gray-600";
 
 // Link/interactive
-className="text-accent dark:text-accent-light"
+className = "text-accent dark:text-accent-light";
 
 // Status colors
-className="text-red-600 dark:text-red-400"    // Error
-className="text-green-600 dark:text-green-400" // Success
-className="text-amber-600 dark:text-amber-400" // Warning
+className = "text-red-600 dark:text-red-400"; // Error
+className = "text-green-600 dark:text-green-400"; // Success
+className = "text-amber-600 dark:text-amber-400"; // Warning
 ```
 
 ## Text Alignment
@@ -340,11 +342,11 @@ className="line-clamp-3"
 
 ```tsx
 // Break long words (URLs, technical strings)
-className="break-words"  // word-break: break-word
-className="break-all"    // word-break: break-all
+className = "break-words"; // word-break: break-word
+className = "break-all"; // word-break: break-all
 
 // Prevent wrapping
-className="whitespace-nowrap"
+className = "whitespace-nowrap";
 ```
 
 ## Responsive Typography
@@ -395,10 +397,10 @@ className="whitespace-nowrap"
 // Large text (18px+): minimum 3:1
 
 // Good contrast
-className="text-gray-900 dark:text-gray-100"  // High contrast
+className = "text-gray-900 dark:text-gray-100"; // High contrast
 
 // Avoid low contrast
-className="text-gray-400"  // May fail on light backgrounds
+className = "text-gray-400"; // May fail on light backgrounds
 ```
 
 ## Implementation Checklist

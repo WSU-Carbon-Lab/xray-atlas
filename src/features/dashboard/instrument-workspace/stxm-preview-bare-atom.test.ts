@@ -35,10 +35,12 @@ describe("stxm-preview-bare-atom", () => {
     expect(previewBareAtomMatrixChannelForCompareChannel("od_normalized")).toBe(
       "beta",
     );
-    expect(previewBareAtomMatrixChannelForCompareChannel("mass_absorption")).toBe(
-      "beta",
+    expect(
+      previewBareAtomMatrixChannelForCompareChannel("mass_absorption"),
+    ).toBe("beta");
+    expect(previewBareAtomMatrixChannelForCompareChannel("delta")).toBe(
+      "delta",
     );
-    expect(previewBareAtomMatrixChannelForCompareChannel("delta")).toBe("delta");
   });
 
   it("resolvePreviewCompareTraceFormula reads STXM ingestion formula", () => {

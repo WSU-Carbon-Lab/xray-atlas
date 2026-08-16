@@ -68,7 +68,11 @@ describe("plot-viewer-url-state", () => {
     expect(parsed.geometryKeys).toEqual(state.geometryKeys);
     expect(parsed.panelOpen).toBe(false);
     expect(parsed.viewMode).toBe("subplots");
-    expect(parsed.descriptorFields).toEqual(["theta", "instrument", "facility"]);
+    expect(parsed.descriptorFields).toEqual([
+      "theta",
+      "instrument",
+      "facility",
+    ]);
     expect(parsed.paletteId).toBe("viridis");
     expect(parsed.colorBy).toBe("instrument");
     expect(parsed.lineStyleBy).toBe("facility");
@@ -152,10 +156,12 @@ describe("plot-viewer-url-state", () => {
         .legendPlacement,
     ).toBe("inplot");
     expect(
-      readPlotViewerParams(new URLSearchParams("legendPlace=in")).legendPlacement,
+      readPlotViewerParams(new URLSearchParams("legendPlace=in"))
+        .legendPlacement,
     ).toBe("inplot");
     expect(
-      readPlotViewerParams(new URLSearchParams("legendPlace=out")).legendPlacement,
+      readPlotViewerParams(new URLSearchParams("legendPlace=out"))
+        .legendPlacement,
     ).toBe("panel");
 
     const params = new URLSearchParams();
@@ -194,9 +200,7 @@ describe("plot-viewer-url-state", () => {
       ),
     );
     expect(parsed.query.length).toBe(PLOT_VIEWER_MAX_QUERY_LENGTH);
-    expect(parsed.datasets).toEqual([
-      "11111111-1111-1111-1111-111111111111",
-    ]);
+    expect(parsed.datasets).toEqual(["11111111-1111-1111-1111-111111111111"]);
   });
 
   it("dedupes and caps dataset ids", () => {

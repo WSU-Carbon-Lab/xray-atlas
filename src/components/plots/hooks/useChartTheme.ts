@@ -83,7 +83,9 @@ function readChartThemeFromDOM(): ChartThemeColors {
 export function useChartTheme(): ChartThemeColors {
   const { resolvedTheme } = useTheme();
   const [colors, setColors] = useState<ChartThemeColors>(() =>
-    resolvedTheme === "dark" ? { ...THEME_COLORS.dark } : { ...THEME_COLORS.light },
+    resolvedTheme === "dark"
+      ? { ...THEME_COLORS.dark }
+      : { ...THEME_COLORS.light },
   );
 
   useEffect(() => {

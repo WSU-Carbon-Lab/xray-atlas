@@ -1,4 +1,7 @@
-import type { SpectrumPoint, SpectrumYAxisQuantity } from "~/components/plots/types";
+import type {
+  SpectrumPoint,
+  SpectrumYAxisQuantity,
+} from "~/components/plots/types";
 import {
   numberDensityFromMassDensity,
   opticalDeltaToRealAsf,
@@ -11,7 +14,10 @@ import {
 } from "~/features/kk-calc/kkcalc-stoichiometry";
 
 /** Spectroscopy tray channels (uploaded or normalized experimental traces). */
-export type NexafsSpectroscopyChannelId = "raw" | "normalized" | "mass-absorption";
+export type NexafsSpectroscopyChannelId =
+  | "raw"
+  | "normalized"
+  | "mass-absorption";
 
 /** Imaginary optical-constant tray channels. */
 export type NexafsImaginaryChannelId = "beta" | "f2" | "im-epsilon" | "im-chi";
@@ -190,7 +196,9 @@ export function isImaginaryChannel(
   return plotChannelGroup(id) === "imaginary";
 }
 
-export function isRealChannel(id: NexafsPlotChannelId): id is NexafsRealChannelId {
+export function isRealChannel(
+  id: NexafsPlotChannelId,
+): id is NexafsRealChannelId {
   return plotChannelGroup(id) === "real";
 }
 

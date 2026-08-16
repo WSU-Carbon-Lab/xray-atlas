@@ -59,8 +59,7 @@ export function MoleculeStructureSearchTab({
     if (lookupSmiles.length > 0) {
       onStructureLookup(lookupSmiles, {
         registrySmiles: ctx.registrySmiles || trimmed,
-        components:
-          ctx.components.length > 0 ? ctx.components : undefined,
+        components: ctx.components.length > 0 ? ctx.components : undefined,
       });
     }
   }, [onStructureLookup, trimmed]);
@@ -74,7 +73,9 @@ export function MoleculeStructureSearchTab({
       {!sketcherVisible ? (
         <div className="border-border bg-default/20 flex flex-col items-center gap-3 rounded-xl border border-dashed px-4 py-6 text-center">
           <PencilSquareIcon className="text-accent h-8 w-8" aria-hidden />
-          <p className="text-foreground text-sm font-medium">Draw to identify</p>
+          <p className="text-foreground text-sm font-medium">
+            Draw to identify
+          </p>
           <p className="text-muted max-w-sm text-xs">
             Example: benzene{" "}
             <button
@@ -127,7 +128,11 @@ export function MoleculeStructureSearchTab({
             isDisabled={lookupBusy}
             aria-label="Identify drawn structure"
           >
-            {lookupBusy ? <Spinner className="h-4 w-4" /> : "Identify structure"}
+            {lookupBusy ? (
+              <Spinner className="h-4 w-4" />
+            ) : (
+              "Identify structure"
+            )}
           </Button>
           <Description className="text-muted font-mono text-xs">
             {trimmed}

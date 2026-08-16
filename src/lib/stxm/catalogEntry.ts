@@ -10,7 +10,10 @@ import {
 import { candidateXimNamesForHdr } from "./pairStxmFiles";
 
 /** Progressive scan-grid enrichment phase for a catalog row. */
-export type StxmCatalogEnrichmentStatus = "placeholder" | "parsed" | "thumbnail";
+export type StxmCatalogEnrichmentStatus =
+  | "placeholder"
+  | "parsed"
+  | "thumbnail";
 
 export type StxmCatalogEntry = {
   basename: string;

@@ -20,8 +20,7 @@ export type ContributeClearFormButtonProps = {
 };
 
 const DEFAULT_ARIA_LABEL = "Clear form";
-const DEFAULT_TOOLTIP =
-  "Clear form fields and reset the contribute workflow";
+const DEFAULT_TOOLTIP = "Clear form fields and reset the contribute workflow";
 
 const CLEAR_FORM_BUTTON_CLASS =
   "border-border bg-surface text-foreground hover:bg-default gap-2 rounded-lg border px-3 py-2 text-sm font-medium";

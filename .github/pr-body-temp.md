@@ -29,6 +29,6 @@ Validated with Prisma schema validation/generate, migration SQL review, and exis
 
 ## Screenshots (if UI changes)
 
-Before | After
---- | ---
-n/a | n/a
+| Before | After |
+| ------ | ----- |
+| n/a    | n/a   |

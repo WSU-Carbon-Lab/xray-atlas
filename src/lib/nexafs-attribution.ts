@@ -266,10 +266,9 @@ export function datasetAttributionRowsForAvatarDisplay(
     return {
       orcid,
       profileUserId: row.isClaimed ? (row.userId ?? orcid) : "",
-      displayName:
-        row.isOrcidOnlyDisplay
-          ? orcid
-          : (row.displayName ?? (row.isClaimed ? "Researcher" : orcid)),
+      displayName: row.isOrcidOnlyDisplay
+        ? orcid
+        : (row.displayName ?? (row.isClaimed ? "Researcher" : orcid)),
       image:
         row.isOrcidOnlyDisplay || avatarPlaceholder === "person"
           ? null
@@ -294,7 +293,10 @@ export function datasetAttributionsForAvatarDisplay(
 ): AttributionAvatarDisplay[] {
   const hasAgreementByOrcid = new Map<string, boolean>();
   const orcidOnlyByOrcid = new Map<string, boolean>();
-  const avatarPlaceholderByOrcid = new Map<string, AttributionAvatarPlaceholder>();
+  const avatarPlaceholderByOrcid = new Map<
+    string,
+    AttributionAvatarPlaceholder
+  >();
   for (const row of filterValidOrcidAttributions(rows)) {
     const key = row.orcid.trim();
     hasAgreementByOrcid.set(
@@ -337,7 +339,9 @@ export function datasetAttributionsForAvatarDisplay(
         ? person.orcid
         : (person.name ?? (person.isClaimed ? "Researcher" : person.orcid)),
       image:
-        isOrcidOnlyDisplay || avatarPlaceholder === "person" ? null : person.image,
+        isOrcidOnlyDisplay || avatarPlaceholder === "person"
+          ? null
+          : person.image,
       isClaimed: person.isClaimed,
       isOrcidOnlyDisplay,
       avatarPlaceholder,

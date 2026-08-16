@@ -6,24 +6,25 @@ import "./src/env.js";
 
 /** @type {import("next").NextConfig} */
 const config = {
+  poweredByHeader: false,
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
   experimental: {
+    // lucide-react and @heroicons/react (the /24/outline, /24/solid, /20/solid
+    // subpaths this app uses) are already optimized by Next.js by default.
     optimizePackageImports: [
-      "lucide-react",
-      "@heroicons/react",
       "@heroui/react",
       "d3",
       "@visx/axis",
+      "@visx/brush",
       "@visx/curve",
       "@visx/grid",
+      "@visx/group",
       "@visx/responsive",
       "@visx/scale",
       "@visx/shape",
+      "@visx/tooltip",
       "openchemlib",
     ],
-  },
-  outputFileTracingIncludes: {
-    "/*": ["./content/blog/**/*"],
   },
   async redirects() {
     return [

@@ -3,9 +3,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { useMoleculeDetail } from "@/components/browse/molecule-detail-context";
-import { NexafsBrowseExperimentSection } from "@/components/browse/nexafs-browse-experiment-section";
-import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
+import { useMoleculeDetail } from "~/components/browse/molecule-detail-context";
+import { NexafsBrowseExperimentSection } from "~/components/browse/nexafs-browse-experiment-section";
+import { NexafsExperimentCompactSkeleton } from "~/components/feedback/loading-state";
 import { trpc } from "~/trpc/client";
 
 const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
@@ -45,7 +45,11 @@ function MoleculeNexafsBrowse() {
 
 function MoleculeNexafsBrowseFallback() {
   return (
-    <div className="space-y-3" aria-busy aria-label="Loading NEXAFS experiments">
+    <div
+      className="space-y-3"
+      aria-busy
+      aria-label="Loading NEXAFS experiments"
+    >
       {Array.from({ length: 6 }).map((_, i) => (
         <NexafsExperimentCompactSkeleton key={i} />
       ))}

@@ -44,7 +44,9 @@ export type TraceGeometryIdentity = {
 /**
  * Reads polarization-agnostic geometry keys and optical link roles encoded on trace legend ids or names.
  */
-export function parseTraceGeometryIdentity(trace: TraceData): TraceGeometryIdentity {
+export function parseTraceGeometryIdentity(
+  trace: TraceData,
+): TraceGeometryIdentity {
   const legendId = trace.legendId;
   if (typeof legendId === "string") {
     if (legendId.startsWith(LINKED_IMAGINARY_PREFIX)) {

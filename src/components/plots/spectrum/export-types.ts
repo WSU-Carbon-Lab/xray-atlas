@@ -98,7 +98,12 @@ function aspectToCm(
   return { widthCm, heightCm };
 }
 
-export type PlotAreaRect = { left: number; top: number; width: number; height: number };
+export type PlotAreaRect = {
+  left: number;
+  top: number;
+  width: number;
+  height: number;
+};
 
 export function getDimensionsFromConfig(
   config: ExportConfig,
@@ -114,7 +119,12 @@ export function getDimensionsFromConfig(
       heightCm: Number.parseFloat(customHeightCm) || 6,
     };
   }
-  if (sizePreset.type === "aspect" && plotArea && plotArea.width > 0 && plotArea.height > 0) {
+  if (
+    sizePreset.type === "aspect" &&
+    plotArea &&
+    plotArea.width > 0 &&
+    plotArea.height > 0
+  ) {
     const ratio = ASPECT_RATIOS.find((r) => r.id === sizePreset.id);
     const rW = ratio ? ratio.w : 1;
     const rH = ratio ? ratio.h : 1;

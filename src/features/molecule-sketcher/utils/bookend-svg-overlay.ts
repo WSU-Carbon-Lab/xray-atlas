@@ -14,7 +14,10 @@ import {
   MOLECULE_2D_BOOKEND_STROKE_WIDTH,
   MOLECULE_2D_BOOKEND_SUBSCRIPT_FONT_SIZE,
 } from "./molecule-2d-depiction-style";
-import type { DrawCanvasOclDepiction, OclAtomCircle } from "./molecule-2d-ocl-depiction";
+import type {
+  DrawCanvasOclDepiction,
+  OclAtomCircle,
+} from "./molecule-2d-ocl-depiction";
 import { resolveBondMark } from "./polymer-bookends";
 
 /** One ChemDraw-style bracket path for polymer repeat-unit bookends. */
@@ -97,7 +100,10 @@ export function bookendOpeningTowardAtom(
   if (otherMark !== null) {
     const otherBond = resolveBondMark(mol, otherMark);
     if (otherBond >= 0) {
-      const targets = [mol.getBondAtom(0, otherBond), mol.getBondAtom(1, otherBond)];
+      const targets = [
+        mol.getBondAtom(0, otherBond),
+        mol.getBondAtom(1, otherBond),
+      ];
       const toward0 = canReachAtomsWithoutBond(mol, atom0, bond, targets);
       const toward1 = canReachAtomsWithoutBond(mol, atom1, bond, targets);
       if (toward0 && !toward1) {

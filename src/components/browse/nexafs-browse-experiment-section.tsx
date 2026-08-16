@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useRef } from "react";
 import { trpc } from "~/trpc/client";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import {
   CalendarDaysIcon,
   CheckBadgeIcon,
@@ -11,18 +11,18 @@ import {
   HeartIcon,
   ShieldCheckIcon,
 } from "@heroicons/react/24/outline";
-import { BrowseTabs } from "@/components/layout/browse-tabs";
-import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
-import { BrowseHeader } from "@/components/browse/browse-header";
-import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
+import { BrowseTabs } from "~/components/layout/browse-tabs";
+import { BrowsePageLayout } from "~/components/browse/browse-page-layout";
+import { BrowseHeader } from "~/components/browse/browse-header";
+import { BrowseEmptyState } from "~/components/browse/browse-empty-state";
 import {
   BrowseSortButton,
   type BrowseSortOption,
-} from "@/components/browse/browse-sort-button";
-import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
-import { NexafsExperimentCompactSkeleton } from "@/components/feedback/loading-state";
-import { NexafsExperimentCompactCard } from "@/components/nexafs/nexafs-display";
-import { AddNexafsCard } from "@/components/contribute";
+} from "~/components/browse/browse-sort-button";
+import { ItemsPerPageSelect } from "~/components/browse/items-per-page-select";
+import { NexafsExperimentCompactSkeleton } from "~/components/feedback/loading-state";
+import { NexafsExperimentCompactCard } from "~/components/nexafs/nexafs-display";
+import { AddNexafsCard } from "~/components/contribute";
 import { Pagination } from "@heroui/react";
 import {
   NEXAFS_SORT_LABELS,
@@ -196,9 +196,7 @@ export function NexafsBrowseExperimentSection({
   const hasSearchQuery = debouncedQuery.trim().length > 0;
 
   const listQueryReady =
-    urlSynced ||
-    Boolean(lockedMoleculeId) ||
-    Boolean(deepLinkExperimentId);
+    urlSynced || Boolean(lockedMoleculeId) || Boolean(deepLinkExperimentId);
 
   const effectiveMoleculeIds: string[] = lockedMoleculeId
     ? [lockedMoleculeId]

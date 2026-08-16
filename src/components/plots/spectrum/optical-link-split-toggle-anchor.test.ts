@@ -58,8 +58,7 @@ describe("computeOpticalLinkSplitToggleAnchor", () => {
     expect(anchor.left).toBe(420);
     const imaginaryInnerBottom =
       imag.margins.top + (imag.height - imag.margins.top - imag.margins.bottom);
-    const realPanelOffsetY =
-      imag.height + real.margins.top - imag.margins.top;
+    const realPanelOffsetY = imag.height + real.margins.top - imag.margins.top;
     const realInnerTop = realPanelOffsetY + real.margins.top;
     expect(anchor.top).toBe((imaginaryInnerBottom + realInnerTop) / 2);
   });

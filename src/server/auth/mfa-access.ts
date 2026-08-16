@@ -47,7 +47,10 @@ export interface SessionWriteAssuranceEvaluation {
   adminSatisfied: boolean;
 }
 
-type MfaAccessDb = Pick<PrismaClient, "authenticator" | "user" | "userAppRole"> &
+type MfaAccessDb = Pick<
+  PrismaClient,
+  "authenticator" | "user" | "userAppRole"
+> &
   Pick<PrismaClient, "session" | "sessionAssurance">;
 
 /**
@@ -135,7 +138,11 @@ export async function evaluateSessionWriteAssurance(
     enrolled: status.enrolled,
     satisfied: writeAssuranceSatisfied(status, requiredAal, assurance),
     adminRequiredAal,
-    adminSatisfied: writeAssuranceSatisfied(status, adminRequiredAal, assurance),
+    adminSatisfied: writeAssuranceSatisfied(
+      status,
+      adminRequiredAal,
+      assurance,
+    ),
   };
 }
 

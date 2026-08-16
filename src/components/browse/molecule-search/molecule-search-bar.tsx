@@ -4,19 +4,13 @@ import { useMemo, useState, useCallback } from "react";
 import { CatalogSearchChrome } from "../catalog-search-chrome";
 import type { CatalogSearchToken } from "../catalog-search-chrome";
 import { getTagChipClass, getTagInlineStyle } from "~/lib/tag-colors";
-import type {
-  MoleculeFacetToken,
-  MoleculeTagFacetItem,
-} from "./types";
+import type { MoleculeFacetToken, MoleculeTagFacetItem } from "./types";
 import {
   moleculeFacetFieldFromToken,
   type UseMoleculeFacetSelectionReturn,
 } from "./use-molecule-facet-selection";
 
-const FIELD_CHIP_CLASSES: Record<
-  MoleculeFacetToken["field"],
-  string
-> = {
+const FIELD_CHIP_CLASSES: Record<MoleculeFacetToken["field"], string> = {
   tag: "bg-surface-secondary text-foreground border-border",
   hasData:
     "bg-[color-mix(in_oklch,var(--accent)_15%,transparent)] text-accent border-[color-mix(in_oklch,var(--accent)_30%,transparent)]",
@@ -74,9 +68,7 @@ export function MoleculeSearchBar({
     const q = facet.query.trim().toLowerCase();
     const list = tagFacetItems;
     if (!q) return list.slice(0, 12);
-    return list
-      .filter((t) => t.label.toLowerCase().includes(q))
-      .slice(0, 12);
+    return list.filter((t) => t.label.toLowerCase().includes(q)).slice(0, 12);
   }, [facet.query, tagFacetItems]);
 
   const typeaheadCandidates = useMemo(
@@ -95,7 +87,8 @@ export function MoleculeSearchBar({
   const catalogTokens: CatalogSearchToken[] = useMemo(
     () =>
       facet.tokens.map((token) => {
-        const tagColor = token.field === "tag" ? tagColorById.get(token.id) : null;
+        const tagColor =
+          token.field === "tag" ? tagColorById.get(token.id) : null;
         const chipClassName =
           token.field === "tag"
             ? getTagChipClass({ color: tagColor ?? null })
@@ -118,9 +111,7 @@ export function MoleculeSearchBar({
     [facet, tagColorById],
   );
 
-  const showDropdown = hasQuery
-    ? typeaheadCandidates.length > 0
-    : true;
+  const showDropdown = hasQuery ? typeaheadCandidates.length > 0 : true;
 
   const handleKeyDown = useCallback(
     (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -157,7 +148,11 @@ export function MoleculeSearchBar({
         setHighlightedIndex(-1);
         return;
       }
-      if (e.key === "Backspace" && facet.query === "" && facet.tokens.length > 0) {
+      if (
+        e.key === "Backspace" &&
+        facet.query === "" &&
+        facet.tokens.length > 0
+      ) {
         const last = facet.tokens[facet.tokens.length - 1];
         if (!last) return;
         if (last.field === "tag") {
@@ -203,7 +198,7 @@ export function MoleculeSearchBar({
           <span className="text-foreground min-w-0 flex-1 truncate">
             {c.item.label}
           </span>
-          <span className="text-muted shrink-0 tabular-nums text-xs">
+          <span className="text-muted shrink-0 text-xs tabular-nums">
             {c.item.count}
           </span>
         </button>
@@ -213,7 +208,7 @@ export function MoleculeSearchBar({
     <div className="py-2">
       {popularityTags.length > 0 ? (
         <div className="mt-1">
-          <p className="text-muted mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+          <p className="text-muted mb-1.5 px-3 text-xs font-semibold tracking-wide uppercase">
             Tags
           </p>
           <div className="flex flex-wrap gap-1.5 px-3 pb-2">
@@ -234,7 +229,7 @@ export function MoleculeSearchBar({
                   style={getTagInlineStyle({ color: item.color })}
                 >
                   {item.label}
-                  <span className="opacity-60 tabular-nums">{item.count}</span>
+                  <span className="tabular-nums opacity-60">{item.count}</span>
                 </button>
               );
             })}
@@ -243,7 +238,7 @@ export function MoleculeSearchBar({
       ) : null}
 
       <div className="mt-2">
-        <p className="text-accent mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+        <p className="text-accent mb-1.5 px-3 text-xs font-semibold tracking-wide uppercase">
           Has data
         </p>
         <div className="flex flex-wrap gap-1.5 px-3 pb-1">
@@ -257,7 +252,7 @@ export function MoleculeSearchBar({
       </div>
 
       <div className="mt-2">
-        <p className="text-yellow-600 dark:text-yellow-400 mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+        <p className="mb-1.5 px-3 text-xs font-semibold tracking-wide text-yellow-600 uppercase dark:text-yellow-400">
           Identifiers
         </p>
         <div className="flex flex-wrap gap-1.5 px-3 pb-1">
@@ -277,7 +272,7 @@ export function MoleculeSearchBar({
       </div>
 
       <div className="mt-2 pb-1">
-        <p className="text-muted mb-1.5 px-3 text-xs font-semibold uppercase tracking-wide">
+        <p className="text-muted mb-1.5 px-3 text-xs font-semibold tracking-wide uppercase">
           Material type
         </p>
         <div className="flex flex-wrap gap-1.5 px-3">
@@ -316,9 +311,7 @@ export function MoleculeSearchBar({
       onInputKeyDown={handleKeyDown}
       highlightedIndex={highlightedIndex}
       activedescendantId={
-        highlightedIndex >= 0
-          ? `mol-candidate-${highlightedIndex}`
-          : undefined
+        highlightedIndex >= 0 ? `mol-candidate-${highlightedIndex}` : undefined
       }
     />
   );

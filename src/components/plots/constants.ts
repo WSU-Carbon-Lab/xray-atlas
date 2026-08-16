@@ -52,8 +52,7 @@ function parseHexColor(hex: string): { r: number; g: number; b: number } {
 }
 
 function rgbToHex(r: number, g: number, b: number): string {
-  const clamp = (v: number) =>
-    Math.max(0, Math.min(255, Math.round(v)));
+  const clamp = (v: number) => Math.max(0, Math.min(255, Math.round(v)));
   return `#${[clamp(r), clamp(g), clamp(b)]
     .map((x) => x.toString(16).padStart(2, "0"))
     .join("")}`;
@@ -114,8 +113,24 @@ export const SEQUENTIAL_SCALES = {
 } as const;
 
 export const DIVERGING_SCALES = {
-  indigoTeal: ["#4f46e5", "#818cf8", "#c7d2fe", "#f8fafc", "#99f6e4", "#2dd4bf", "#0d9488"],
-  purpleGreen: ["#7c3aed", "#a78bfa", "#ddd6fe", "#f8fafc", "#bbf7d0", "#4ade80", "#16a34a"],
+  indigoTeal: [
+    "#4f46e5",
+    "#818cf8",
+    "#c7d2fe",
+    "#f8fafc",
+    "#99f6e4",
+    "#2dd4bf",
+    "#0d9488",
+  ],
+  purpleGreen: [
+    "#7c3aed",
+    "#a78bfa",
+    "#ddd6fe",
+    "#f8fafc",
+    "#bbf7d0",
+    "#4ade80",
+    "#16a34a",
+  ],
 } as const;
 
 export const DEFAULT_PLOT_HEIGHT = 360;
@@ -148,7 +163,12 @@ export const PLOT_FRAME_RADIUS = 8;
 
 export const OVERVIEW_HEIGHT = 100;
 export const OVERVIEW_GAP = 6;
-export const OVERVIEW_MARGINS = { top: 6, right: 28, bottom: 32, left: 52 } as const;
+export const OVERVIEW_MARGINS = {
+  top: 6,
+  right: 28,
+  bottom: 32,
+  left: 52,
+} as const;
 
 export const BRUSH_SELECTION_COLOR = "rgba(202, 18, 55, 0.22)";
 export const BRUSH_SELECTION_BORDER_COLOR = "rgba(202, 18, 55, 0.75)";

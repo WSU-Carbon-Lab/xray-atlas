@@ -17,9 +17,7 @@ import {
   auditRequestMetaFromTrpcContext,
   emitAuditEvent,
 } from "~/server/audit";
-import {
-  CONTRIBUTION_AGREEMENT_VERSION,
-} from "~/lib/contribution-agreement";
+import { CONTRIBUTION_AGREEMENT_VERSION } from "~/lib/contribution-agreement";
 import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
 import { legacyProfileContributionSlug } from "~/lib/datacite-contributor-types";
 import { profileMoleculeContributionsFromRows } from "~/lib/molecule-contribution-types";
@@ -185,7 +183,10 @@ export const usersRouter = createTRPCRouter({
         existing.contributionAgreementAccepted &&
         existing.contributionAgreementVersion === CONTRIBUTION_AGREEMENT_VERSION
       ) {
-        return { success: true as const, version: CONTRIBUTION_AGREEMENT_VERSION };
+        return {
+          success: true as const,
+          version: CONTRIBUTION_AGREEMENT_VERSION,
+        };
       }
 
       await ctx.db.$transaction(async (tx) => {
@@ -221,7 +222,10 @@ export const usersRouter = createTRPCRouter({
         });
       });
 
-      return { success: true as const, version: CONTRIBUTION_AGREEMENT_VERSION };
+      return {
+        success: true as const,
+        version: CONTRIBUTION_AGREEMENT_VERSION,
+      };
     }),
 
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -564,7 +568,10 @@ export const usersRouter = createTRPCRouter({
         })),
       );
 
-      const molecules = moleculesByYear.reduce((sum, row) => sum + row.count, 0);
+      const molecules = moleculesByYear.reduce(
+        (sum, row) => sum + row.count,
+        0,
+      );
       const spectra = spectraByYear.reduce((sum, row) => sum + row.count, 0);
       const moleculesThisYear =
         moleculesByYear.find((row) => row.year === currentYear)?.count ?? 0;
@@ -715,7 +722,8 @@ export const usersRouter = createTRPCRouter({
       if (account.provider === "orcid") {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message: "The ORCID account cannot be unlinked; it is your sign-in identity.",
+          message:
+            "The ORCID account cannot be unlinked; it is your sign-in identity.",
         });
       }
 

@@ -24,12 +24,16 @@ export function StxmUploadDialog({
   const router = useRouter();
 
   return (
-    <SimpleDialog isOpen={isOpen} onClose={onClose} title={`Upload ${scanLabel}`}>
+    <SimpleDialog
+      isOpen={isOpen}
+      onClose={onClose}
+      title={`Upload ${scanLabel}`}
+    >
       <div className="space-y-4">
         <p className="text-muted text-sm">
-          Keep this reduced spectrum in the session cache for preview, or upload to
-          Atlas with molecule, instrument, edge, and attribution on the contribute
-          flow.
+          Keep this reduced spectrum in the session cache for preview, or upload
+          to Atlas with molecule, instrument, edge, and attribution on the
+          contribute flow.
         </p>
         <TextField>
           <Label>Instrument</Label>

@@ -39,7 +39,10 @@ function validateImage(buffer: Buffer, mimeType: string): void {
     );
   }
 
-  const head = buffer.subarray(0, Math.min(buffer.length, 4096)).toString("utf8").trim();
+  const head = buffer
+    .subarray(0, Math.min(buffer.length, 4096))
+    .toString("utf8")
+    .trim();
   if (!head.includes("<svg") && !head.includes("<?xml")) {
     throw new Error("Uploaded file is not valid SVG markup.");
   }

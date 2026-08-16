@@ -8,7 +8,10 @@ import type {
   PlotViewerExperimentColorMode,
   PlotViewerTraceStyleOverride,
 } from "./plot-viewer-style-overrides";
-import type { PlotViewerLineDash, PlotViewerMarkerSymbol } from "./plot-viewer-trace-styles";
+import type {
+  PlotViewerLineDash,
+  PlotViewerMarkerSymbol,
+} from "./plot-viewer-trace-styles";
 
 export type PlotViewerExperimentTraceStylesProps = {
   item: PlotViewerExperimentStyleItem;
@@ -50,10 +53,7 @@ export const PlotViewerExperimentTraceStyles = memo(
 
     return (
       <ScrollShadow className="max-h-56">
-        <ul
-          className="space-y-1"
-          aria-label={`Trace styles for ${item.label}`}
-        >
+        <ul className="space-y-1" aria-label={`Trace styles for ${item.label}`}>
           {item.traces.map((trace) => (
             <PlotViewerTraceStyleRow
               key={trace.traceKey}

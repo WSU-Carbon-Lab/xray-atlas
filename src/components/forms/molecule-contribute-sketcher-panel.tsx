@@ -210,7 +210,12 @@ export const MoleculeContributeSketcherPanel = forwardRef<
             Tweak the structure, then generate the registry SVG.
           </span>
         )}
-        <Button type="button" variant="primary" size="sm" onPress={commitSnapshot}>
+        <Button
+          type="button"
+          variant="primary"
+          size="sm"
+          onPress={commitSnapshot}
+        >
           Use sketch as SVG
         </Button>
       </div>

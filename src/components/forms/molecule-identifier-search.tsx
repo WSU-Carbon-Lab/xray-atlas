@@ -72,7 +72,9 @@ export type MoleculeIdentifierSearchCompletePayload = {
 export type MoleculeIdentifierSearchProps = {
   formData: MoleculeUploadData;
   onFormDataChange: (
-    updater: MoleculeUploadData | ((prev: MoleculeUploadData) => MoleculeUploadData),
+    updater:
+      | MoleculeUploadData
+      | ((prev: MoleculeUploadData) => MoleculeUploadData),
   ) => void;
   editingMoleculeId: string | null;
   identityFsm: MoleculeIdentityFsmState;
@@ -186,8 +188,9 @@ export const MoleculeIdentifierSearch = forwardRef<
   const { resolvedTheme } = useTheme();
   const [themeMounted, setThemeMounted] = useState(false);
 
-  const [searchMode, setSearchMode] =
-    useState<MoleculeIdentifierSearchMode>(identityFsm.searchMode);
+  const [searchMode, setSearchMode] = useState<MoleculeIdentifierSearchMode>(
+    identityFsm.searchMode,
+  );
 
   useEffect(() => {
     setSearchMode(identityFsm.searchMode);
@@ -217,7 +220,10 @@ export const MoleculeIdentifierSearch = forwardRef<
   }, []);
 
   useEffect(() => {
-    const timer = setTimeout(() => setDebouncedQuery(query.trim()), PUBCHEM_DEBOUNCE_MS);
+    const timer = setTimeout(
+      () => setDebouncedQuery(query.trim()),
+      PUBCHEM_DEBOUNCE_MS,
+    );
     return () => clearTimeout(timer);
   }, [query]);
 
@@ -371,7 +377,11 @@ export const MoleculeIdentifierSearch = forwardRef<
       commonName: string,
       lookupLabel: string,
       options?: { preserveDrawnSmiles?: string },
-    ): Promise<{ warnings: string[]; casNumber: string | null; result: PubChemLookupResult }> => {
+    ): Promise<{
+      warnings: string[];
+      casNumber: string | null;
+      result: PubChemLookupResult;
+    }> => {
       const preserveDrawnSmiles = options?.preserveDrawnSmiles?.trim() ?? "";
       const warnings: string[] = [];
       let resolvedCas = (result.casNumber ?? "").trim() || null;
@@ -446,13 +456,11 @@ export const MoleculeIdentifierSearch = forwardRef<
       generation: number,
       options?: { preserveDrawnSmiles?: string; fillEmptyFieldsOnly?: boolean },
     ): Promise<MoleculePendingLookup | null> => {
-      const { warnings, casNumber, result: enriched } =
-        await enrichPubChemWithCas(
-          result,
-          lookupQuery,
-          lookupQuery,
-          options,
-        );
+      const {
+        warnings,
+        casNumber,
+        result: enriched,
+      } = await enrichPubChemWithCas(result, lookupQuery, lookupQuery, options);
       if (!lookupGeneration.current.isCurrent(generation)) {
         return null;
       }
@@ -523,7 +531,13 @@ export const MoleculeIdentifierSearch = forwardRef<
         }
       }
     },
-    [buildAtlasPending, dispatchIdentity, onClearSearchFeedback, queuePendingLookup, query],
+    [
+      buildAtlasPending,
+      dispatchIdentity,
+      onClearSearchFeedback,
+      queuePendingLookup,
+      query,
+    ],
   );
 
   const resolvePubChemByCid = useCallback(
@@ -561,10 +575,7 @@ export const MoleculeIdentifierSearch = forwardRef<
   );
 
   const selectPubChemCandidate = useCallback(
-    async (
-      candidate: PubChemCandidateSummary,
-      reuseGeneration?: number,
-    ) => {
+    async (candidate: PubChemCandidateSummary, reuseGeneration?: number) => {
       const generation = resolveLookupGeneration(
         lookupGeneration.current,
         reuseGeneration,
@@ -664,7 +675,9 @@ export const MoleculeIdentifierSearch = forwardRef<
       }
 
       if (cas.length > 0) {
-        const casResponse = await utils.external.searchCas.fetch({ casNumber: cas });
+        const casResponse = await utils.external.searchCas.fetch({
+          casNumber: cas,
+        });
         if (!lookupGeneration.current.isCurrent(generation)) {
           return;
         }
@@ -715,10 +728,11 @@ export const MoleculeIdentifierSearch = forwardRef<
         return;
       }
 
-      const candidateResponse = await utils.external.searchPubchemCandidates.fetch({
-        query: commonName,
-        limit: 10,
-      });
+      const candidateResponse =
+        await utils.external.searchPubchemCandidates.fetch({
+          query: commonName,
+          limit: 10,
+        });
       if (!lookupGeneration.current.isCurrent(generation)) {
         return;
       }
@@ -853,8 +867,7 @@ export const MoleculeIdentifierSearch = forwardRef<
                     ? candidates[0]!.title
                     : "Structure matches",
                 chemicalFormula: candidates[0]?.formula ?? null,
-                pubChemCid:
-                  candidates.length === 1 ? candidates[0]!.cid : null,
+                pubChemCid: candidates.length === 1 ? candidates[0]!.cid : null,
                 casNumber: null,
                 atlasMoleculeId: null,
                 casVerified: false,
@@ -947,8 +960,7 @@ export const MoleculeIdentifierSearch = forwardRef<
   );
 
   const searchBusy = isSearching || isSearchingCas;
-  const dropdownLoading =
-    isSuggesting || isPubchemSuggesting || searchBusy;
+  const dropdownLoading = isSuggesting || isPubchemSuggesting || searchBusy;
   const isDark = themeMounted && resolvedTheme === "dark";
 
   const pubchemSectionLabel =
@@ -998,10 +1010,15 @@ export const MoleculeIdentifierSearch = forwardRef<
                   setShowDropdown(false);
                 }}
               >
-                <span className="text-foreground block font-medium">{label}</span>
+                <span className="text-foreground block font-medium">
+                  {label}
+                </span>
                 <span className="text-muted block truncate text-xs">
                   {hit.chemicalFormula ? (
-                    <ChemicalFormula formula={hit.chemicalFormula} className="text-muted" />
+                    <ChemicalFormula
+                      formula={hit.chemicalFormula}
+                      className="text-muted"
+                    />
                   ) : null}
                   {matchLabel ? ` · ${matchLabel}` : ""}
                   {hit.pubChemCid ? ` · CID ${hit.pubChemCid}` : ""}
@@ -1038,7 +1055,10 @@ export const MoleculeIdentifierSearch = forwardRef<
                 <span className="text-muted block truncate text-xs">
                   {candidate.formula ? (
                     <>
-                      <ChemicalFormula formula={candidate.formula} className="text-muted" />
+                      <ChemicalFormula
+                        formula={candidate.formula}
+                        className="text-muted"
+                      />
                       {" · "}
                     </>
                   ) : null}
@@ -1185,7 +1205,9 @@ export const MoleculeIdentifierSearch = forwardRef<
                 }}
                 isDisabled={searchBusy}
                 aria-label={
-                  searchBusy ? "Searching identifiers" : "Search identifiers now"
+                  searchBusy
+                    ? "Searching identifiers"
+                    : "Search identifiers now"
                 }
               >
                 {searchBusy ? (
@@ -1214,7 +1236,10 @@ export const MoleculeIdentifierSearch = forwardRef<
                 setHighlightedIndex((prev) => (prev <= 0 ? -1 : prev - 1));
               } else if (event.key === "Enter") {
                 event.preventDefault();
-                if (highlightedIndex >= 0 && highlightedIndex < suggestions.length) {
+                if (
+                  highlightedIndex >= 0 &&
+                  highlightedIndex < suggestions.length
+                ) {
                   const hit = suggestions[highlightedIndex];
                   if (hit) {
                     void applyDatabaseHit(hit as AutosuggestHit);
@@ -1278,7 +1303,10 @@ export const MoleculeIdentifierSearch = forwardRef<
                 CAS registry number
               </Label>
               <InputGroup variant="secondary" fullWidth>
-                <InputGroup.Input placeholder="e.g., 50-00-0" autoComplete="off" />
+                <InputGroup.Input
+                  placeholder="e.g., 50-00-0"
+                  autoComplete="off"
+                />
               </InputGroup>
             </TextField>
           </div>
@@ -1311,8 +1339,13 @@ export const MoleculeIdentifierSearch = forwardRef<
         </Tabs.Panel>
       </Tabs>
 
-      <div id={statusLiveId} aria-live="polite" aria-atomic="true" className="sr-only">
-        {searchBusy ? "Searching identifiers" : localError ?? ""}
+      <div
+        id={statusLiveId}
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        {searchBusy ? "Searching identifiers" : (localError ?? "")}
       </div>
 
       {localError ? (

@@ -442,15 +442,15 @@
     background:
       linear-gradient(var(--surface), var(--surface)) padding-box,
       conic-gradient(
-        from var(--border-angle),
-        var(--border) 0deg,
-        var(--border) 300deg,
-        color-mix(in oklab, var(--accent) 18%, var(--border)) 328deg,
-        color-mix(in oklab, var(--accent) 72%, var(--border)) 344deg,
-        var(--accent) 352deg,
-        color-mix(in oklab, var(--accent) 72%, var(--border)) 360deg
-      )
-      border-box;
+          from var(--border-angle),
+          var(--border) 0deg,
+          var(--border) 300deg,
+          color-mix(in oklab, var(--accent) 18%, var(--border)) 328deg,
+          color-mix(in oklab, var(--accent) 72%, var(--border)) 344deg,
+          var(--accent) 352deg,
+          color-mix(in oklab, var(--accent) 72%, var(--border)) 360deg
+        )
+        border-box;
     animation: github-stars-border 5.5s linear infinite;
     box-shadow:
       inset 0 1px 0 color-mix(in oklab, var(--foreground) 4%, transparent),
@@ -465,14 +465,14 @@
     background:
       linear-gradient(var(--default), var(--default)) padding-box,
       conic-gradient(
-        from var(--border-angle),
-        color-mix(in oklab, var(--accent) 22%, var(--border)) 0deg,
-        var(--border) 300deg,
-        color-mix(in oklab, var(--accent) 35%, var(--border)) 328deg,
-        var(--accent) 352deg,
-        color-mix(in oklab, var(--accent) 35%, var(--border)) 360deg
-      )
-      border-box;
+          from var(--border-angle),
+          color-mix(in oklab, var(--accent) 22%, var(--border)) 0deg,
+          var(--border) 300deg,
+          color-mix(in oklab, var(--accent) 35%, var(--border)) 328deg,
+          var(--accent) 352deg,
+          color-mix(in oklab, var(--accent) 35%, var(--border)) 360deg
+        )
+        border-box;
     box-shadow:
       inset 0 1px 0 color-mix(in oklab, var(--foreground) 5%, transparent),
       0 0 18px -4px color-mix(in oklab, var(--accent) 28%, transparent);
@@ -525,14 +525,18 @@
         padding-box,
       conic-gradient(
           from var(--border-angle),
-          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3)) 0deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3))
+            0deg,
           var(--orcid-brand-dark) 55deg,
           var(--orcid-brand) 95deg,
           var(--orcid-brand-light) 130deg,
           var(--orcid-brand) 165deg,
-          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3)) 220deg,
-          color-mix(in oklab, var(--orcid-brand-dark) 40%, var(--surface-3)) 300deg,
-          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3)) 360deg
+          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3))
+            220deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 40%, var(--surface-3))
+            300deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 55%, var(--surface-3))
+            360deg
         )
         border-box;
     animation: border 3.5s linear infinite;
@@ -577,14 +581,18 @@
         padding-box,
       conic-gradient(
           from var(--border-angle),
-          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3)) 0deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3))
+            0deg,
           var(--orcid-brand-dark) 55deg,
           var(--orcid-brand) 95deg,
           var(--orcid-brand-light) 130deg,
           var(--orcid-brand) 165deg,
-          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3)) 220deg,
-          color-mix(in oklab, var(--orcid-brand-dark) 50%, var(--surface-3)) 300deg,
-          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3)) 360deg
+          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3))
+            220deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 50%, var(--surface-3))
+            300deg,
+          color-mix(in oklab, var(--orcid-brand-dark) 70%, var(--surface-3))
+            360deg
         )
         border-box;
     box-shadow:
@@ -821,7 +829,8 @@
     border-radius: 0.75rem;
     border: 1px solid var(--border);
     background: color-mix(in oklab, var(--surface) 88%, var(--background));
-    box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--foreground) 6%, transparent);
+    box-shadow: inset 0 0 0 1px
+      color-mix(in oklab, var(--foreground) 6%, transparent);
   }
 
   .beam-dump-scope__live-trace {

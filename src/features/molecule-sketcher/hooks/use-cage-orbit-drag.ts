@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useRef, useState, type Dispatch, type RefObject, type SetStateAction } from "react";
+import {
+  useCallback,
+  useRef,
+  useState,
+  type Dispatch,
+  type RefObject,
+  type SetStateAction,
+} from "react";
 import type { Molecule } from "openchemlib";
 
 import type { CageDepictionMode } from "../molecule-draw-types";
@@ -19,8 +26,14 @@ import {
   calibrateCageOrbitPlaneScaleForMol,
   projectCageOrbitFastFrame,
 } from "../utils/cage-orbit-drag";
-import type { Molecule3dSession, View3d } from "../utils/molecule-3d-depth-wireframe";
-import { parseDrawMolfile, serializeDrawMolfile } from "../utils/molecule-graph-editing";
+import type {
+  Molecule3dSession,
+  View3d,
+} from "../utils/molecule-3d-depth-wireframe";
+import {
+  parseDrawMolfile,
+  serializeDrawMolfile,
+} from "../utils/molecule-graph-editing";
 
 /** Mutable molfile history surface used for orbit commit and undo. */
 export interface CageOrbitDragHistory {
@@ -64,7 +77,9 @@ export interface CageOrbitDragController {
  * @param context - Cage marks, view, session resolver, and history wiring.
  * @returns Orbit drag controller consumed by draw state and canvas.
  */
-export function useCageOrbitDrag(context: CageOrbitDragContext): CageOrbitDragController {
+export function useCageOrbitDrag(
+  context: CageOrbitDragContext,
+): CageOrbitDragController {
   const {
     cageDepictionMode,
     hasCageDepiction,
@@ -87,9 +102,8 @@ export function useCageOrbitDrag(context: CageOrbitDragContext): CageOrbitDragCo
 
   const [cageOrbitDragging, setCageOrbitDragging] = useState(false);
   const [cageOrbitDragTick, setCageOrbitDragTick] = useState(0);
-  const [cageOrbitFastFrame, setCageOrbitFastFrame] = useState<CageOrbitWireframeFrame | null>(
-    null,
-  );
+  const [cageOrbitFastFrame, setCageOrbitFastFrame] =
+    useState<CageOrbitWireframeFrame | null>(null);
 
   const applyCageOrbitDragFrame = useCallback(
     (view: View3d) => {
@@ -133,7 +147,9 @@ export function useCageOrbitDrag(context: CageOrbitDragContext): CageOrbitDragCo
   }, []);
 
   const beginCageOrbitDrag = useCallback(() => {
-    const dragMol = cloneDrawCanvasMolecule(parseDrawMolfile(history.molfileRef.current));
+    const dragMol = cloneDrawCanvasMolecule(
+      parseDrawMolfile(history.molfileRef.current),
+    );
     cageOrbitDragMolRef.current = dragMol;
     const session = resolveCageSession(dragMol);
     if (cagePlaneScaleRef.current <= 1) {
@@ -172,7 +188,11 @@ export function useCageOrbitDrag(context: CageOrbitDragContext): CageOrbitDragCo
       if (cageDepictionMode !== "3d") {
         return;
       }
-      const nextView = advanceCageOrbitView(cageView3dRef.current, dYaw, dPitch);
+      const nextView = advanceCageOrbitView(
+        cageView3dRef.current,
+        dYaw,
+        dPitch,
+      );
       cageView3dRef.current = nextView;
       setCageView3d(nextView);
       if (!hasCageDepiction) {
@@ -180,7 +200,12 @@ export function useCageOrbitDrag(context: CageOrbitDragContext): CageOrbitDragCo
       }
       cageOrbitSchedulerRef.current.schedule(nextView, applyCageOrbitDragFrame);
     },
-    [applyCageOrbitDragFrame, cageDepictionMode, hasCageDepiction, setCageView3d],
+    [
+      applyCageOrbitDragFrame,
+      cageDepictionMode,
+      hasCageDepiction,
+      setCageView3d,
+    ],
   );
 
   const commitCageOrbitDrag = useCallback(

@@ -201,7 +201,9 @@ export function useMoleculeFacetSelection({
       setSelection((prev) => ({
         ...prev,
         hasExperimentData:
-          field === "hasData" ? !prev.hasExperimentData : prev.hasExperimentData,
+          field === "hasData"
+            ? !prev.hasExperimentData
+            : prev.hasExperimentData,
         hasCas: field === "hasCas" ? !prev.hasCas : prev.hasCas,
         hasPubchem: field === "hasPubchem" ? !prev.hasPubchem : prev.hasPubchem,
       }));

@@ -17,8 +17,7 @@ import { cn } from "@heroui/styles";
  * @param active - Applies the accent active-ring styling and swaps to `activeLabel`.
  * @param ref - Forwarded to the underlying `<button>` for popover positioning.
  */
-export interface BrowseFilterTriggerProps
-  extends ButtonHTMLAttributes<HTMLButtonElement> {
+export interface BrowseFilterTriggerProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   ref?: Ref<HTMLButtonElement>;
   icon: ReactNode;
   label: string;
@@ -43,7 +42,8 @@ export function BrowseFilterTrigger({
       {...rest}
       className={cn(
         "border-border bg-surface text-muted focus-visible:ring-accent flex h-12 min-h-12 shrink-0 cursor-pointer items-center gap-2 rounded-lg border px-3 transition-colors hover:bg-default hover:text-foreground focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-        active && "border-accent/40 bg-accent-soft text-accent hover:text-accent",
+        active &&
+          "border-accent/40 bg-accent-soft text-accent hover:text-accent",
         className,
       )}
     >

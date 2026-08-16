@@ -1,0 +1,19 @@
+{
+  "$schema": "./node_modules/oxfmt/configuration_schema.json",
+  "printWidth": 80,
+  "sortPackageJson": false,
+  "sortTailwindcss": {},
+  "ignorePatterns": [
+    "node_modules",
+    ".next",
+    "generated",
+    "out",
+    "build",
+    "**/.venv/**",
+    "**/venv/**",
+    "**/__pycache__/**",
+    "tests/kk-calc-validation/.venv",
+    "tests/kk-calc-validation/kkcalc",
+    "content/wiki/**/*.mdx"
+  ]
+}

@@ -15,7 +15,7 @@ function sanitizeBibFilename(raw: string | null): string {
   const trimmed = raw?.trim() ?? "";
   const base = trimmed
     .replace(/\.bib$/i, "")
-    .replace(/[^\w.\-]+/g, "_")
+    .replace(/[^\w.-]+/g, "_")
     .replace(/^_+|_+$/g, "")
     .slice(0, 80);
   return `${base || "atlas-dataset"}.bib`;

@@ -1,7 +1,11 @@
 import { regionMeanAndSigma, type StxmWeightingMode } from "./estimators";
 import { stxmIzeroSeriesColor, stxmRegionSeriesColor } from "./region-colors";
 import { sampleIzeroMasks } from "./regions";
-import type { StxmIzeroBounds, StxmRegionSpectrumSeries, StxmSampleRegion } from "./stxm-region-types";
+import type {
+  StxmIzeroBounds,
+  StxmRegionSpectrumSeries,
+  StxmSampleRegion,
+} from "./stxm-region-types";
 
 export type InMemoryScanContext = {
   image: Float64Array[];
@@ -73,7 +77,11 @@ export function regionRawSpectraFromScan(
   const ctx = buildInMemoryScanContext(image, energyEv, spatial, izero);
   const energyList = Array.from(energyEv);
   const spectra: StxmRegionSpectrumSeries[] = [];
-  const izeroStats = regionMeanAndSigma(ctx.image, ctx.izeroMask, weightingMode);
+  const izeroStats = regionMeanAndSigma(
+    ctx.image,
+    ctx.izeroMask,
+    weightingMode,
+  );
   spectra.push(
     toSeries(
       "izero",
@@ -113,7 +121,9 @@ export function regionRawSpectraFromScan(
     );
   });
   if (spectra.length === 1) {
-    throw new Error("No sample regions overlap the scan axis; adjust region bars.");
+    throw new Error(
+      "No sample regions overlap the scan axis; adjust region bars.",
+    );
   }
   return spectra;
 }

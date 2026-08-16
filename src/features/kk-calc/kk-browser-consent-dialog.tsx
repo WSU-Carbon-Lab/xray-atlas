@@ -31,9 +31,10 @@ export function KkBrowserConsentDialog({
       <div className="text-muted space-y-4 text-left text-sm">
         {children ?? (
           <p>
-            Kramers–Kronig delta-from-beta integration runs entirely in your browser and
-            may take noticeable time on large spectra. Results are written only after you
-            submit or use an authorized recalculate action.
+            Kramers–Kronig delta-from-beta integration runs entirely in your
+            browser and may take noticeable time on large spectra. Results are
+            written only after you submit or use an authorized recalculate
+            action.
           </p>
         )}
         <div className="flex flex-wrap justify-end gap-2">

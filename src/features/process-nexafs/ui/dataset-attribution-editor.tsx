@@ -1,12 +1,6 @@
 "use client";
 
-import {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ErrorMessage } from "@heroui/react";
 import { cn } from "@heroui/styles";
@@ -39,16 +33,11 @@ import {
   normalizeProfileImageUrl,
   type UserWithOrcid,
 } from "~/components/ui/avatar";
-import {
-  PopoverMenu,
-  PopoverMenuContent,
-} from "~/components/ui/popover-menu";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 
 export type DatasetAttributionChange =
   | DatasetAttributionEntry[]
-  | ((
-      previous: DatasetAttributionEntry[],
-    ) => DatasetAttributionEntry[]);
+  | ((previous: DatasetAttributionEntry[]) => DatasetAttributionEntry[]);
 
 type DatasetAttributionEditorProps = {
   attributions: DatasetAttributionEntry[];
@@ -290,8 +279,7 @@ export function DatasetAttributionEditor({
         if (isUploaderContributorRole(nextRole)) {
           const existingUploader = valid.find(
             (item) =>
-              isUploaderContributorRole(item.role) &&
-              item.clientId !== rowKey,
+              isUploaderContributorRole(item.role) && item.clientId !== rowKey,
           );
           if (existingUploader && existingUploader.orcid !== target.orcid) {
             setOrcidError(
@@ -324,7 +312,9 @@ export function DatasetAttributionEditor({
 
   const handleApplyTeamAttributions = useCallback(
     (rows: DatasetAttributionEntry[]) => {
-      onChangeRef.current(dedupeDatasetAttributions(filterValidOrcidAttributions(rows)));
+      onChangeRef.current(
+        dedupeDatasetAttributions(filterValidOrcidAttributions(rows)),
+      );
       setOrcidError(null);
     },
     [],
@@ -410,7 +400,7 @@ export function DatasetAttributionEditor({
         )}
       >
         {showLabel ? (
-          <span className="text-muted shrink-0 text-sm font-medium leading-none">
+          <span className="text-muted shrink-0 text-sm leading-none font-medium">
             Researchers
           </span>
         ) : null}
@@ -449,7 +439,9 @@ export function DatasetAttributionEditor({
         </div>
       </div>
       {orcidError && avatarDisplays.length > 0 ? (
-        <ErrorMessage className="text-danger text-xs">{orcidError}</ErrorMessage>
+        <ErrorMessage className="text-danger text-xs">
+          {orcidError}
+        </ErrorMessage>
       ) : null}
     </div>
   );

@@ -38,7 +38,9 @@ function linearExtrapolateSorted(
 ): number {
   const n = x.length;
   if (n < 2) {
-    throw new RangeError("linearExtrapolateSorted requires at least two samples");
+    throw new RangeError(
+      "linearExtrapolateSorted requires at least two samples",
+    );
   }
   if (xq <= x[0]!) {
     const x0 = x[0]!;
@@ -125,7 +127,10 @@ function argMaxStrictGreater(xs: readonly number[], threshold: number): number {
   return xs.length;
 }
 
-function argMaxGreaterOrEqual(xs: readonly number[], threshold: number): number {
+function argMaxGreaterOrEqual(
+  xs: readonly number[],
+  threshold: number,
+): number {
   for (let i = 0; i < xs.length; i++) {
     if (xs[i]! >= threshold) {
       return i;
@@ -134,9 +139,15 @@ function argMaxGreaterOrEqual(xs: readonly number[], threshold: number): number 
   return xs.length;
 }
 
-function logSpacedEnergies(eMin: number, eMax: number, count: number): number[] {
+function logSpacedEnergies(
+  eMin: number,
+  eMax: number,
+  count: number,
+): number[] {
   if (!(eMax > eMin) || count < 2) {
-    throw new RangeError("logSpacedEnergies requires eMax > eMin and count >= 2");
+    throw new RangeError(
+      "logSpacedEnergies requires eMax > eMin and count >= 2",
+    );
   }
   const lo = Math.log(eMin);
   const hi = Math.log(eMax);
@@ -189,10 +200,11 @@ function compoundF2LogLogExtrapolationAnchors(
   if (!(ea > 0) || !(eb > ea) || !(fa > 0) || !(fb > 0)) {
     return [];
   }
-  const logSlope = (Math.log(fb) - Math.log(fa)) / (Math.log(eb) - Math.log(ea));
+  const logSlope =
+    (Math.log(fb) - Math.log(fa)) / (Math.log(eb) - Math.log(ea));
   const anchors: readonly number[] = [
-    32000, 35000, 40000, 45000, 50000, 60000, 80000, 100000, 130000, 170000, 220000,
-    280000, 350000, 430000, 500000,
+    32000, 35000, 40000, 45000, 50000, 60000, 80000, 100000, 130000, 170000,
+    220000, 280000, 350000, 430000, 500000,
   ];
   const out: { e: number; f2: number }[] = [];
   for (const e of anchors) {
@@ -235,7 +247,9 @@ function concatStrictAscendingUnique(
   for (const seg of segments) {
     for (const p of seg) {
       if (!Number.isFinite(p.e) || !Number.isFinite(p.f2)) {
-        throw new RangeError("extended KK grid contains non-finite Henke or scaled samples");
+        throw new RangeError(
+          "extended KK grid contains non-finite Henke or scaled samples",
+        );
       }
       const last = outE[outE.length - 1];
       if (last !== undefined) {
@@ -285,7 +299,9 @@ export function extendImaginaryAsfWithHenkeTails(
   const { measuredEnergyEv, measuredImaginaryAsf, composition } = params;
   const n = measuredEnergyEv.length;
   if (n < 4 || measuredImaginaryAsf.length !== n) {
-    throw new RangeError("measuredEnergyEv and measuredImaginaryAsf must have the same length >= 4");
+    throw new RangeError(
+      "measuredEnergyEv and measuredImaginaryAsf must have the same length >= 4",
+    );
   }
   const fullSpan: readonly [number, number] = [
     measuredEnergyEv[0]!,
@@ -297,7 +313,9 @@ export function extendImaginaryAsfWithHenkeTails(
   }
 
   const span = henkeCompositionTabulatedSpan(composition);
-  const clampToHenke = (d: readonly [number, number]): readonly [number, number] => {
+  const clampToHenke = (
+    d: readonly [number, number],
+  ): readonly [number, number] => {
     const lo = Math.max(d[0], span.minEv);
     const hi = Math.min(d[1], span.maxEv);
     return [lo, hi] as const;
@@ -308,7 +326,9 @@ export function extendImaginaryAsfWithHenkeTails(
     mergeDomain = clampToHenke(fullSpan);
   }
   if (!(mergeDomain[1] > mergeDomain[0])) {
-    throw new RangeError("mergeDomain must be strictly increasing after Henke span clamp");
+    throw new RangeError(
+      "mergeDomain must be strictly increasing after Henke span clamp",
+    );
   }
 
   const measLoBound = measuredEnergyEv[0]!;
@@ -360,13 +380,12 @@ export function extendImaginaryAsfWithHenkeTails(
   } else {
     const denom = measHi - measLo;
     const scale = (dbHi - dbLo) / denom;
-    scaledMeas = measuredImaginaryAsf.map(
-      (y) => (y - measLo) * scale + dbLo,
-    );
+    scaledMeas = measuredImaginaryAsf.map((y) => (y - measLo) * scale + dbLo);
   }
 
   const dataMergeLbIdx = argMaxGreaterOrEqual(measuredEnergyEv, mergeDomain[0]);
-  let dataMergeUbIdx = argMaxStrictGreater(measuredEnergyEv, mergeDomain[1]) - 1;
+  let dataMergeUbIdx =
+    argMaxStrictGreater(measuredEnergyEv, mergeDomain[1]) - 1;
   if (dataMergeUbIdx < 0) {
     dataMergeUbIdx = n - 1;
   }
@@ -405,5 +424,10 @@ export function extendImaginaryAsfWithHenkeTails(
 
   const extrapPairs = [...compoundF2LogLogExtrapolationAnchors(composition)];
 
-  return concatStrictAscendingUnique([lowPairs, midPairs, highPairs, extrapPairs]);
+  return concatStrictAscendingUnique([
+    lowPairs,
+    midPairs,
+    highPairs,
+    extrapPairs,
+  ]);
 }

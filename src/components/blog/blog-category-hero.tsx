@@ -48,7 +48,10 @@ export function BlogCategoryHero({
           </div>
         </div>
 
-        <BlogCategoryNav mode={categoryNavMode} activeCategory={activeCategory} />
+        <BlogCategoryNav
+          mode={categoryNavMode}
+          activeCategory={activeCategory}
+        />
       </div>
 
       {stripPosts.length >= 2 ? (
@@ -63,7 +66,10 @@ export function BlogCategoryHero({
                 dateTime={entry.frontmatter.date}
                 className="text-muted text-xs tracking-wide uppercase"
               >
-                {formatBlogDate(entry.frontmatter.date, { relative: true, now })}
+                {formatBlogDate(entry.frontmatter.date, {
+                  relative: true,
+                  now,
+                })}
               </time>
               <p className="text-foreground mt-2 text-sm leading-6 font-medium sm:text-base">
                 {entry.frontmatter.title}

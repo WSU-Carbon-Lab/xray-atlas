@@ -36,7 +36,7 @@ export function ChemicalFormula({
   let index = 0;
   while (index < ascii.length) {
     const ch = ascii[index]!;
-    if (/[A-Za-z\(\)\[\]\+\-\.]/.test(ch)) {
+    if (/[A-Za-z()[\]+\-.]/.test(ch)) {
       parts.push({ text: ch, sub: false });
       index += 1;
       let digits = "";
@@ -46,6 +46,7 @@ export function ChemicalFormula({
       }
       if (digits.length > 0) {
         parts.push({
+          // oxlint-disable-next-line typescript/no-misused-spread -- digits is built only from /\d/-matched ASCII characters
           text: [...digits].map(charToSubscript).join(""),
           sub: true,
         });
@@ -60,6 +61,7 @@ export function ChemicalFormula({
         index += 1;
       }
       parts.push({
+        // oxlint-disable-next-line typescript/no-misused-spread -- digits is built only from /\d/-matched ASCII characters
         text: [...digits].map(charToSubscript).join(""),
         sub: true,
       });

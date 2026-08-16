@@ -29,7 +29,9 @@ export const siteMetadata: Metadata = {
     card: "summary_large_image",
     title: mission.ogTitle,
     description: mission.seoDescription,
-    images: ["https://wpcdn.web.wsu.edu/wp-labs/uploads/sites/945/2017/11/Scattxrayering-Rendering.jpg"],
+    images: [
+      "https://wpcdn.web.wsu.edu/wp-labs/uploads/sites/945/2017/11/Scattxrayering-Rendering.jpg",
+    ],
   },
   applicationName: site.applicationName,
   keywords: [

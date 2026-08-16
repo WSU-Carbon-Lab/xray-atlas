@@ -27,11 +27,14 @@ export function InstrumentContributionForm({
   onCompleted,
   onClose,
 }: InstrumentContributionFormProps) {
-  const [selectedFacilityId, setSelectedFacilityId] = useState(facilityId ?? "");
+  const [selectedFacilityId, setSelectedFacilityId] = useState(
+    facilityId ?? "",
+  );
   const [instrumentName, setInstrumentName] = useState("");
   const [instrumentLink, setInstrumentLink] = useState("");
   const [status, setStatus] = useState<InstrumentStatus>("active");
-  const [message, setMessage] = useState<InstrumentContributionFormMessage | null>(null);
+  const [message, setMessage] =
+    useState<InstrumentContributionFormMessage | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   const facilitiesQuery = trpc.facilities.list.useQuery(
@@ -97,7 +100,10 @@ export function InstrumentContributionForm({
     setMessage(null);
 
     if (!selectedFacilityId) {
-      setMessage({ type: "error", text: "Please choose a facility for the instrument." });
+      setMessage({
+        type: "error",
+        text: "Please choose a facility for the instrument.",
+      });
       return;
     }
 
@@ -119,7 +125,10 @@ export function InstrumentContributionForm({
         text: `Instrument "${created.name}" created successfully.`,
       });
 
-      onCompleted?.({ instrumentId: created.id, facilityId: selectedFacilityId });
+      onCompleted?.({
+        instrumentId: created.id,
+        facilityId: selectedFacilityId,
+      });
       onClose?.();
     } catch (error: unknown) {
       const derivedMessage =
@@ -130,28 +139,29 @@ export function InstrumentContributionForm({
             : null;
       setMessage({
         type: "error",
-        text: derivedMessage ?? "Unable to create instrument. Please try again.",
+        text:
+          derivedMessage ?? "Unable to create instrument. Please try again.",
       });
     }
   };
 
-  const duplicateWarning =
-    instrumentExists ? (
-      <div className="text-muted mt-2 flex items-center gap-2 text-sm">
-        <ExclamationTriangleIcon className="h-4 w-4 shrink-0" aria-hidden />
-        <span>This instrument already exists at this facility</span>
-      </div>
-    ) : null;
+  const duplicateWarning = instrumentExists ? (
+    <div className="text-muted mt-2 flex items-center gap-2 text-sm">
+      <ExclamationTriangleIcon className="h-4 w-4 shrink-0" aria-hidden />
+      <span>This instrument already exists at this facility</span>
+    </div>
+  ) : null;
 
   return (
     <form className="space-y-6" onSubmit={handleSubmit}>
       <section className="space-y-4">
         <header>
-          <h3 className="text-lg font-semibold text-foreground">
+          <h3 className="text-foreground text-lg font-semibold">
             Instrument Details
           </h3>
-          <p className="text-sm text-muted">
-            Provide the instrument&apos;s identifying information and link it to the correct facility.
+          <p className="text-muted text-sm">
+            Provide the instrument&apos;s identifying information and link it to
+            the correct facility.
           </p>
         </header>
 
@@ -170,7 +180,7 @@ export function InstrumentContributionForm({
                 );
               }}
             >
-              <Label className="flex items-center gap-1 text-sm font-medium text-foreground">
+              <Label className="text-foreground flex items-center gap-1 text-sm font-medium">
                 Facility{" "}
                 <span
                   className="text-error dark:text-error-light"
@@ -213,13 +223,17 @@ export function InstrumentContributionForm({
                 onChange={(event) => setSearchTerm(event.target.value)}
                 placeholder="Search facilities..."
                 aria-label="Search facilities by name, city, or country"
-                className="flex-1 min-h-[44px] text-sm"
+                className="min-h-[44px] flex-1 text-sm"
               />
               <FieldTooltip description="Filter facilities by name, city, or country" />
             </div>
 
             {facilitiesQuery.isLoading && (
-              <p className="text-sm text-muted" role="status" aria-live="polite">
+              <p
+                className="text-muted text-sm"
+                role="status"
+                aria-live="polite"
+              >
                 Loading facilities…
               </p>
             )}
@@ -227,8 +241,8 @@ export function InstrumentContributionForm({
         )}
 
         {facilityId && (
-          <div className="rounded-lg border border-border bg-surface px-4 py-3 text-sm">
-            <p className="font-medium text-foreground">Facility</p>
+          <div className="border-border bg-surface rounded-lg border px-4 py-3 text-sm">
+            <p className="text-foreground font-medium">Facility</p>
             <p className="text-muted">{facilityName ?? "Selected facility"}</p>
           </div>
         )}
@@ -280,7 +294,9 @@ export function InstrumentContributionForm({
           className="inline-flex items-center gap-2"
         >
           <CheckIcon className="h-4 w-4 shrink-0" />
-          <span>{createInstrument.isPending ? "Saving..." : "Save Instrument"}</span>
+          <span>
+            {createInstrument.isPending ? "Saving..." : "Save Instrument"}
+          </span>
         </Button>
         <Button
           type="button"

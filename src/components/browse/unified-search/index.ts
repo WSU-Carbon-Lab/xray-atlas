@@ -12,7 +12,10 @@ export type { UnifiedSearchBarProps } from "./unified-search-bar";
 export { PeriodicEdgeModal } from "./periodic-edge-modal";
 export type { PeriodicEdgeModalProps, EdgeOption } from "./periodic-edge-modal";
 
-export { EdgeEnergyDensityChart, EdgeEnergyDensityChartSkeleton } from "./edge-energy-density-chart";
+export {
+  EdgeEnergyDensityChart,
+  EdgeEnergyDensityChartSkeleton,
+} from "./edge-energy-density-chart";
 export type {
   CatalogEdgeStat,
   EnergyHistogram,

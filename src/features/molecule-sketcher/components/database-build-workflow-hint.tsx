@@ -263,13 +263,19 @@ export function DatabaseBuildWorkflowHint({
     setThemeMounted(true);
   }, []);
 
-  const handleDrawTabChange = useCallback((tab: DatabaseWorkflowDrawVariant) => {
-    setDrawTab(tab);
-  }, []);
+  const handleDrawTabChange = useCallback(
+    (tab: DatabaseWorkflowDrawVariant) => {
+      setDrawTab(tab);
+    },
+    [],
+  );
 
-  const handleTidyTabChange = useCallback((tab: DatabaseWorkflowTidyVariant) => {
-    setTidyTab(tab);
-  }, []);
+  const handleTidyTabChange = useCallback(
+    (tab: DatabaseWorkflowTidyVariant) => {
+      setTidyTab(tab);
+    },
+    [],
+  );
 
   const isDark = themeMounted && resolvedTheme === "dark";
   const isCompact = variant === "compact";

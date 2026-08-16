@@ -131,8 +131,7 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
       {showAreaGradient && !useLinkedAreaBands && (
         <defs>
           {traces.map((trace, index) => {
-            const color =
-              trace.marker?.color ?? trace.line?.color ?? "#666";
+            const color = trace.marker?.color ?? trace.line?.color ?? "#666";
             const gradientId = `spectrum-area-${idPrefix}-${index}`;
             return (
               <linearGradient
@@ -184,8 +183,7 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
 
         if (points.length === 0) return null;
 
-        const color =
-          trace.marker?.color ?? trace.line?.color ?? "#666";
+        const color = trace.marker?.color ?? trace.line?.color ?? "#666";
         const strokeWidth =
           typeof trace.line?.width === "number" ? trace.line.width : lineWidth;
         const dashKind = trace.line?.dash;
@@ -200,17 +198,19 @@ export const ChartSpectrumLines = memo(function ChartSpectrumLines({
         const markerSize =
           typeof trace.marker?.size === "number" ? trace.marker.size : 4;
         const markerOpacity =
-          typeof trace.marker?.opacity === "number" ? trace.marker.opacity : 0.7;
+          typeof trace.marker?.opacity === "number"
+            ? trace.marker.opacity
+            : 0.7;
 
         const showLine = graphStyle === "line" || graphStyle === "area";
         const markerSymbol = trace.marker?.symbol;
         const showScatterMarkers = graphStyle === "scatter";
         const showLineMarkers =
-          showLine &&
-          markerSymbol != null &&
-          markerSymbol !== undefined;
+          showLine && markerSymbol != null && markerSymbol !== undefined;
         const markerEvery =
-          typeof trace.marker?.every === "number" ? trace.marker.every : undefined;
+          typeof trace.marker?.every === "number"
+            ? trace.marker.every
+            : undefined;
         const markerPoints = showScatterMarkers
           ? points
           : showLineMarkers

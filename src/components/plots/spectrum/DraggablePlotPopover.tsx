@@ -78,7 +78,10 @@ export function DraggablePlotPopover({
   onCollapsedChange: (collapsed: boolean) => void;
 }) {
   const containerRef = useRef<HTMLDivElement | null>(null);
-  const [size, setSize] = useState<{ w: number; h: number }>({ w: 200, h: 100 });
+  const [size, setSize] = useState<{ w: number; h: number }>({
+    w: 200,
+    h: 100,
+  });
   const dragStartRef = useRef<{
     clientX: number;
     clientY: number;
@@ -150,7 +153,7 @@ export function DraggablePlotPopover({
   return (
     <div
       ref={containerRef}
-      className="pointer-events-auto absolute select-none rounded-md border border-[color-mix(in_oklab,var(--chart-grid-strong)_55%,transparent)] bg-[color-mix(in_oklab,var(--chart-paper)_98%,transparent)] text-[var(--chart-text)] shadow-lg"
+      className="pointer-events-auto absolute rounded-md border border-[color-mix(in_oklab,var(--chart-grid-strong)_55%,transparent)] bg-[color-mix(in_oklab,var(--chart-paper)_98%,transparent)] text-[var(--chart-text)] shadow-lg select-none"
       style={{
         left: leftPx,
         top: topPx,

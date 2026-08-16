@@ -114,23 +114,31 @@ export const INTERACTIVE_CLASSES = {
   base: "transition-all duration-200",
   hover: "hover:bg-slate-100 dark:hover:bg-zinc-800",
   active: "active:scale-[0.98]",
-  focus: "focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
+  focus:
+    "focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2",
   disabled: "disabled:opacity-50 disabled:pointer-events-none",
 } as const;
 
 export const CARD_CLASSES = {
   base: "bg-white dark:bg-zinc-900 border border-slate-200 dark:border-zinc-800 rounded-xl",
-  elevated: "shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none transition-shadow duration-200",
-  interactive: "cursor-pointer hover:border-slate-300 dark:hover:border-zinc-600 hover:-translate-y-0.5 transition-all duration-200",
-  glass: "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl backdrop-saturate-150 border-white/20 dark:border-zinc-700/50",
+  elevated:
+    "shadow-sm hover:shadow-md dark:shadow-none dark:hover:shadow-none transition-shadow duration-200",
+  interactive:
+    "cursor-pointer hover:border-slate-300 dark:hover:border-zinc-600 hover:-translate-y-0.5 transition-all duration-200",
+  glass:
+    "bg-white/80 dark:bg-zinc-900/80 backdrop-blur-xl backdrop-saturate-150 border-white/20 dark:border-zinc-700/50",
 } as const;
 
 export const BUTTON_CLASSES = {
   base: "inline-flex items-center justify-center font-medium transition-all duration-150 rounded-lg focus-visible:ring-2 focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none",
-  primary: "bg-accent text-white hover:bg-accent-dark active:scale-[0.98] focus-visible:ring-accent",
-  secondary: "bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 active:scale-[0.98]",
-  ghost: "text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100",
-  danger: "bg-red-600 text-white hover:bg-red-700 active:scale-[0.98] focus-visible:ring-red-500",
+  primary:
+    "bg-accent text-white hover:bg-accent-dark active:scale-[0.98] focus-visible:ring-accent",
+  secondary:
+    "bg-slate-100 dark:bg-zinc-800 text-slate-900 dark:text-zinc-100 border border-slate-200 dark:border-zinc-700 hover:bg-slate-200 dark:hover:bg-zinc-700 active:scale-[0.98]",
+  ghost:
+    "text-slate-600 dark:text-zinc-400 hover:bg-slate-100 dark:hover:bg-zinc-800 hover:text-slate-900 dark:hover:text-zinc-100",
+  danger:
+    "bg-red-600 text-white hover:bg-red-700 active:scale-[0.98] focus-visible:ring-red-500",
   sizes: {
     sm: "px-3 py-1.5 text-sm",
     md: "px-4 py-2 text-sm",

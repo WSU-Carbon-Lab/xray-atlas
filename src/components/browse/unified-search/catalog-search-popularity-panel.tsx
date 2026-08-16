@@ -123,7 +123,7 @@ export function CatalogSearchPopularityPanel({
                 ].join(" ")}
               >
                 {item.label}
-                <span className="opacity-60 tabular-nums">{item.count}</span>
+                <span className="tabular-nums opacity-60">{item.count}</span>
               </button>
             ))}
           </div>

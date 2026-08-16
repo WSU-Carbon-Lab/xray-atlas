@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { PasskeyEnrollmentPrompt } from "@/components/auth/passkey-enrollment-prompt";
+import { PasskeyEnrollmentPrompt } from "~/components/auth/passkey-enrollment-prompt";
 
 export type ContributeAccessGateProps = {
   isChecking: boolean;

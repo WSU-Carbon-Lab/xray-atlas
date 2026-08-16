@@ -8,11 +8,7 @@ import { Braces, ChevronDown, Hexagon, Pencil, Sparkles } from "lucide-react";
 import { HeteroatomGridIcon } from "./heteroatom-tool-icon";
 
 /** Workflow step ids mirrored by {@link WorkflowToolStrip}. */
-export type DatabaseWorkflowStepId =
-  | "draw"
-  | "heteroatom"
-  | "bookend"
-  | "tidy";
+export type DatabaseWorkflowStepId = "draw" | "heteroatom" | "bookend" | "tidy";
 
 /** Draw-step tab variants for {@link WorkflowToolStrip}. */
 export type DatabaseWorkflowDrawVariant = "chain" | "double" | "ring";
@@ -55,7 +51,9 @@ export interface TidyWorkflowHeaderControlsProps {
   density?: WorkflowHeaderControlsDensity;
 }
 
-function compactChipClass(density: WorkflowHeaderControlsDensity): string | undefined {
+function compactChipClass(
+  density: WorkflowHeaderControlsDensity,
+): string | undefined {
   return density === "compact" ? "h-6 min-w-6" : undefined;
 }
 
@@ -187,11 +185,7 @@ export function DrawWorkflowExampleToggle({
       queueMicrotask(() => {
         for (const key of keys) {
           const id = String(key);
-          if (
-            id === "chain" ||
-            id === "double" ||
-            id === "ring"
-          ) {
+          if (id === "chain" || id === "double" || id === "ring") {
             onSelectedVariantChange(id);
           }
           return;
@@ -378,7 +372,7 @@ export function WorkflowStepHeaderControls({
   density = "default",
 }: WorkflowStepHeaderControlsProps) {
   return (
-    <div className="flex min-w-0 max-w-full flex-col items-end gap-1">
+    <div className="flex max-w-full min-w-0 flex-col items-end gap-1">
       <div className="flex shrink-0 items-center justify-end">{chip}</div>
       <div
         className={cn(
@@ -487,10 +481,7 @@ function StripShell({
 }) {
   if (inline) {
     return (
-      <span
-        className="inline-flex flex-wrap items-center gap-0.5"
-        aria-hidden
-      >
+      <span className="inline-flex flex-wrap items-center gap-0.5" aria-hidden>
         {children}
       </span>
     );
@@ -533,7 +524,9 @@ export function WorkflowToolStrip({
             </MiniToolChip>
           ) : (
             <MiniToolChip highlighted label="Bond type">
-              <MiniBondGlyph kind={drawVariant === "double" ? "double" : "single"} />
+              <MiniBondGlyph
+                kind={drawVariant === "double" ? "double" : "single"}
+              />
               <MiniChevron />
             </MiniToolChip>
           )}

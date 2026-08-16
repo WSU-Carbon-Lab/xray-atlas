@@ -14,7 +14,10 @@ import type {
 } from "~/features/dashboard/lib/stxm-to-spectrum-plot";
 import type { StxmIngestionPlotChannel } from "~/lib/stxm/stxm-ingestion-display";
 import type { StxmRawSignalTransformMode } from "~/lib/stxm/stxm-raw-signal-transform";
-import type { StxmRegionSpectrumSeries, StxmSampleRegion } from "~/lib/stxm/stxm-region-types";
+import type {
+  StxmRegionSpectrumSeries,
+  StxmSampleRegion,
+} from "~/lib/stxm/stxm-region-types";
 import type { NormalizationRegions } from "~/components/plots/types";
 
 /** Cached region-multi-trace plot output used for stale-while-revalidate display. */
@@ -81,7 +84,10 @@ export function resolveStxmIngestionPlotDisplay(
     cacheKey: string;
     previous: StxmIngestionPlotDisplayCache | null;
   },
-): { display: StxmIngestionPlotModel; nextCache: StxmIngestionPlotDisplayCache | null } {
+): {
+  display: StxmIngestionPlotModel;
+  nextCache: StxmIngestionPlotDisplayCache | null;
+} {
   const { hasSampleRegions, channel, cacheKey, previous } = options;
 
   if (fresh.kind === "regionMultiTrace") {
@@ -197,15 +203,9 @@ export function useStxmIngestionPlotState(
     const previous = cacheRef.current.cache;
     const channelPrefix = `${channel}:`;
     const matchingPrevious =
-      previous?.cacheKey.startsWith(channelPrefix) === true
-        ? previous
-        : null;
+      previous?.cacheKey.startsWith(channelPrefix) === true ? previous : null;
 
-    if (
-      hasSampleRegions &&
-      regionSpectra.length === 0 &&
-      matchingPrevious
-    ) {
+    if (hasSampleRegions && regionSpectra.length === 0 && matchingPrevious) {
       cacheRef.current = {
         scopeKey: plotScopeKey,
         cache: matchingPrevious,

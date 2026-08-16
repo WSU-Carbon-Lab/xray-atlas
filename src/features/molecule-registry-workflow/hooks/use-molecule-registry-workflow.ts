@@ -123,7 +123,9 @@ export function useMoleculeRegistryWorkflow(): UseMoleculeRegistryWorkflowResult
   const setPendingLookup = useCallback(
     (updater: React.SetStateAction<MoleculePendingLookup | null>) => {
       const next =
-        typeof updater === "function" ? updater(identityFsm.pendingLookup) : updater;
+        typeof updater === "function"
+          ? updater(identityFsm.pendingLookup)
+          : updater;
       if (next === null) {
         dispatchIdentity({ type: "dismiss_match" });
       } else {

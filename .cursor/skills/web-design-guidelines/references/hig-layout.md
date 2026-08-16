@@ -20,18 +20,18 @@ All spacing should be multiples of 4px for visual consistency:
 ```typescript
 const spacing = {
   0: "0px",
-  1: "4px",    // Tight: related items
-  2: "8px",    // Default: standard gap
-  3: "12px",   // Comfortable
-  4: "16px",   // Sections within component
+  1: "4px", // Tight: related items
+  2: "8px", // Default: standard gap
+  3: "12px", // Comfortable
+  4: "16px", // Sections within component
   5: "20px",
-  6: "24px",   // Component padding
-  8: "32px",   // Between components
+  6: "24px", // Component padding
+  8: "32px", // Between components
   10: "40px",
-  12: "48px",  // Section separation
-  16: "64px",  // Page sections
+  12: "48px", // Section separation
+  16: "64px", // Page sections
   20: "80px",
-  24: "96px",  // Major divisions
+  24: "96px", // Major divisions
 };
 ```
 
@@ -67,12 +67,12 @@ const spacing = {
 
 ```tsx
 const containers = {
-  sm: "max-w-screen-sm",   // 640px - narrow content
-  md: "max-w-screen-md",   // 768px - readable text
-  lg: "max-w-screen-lg",   // 1024px - standard pages
-  xl: "max-w-screen-xl",   // 1280px - dashboards
+  sm: "max-w-screen-sm", // 640px - narrow content
+  md: "max-w-screen-md", // 768px - readable text
+  lg: "max-w-screen-lg", // 1024px - standard pages
+  xl: "max-w-screen-xl", // 1280px - dashboards
   "2xl": "max-w-screen-2xl", // 1536px - wide layouts
-  full: "max-w-full",      // 100%
+  full: "max-w-full", // 100%
 };
 ```
 
@@ -96,10 +96,10 @@ const containers = {
 
 ```typescript
 const breakpoints = {
-  sm: "640px",   // Large phones, landscape
-  md: "768px",   // Tablets
-  lg: "1024px",  // Small laptops
-  xl: "1280px",  // Desktops
+  sm: "640px", // Large phones, landscape
+  md: "768px", // Tablets
+  lg: "1024px", // Small laptops
+  xl: "1280px", // Desktops
   "2xl": "1536px", // Large screens
 };
 ```
@@ -147,7 +147,9 @@ const breakpoints = {
 ```tsx
 // Cards that auto-fit available space
 <div className="grid grid-cols-[repeat(auto-fit,minmax(280px,1fr))] gap-4">
-  {cards.map(card => <Card key={card.id} />)}
+  {cards.map((card) => (
+    <Card key={card.id} />
+  ))}
 </div>
 ```
 
@@ -201,16 +203,12 @@ const breakpoints = {
 <div className="flex min-h-screen">
   {/* Fixed sidebar */}
   <aside className="hidden lg:flex lg:flex-col lg:w-64 lg:fixed lg:inset-y-0 border-r">
-    <nav className="flex-1 px-4 py-6 space-y-1">
-      {/* Navigation */}
-    </nav>
+    <nav className="flex-1 px-4 py-6 space-y-1">{/* Navigation */}</nav>
   </aside>
-  
+
   {/* Main content with offset */}
   <main className="flex-1 lg:pl-64">
-    <div className="max-w-7xl mx-auto px-4 py-8">
-      {/* Content */}
-    </div>
+    <div className="max-w-7xl mx-auto px-4 py-8">{/* Content */}</div>
   </main>
 </div>
 ```
@@ -223,9 +221,7 @@ const breakpoints = {
   <div className="w-1/3 min-w-[200px] max-w-[400px] border-r overflow-auto">
     {/* List panel */}
   </div>
-  <div className="flex-1 overflow-auto">
-    {/* Detail panel */}
-  </div>
+  <div className="flex-1 overflow-auto">{/* Detail panel */}</div>
 </div>
 ```
 
@@ -234,7 +230,7 @@ const breakpoints = {
 ```tsx
 // Equal-height cards
 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-  {items.map(item => (
+  {items.map((item) => (
     <div key={item.id} className="flex flex-col h-full">
       <Card className="flex-1" />
     </div>
@@ -254,13 +250,11 @@ const breakpoints = {
     <h1 className="text-4xl font-bold">Page Title</h1>
     <p className="text-xl text-gray-600">Subtitle or description</p>
   </header>
-  
+
   {/* Section - clear separation */}
   <section className="space-y-4">
     <h2 className="text-2xl font-semibold">Section Title</h2>
-    <div className="space-y-2">
-      {/* Content */}
-    </div>
+    <div className="space-y-2">{/* Content */}</div>
   </section>
 </article>
 ```
@@ -338,10 +332,12 @@ const breakpoints = {
       </tr>
     </thead>
     <tbody className="divide-y divide-gray-200">
-      {rows.map(row => (
+      {rows.map((row) => (
         <tr key={row.id} className="hover:bg-gray-50">
           <td className="px-4 py-3 text-sm">{row.name}</td>
-          <td className="px-4 py-3 text-sm text-right tabular-nums">{row.value}</td>
+          <td className="px-4 py-3 text-sm text-right tabular-nums">
+            {row.value}
+          </td>
         </tr>
       ))}
     </tbody>
@@ -354,7 +350,7 @@ const breakpoints = {
 ```tsx
 // Stats grid
 <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-  {stats.map(stat => (
+  {stats.map((stat) => (
     <div key={stat.label} className="p-4 rounded-lg border">
       <dt className="text-sm text-gray-500">{stat.label}</dt>
       <dd className="text-2xl font-semibold tabular-nums">{stat.value}</dd>

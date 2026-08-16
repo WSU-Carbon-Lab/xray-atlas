@@ -20,10 +20,7 @@ export async function GET(request: Request) {
 
   // Validate atom is a single element symbol
   if (!/^[A-Z][a-z]?$/.test(atom)) {
-    return NextResponse.json(
-      { error: "Invalid atom symbol" },
-      { status: 400 },
-    );
+    return NextResponse.json({ error: "Invalid atom symbol" }, { status: 400 });
   }
 
   try {
@@ -41,7 +38,9 @@ export async function GET(request: Request) {
 
     if (!response.ok) {
       return NextResponse.json(
-        { error: `Failed to fetch form factor for ${atom}: ${response.statusText}` },
+        {
+          error: `Failed to fetch form factor for ${atom}: ${response.statusText}`,
+        },
         { status: response.status },
       );
     }
@@ -54,9 +53,9 @@ export async function GET(request: Request) {
     return NextResponse.json(
       {
         error:
-        error instanceof Error
-          ? error.message
-          : "Failed to fetch atomic form factor",
+          error instanceof Error
+            ? error.message
+            : "Failed to fetch atomic form factor",
       },
       { status: 500 },
     );

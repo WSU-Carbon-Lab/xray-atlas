@@ -134,9 +134,9 @@ function fromSampleAuxRow(row: {
 }) {
   return {
     sampleId: row.sampleid,
-    processingMode: row.processingmode as
-      | z.infer<typeof sampleProcessingModeSchema>
-      | null,
+    processingMode: row.processingmode as z.infer<
+      typeof sampleProcessingModeSchema
+    > | null,
     wetMethod: row.wetmethod as z.infer<typeof sampleWetMethodSchema> | null,
     dryMethod: row.drymethod as z.infer<typeof sampleDryMethodSchema> | null,
     wetMethodOther: row.wetmethodother,

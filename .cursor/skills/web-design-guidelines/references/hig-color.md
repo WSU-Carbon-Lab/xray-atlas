@@ -39,15 +39,15 @@ const colors = {
 
 ### Standard Semantic Roles
 
-| Role | Purpose | Light Mode | Dark Mode |
-|------|---------|------------|-----------|
-| `text-primary` | Main content | `#0f172a` | `#f8fafc` |
-| `text-secondary` | Supporting text | `#475569` | `#cbd5e1` |
-| `text-tertiary` | Captions, hints | `#94a3b8` | `#64748b` |
-| `background` | Page background | `#ffffff` | `#0f172a` |
-| `surface` | Cards, elevated | `#f8fafc` | `#1e293b` |
-| `border-default` | Standard borders | `#e2e8f0` | `#334155` |
-| `accent` | Interactive, focus | `#6366f1` | `#818cf8` |
+| Role             | Purpose            | Light Mode | Dark Mode |
+| ---------------- | ------------------ | ---------- | --------- |
+| `text-primary`   | Main content       | `#0f172a`  | `#f8fafc` |
+| `text-secondary` | Supporting text    | `#475569`  | `#cbd5e1` |
+| `text-tertiary`  | Captions, hints    | `#94a3b8`  | `#64748b` |
+| `background`     | Page background    | `#ffffff`  | `#0f172a` |
+| `surface`        | Cards, elevated    | `#f8fafc`  | `#1e293b` |
+| `border-default` | Standard borders   | `#e2e8f0`  | `#334155` |
+| `accent`         | Interactive, focus | `#6366f1`  | `#818cf8` |
 
 ## Status Colors
 
@@ -57,25 +57,25 @@ const colors = {
 const statusColors = {
   success: {
     light: "#10b981", // Emerald 500
-    dark: "#34d399",  // Emerald 400
+    dark: "#34d399", // Emerald 400
     background: "bg-emerald-50 dark:bg-emerald-950",
     text: "text-emerald-700 dark:text-emerald-300",
   },
   warning: {
     light: "#f59e0b", // Amber 500
-    dark: "#fbbf24",  // Amber 400
+    dark: "#fbbf24", // Amber 400
     background: "bg-amber-50 dark:bg-amber-950",
     text: "text-amber-700 dark:text-amber-300",
   },
   error: {
     light: "#ef4444", // Red 500
-    dark: "#f87171",  // Red 400
+    dark: "#f87171", // Red 400
     background: "bg-red-50 dark:bg-red-950",
     text: "text-red-700 dark:text-red-300",
   },
   info: {
     light: "#3b82f6", // Blue 500
-    dark: "#60a5fa",  // Blue 400
+    dark: "#60a5fa", // Blue 400
     background: "bg-blue-50 dark:bg-blue-950",
     text: "text-blue-700 dark:text-blue-300",
   },
@@ -115,6 +115,7 @@ export const CATEGORICAL_COLORS = [
 ```
 
 **Requirements:**
+
 - Visually distinct from each other
 - Work on both light and dark backgrounds
 - Accessible for common color blindness types
@@ -128,7 +129,7 @@ For continuous data (intensity, concentration):
 export const SEQUENTIAL_SCALES = {
   // Single hue progression
   indigo: ["#eef2ff", "#c7d2fe", "#818cf8", "#4f46e5", "#3730a3"],
-  
+
   // Perceptually uniform (preferred for scientific data)
   viridis: ["#440154", "#3b528b", "#21918c", "#5ec962", "#fde725"],
 };
@@ -142,9 +143,13 @@ For data with meaningful midpoint (difference spectra):
 export const DIVERGING_SCALES = {
   // Cool to warm through neutral
   indigoTeal: [
-    "#4f46e5", "#818cf8", "#c7d2fe", 
-    "#f8fafc",  // Neutral midpoint
-    "#99f6e4", "#2dd4bf", "#0d9488"
+    "#4f46e5",
+    "#818cf8",
+    "#c7d2fe",
+    "#f8fafc", // Neutral midpoint
+    "#99f6e4",
+    "#2dd4bf",
+    "#0d9488",
   ],
 };
 ```
@@ -153,12 +158,12 @@ export const DIVERGING_SCALES = {
 
 ### Text Contrast Ratios
 
-| Element | Minimum Ratio | Target Ratio |
-|---------|---------------|--------------|
-| Body text | 4.5:1 | 7:1 |
-| Large text (18px+) | 3:1 | 4.5:1 |
-| UI components | 3:1 | 4.5:1 |
-| Decorative | N/A | N/A |
+| Element            | Minimum Ratio | Target Ratio |
+| ------------------ | ------------- | ------------ |
+| Body text          | 4.5:1         | 7:1          |
+| Large text (18px+) | 3:1           | 4.5:1        |
+| UI components      | 3:1           | 4.5:1        |
+| Decorative         | N/A           | N/A          |
 
 ### Testing Contrast
 
@@ -183,12 +188,12 @@ console.assert(ratio >= 4.5, "Contrast ratio must be at least 4.5:1");
 
 ```tsx
 // Always provide both modes
-className="text-gray-900 dark:text-gray-100"
-className="bg-white dark:bg-slate-900"
-className="border-gray-200 dark:border-gray-700"
+className = "text-gray-900 dark:text-gray-100";
+className = "bg-white dark:bg-slate-900";
+className = "border-gray-200 dark:border-gray-700";
 
 // For accent colors, use lighter variant in dark mode
-className="text-accent dark:text-accent-light"
+className = "text-accent dark:text-accent-light";
 // accent = #6366f1, accent-light = #818cf8
 ```
 
@@ -213,17 +218,12 @@ className="text-[var(--text-primary)]"
 When colors must be computed (e.g., for charts):
 
 ```typescript
-function getThemedColor(theme: 'light' | 'dark') {
+function getThemedColor(theme: "light" | "dark") {
   return {
-    grid: theme === 'light' 
-      ? 'rgba(148, 163, 184, 0.2)' 
-      : 'rgba(71, 85, 105, 0.3)',
-    text: theme === 'light' 
-      ? '#475569' 
-      : '#cbd5e1',
-    accent: theme === 'light'
-      ? '#6366f1'
-      : '#818cf8',
+    grid:
+      theme === "light" ? "rgba(148, 163, 184, 0.2)" : "rgba(71, 85, 105, 0.3)",
+    text: theme === "light" ? "#475569" : "#cbd5e1",
+    accent: theme === "light" ? "#6366f1" : "#818cf8",
   };
 }
 ```
@@ -233,6 +233,7 @@ function getThemedColor(theme: 'light' | 'dark') {
 ### Use Accent Sparingly
 
 Accent colors should highlight:
+
 - Primary actions (main CTA button)
 - Selected/active states
 - Focus indicators
@@ -247,8 +248,8 @@ Accent colors should highlight:
 <button className="bg-gray-100 text-gray-900">Cancel</button>
 
 // Selected state
-className={selected 
-  ? "border-accent bg-accent/10 text-accent" 
+className={selected
+  ? "border-accent bg-accent/10 text-accent"
   : "border-gray-200"
 }
 ```
@@ -285,10 +286,10 @@ const overlays = {
 };
 
 // Backdrop for modals
-className="bg-black/50 backdrop-blur-sm"
+className = "bg-black/50 backdrop-blur-sm";
 
 // Disabled states
-className="opacity-50 pointer-events-none"
+className = "opacity-50 pointer-events-none";
 ```
 
 ### Glass/Translucent Effects

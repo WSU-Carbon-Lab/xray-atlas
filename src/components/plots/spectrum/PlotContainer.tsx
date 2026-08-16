@@ -23,7 +23,11 @@ type PlotContainerProps = {
   children: (size: { width: number; height: number }) => React.ReactNode;
 };
 
-export function PlotContainer({ height, aspectRatio, children }: PlotContainerProps) {
+export function PlotContainer({
+  height,
+  aspectRatio,
+  children,
+}: PlotContainerProps) {
   const fillContainer = height == null;
   const minHeight = PLOT_CONFIG.fillContainerMinHeight;
   const lastStableRef = useRef<{ width: number; height: number } | null>(null);
@@ -43,10 +47,13 @@ export function PlotContainer({ height, aspectRatio, children }: PlotContainerPr
           ? rawHeight > 0
             ? rawHeight
             : minHeight
-          : height ?? minHeight;
+          : (height ?? minHeight);
 
         if (isAspectRatioMode && width > 0 && aspectRatio != null) {
-          const plotAreaWidth = Math.max(0, width - PLOT_MARGIN_LEFT - PLOT_MARGIN_RIGHT);
+          const plotAreaWidth = Math.max(
+            0,
+            width - PLOT_MARGIN_LEFT - PLOT_MARGIN_RIGHT,
+          );
           if (plotAreaWidth > 0) {
             const ratio = aspectRatio.w / aspectRatio.h;
             const plotAreaHeight = plotAreaWidth / ratio;
@@ -65,7 +72,11 @@ export function PlotContainer({ height, aspectRatio, children }: PlotContainerPr
         const prev = lastStableRef.current;
         const dw = prev ? Math.abs(width - prev.width) : Infinity;
         const dh = prev ? Math.abs(effectiveHeight - prev.height) : Infinity;
-        if (prev && dw <= SIZE_STABLE_THRESHOLD && dh <= SIZE_STABLE_THRESHOLD) {
+        if (
+          prev &&
+          dw <= SIZE_STABLE_THRESHOLD &&
+          dh <= SIZE_STABLE_THRESHOLD
+        ) {
           return <>{children(prev)}</>;
         }
         const next = { width, height: effectiveHeight };

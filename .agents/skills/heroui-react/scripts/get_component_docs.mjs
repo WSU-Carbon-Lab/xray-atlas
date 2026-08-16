@@ -66,12 +66,12 @@ async function fetchFallback(component) {
 
   try {
     const response = await fetch(url, {
-      headers: {"User-Agent": "HeroUI-Skill/1.0"},
+      headers: { "User-Agent": "HeroUI-Skill/1.0" },
       signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
-      return {component, error: `Failed to fetch docs for ${component}`};
+      return { component, error: `Failed to fetch docs for ${component}` };
     }
 
     const content = await response.text();
@@ -84,7 +84,7 @@ async function fetchFallback(component) {
       url,
     };
   } catch {
-    return {component, error: `Failed to fetch docs for ${component}`};
+    return { component, error: `Failed to fetch docs for ${component}` };
   }
 }
 
@@ -95,7 +95,9 @@ async function main() {
   const args = process.argv.slice(2);
 
   if (args.length === 0) {
-    console.error("Usage: node get_component_docs.mjs <Component1> [Component2] ...");
+    console.error(
+      "Usage: node get_component_docs.mjs <Component1> [Component2] ...",
+    );
     console.error("Example: node get_component_docs.mjs Button Card");
     process.exit(1);
   }
@@ -104,7 +106,7 @@ async function main() {
 
   // Try API first - use POST /v1/components/docs for batch requests
   console.error(`# Fetching docs for: ${components.join(", ")}...`);
-  const data = await fetchApi("/v1/components/docs", "POST", {components});
+  const data = await fetchApi("/v1/components/docs", "POST", { components });
 
   if (data && data.results) {
     // Output results

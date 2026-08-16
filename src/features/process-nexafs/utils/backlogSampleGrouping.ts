@@ -2,10 +2,7 @@ import { createHash } from "node:crypto";
 import type { ProcessMethod } from "~/prisma/browser";
 
 export function normalizeBacklogPrepSegment(value: string | null | undefined) {
-  return (value ?? "")
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ");
+  return (value ?? "").trim().toLowerCase().replace(/\s+/g, " ");
 }
 
 export function backlogPreparationCanonicalString(args: {
@@ -23,14 +20,19 @@ export function backlogPreparationCanonicalString(args: {
 }
 
 export function backlogPreparationSlugFromCanonical(canonical: string) {
-  return createHash("sha256").update(canonical, "utf8").digest("hex").slice(0, 16);
+  return createHash("sha256")
+    .update(canonical, "utf8")
+    .digest("hex")
+    .slice(0, 16);
 }
 
 export function formatBacklogSampleIdentifier(
   moleculeId: string,
   preparationSlug: string,
 ) {
-  const tail = sanitizeBacklogSampleIdentifierPart(`backlog-prep-${preparationSlug}`);
+  const tail = sanitizeBacklogSampleIdentifierPart(
+    `backlog-prep-${preparationSlug}`,
+  );
   return sanitizeBacklogSampleIdentifierPart(
     ["SAMPLE", moleculeId, tail].join("-"),
   );
@@ -57,7 +59,8 @@ export function backlogPreparationSlugFromSampleIdentifier(identifier: string) {
     if (s === LEGACY_SLUG_DEFAULT || s === LEGACY_SLUG_NSLS2_SK) return s;
   }
   if (identifier.endsWith("-backlog-default")) return LEGACY_SLUG_DEFAULT;
-  if (identifier.endsWith("-backlog-nsls2-sulfur-k")) return LEGACY_SLUG_NSLS2_SK;
+  if (identifier.endsWith("-backlog-nsls2-sulfur-k"))
+    return LEGACY_SLUG_NSLS2_SK;
   return null;
 }
 

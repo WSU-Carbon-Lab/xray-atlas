@@ -36,7 +36,9 @@ async function main(): Promise<void> {
   console.log(`  molecule_views rows: ${moleculeViewRows}`);
   console.log(`  molecule_favorites rows: ${moleculeFavoriteRows}`);
   console.log(`  experiment_favorites rows: ${experimentFavoriteRows}`);
-  console.log(`  molecules (zero view_count, favorite_count): ${moleculeCount}`);
+  console.log(
+    `  molecules (zero view_count, favorite_count): ${moleculeCount}`,
+  );
   console.log(
     `  experiment_metrics (zero view_count, favorite_count): ${experimentMetricsCount}`,
   );

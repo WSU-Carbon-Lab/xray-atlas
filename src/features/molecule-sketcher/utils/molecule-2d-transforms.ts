@@ -22,7 +22,11 @@ export function rotateAllCoordsAroundPoint(
   }
 }
 
-export function translateAllCoords(mol: Molecule, dx: number, dy: number): void {
+export function translateAllCoords(
+  mol: Molecule,
+  dx: number,
+  dy: number,
+): void {
   const n = mol.getAllAtoms();
   for (let a = 0; a < n; a += 1) {
     mol.setAtomX(a, mol.getAtomX(a) + dx);
@@ -181,7 +185,9 @@ export function cleanupMolecule2DSpacing(mol: Molecule): void {
   scaleCoordsAboutCentroid(mol, 1.06);
 }
 
-export function findLargestCarbonOnlyFragment(mol: Molecule): Set<number> | null {
+export function findLargestCarbonOnlyFragment(
+  mol: Molecule,
+): Set<number> | null {
   ensureMolHelpers(mol);
   const n = mol.getAtoms();
   const adj: number[][] = Array.from({ length: n }, () => []);

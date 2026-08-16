@@ -63,10 +63,10 @@ describe("computeUploadDatasetDiagnostics", () => {
       throw new Error("expected diagnostics for both normalization windows");
     }
 
-    const tightDistance = tight.qualityScores.perChannel.od
-      .normalizationTargetDistance;
-    const wideDistance = wide.qualityScores.perChannel.od
-      .normalizationTargetDistance;
+    const tightDistance =
+      tight.qualityScores.perChannel.od.normalizationTargetDistance;
+    const wideDistance =
+      wide.qualityScores.perChannel.od.normalizationTargetDistance;
 
     if (tightDistance == null || wideDistance == null) {
       throw new Error("expected finite normalization distances");

@@ -43,7 +43,8 @@ export async function applyPasskeySessionStepUpForRequest(
   if (!session || session.expires <= new Date()) {
     throw new TRPCError({
       code: "UNAUTHORIZED",
-      message: "Your session expired. Sign in again, then retry passkey confirmation.",
+      message:
+        "Your session expired. Sign in again, then retry passkey confirmation.",
     });
   }
 

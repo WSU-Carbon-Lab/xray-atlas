@@ -2,12 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { ChevronDownIcon } from "@heroicons/react/24/outline";
-import {
-  Accordion,
-  InputGroup,
-  Label,
-  TextField,
-} from "@heroui/react";
+import { Accordion, InputGroup, Label, TextField } from "@heroui/react";
 import type { SampleAuxFields } from "~/features/process-nexafs/types";
 import type { ProcessMethod } from "~/prisma/browser";
 import {
@@ -31,9 +26,7 @@ import {
   SampleMetadataInsetGroup,
   SampleMetadataSectionCaption,
 } from "~/components/nexafs/sample-metadata-chrome-shared";
-import {
-  SampleFormSelect,
-} from "./sample-form-select";
+import { SampleFormSelect } from "./sample-form-select";
 import { sampleAuxAccordionChrome } from "./sample-aux-accordion-chrome";
 import {
   resolveSampleFormLayout,
@@ -273,7 +266,9 @@ export function SampleAuxAccordion({
               items={SAMPLE_WET_METHODS}
               labels={SAMPLE_WET_METHOD_LABELS}
               selectedKey={value.wetMethod}
-              onSelectionChange={(next) => onChange({ ...value, wetMethod: next })}
+              onSelectionChange={(next) =>
+                onChange({ ...value, wetMethod: next })
+              }
               disabled={disabled}
               ariaLabel="Wet preparation method"
             />
@@ -286,7 +281,9 @@ export function SampleAuxAccordion({
               items={SAMPLE_DRY_METHODS}
               labels={SAMPLE_DRY_METHOD_LABELS}
               selectedKey={value.dryMethod}
-              onSelectionChange={(next) => onChange({ ...value, dryMethod: next })}
+              onSelectionChange={(next) =>
+                onChange({ ...value, dryMethod: next })
+              }
               disabled={disabled}
               ariaLabel="Dry preparation method"
             />
@@ -500,7 +497,10 @@ export function SampleAuxAccordion({
           ) : null}
 
           {showWetSolution ? (
-            <Accordion.Item id="solution-chemistry" className={chrome.itemClass}>
+            <Accordion.Item
+              id="solution-chemistry"
+              className={chrome.itemClass}
+            >
               <Accordion.Heading>
                 <Accordion.Trigger className={chrome.triggerClass}>
                   <span className="text-foreground min-w-0 flex-1 truncate text-sm font-medium">

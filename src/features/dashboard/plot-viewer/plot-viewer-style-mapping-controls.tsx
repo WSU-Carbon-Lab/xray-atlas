@@ -86,7 +86,7 @@ export const PlotViewerStyleMappingControls = memo(
             </p>
             <div className="grid gap-2">
               <div className="space-y-0.5">
-                <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+                <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
                   Palette
                 </Label>
                 <Select
@@ -135,16 +135,17 @@ export const PlotViewerStyleMappingControls = memo(
                 </Select>
               </div>
               <div className="space-y-0.5">
-                <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+                <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
                   Color by
                 </Label>
                 <Select
                   selectedKey={colorBy}
                   onSelectionChange={(key) => {
                     if (typeof key === "string") {
-                      const match = PLOT_VIEWER_STYLE_MAPPING_FIELD_OPTIONS.find(
-                        (option) => option.id === key,
-                      );
+                      const match =
+                        PLOT_VIEWER_STYLE_MAPPING_FIELD_OPTIONS.find(
+                          (option) => option.id === key,
+                        );
                       if (match) {
                         onColorByChange(match.id);
                       }
@@ -181,7 +182,7 @@ export const PlotViewerStyleMappingControls = memo(
               Line style
             </p>
             <div className="space-y-0.5">
-              <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+              <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
                 Line style by
               </Label>
               <Select
@@ -278,7 +279,7 @@ export const PlotViewerStyleMappingControls = memo(
               Marker
             </p>
             <div className="space-y-0.5">
-              <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+              <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
                 Marker by
               </Label>
               <Select

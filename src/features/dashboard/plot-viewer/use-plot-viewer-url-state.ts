@@ -56,10 +56,7 @@ export type UsePlotViewerUrlStateResult = {
   setChannel: (channel: PlotViewerChannelId) => void;
   toggleDataset: (experimentId: string, nextGeometryKeys?: string[]) => void;
   setDatasets: (experimentIds: string[]) => void;
-  toggleFacet: (
-    field: keyof PlotViewerUrlState["facets"],
-    id: string,
-  ) => void;
+  toggleFacet: (field: keyof PlotViewerUrlState["facets"], id: string) => void;
   toggleGeometryKey: (key: string) => void;
   setGeometryKeys: (keys: string[]) => void;
   clearFacets: () => void;
@@ -82,7 +79,10 @@ function searchParamsFromState(
   debouncedQuery: string,
 ): string {
   const params = new URLSearchParams();
-  writePlotViewerParams(params, plotViewerStateForUrlWrite(state, debouncedQuery));
+  writePlotViewerParams(
+    params,
+    plotViewerStateForUrlWrite(state, debouncedQuery),
+  );
   return params.toString();
 }
 
@@ -108,7 +108,9 @@ export function usePlotViewerUrlState(): UsePlotViewerUrlStateResult {
   const queryRef = useRef(query);
   queryRef.current = query;
   const lastPushedSearchRef = useRef<string | null>(null);
-  const previousStateRef = useRef<PlotViewerUrlState>(defaultPlotViewerUrlState());
+  const previousStateRef = useRef<PlotViewerUrlState>(
+    defaultPlotViewerUrlState(),
+  );
   const styleUrlDebounceRef = useRef<number | undefined>(undefined);
 
   useLayoutEffect(() => {
@@ -242,7 +244,9 @@ export function usePlotViewerUrlState(): UsePlotViewerUrlStateResult {
 
   const setDatasets = useCallback(
     (experimentIds: string[]) => {
-      commit((current) => plotViewerUrlStateWithDatasets(current, experimentIds));
+      commit((current) =>
+        plotViewerUrlStateWithDatasets(current, experimentIds),
+      );
     },
     [commit],
   );
@@ -320,9 +324,9 @@ export function usePlotViewerUrlState(): UsePlotViewerUrlStateResult {
         } else {
           values.add(field);
         }
-        const ordered = PLOT_VIEWER_DESCRIPTOR_OPTIONS.map((option) => option.id).filter(
-          (id) => values.has(id),
-        );
+        const ordered = PLOT_VIEWER_DESCRIPTOR_OPTIONS.map(
+          (option) => option.id,
+        ).filter((id) => values.has(id));
         const nextFields = normalizePlotViewerDescriptorFields(ordered);
         return {
           ...current,

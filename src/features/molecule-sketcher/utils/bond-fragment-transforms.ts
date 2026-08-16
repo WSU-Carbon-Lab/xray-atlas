@@ -78,16 +78,17 @@ export function reflectPointAcrossLine(
   return { x: 2 * projx - px, y: 2 * projy - py };
 }
 
-export function findBondIndex(mol: Molecule, atomA: number, atomB: number): number {
+export function findBondIndex(
+  mol: Molecule,
+  atomA: number,
+  atomB: number,
+): number {
   ensureMolHelpers(mol);
   const n = mol.getBonds();
   for (let bi = 0; bi < n; bi += 1) {
     const a0 = mol.getBondAtom(0, bi);
     const a1 = mol.getBondAtom(1, bi);
-    if (
-      (a0 === atomA && a1 === atomB) ||
-      (a0 === atomB && a1 === atomA)
-    ) {
+    if ((a0 === atomA && a1 === atomB) || (a0 === atomB && a1 === atomA)) {
       return bi;
     }
   }
@@ -130,7 +131,12 @@ export function rotateFragmentAroundBondPivot(
   if (!heavyAtomsAreBonded(mol, pivotAtom, bondMateAtom)) {
     throw new Error("Pivot: the two atoms must share a bond.");
   }
-  const side = collectAtomsOnSideOfBond(mol, pivotAtom, bondMateAtom, bondMateAtom);
+  const side = collectAtomsOnSideOfBond(
+    mol,
+    pivotAtom,
+    bondMateAtom,
+    bondMateAtom,
+  );
   const c = Math.cos(angleRad);
   const s = Math.sin(angleRad);
   const px = mol.getAtomX(pivotAtom);

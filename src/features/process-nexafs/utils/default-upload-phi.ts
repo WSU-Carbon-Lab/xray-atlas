@@ -79,9 +79,10 @@ export function resolveUploadRowPhi(
  * @param fixedPhi - Optional fixed azimuth string from the upload form.
  * @returns New array with default phi applied where needed.
  */
-export function applyDefaultUploadPhiToPoints<
-  T extends { phi?: number },
->(points: readonly T[], fixedPhi: string | undefined): T[] {
+export function applyDefaultUploadPhiToPoints<T extends { phi?: number }>(
+  points: readonly T[],
+  fixedPhi: string | undefined,
+): T[] {
   return points.map((point) => {
     if (typeof point.phi === "number" && Number.isFinite(point.phi)) {
       return point;

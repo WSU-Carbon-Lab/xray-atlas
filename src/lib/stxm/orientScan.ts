@@ -61,7 +61,9 @@ export function orientScan(
   image: Float64Array[],
 ): StxmOrientedScan {
   if (!meta.paxisPoints || !meta.qaxisPoints) {
-    throw new Error("Header missing paxis_points or qaxis_points for orientation");
+    throw new Error(
+      "Header missing paxis_points or qaxis_points for orientation",
+    );
   }
 
   const paxis = meta.paxisPoints;
@@ -101,7 +103,10 @@ export function orientScan(
     throw new Error("energy axis must be strictly monotonic");
   }
 
-  if (rows.length !== spatial.length || (rows[0]?.length ?? 0) !== energy.length) {
+  if (
+    rows.length !== spatial.length ||
+    (rows[0]?.length ?? 0) !== energy.length
+  ) {
     throw new Error("oriented image shape does not match axis lengths");
   }
 

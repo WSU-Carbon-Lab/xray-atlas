@@ -84,8 +84,9 @@ export const ModeBar = memo(function ModeBar({
     [onModeChange, disabled],
   );
 
-  const selectedKey =
-    TOOLBAR_MODES.includes(currentMode) ? currentMode : TOOLBAR_MODES[0];
+  const selectedKey = TOOLBAR_MODES.includes(currentMode)
+    ? currentMode
+    : TOOLBAR_MODES[0];
 
   return (
     <div
@@ -101,8 +102,8 @@ export const ModeBar = memo(function ModeBar({
         <Tabs.ListContainer>
           <Tabs.List
             aria-label="Plot interaction mode"
-            className={`bg-(--surface-2) flex h-10 gap-0.5 rounded-full p-1 [&_.tabs__list]:flex [&_.tabs__list]:gap-0.5 [&_.tabs__list]:rounded-full ${
-              disabled ? "opacity-40 pointer-events-none" : ""
+            className={`flex h-10 gap-0.5 rounded-full bg-(--surface-2) p-1 [&_.tabs__list]:flex [&_.tabs__list]:gap-0.5 [&_.tabs__list]:rounded-full ${
+              disabled ? "pointer-events-none opacity-40" : ""
             }`}
           >
             {TOOLBAR_MODES.map((mode) => {
@@ -115,12 +116,14 @@ export const ModeBar = memo(function ModeBar({
                   key={mode}
                   id={mode}
                   aria-label={config.tooltip}
-                  className="flex h-8 w-8 min-w-0 cursor-pointer items-center justify-center rounded-full transition-colors data-[selected=true]:bg-(--surface-3) data-[hovered=true]:data-[selected=false]:bg-(--surface-3)/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2"
+                  className="flex h-8 w-8 min-w-0 cursor-pointer items-center justify-center rounded-full transition-colors focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:outline-none data-[hovered=true]:data-[selected=false]:bg-(--surface-3)/50 data-[selected=true]:bg-(--surface-3)"
                 >
                   <span
                     className="flex items-center justify-center"
                     style={{
-                      color: isSelected ? themeColors.text : themeColors.textSecondary,
+                      color: isSelected
+                        ? themeColors.text
+                        : themeColors.textSecondary,
                     }}
                   >
                     <Icon className="h-5 w-5 shrink-0" aria-hidden />
@@ -138,7 +141,7 @@ export const ModeBar = memo(function ModeBar({
           onClick={onExportClick}
           aria-label="Export plot"
           title="Export plot"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--border-default) bg-(--surface-1) text-(--text-secondary) transition-colors hover:bg-(--surface-2) hover:text-(--text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--border-default) bg-(--surface-1) text-(--text-secondary) transition-colors hover:bg-(--surface-2) hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           <ArrowDownTrayIcon className="h-5 w-5" aria-hidden />
         </button>
@@ -149,7 +152,7 @@ export const ModeBar = memo(function ModeBar({
           onClick={onResetZoom}
           aria-label="Reset zoom"
           title="Reset zoom"
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--border-default) bg-(--surface-1) text-(--text-secondary) transition-colors hover:bg-(--surface-2) hover:text-(--text-primary) focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2"
+          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-(--border-default) bg-(--surface-1) text-(--text-secondary) transition-colors hover:bg-(--surface-2) hover:text-(--text-primary) focus-visible:ring-2 focus-visible:ring-(--border-focus) focus-visible:ring-offset-2 focus-visible:outline-none"
         >
           <HomeIcon className="h-5 w-5" aria-hidden />
         </button>

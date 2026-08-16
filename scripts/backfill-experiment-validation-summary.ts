@@ -105,7 +105,9 @@ async function main(): Promise<void> {
       updated += 1;
     }
 
-    console.log(`batch committed cursor=${cursor} cumulative_updated=${updated}`);
+    console.log(
+      `batch committed cursor=${cursor} cumulative_updated=${updated}`,
+    );
   }
 
   console.log(JSON.stringify({ ok: true, updated }));

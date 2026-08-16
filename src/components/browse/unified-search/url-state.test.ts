@@ -60,7 +60,9 @@ describe("writeFacetParams", () => {
   });
 
   it("deletes existing keys when a field becomes empty", () => {
-    const sp = new URLSearchParams("edge=abc&mol=def&instrument=ghi&contributor=jkl");
+    const sp = new URLSearchParams(
+      "edge=abc&mol=def&instrument=ghi&contributor=jkl",
+    );
     writeFacetParams(sp, emptyFacetSelection());
     expect(sp.has("edge")).toBe(false);
     expect(sp.has("mol")).toBe(false);

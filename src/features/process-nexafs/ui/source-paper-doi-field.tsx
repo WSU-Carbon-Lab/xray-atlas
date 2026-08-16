@@ -54,7 +54,7 @@ function SourcePaperCitationPreview({
   const secondaryLine = [authors, meta].filter(Boolean).join(" · ");
   return (
     <div className="border-border/60 bg-surface-2/40 rounded-md border px-2.5 py-2">
-      <p className="text-foreground line-clamp-2 text-xs font-medium leading-snug">
+      <p className="text-foreground line-clamp-2 text-xs leading-snug font-medium">
         {citation.title}
       </p>
       {secondaryLine ? (
@@ -227,7 +227,10 @@ export function SourcePaperDoiField({
     <div className="flex flex-col gap-2">
       {showLabel ? (
         <div>
-          <Label htmlFor="source-paper-doi-search" className="text-muted text-sm font-medium">
+          <Label
+            htmlFor="source-paper-doi-search"
+            className="text-muted text-sm font-medium"
+          >
             Source publication
           </Label>
           {helperText ? (
@@ -283,9 +286,7 @@ export function SourcePaperDoiField({
                 aria-label="Publication search results"
                 renderEmptyState={() => (
                   <div className="text-muted flex items-center gap-2 px-3 py-2 text-xs">
-                    {isLookingUp ? (
-                      <Spinner size="sm" color="current" />
-                    ) : null}
+                    {isLookingUp ? <Spinner size="sm" color="current" /> : null}
                     {emptyStateMessage}
                   </div>
                 )}

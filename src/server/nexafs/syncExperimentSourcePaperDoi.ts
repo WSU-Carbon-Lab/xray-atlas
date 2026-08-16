@@ -15,7 +15,9 @@ type SourcePublicationRow = {
 function citationToAuthorsJson(
   authors: string[],
 ): Prisma.InputJsonValue | undefined {
-  return authors.length > 0 ? (authors as unknown as Prisma.InputJsonValue) : undefined;
+  return authors.length > 0
+    ? (authors as unknown as Prisma.InputJsonValue)
+    : undefined;
 }
 
 function mapPublicationRow(row: {
@@ -56,7 +58,9 @@ async function upsertPublicationRecord(
 ): Promise<{ id: string; doi: string }> {
   const normalizedDoi = normalizeDoi(citation.doi);
   if (!normalizedDoi) {
-    throw new Error("Source publication DOI must normalize to a canonical identifier");
+    throw new Error(
+      "Source publication DOI must normalize to a canonical identifier",
+    );
   }
 
   const publication = await db.publications.upsert({

@@ -90,7 +90,9 @@ export interface DepictionCoalescenceResult {
   terminalMethylLabelsApplied: boolean;
 }
 
-export function applyDepictionCoalescence(mol: Molecule): DepictionCoalescenceResult {
+export function applyDepictionCoalescence(
+  mol: Molecule,
+): DepictionCoalescenceResult {
   standardizeDepictionStereo(mol);
   const nitrileGroupsCoalesced = coalesceNitrileTripleBonds(mol);
   normalizeEditorAlkylCustomLabels(mol);

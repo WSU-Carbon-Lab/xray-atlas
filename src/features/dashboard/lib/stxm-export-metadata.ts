@@ -50,7 +50,9 @@ export const stxmExportStepMetadataSchema = z.object({
   peaks: z.array(stxmPeakSchema).default([]),
 });
 
-export type StxmExportStepMetadata = z.infer<typeof stxmExportStepMetadataSchema>;
+export type StxmExportStepMetadata = z.infer<
+  typeof stxmExportStepMetadataSchema
+>;
 
 export const defaultStxmSampleInfo = (): StxmSampleInfo => ({
   processMethod: null,
@@ -123,9 +125,7 @@ export function buildStxmExportStepMetadata(args: {
       .attributions,
     linkedMoleculeId: args.linkedMolecule?.id ?? null,
     linkedMoleculeLabel:
-      args.linkedMolecule?.commonName ??
-      args.linkedMolecule?.iupacName ??
-      null,
+      args.linkedMolecule?.commonName ?? args.linkedMolecule?.iupacName ?? null,
     linkedMoleculeFormula: args.linkedMolecule?.chemicalFormula ?? null,
     sampleInfo: args.sampleInfo,
     peaks: args.peaks,

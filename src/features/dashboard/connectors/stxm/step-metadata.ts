@@ -20,10 +20,11 @@ const finiteNumberArray = z
   .max(STXM_MAX_ENERGY_SAMPLES);
 
 const scanKeyRecord = <T extends z.ZodTypeAny>(valueSchema: T) =>
-  z.record(z.string().min(1).max(512), valueSchema).refine(
-    (record) => Object.keys(record).length <= STXM_MAX_SCAN_ROWS,
-    { message: `At most ${STXM_MAX_SCAN_ROWS} scan keys allowed` },
-  );
+  z
+    .record(z.string().min(1).max(512), valueSchema)
+    .refine((record) => Object.keys(record).length <= STXM_MAX_SCAN_ROWS, {
+      message: `At most ${STXM_MAX_SCAN_ROWS} scan keys allowed`,
+    });
 
 export const stxmIngestStorageModeSchema = z.enum([
   "session_metadata_pending",
@@ -54,7 +55,10 @@ export type StxmIngestScanRecord = z.infer<typeof stxmIngestScanRecordSchema>;
 export type StxmIngestScanSummary = StxmIngestScanRecord;
 
 export const dashboardIngestStepMetadataSchema = z.object({
-  scans: z.array(stxmIngestScanRecordSchema).max(STXM_MAX_SCAN_ROWS).default([]),
+  scans: z
+    .array(stxmIngestScanRecordSchema)
+    .max(STXM_MAX_SCAN_ROWS)
+    .default([]),
   storageMode: stxmIngestStorageModeSchema.default("session_metadata_pending"),
   activeScanId: z.string().uuid().nullable().optional(),
 });
@@ -163,7 +167,10 @@ export type RegionSpectrumRecord = z.infer<typeof regionSpectrumRecordSchema>;
 
 export const dashboardReduceStepMetadataSchema = z.object({
   scanId: z.string().min(1).max(512),
-  spectra: z.array(regionSpectrumRecordSchema).max(STXM_MAX_SAMPLE_REGIONS).default([]),
+  spectra: z
+    .array(regionSpectrumRecordSchema)
+    .max(STXM_MAX_SAMPLE_REGIONS)
+    .default([]),
   computedAt: z.string().min(1).max(64),
   method: z.enum(["two_region", "thickness_regression"]).default("two_region"),
 });
@@ -261,11 +268,11 @@ export const dashboardPreviewStepMetadataSchema = z.object({
     .array(dashboardPreviewSpectrumEntrySchema)
     .max(STXM_MAX_SCAN_ROWS)
     .default([]),
-  standardOverlays: z
-    .array(dashboardStandardOverlaySchema)
-    .max(64)
+  standardOverlays: z.array(dashboardStandardOverlaySchema).max(64).default([]),
+  compareScanIds: z
+    .array(z.string().max(512))
+    .max(STXM_MAX_SCAN_ROWS)
     .default([]),
-  compareScanIds: z.array(z.string().max(512)).max(STXM_MAX_SCAN_ROWS).default([]),
   compareTraceKeys: z
     .array(z.string().max(512))
     .max(STXM_MAX_COMPARE_TRACE_KEYS)

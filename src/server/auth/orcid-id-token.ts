@@ -1,7 +1,10 @@
 import { createRemoteJWKSet, decodeJwt, jwtVerify } from "jose";
 import type { JWTPayload } from "jose";
 import { env } from "~/env";
-import { orcidOidcIssuer, orcidOidcJwksUrl } from "~/server/auth/orcid-oidc-config";
+import {
+  orcidOidcIssuer,
+  orcidOidcJwksUrl,
+} from "~/server/auth/orcid-oidc-config";
 
 export interface OrcidIdTokenClaims {
   orcid: string;
@@ -17,7 +20,9 @@ function getOrcidJwks(): ReturnType<typeof createRemoteJWKSet> {
   return jwks;
 }
 
-function parseClaimsFromPayload(payload: JWTPayload): OrcidIdTokenClaims | null {
+function parseClaimsFromPayload(
+  payload: JWTPayload,
+): OrcidIdTokenClaims | null {
   const sub = payload.sub;
   if (typeof sub !== "string" || sub.length === 0) {
     return null;

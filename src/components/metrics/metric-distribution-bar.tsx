@@ -91,12 +91,17 @@ export function MetricDistributionBar({
           className,
         )}
         role="img"
-        aria-label={ariaLabelProp ?? "No finite samples available for distribution bar"}
+        aria-label={
+          ariaLabelProp ?? "No finite samples available for distribution bar"
+        }
       />
     );
   }
 
-  const { low: bandLowRaw, high: bandHighRaw } = bandEndpoints(population, band);
+  const { low: bandLowRaw, high: bandHighRaw } = bandEndpoints(
+    population,
+    band,
+  );
   const sortedBase = finitePopulationSorted(population.values);
   const median =
     summary.median ??
@@ -126,8 +131,16 @@ export function MetricDistributionBar({
   const width =
     left != null && right != null ? Math.max(right - left, 0.5) : null;
 
-  const minPct = populationValueToBarPercent(summary.min, domain.min, domain.max);
-  const maxPct = populationValueToBarPercent(summary.max, domain.min, domain.max);
+  const minPct = populationValueToBarPercent(
+    summary.min,
+    domain.min,
+    domain.max,
+  );
+  const maxPct = populationValueToBarPercent(
+    summary.max,
+    domain.min,
+    domain.max,
+  );
 
   const defaultAria = `Distribution of ${summary.count} samples from ${summary.min.toFixed(3)} to ${summary.max.toFixed(3)}`;
 

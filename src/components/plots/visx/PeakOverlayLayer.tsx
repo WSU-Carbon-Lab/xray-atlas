@@ -62,7 +62,9 @@ export function PeakOverlayLayer({
         fill="transparent"
         pointerEvents="all"
         onClick={(e) =>
-          handleClick(e as unknown as React.MouseEvent<SVGSVGElement, MouseEvent>)
+          handleClick(
+            e as unknown as React.MouseEvent<SVGSVGElement, MouseEvent>,
+          )
         }
       />
       {peaks.map((peak, peakIndex) => {
@@ -84,4 +86,3 @@ export function PeakOverlayLayer({
     </>
   );
 }
-

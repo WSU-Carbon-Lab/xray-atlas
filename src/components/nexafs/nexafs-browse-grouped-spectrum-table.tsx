@@ -187,15 +187,14 @@ function SpectrumLeafTable({
   );
 
   const visibleColumnList = useMemo(
-    () =>
-      [
-        ...SPECTRUM_TABLE_COLUMNS.filter((c) => showColumn(c.id)),
-        ...(showOdCol ? [{ id: "od" as const, label: "OD" }] : []),
-        ...(showMassCol ? [{ id: "mass" as const, label: "Mass abs." }] : []),
-        ...(showBetaCol ? [{ id: "beta" as const, label: "beta" }] : []),
-        ...(showDeltaCol ? [{ id: "delta" as const, label: "delta" }] : []),
-        ...(showI0Col ? [{ id: "i0" as const, label: "I0" }] : []),
-      ],
+    () => [
+      ...SPECTRUM_TABLE_COLUMNS.filter((c) => showColumn(c.id)),
+      ...(showOdCol ? [{ id: "od" as const, label: "OD" }] : []),
+      ...(showMassCol ? [{ id: "mass" as const, label: "Mass abs." }] : []),
+      ...(showBetaCol ? [{ id: "beta" as const, label: "beta" }] : []),
+      ...(showDeltaCol ? [{ id: "delta" as const, label: "delta" }] : []),
+      ...(showI0Col ? [{ id: "i0" as const, label: "I0" }] : []),
+    ],
     [showColumn, showOdCol, showMassCol, showBetaCol, showDeltaCol, showI0Col],
   );
 
@@ -343,9 +342,7 @@ function SpectrumLeafTable({
                             <Table.Cell key={col.id} className="text-right">
                               {typeof t === "number" ? (
                                 <Chip
-                                  color={
-                                    thetaColorByValue.get(t) ?? "accent"
-                                  }
+                                  color={thetaColorByValue.get(t) ?? "accent"}
                                   size="sm"
                                   variant="soft"
                                 >
@@ -363,9 +360,7 @@ function SpectrumLeafTable({
                             <Table.Cell key={col.id} className="text-right">
                               {typeof ph === "number" ? (
                                 <Chip
-                                  color={
-                                    phiColorByValue.get(ph) ?? "accent"
-                                  }
+                                  color={phiColorByValue.get(ph) ?? "accent"}
                                   size="sm"
                                   variant="soft"
                                 >
@@ -484,9 +479,7 @@ function SpectrumLeafTable({
                       isDisabled={safePage + 1 >= totalPages}
                       aria-label="Next page"
                       onPress={() => {
-                        setPageIndex((i) =>
-                          Math.min(totalPages - 1, i + 1),
-                        );
+                        setPageIndex((i) => Math.min(totalPages - 1, i + 1));
                       }}
                       className="rounded-md border border-[var(--border-default)] bg-[var(--surface-1)]"
                     >
@@ -514,8 +507,7 @@ export function NexafsBrowseGroupedSpectrumTable({
   csvExportOptions,
 }: NexafsBrowseGroupedSpectrumTableProps) {
   const instanceSuffix = useId();
-  const basePrefix =
-    idPrefix.trim().length > 0 ? idPrefix.trim() : "spectrum";
+  const basePrefix = idPrefix.trim().length > 0 ? idPrefix.trim() : "spectrum";
   const stablePrefix = `${basePrefix}-${instanceSuffix}`;
 
   const sections = useMemo(
@@ -572,15 +564,11 @@ export function NexafsBrowseGroupedSpectrumTable({
                 <Accordion.Trigger className="flex min-h-[52px] w-full items-center justify-between gap-2 rounded-lg px-4 py-3 text-left">
                   <span className="flex min-w-0 flex-1 flex-wrap items-center gap-2">
                     {typeof s.theta === "number" ? (
-                      <Chip
-                        color={thetaChipColor}
-                        size="sm"
-                        variant="soft"
-                      >
+                      <Chip color={thetaChipColor} size="sm" variant="soft">
                         {s.theta.toFixed(1)}
                       </Chip>
                     ) : (
-                      <span className="text-[var(--text-tertiary)] text-xs">
+                      <span className="text-xs text-[var(--text-tertiary)]">
                         —
                       </span>
                     )}
@@ -589,11 +577,11 @@ export function NexafsBrowseGroupedSpectrumTable({
                         {s.phi.toFixed(1)}
                       </Chip>
                     ) : (
-                      <span className="text-[var(--text-tertiary)] text-xs">
+                      <span className="text-xs text-[var(--text-tertiary)]">
                         —
                       </span>
                     )}
-                    <span className="text-[var(--text-tertiary)] text-xs tabular-nums">
+                    <span className="text-xs text-[var(--text-tertiary)] tabular-nums">
                       {s.energySubtitle}
                     </span>
                   </span>

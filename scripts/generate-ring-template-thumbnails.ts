@@ -16,7 +16,10 @@ import { applyMoleculeSvgTypography } from "../src/lib/molecule-svg-typography";
 
 ensureOclResourcesNode();
 
-function normalizeRingTemplateThumbnailSvg(raw: string, stripLabels: boolean): string {
+function normalizeRingTemplateThumbnailSvg(
+  raw: string,
+  stripLabels: boolean,
+): string {
   let normalized = raw
     .replace(/<style[^>]*>[\s\S]*?<\/style>/g, "")
     .replace(/\sid="[^"]+"/g, "")
@@ -24,9 +27,18 @@ function normalizeRingTemplateThumbnailSvg(raw: string, stripLabels: boolean): s
     .replace(/height="40px"/g, 'height="100%"')
     .replace(/stroke="rgb\(0,0,0\)"/g, 'stroke="currentColor"')
     .replace(/fill="rgb\(0,0,0\)"/g, 'fill="currentColor"')
-    .replace(/fill="rgb\(48,80,248\)"/g, 'fill="currentColor" class="ring-thumb-hetero ring-thumb-hetero-n"')
-    .replace(/fill="rgb\(255,13,13\)"/g, 'fill="currentColor" class="ring-thumb-hetero ring-thumb-hetero-o"')
-    .replace(/fill="rgb\(205,205,38\)"/g, 'fill="currentColor" class="ring-thumb-hetero ring-thumb-hetero-s"')
+    .replace(
+      /fill="rgb\(48,80,248\)"/g,
+      'fill="currentColor" class="ring-thumb-hetero ring-thumb-hetero-n"',
+    )
+    .replace(
+      /fill="rgb\(255,13,13\)"/g,
+      'fill="currentColor" class="ring-thumb-hetero ring-thumb-hetero-o"',
+    )
+    .replace(
+      /fill="rgb\(205,205,38\)"/g,
+      'fill="currentColor" class="ring-thumb-hetero ring-thumb-hetero-s"',
+    )
     .replace(/<line class="event"[^/]*\/>\n/g, "")
     .replace(/<circle class="event"[^/]*\/>\n/g, "")
     .replace(/\n\s+<\/svg>/g, "\n</svg>")
@@ -45,7 +57,9 @@ for (const preset of RING_TEMPLATE_PRESETS) {
   if (isCage) {
     const layout = buildCageTemplateLayout(preset.smiles);
     if ("ok" in layout) {
-      throw new Error(`Cage thumbnail failed for ${preset.id}: ${layout.message}`);
+      throw new Error(
+        `Cage thumbnail failed for ${preset.id}: ${layout.message}`,
+      );
     }
     mol = cloneDrawCanvasMolecule(layout.molecule);
     const depthMarks = cageBondDepthTierIndicesToMarks(
@@ -61,7 +75,12 @@ for (const preset of RING_TEMPLATE_PRESETS) {
       configureOclDepictionForCage(thumbSize, thumbSize),
     );
     if (depthTierMap.size > 0) {
-      rawSvg = applyMoleculeSvg3dBondDepthTiers(rawSvg, mol, depthTierMap, false);
+      rawSvg = applyMoleculeSvg3dBondDepthTiers(
+        rawSvg,
+        mol,
+        depthTierMap,
+        false,
+      );
     }
     entries[preset.id] = normalizeRingTemplateThumbnailSvg(rawSvg, true);
     continue;
@@ -70,12 +89,11 @@ for (const preset of RING_TEMPLATE_PRESETS) {
   mol.inventCoordinates();
   const thumbSize = 40;
   entries[preset.id] = normalizeRingTemplateThumbnailSvg(
-    mol.toSVG(
-      thumbSize,
-      thumbSize,
-      `ring-thumb-${preset.id}`,
-      { autoCrop: true, autoCropMargin: 4, noImplicitHydrogen: true },
-    ),
+    mol.toSVG(thumbSize, thumbSize, `ring-thumb-${preset.id}`, {
+      autoCrop: true,
+      autoCropMargin: 4,
+      noImplicitHydrogen: true,
+    }),
     false,
   );
 }

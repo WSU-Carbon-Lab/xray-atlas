@@ -19,10 +19,10 @@ Use with **typescript-web** spec and **web-trpc-api** Cursor rule. **general-typ
 
 ## Reference index
 
-| Topic | File |
-|--------|------|
+| Topic                              | File                                                                    |
+| ---------------------------------- | ----------------------------------------------------------------------- |
 | Procedures, context, auth patterns | [reference-procedures-auth.md](references/reference-procedures-auth.md) |
-| REST bridge, HTTP semantics | [reference-rest-bridge.md](references/reference-rest-bridge.md) |
+| REST bridge, HTTP semantics        | [reference-rest-bridge.md](references/reference-rest-bridge.md)         |
 
 ## Delegation
 

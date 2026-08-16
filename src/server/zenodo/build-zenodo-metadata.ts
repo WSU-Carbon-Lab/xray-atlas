@@ -331,7 +331,10 @@ export async function loadZenodoMetadataSnapshot(
     existing.roles.push(row.role);
     const existingIsOrcid = existing.creator.name.startsWith("ORCID ");
     const nextIsNamed = !creator.name.startsWith("ORCID ");
-    if ((accepted && !existing.claimAccepted) || (existingIsOrcid && nextIsNamed)) {
+    if (
+      (accepted && !existing.claimAccepted) ||
+      (existingIsOrcid && nextIsNamed)
+    ) {
       existing.creator = creator;
       existing.claimAccepted = existing.claimAccepted || accepted;
     }

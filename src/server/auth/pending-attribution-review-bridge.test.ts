@@ -43,9 +43,9 @@ describe("pendingAttributionReviewRedirectUrl", () => {
   });
 
   it("strips a trailing slash on the origin", () => {
-    expect(
-      pendingAttributionReviewRedirectUrl("http://localhost:3000/"),
-    ).toBe("http://localhost:3000/account/attributions/pending?welcome=1");
+    expect(pendingAttributionReviewRedirectUrl("http://localhost:3000/")).toBe(
+      "http://localhost:3000/account/attributions/pending?welcome=1",
+    );
   });
 });
 
@@ -57,9 +57,9 @@ describe("isPendingAttributionWelcomeSearchParams", () => {
   });
 
   it("accepts the accidental encoded key welcome=1", () => {
-    expect(
-      isPendingAttributionWelcomeSearchParams({ "welcome=1": "" }),
-    ).toBe(true);
+    expect(isPendingAttributionWelcomeSearchParams({ "welcome=1": "" })).toBe(
+      true,
+    );
   });
 
   it("rejects ordinary pending visits", () => {

@@ -15,11 +15,15 @@ export function formatAlkylCnH2nPlus1(nCarbons: number): string {
   const h = 2 * nCarbons + 1;
   const nc = String(nCarbons);
   const nh = String(h);
+  // oxlint-disable-next-line typescript/no-misused-spread -- nc/nh are String(number), guaranteed single-codepoint ASCII digits
   return `C${[...nc].map(digitCharToSubscript).join("")}H${[...nh].map(digitCharToSubscript).join("")}`;
 }
 
 export function normalizeNumericSubscriptsToAscii(text: string): string {
-  return text.replace(/[₀₁₂₃₄₅₆₇₈₉]/g, (ch) => SUBSCRIPT_TO_ASCII_DIGIT[ch] ?? ch);
+  return text.replace(
+    /[₀₁₂₃₄₅₆₇₈₉]/g,
+    (ch) => SUBSCRIPT_TO_ASCII_DIGIT[ch] ?? ch,
+  );
 }
 
 export function formatChHydrideLabel(implicitHydrogenCount: number): string {

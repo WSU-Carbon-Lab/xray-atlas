@@ -25,7 +25,9 @@ export function SampleMetadataSectionCaption({
           {title}
         </h4>
         {trailing ? (
-          <span className="text-muted/80 text-[11px] tabular-nums">{trailing}</span>
+          <span className="text-muted/80 text-[11px] tabular-nums">
+            {trailing}
+          </span>
         ) : null}
       </div>
       {hint ? (

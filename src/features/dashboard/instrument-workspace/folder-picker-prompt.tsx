@@ -27,15 +27,16 @@ export function FolderPickerPrompt({
           Select your STXM data folder
         </p>
         <p className="text-muted mt-2 text-sm leading-relaxed">
-          Choose the beamline root directory on your computer. Beamtime subfolders
-          (for example <span className="font-mono">2026-03(March)</span>) and scan
-          files stay local; nothing uploads until you export to Atlas later.
+          Choose the beamline root directory on your computer. Beamtime
+          subfolders (for example{" "}
+          <span className="font-mono">2026-03(March)</span>) and scan files stay
+          local; nothing uploads until you export to Atlas later.
         </p>
         {!supported ? (
           <p className="text-warning mt-3 text-xs">
             Folder selection requires Chrome or Edge with File System Access API
-            support. Safari and Firefox cannot browse local directories in-browser
-            yet; use Chromium to process data here.
+            support. Safari and Firefox cannot browse local directories
+            in-browser yet; use Chromium to process data here.
           </p>
         ) : null}
       </div>

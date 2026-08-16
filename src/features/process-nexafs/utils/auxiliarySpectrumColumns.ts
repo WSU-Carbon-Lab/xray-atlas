@@ -11,11 +11,7 @@ export function detectAuxiliarySpectrumColumnNames(columns: string[]): {
   deltaError?: string;
 } {
   const norm = (raw: string) =>
-    raw
-      .trim()
-      .toLowerCase()
-      .replace(/\s+/g, "")
-      .replace(/[\[\]]/g, "");
+    raw.trim().toLowerCase().replace(/\s+/g, "").replace(/[[\]]/g, "");
 
   const used = new Set<string>();
   const pick = (matches: (n: string) => boolean): string | undefined => {

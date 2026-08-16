@@ -135,11 +135,7 @@ export const experimentFileRouter = createTRPCRouter({
   list: protectedProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
       return listCommittedExperimentAuxFiles(ctx.db, input.experimentId);
     }),
 
@@ -151,11 +147,7 @@ export const experimentFileRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
       return getCommittedExperimentAuxDownload(
         ctx.db,
         input.experimentId,
@@ -182,18 +174,11 @@ export const experimentFileRouter = createTRPCRouter({
         });
       }
 
-      await assertUserMayEditExperiment(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       try {
         assertAuxMimeAllowed(input.upload.mimeType);
-        assertAuxFileSizeAllowed(
-          EXPERIMENT_AUX_BUCKET,
-          input.upload.sizeBytes,
-        );
+        assertAuxFileSizeAllowed(EXPERIMENT_AUX_BUCKET, input.upload.sizeBytes);
       } catch (error) {
         throw new TRPCError({
           code: "BAD_REQUEST",

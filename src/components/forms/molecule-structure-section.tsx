@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState, type DragEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type DragEvent,
+} from "react";
 import dynamic from "next/dynamic";
 import type {
   MoleculeContributeSketcherPanelHandle,
@@ -55,8 +61,7 @@ const DEPICTION_COLUMN_CLASS = "mx-auto w-full min-w-0 max-w-lg";
 const STRUCTURE_ACTION_ROW_CLASS =
   "flex flex-wrap items-center justify-center gap-2";
 
-const CLEAR_STRUCTURE_BUTTON_CLASS =
-  "text-muted h-7 min-h-7 px-2 text-xs";
+const CLEAR_STRUCTURE_BUTTON_CLASS = "text-muted h-7 min-h-7 px-2 text-xs";
 
 export type MoleculeStructureSectionProps = {
   smiles: string;
@@ -125,8 +130,7 @@ export function MoleculeStructureSection({
     trimmedSmiles.length > 0 && !registryStub && !hasCommittedRegistrySvg;
   const canCompareWithSmiles =
     hasCommittedRegistrySvg && trimmedSmiles.length > 0 && !registryStub;
-  const showSmilesComparePanel =
-    canCompareWithSmiles && smilesCompareMode;
+  const showSmilesComparePanel = canCompareWithSmiles && smilesCompareMode;
 
   const prepareSmilesDepiction = useCallback((mol: Molecule) => {
     prepareMoleculeForDatabase(mol);
@@ -570,7 +574,10 @@ export function MoleculeStructureSection({
       ) : null}
 
       {sketcherMounted && !registryStub ? (
-        <div className={cn(!sketcherOpen && "hidden")} aria-hidden={!sketcherOpen}>
+        <div
+          className={cn(!sketcherOpen && "hidden")}
+          aria-hidden={!sketcherOpen}
+        >
           <MoleculeContributeSketcherPanel
             ref={sketcherPanelRef}
             initialSmiles={trimmedSmiles}
@@ -613,7 +620,9 @@ export function MoleculeStructureSection({
       ) : null}
 
       {!registryStub && uploadError ? (
-        <ErrorMessage className="text-sm font-medium">{uploadError}</ErrorMessage>
+        <ErrorMessage className="text-sm font-medium">
+          {uploadError}
+        </ErrorMessage>
       ) : null}
 
       {!registryStub && structureValidationError ? (

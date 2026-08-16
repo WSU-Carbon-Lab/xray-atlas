@@ -102,7 +102,9 @@ function validateLcfInputs(
       );
     }
     if (fixed[index] && !Number.isFinite(value)) {
-      throw new RangeError(`fixed component ${index} requires finite initial_fraction`);
+      throw new RangeError(
+        `fixed component ${index} requires finite initial_fraction`,
+      );
     }
   }
 }
@@ -121,10 +123,7 @@ export function prepareLcfGrid(
     target.energyEv,
     ...references.map((reference) => reference.energyEv),
   ];
-  let grid =
-    energyGrid != null
-      ? [...energyGrid]
-      : commonEnergyGrid(grids);
+  let grid = energyGrid != null ? [...energyGrid] : commonEnergyGrid(grids);
   const y = interpolateSpectrumLinear(target.energyEv, target.values, grid);
   const sigma = sigmaWithFloor(
     interpolateSpectrumLinear(target.energyEv, target.sigma, grid),
@@ -215,7 +214,10 @@ function solveWeightedNnls(
   return lawsonHansonNnls(ata, atb);
 }
 
-function lawsonHansonNnls(a: readonly number[][], b: readonly number[]): number[] {
+function lawsonHansonNnls(
+  a: readonly number[][],
+  b: readonly number[],
+): number[] {
   const n = a.length;
   const x = Array.from({ length: n }, () => 0);
   const passive = Array.from({ length: n }, () => false);
@@ -311,7 +313,10 @@ function solveUnconstrainedLeastSquares(
   return solveSymmetricSystem(ata, atb);
 }
 
-function solveSymmetricSystem(a: readonly number[][], b: readonly number[]): number[] {
+function solveSymmetricSystem(
+  a: readonly number[][],
+  b: readonly number[],
+): number[] {
   const n = b.length;
   const matrix = a.map((row) => [...row]);
   const rhs = [...b];
@@ -360,9 +365,7 @@ function fitSimplexWeightedLeastSquares(
   const anchor = design[nRef - 1]!;
   const reducedDesign: number[][] = [];
   for (let col = 0; col < nRef - 1; col += 1) {
-    reducedDesign.push(
-      design[col]!.map((value, row) => value - anchor[row]!),
-    );
+    reducedDesign.push(design[col]!.map((value, row) => value - anchor[row]!));
   }
   const reducedTarget = target.map((value, row) => value - anchor[row]!);
   const free = solveWeightedNnls(reducedDesign, reducedTarget, weights);
@@ -388,8 +391,7 @@ function optimizeConstrainedLcf(params: {
     .map((isFixed, index) => (isFixed ? -1 : index))
     .filter((index) => index >= 0);
   const fixedSum = params.fixed.reduce(
-    (sum, isFixed, index) =>
-      isFixed ? sum + params.xInit[index]! : sum,
+    (sum, isFixed, index) => (isFixed ? sum + params.xInit[index]! : sum),
     0,
   );
   if (params.sumToOne && fixedSum > 1 + 1e-9) {
@@ -424,7 +426,13 @@ function optimizeConstrainedLcf(params: {
   const gradient = Array.from({ length: params.nRef }, () => 0);
   const learningRate = 0.05;
   for (let iter = 0; iter < 400; iter += 1) {
-    gradientWeightedLeastSquares(x, params.target, params.sigma, params.design, gradient);
+    gradientWeightedLeastSquares(
+      x,
+      params.target,
+      params.sigma,
+      params.design,
+      gradient,
+    );
     for (const index of freeIndices) {
       x[index] = clipToBounds(
         x[index]! - learningRate * gradient[index]!,
@@ -436,7 +444,10 @@ function optimizeConstrainedLcf(params: {
       }
     }
     if (params.sumToOne) {
-      const adjustableSum = freeIndices.reduce((sum, index) => sum + x[index]!, 0);
+      const adjustableSum = freeIndices.reduce(
+        (sum, index) => sum + x[index]!,
+        0,
+      );
       const desired = 1 - fixedSum;
       if (adjustableSum > 1e-12 && Math.abs(adjustableSum - desired) > 1e-9) {
         const scale = desired / adjustableSum;
@@ -529,7 +540,10 @@ export function fitLcf(
     options.fractionBounds != null
       ? [...options.fractionBounds]
       : defaultFractionBounds(nRef, nonNegative);
-  const fixed = options.fixed != null ? [...options.fixed] : Array.from({ length: nRef }, () => false);
+  const fixed =
+    options.fixed != null
+      ? [...options.fixed]
+      : Array.from({ length: nRef }, () => false);
   validateLcfInputs(nRef, xInit, bounds, fixed);
 
   const fractions = optimizeConstrainedLcf({
@@ -619,8 +633,7 @@ export function fitSingleReferenceScale(
     numerator += weight * refValue * targetValue;
     denominator += weight * refValue * refValue;
   }
-  const scale =
-    denominator > 1e-15 ? Math.max(0, numerator / denominator) : 0;
+  const scale = denominator > 1e-15 ? Math.max(0, numerator / denominator) : 0;
   const model = ref.map((value) => value * scale);
   const residual = prepared.target.map((value, row) => value - model[row]!);
   const chi2 = residual.reduce(

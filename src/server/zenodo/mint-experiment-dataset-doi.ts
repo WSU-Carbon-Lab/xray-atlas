@@ -436,7 +436,10 @@ export async function mintExperimentDatasetDoi(
         );
       }
 
-      deposition = await client.updateDepositionMetadata(depositionId, metadata);
+      deposition = await client.updateDepositionMetadata(
+        depositionId,
+        metadata,
+      );
     } else {
       console.info("[zenodo] creating deposition", { experimentId });
       deposition = await client.createDeposition();
@@ -445,7 +448,10 @@ export async function mintExperimentDatasetDoi(
         where: { experimentid: experimentId },
         data: { zenododepositionid: depositionId },
       });
-      deposition = await client.updateDepositionMetadata(depositionId, metadata);
+      deposition = await client.updateDepositionMetadata(
+        depositionId,
+        metadata,
+      );
     }
     assertWithinBudget();
 

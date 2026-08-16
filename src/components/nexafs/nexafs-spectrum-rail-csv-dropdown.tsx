@@ -107,18 +107,18 @@ export const NexafsSpectrumRailCsvDropdown = memo(
     const downloadExtrasEnabled =
       kind === "download" && Boolean(experimentId) && !disabled;
 
-    const experimentAuxQuery = trpc.experimentFile.listCommittedForBrowse.useQuery(
-      { experimentId: experimentId ?? "" },
-      {
-        enabled: open && downloadExtrasEnabled && Boolean(experimentId),
-      },
-    );
+    const experimentAuxQuery =
+      trpc.experimentFile.listCommittedForBrowse.useQuery(
+        { experimentId: experimentId ?? "" },
+        {
+          enabled: open && downloadExtrasEnabled && Boolean(experimentId),
+        },
+      );
 
     const sampleAuxQuery = trpc.sampleFile.list.useQuery(
       { sampleId: sampleId ?? "" },
       {
-        enabled:
-          open && downloadExtrasEnabled && Boolean(sampleId),
+        enabled: open && downloadExtrasEnabled && Boolean(sampleId),
       },
     );
 
@@ -191,7 +191,11 @@ export const NexafsSpectrumRailCsvDropdown = memo(
     const runCsvAll = useCallback(() => {
       if (disabled) return;
       if (kind === "download") {
-        void downloadSpectrumCsv(sortedAllPoints, filenameBase, csvExportOptions);
+        void downloadSpectrumCsv(
+          sortedAllPoints,
+          filenameBase,
+          csvExportOptions,
+        );
       } else {
         copySpectrumCsv(sortedAllPoints, csvExportOptions);
       }
@@ -228,9 +232,9 @@ export const NexafsSpectrumRailCsvDropdown = memo(
         try {
           const result =
             await utils.experimentFile.getCommittedDownloadUrlForBrowse.fetch({
-            experimentId,
-            fileId,
-          });
+              experimentId,
+              fileId,
+            });
           await downloadAuxFileFromSignedUrl(
             result.signedUrl,
             result.originalFilename || originalFilename,
@@ -286,7 +290,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
             <span className="font-mono text-sm font-medium tracking-tight">
               {row.label}
             </span>
-            <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+            <span className="text-xs text-[var(--text-secondary)] tabular-nums">
               {row.rowCount} {row.rowCount === 1 ? "row" : "rows"}
             </span>
           </button>
@@ -308,7 +312,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
             <span className="font-mono text-sm font-medium tracking-tight">
               {row.label}
             </span>
-            <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+            <span className="text-xs text-[var(--text-secondary)] tabular-nums">
               {row.rowCount} {row.rowCount === 1 ? "row" : "rows"}
             </span>
           </button>
@@ -333,7 +337,9 @@ export const NexafsSpectrumRailCsvDropdown = memo(
             className={spectrumCsvMenuShellClass}
             style={{ top: menuPos.top, left: menuPos.left }}
           >
-            <div className={spectrumCsvMenuSectionLabelClass}>Plot image (PNG)</div>
+            <div className={spectrumCsvMenuSectionLabelClass}>
+              Plot image (PNG)
+            </div>
             <button
               type="button"
               disabled
@@ -363,7 +369,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
               className={spectrumCsvMenuItemClass}
             >
               <span className="text-sm font-medium">All polarizations</span>
-              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+              <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                 {sortedAllPoints.length}{" "}
                 {sortedAllPoints.length === 1 ? "row" : "rows"}
               </span>
@@ -397,11 +403,15 @@ export const NexafsSpectrumRailCsvDropdown = memo(
               >
                 <Accordion.Item id="by-geometry" className="w-full min-w-0">
                   <Accordion.Heading className="w-full min-w-0">
-                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                    <Accordion.Trigger
+                      className={downloadMenuAccordionTriggerClass}
+                    >
                       <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
                         By geometry
                       </span>
-                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                      <Accordion.Indicator
+                        className={downloadMenuAccordionIndicatorClass}
+                      >
                         <ChevronDownIcon aria-hidden />
                       </Accordion.Indicator>
                     </Accordion.Trigger>
@@ -418,11 +428,15 @@ export const NexafsSpectrumRailCsvDropdown = memo(
                   isDisabled={experimentAuxFiles.length === 0}
                 >
                   <Accordion.Heading className="w-full min-w-0">
-                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                    <Accordion.Trigger
+                      className={downloadMenuAccordionTriggerClass}
+                    >
                       <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
                         Aux experiment
                       </span>
-                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                      <Accordion.Indicator
+                        className={downloadMenuAccordionIndicatorClass}
+                      >
                         <ChevronDownIcon aria-hidden />
                       </Accordion.Indicator>
                     </Accordion.Trigger>
@@ -454,7 +468,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
                               <span className="line-clamp-2 text-sm font-medium">
                                 {file.originalFilename}
                               </span>
-                              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                              <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                                 {formatAuxFileSize(file.sizeBytes)}
                               </span>
                             </button>
@@ -470,11 +484,15 @@ export const NexafsSpectrumRailCsvDropdown = memo(
                   isDisabled={!sampleId || sampleAuxFiles.length === 0}
                 >
                   <Accordion.Heading className="w-full min-w-0">
-                    <Accordion.Trigger className={downloadMenuAccordionTriggerClass}>
+                    <Accordion.Trigger
+                      className={downloadMenuAccordionTriggerClass}
+                    >
                       <span className="text-foreground min-w-0 flex-1 text-sm font-medium">
                         Aux sample
                       </span>
-                      <Accordion.Indicator className={downloadMenuAccordionIndicatorClass}>
+                      <Accordion.Indicator
+                        className={downloadMenuAccordionIndicatorClass}
+                      >
                         <ChevronDownIcon aria-hidden />
                       </Accordion.Indicator>
                     </Accordion.Trigger>
@@ -510,7 +528,7 @@ export const NexafsSpectrumRailCsvDropdown = memo(
                               <span className="line-clamp-2 text-sm font-medium">
                                 {file.originalFilename}
                               </span>
-                              <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                              <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                                 {formatAuxFileSize(file.sizeBytes)}
                               </span>
                             </button>
@@ -523,7 +541,9 @@ export const NexafsSpectrumRailCsvDropdown = memo(
               </Accordion>
             ) : (
               <>
-                <div className={spectrumCsvMenuSectionLabelClass}>By geometry</div>
+                <div className={spectrumCsvMenuSectionLabelClass}>
+                  By geometry
+                </div>
                 {copyGeometryList}
               </>
             )}

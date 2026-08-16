@@ -154,7 +154,11 @@ interface DrawToolbarHintProps {
   children: ReactNode;
 }
 
-function DrawToolbarHint({ label, description, children }: DrawToolbarHintProps) {
+function DrawToolbarHint({
+  label,
+  description,
+  children,
+}: DrawToolbarHintProps) {
   return (
     <Tooltip delay={300}>
       <Tooltip.Trigger>{children}</Tooltip.Trigger>
@@ -244,7 +248,11 @@ interface RingTemplateMenuRowProps {
   onSelect: () => void;
 }
 
-function RingTemplateMenuRow({ preset, isSelected, onSelect }: RingTemplateMenuRowProps) {
+function RingTemplateMenuRow({
+  preset,
+  isSelected,
+  onSelect,
+}: RingTemplateMenuRowProps) {
   return (
     <button
       type="button"
@@ -515,17 +523,26 @@ export function MoleculeDrawToolbar({
 
   return (
     <div className="border-border space-y-2 rounded-lg border p-3">
-      <Toolbar className="flex flex-wrap items-center gap-1" aria-label="Draw tools">
+      <Toolbar
+        className="flex flex-wrap items-center gap-1"
+        aria-label="Draw tools"
+      >
         <ToggleButtonGroup
           aria-label="Draw canvas tools"
           selectionMode="single"
           disallowEmptySelection={DRAW_TOOL_IDS.has(tool)}
-          selectedKeys={DRAW_TOOL_IDS.has(tool) ? new Set([tool]) : new Set<string>()}
+          selectedKeys={
+            DRAW_TOOL_IDS.has(tool) ? new Set([tool]) : new Set<string>()
+          }
           onSelectionChange={handleSelectionChange}
           className="gap-0.5"
         >
           {TOOL_ITEMS.map((item) => (
-            <DrawToolbarHint key={item.id} label={item.label} description={item.hint}>
+            <DrawToolbarHint
+              key={item.id}
+              label={item.label}
+              description={item.hint}
+            >
               <ToggleButton
                 id={item.id}
                 size="sm"
@@ -561,18 +578,27 @@ export function MoleculeDrawToolbar({
               >
                 <BondKindGlyph kind={drawBondKind} />
                 <ChevronDown
-                  className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
+                  className={cn(
+                    "h-3.5 w-3.5 transition-transform",
+                    isOpen && "rotate-180",
+                  )}
                   aria-hidden
                 />
               </button>
             </DrawToolbarHint>
           )}
-          renderContent={({ close, contentProps, contentPositionClassName }) => (
+          renderContent={({
+            close,
+            contentProps,
+            contentPositionClassName,
+          }) => (
             <PopoverMenuContent
               {...contentProps}
               className={cn(contentPositionClassName, "w-44 p-1")}
             >
-              <p className="text-muted px-2 py-1 text-xs font-medium">Bond type</p>
+              <p className="text-muted px-2 py-1 text-xs font-medium">
+                Bond type
+              </p>
               <div className="grid grid-cols-2 gap-1">
                 {DRAW_BOND_KIND_OPTIONS.map((option) => (
                   <button
@@ -580,7 +606,8 @@ export function MoleculeDrawToolbar({
                     type="button"
                     className={cn(
                       "hover:bg-default text-foreground flex flex-col items-center gap-1 rounded-md px-2 py-2 text-center text-xs",
-                      drawBondKind === option.kind && "bg-accent-soft text-accent",
+                      drawBondKind === option.kind &&
+                        "bg-accent-soft text-accent",
                     )}
                     onClick={() => {
                       onDrawBondKind(option.kind);
@@ -618,13 +645,20 @@ export function MoleculeDrawToolbar({
               >
                 <Hexagon className="h-4 w-4" aria-hidden />
                 <ChevronDown
-                  className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
+                  className={cn(
+                    "h-3.5 w-3.5 transition-transform",
+                    isOpen && "rotate-180",
+                  )}
                   aria-hidden
                 />
               </button>
             </DrawToolbarHint>
           )}
-          renderContent={({ close, contentProps, contentPositionClassName }) => (
+          renderContent={({
+            close,
+            contentProps,
+            contentPositionClassName,
+          }) => (
             <PopoverMenuContent
               {...contentProps}
               className={cn(contentPositionClassName, "w-72 p-1")}
@@ -715,18 +749,27 @@ export function MoleculeDrawToolbar({
                   disabled={!hasStructure}
                 >
                   <ChevronDown
-                    className={cn("h-3.5 w-3.5 transition-transform", isOpen && "rotate-180")}
+                    className={cn(
+                      "h-3.5 w-3.5 transition-transform",
+                      isOpen && "rotate-180",
+                    )}
                     aria-hidden
                   />
                 </button>
               </DrawToolbarHint>
             )}
-            renderContent={({ close, contentProps, contentPositionClassName }) => (
+            renderContent={({
+              close,
+              contentProps,
+              contentPositionClassName,
+            }) => (
               <PopoverMenuContent
                 {...contentProps}
                 className={cn(contentPositionClassName, "w-52 p-1")}
               >
-                <p className="text-muted px-2 py-1 text-xs font-medium">Layout cleanup</p>
+                <p className="text-muted px-2 py-1 text-xs font-medium">
+                  Layout cleanup
+                </p>
                 <button
                   type="button"
                   className="hover:bg-default text-foreground w-full rounded-md px-2 py-1.5 text-left text-sm"
@@ -786,7 +829,10 @@ export function MoleculeDrawToolbar({
             <Redo2 className="h-4 w-4" aria-hidden />
           </Button>
         </DrawToolbarHint>
-        <DrawToolbarHint label="Clear canvas" description="Remove all atoms and polymer marks.">
+        <DrawToolbarHint
+          label="Clear canvas"
+          description="Remove all atoms and polymer marks."
+        >
           <Button
             type="button"
             size="sm"
@@ -801,7 +847,10 @@ export function MoleculeDrawToolbar({
         </DrawToolbarHint>
       </Toolbar>
 
-      <Toolbar className="flex flex-wrap items-center gap-1" aria-label="Layout tools">
+      <Toolbar
+        className="flex flex-wrap items-center gap-1"
+        aria-label="Layout tools"
+      >
         <ToggleButtonGroup
           aria-label="Layout tools"
           selectionMode="single"
@@ -829,7 +878,11 @@ export function MoleculeDrawToolbar({
             </DrawToolbarHint>
           ) : null}
           {LAYOUT_ITEMS.map((item) => (
-            <DrawToolbarHint key={item.id} label={item.label} description={item.hint}>
+            <DrawToolbarHint
+              key={item.id}
+              label={item.label}
+              description={item.hint}
+            >
               <ToggleButton
                 id={item.id}
                 size="sm"
@@ -848,7 +901,10 @@ export function MoleculeDrawToolbar({
             <span className="text-muted px-1 text-xs" role="status">
               {alignAtomCount}/2 atoms
             </span>
-            <DrawToolbarHint label="Align along X" description="Align the picked bond vector horizontally.">
+            <DrawToolbarHint
+              label="Align along X"
+              description="Align the picked bond vector horizontally."
+            >
               <Button
                 type="button"
                 size="sm"
@@ -860,7 +916,10 @@ export function MoleculeDrawToolbar({
                 Along X
               </Button>
             </DrawToolbarHint>
-            <DrawToolbarHint label="Align along Y" description="Align the picked bond vector vertically.">
+            <DrawToolbarHint
+              label="Align along Y"
+              description="Align the picked bond vector vertically."
+            >
               <Button
                 type="button"
                 size="sm"
@@ -872,7 +931,10 @@ export function MoleculeDrawToolbar({
                 Along Y
               </Button>
             </DrawToolbarHint>
-            <DrawToolbarHint label="Clear align picks" description="Reset atom picks for align.">
+            <DrawToolbarHint
+              label="Clear align picks"
+              description="Reset atom picks for align."
+            >
               <Button
                 type="button"
                 size="sm"
@@ -909,7 +971,10 @@ export function MoleculeDrawToolbar({
                 Flip
               </Button>
             </DrawToolbarHint>
-            <DrawToolbarHint label={`Rotate -${PIVOT_ROTATE_STEP_DEG}°`} description="Rotate the pivot fragment counterclockwise.">
+            <DrawToolbarHint
+              label={`Rotate -${PIVOT_ROTATE_STEP_DEG}°`}
+              description="Rotate the pivot fragment counterclockwise."
+            >
               <Button
                 type="button"
                 size="sm"
@@ -921,7 +986,10 @@ export function MoleculeDrawToolbar({
                 -{PIVOT_ROTATE_STEP_DEG}°
               </Button>
             </DrawToolbarHint>
-            <DrawToolbarHint label={`Rotate +${PIVOT_ROTATE_STEP_DEG}°`} description="Rotate the pivot fragment clockwise.">
+            <DrawToolbarHint
+              label={`Rotate +${PIVOT_ROTATE_STEP_DEG}°`}
+              description="Rotate the pivot fragment clockwise."
+            >
               <Button
                 type="button"
                 size="sm"
@@ -933,7 +1001,10 @@ export function MoleculeDrawToolbar({
                 +{PIVOT_ROTATE_STEP_DEG}°
               </Button>
             </DrawToolbarHint>
-            <DrawToolbarHint label="Clear pivot picks" description="Reset atoms picked for pivot.">
+            <DrawToolbarHint
+              label="Clear pivot picks"
+              description="Reset atoms picked for pivot."
+            >
               <Button
                 type="button"
                 size="sm"

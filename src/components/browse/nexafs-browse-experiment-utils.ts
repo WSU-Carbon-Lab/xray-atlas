@@ -83,11 +83,7 @@ export function parseExperimentTypeParam(
 export function parseVerificationSourceParam(
   raw: string | null,
 ): VerificationSource {
-  if (
-    raw === "publication" ||
-    raw === "atlas" ||
-    raw === "either"
-  ) {
+  if (raw === "publication" || raw === "atlas" || raw === "either") {
     return raw;
   }
   return "either";
@@ -96,12 +92,13 @@ export function parseVerificationSourceParam(
 /**
  * Parses legacy `verified` URL flag (`1`, `true`, or presence of `verificationSource`).
  */
-export function parseVerifiedOnlyParam(
-  sp: URLSearchParams,
-): boolean {
+export function parseVerifiedOnlyParam(sp: URLSearchParams): boolean {
   const verified = sp.get("verified");
   if (verified === "1" || verified === "true") return true;
-  if (sp.has("verificationSource") && sp.get("verificationSource") !== "either") {
+  if (
+    sp.has("verificationSource") &&
+    sp.get("verificationSource") !== "either"
+  ) {
     return true;
   }
   return false;

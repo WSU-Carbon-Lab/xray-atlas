@@ -6,13 +6,7 @@ import {
   ArrowTopRightOnSquareIcon,
   CheckCircleIcon,
 } from "@heroicons/react/24/outline";
-import {
-  Button,
-  Chip,
-  Label,
-  ListBox,
-  Select,
-} from "@heroui/react";
+import { Button, Chip, Label, ListBox, Select } from "@heroui/react";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import {
   MOLECULE_COMPOUND_KINDS,

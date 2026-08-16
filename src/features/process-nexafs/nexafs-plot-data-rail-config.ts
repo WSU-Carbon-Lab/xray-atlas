@@ -26,12 +26,14 @@ const TRAY_META: Record<
   imaginary: {
     trayGlyph: "β",
     trayLabel: "Imaginary optical constants",
-    trayDescription: "β, atomic f₂, Im(ε), and Im(χ) from stored spectrum data.",
+    trayDescription:
+      "β, atomic f₂, Im(ε), and Im(χ) from stored spectrum data.",
   },
   real: {
     trayGlyph: "δ",
     trayLabel: "Real optical constants",
-    trayDescription: "δ, atomic f₁, Re(ε), and Re(χ) from stored spectrum data.",
+    trayDescription:
+      "δ, atomic f₁, Re(ε), and Re(χ) from stored spectrum data.",
   },
 };
 
@@ -75,9 +77,7 @@ export const NEXAFS_PLOT_DATA_RAIL_DEFINITION: PlotDataRailDefinition<
   NexafsPlotChannelId,
   NexafsPlotChannelGroupId
 > = {
-  trays: (
-    ["spectroscopy", "imaginary", "real"] as const
-  ).map((id) => ({
+  trays: (["spectroscopy", "imaginary", "real"] as const).map((id) => ({
     id,
     ...TRAY_META[id],
     defaultChannelId:

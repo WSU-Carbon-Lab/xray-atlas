@@ -23,7 +23,8 @@ const STATUS_CHIP_CLASS: Record<RegisteredInstrumentStatusChipColor, string> = {
   success:
     "border-success/30 bg-success/10 text-success dark:border-success/40 dark:bg-success/15",
   default: "",
-  warning: "border-warning/30 bg-warning/10 text-warning dark:border-warning/40 dark:bg-warning/15",
+  warning:
+    "border-warning/30 bg-warning/10 text-warning dark:border-warning/40 dark:bg-warning/15",
 };
 
 type InstrumentStatusChipProps = {
@@ -35,7 +36,10 @@ type InstrumentStatusChipProps = {
  * Compact instrument lifecycle chip for facility browse and contribution surfaces.
  * Active status uses semantic success tokens for readable contrast on dark themes.
  */
-export function InstrumentStatusChip({ status, className }: InstrumentStatusChipProps) {
+export function InstrumentStatusChip({
+  status,
+  className,
+}: InstrumentStatusChipProps) {
   const { label, chipColor } = registeredInstrumentStatusPresentation(status);
   const Icon = STATUS_CHIP_ICON[chipColor];
 

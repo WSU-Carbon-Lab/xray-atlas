@@ -1,9 +1,12 @@
 import { type Metadata } from "next";
 import { notFound, redirect } from "next/navigation";
 import { api } from "~/trpc/server";
-import { MoleculeDetailLayoutClient } from "@/components/browse/molecule-detail-layout-client";
+import { MoleculeDetailLayoutClient } from "~/components/browse/molecule-detail-layout-client";
 import Link from "next/link";
-import { canonicalMoleculeSlugFromView, slugifyMoleculeSynonym } from "~/lib/molecule-slug";
+import {
+  canonicalMoleculeSlugFromView,
+  slugifyMoleculeSynonym,
+} from "~/lib/molecule-slug";
 import {
   buildMoleculeChemicalSubstanceJsonLd,
   buildMoleculeDetailSeoText,
@@ -15,7 +18,12 @@ function isSlugCollision(
 ): v is {
   kind: "slug_collision";
   slug: string;
-  candidates: Array<{ id: string; name: string; iupacName: string; slug: string }>;
+  candidates: Array<{
+    id: string;
+    name: string;
+    iupacName: string;
+    slug: string;
+  }>;
 } {
   return typeof v === "object" && v != null && "kind" in v;
 }
@@ -106,8 +114,8 @@ export default async function MoleculeDetailLayout({
                 Molecule name collision
               </h1>
               <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                The molecule slug &quot;{collision.slug}&quot; matches multiple molecules. Pick the
-                correct molecule below.
+                The molecule slug &quot;{collision.slug}&quot; matches multiple
+                molecules. Pick the correct molecule below.
               </p>
               <div className="mt-6 space-y-2">
                 {collision.candidates.map((c) => (

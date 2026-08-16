@@ -69,7 +69,9 @@ export interface PopoverMenuProps {
   sideOffsetClassName?: string;
 }
 
-function placementFromAlign(align: "start" | "end"): PopoverMenuResolvedPlacement {
+function placementFromAlign(
+  align: "start" | "end",
+): PopoverMenuResolvedPlacement {
   return align === "start" ? "bottom-start" : "bottom-end";
 }
 
@@ -188,7 +190,7 @@ function computePopoverMenuPosition({
   const preferred: PopoverMenuResolvedPlacement =
     placement === "auto"
       ? resolveAutoPlacement(triggerRect, contentWidth, padding)
-      : placement ?? placementFromAlign(align);
+      : (placement ?? placementFromAlign(align));
 
   const candidates: PopoverMenuResolvedPlacement[] = [
     preferred,
@@ -430,11 +432,7 @@ export function PopoverMenu({
   const portaledContent =
     isOpen && typeof document !== "undefined"
       ? createPortal(
-          <div
-            ref={contentRef}
-            style={contentStyle}
-            className="z-[650]"
-          >
+          <div ref={contentRef} style={contentStyle} className="z-[650]">
             {renderContent(renderProps)}
           </div>,
           document.body,

@@ -58,7 +58,9 @@ function isScanCategory(value: unknown): value is StxmScanCategory {
   );
 }
 
-function isCheckpointEntry(value: unknown): value is StxmCatalogCheckpointEntry {
+function isCheckpointEntry(
+  value: unknown,
+): value is StxmCatalogCheckpointEntry {
   if (!isRecord(value)) {
     return false;
   }
@@ -78,7 +80,9 @@ function isCheckpointEntry(value: unknown): value is StxmCatalogCheckpointEntry 
 /**
  * Parses checkpoint JSON from an experiment folder; returns `null` when invalid or unsupported.
  */
-export function parseStxmCatalogCheckpoint(text: string): StxmCatalogCheckpoint | null {
+export function parseStxmCatalogCheckpoint(
+  text: string,
+): StxmCatalogCheckpoint | null {
   try {
     const parsed: unknown = JSON.parse(text);
     if (!isRecord(parsed)) {
@@ -230,7 +234,9 @@ export function summarizeCheckpointEntryCounts(
   if (!checkpoint || checkpoint.entries.length === 0) {
     return { total: 0, nexafs: 0 };
   }
-  const nexafs = checkpoint.entries.filter((entry) => entry.isNexafsLineScan).length;
+  const nexafs = checkpoint.entries.filter(
+    (entry) => entry.isNexafsLineScan,
+  ).length;
   return { total: checkpoint.entries.length, nexafs };
 }
 
@@ -241,7 +247,9 @@ export async function readStxmCatalogCheckpoint(
   directory: StxmDirectoryHandle,
 ): Promise<StxmCatalogCheckpoint | null> {
   try {
-    const handle = await directory.getFileHandle(STXM_CATALOG_CHECKPOINT_FILENAME);
+    const handle = await directory.getFileHandle(
+      STXM_CATALOG_CHECKPOINT_FILENAME,
+    );
     const file = await handle.getFile();
     const text = await file.text();
     return parseStxmCatalogCheckpoint(text);
@@ -258,9 +266,12 @@ export async function writeStxmCatalogCheckpoint(
   checkpoint: StxmCatalogCheckpoint,
 ): Promise<boolean> {
   try {
-    const handle = await directory.getFileHandle(STXM_CATALOG_CHECKPOINT_FILENAME, {
-      create: true,
-    });
+    const handle = await directory.getFileHandle(
+      STXM_CATALOG_CHECKPOINT_FILENAME,
+      {
+        create: true,
+      },
+    );
     if (!handle.createWritable) {
       return false;
     }

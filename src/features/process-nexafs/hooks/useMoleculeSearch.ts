@@ -13,7 +13,9 @@ export function useMoleculeSearch(params: UseMoleculeSearchParams = {}) {
   const utils = trpc.useUtils();
   const [searchTerm, setSearchTerm] = useState("");
   const [suggestions, setSuggestions] = useState<MoleculeSearchResult[]>([]);
-  const [manualResults, setManualResults] = useState<MoleculeSearchResult[]>([]);
+  const [manualResults, setManualResults] = useState<MoleculeSearchResult[]>(
+    [],
+  );
   const [suggestionError, setSuggestionError] = useState<string | null>(null);
   const [manualError, setManualError] = useState<string | null>(null);
   const [isSuggesting, setIsSuggesting] = useState(false);
@@ -57,9 +59,7 @@ export function useMoleculeSearch(params: UseMoleculeSearchParams = {}) {
           const items = response.results ?? [];
           setSuggestions(items.map(toMoleculeSearchResult));
           setSuggestionError(
-            items.length === 0
-              ? "No quick suggestions found."
-              : null,
+            items.length === 0 ? "No quick suggestions found." : null,
           );
         })
         .catch((error) => {

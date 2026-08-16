@@ -59,9 +59,7 @@ export function useDataExtents(
     });
     const fromPoints = points
       .map((p) => p.absorption)
-      .filter(
-        (a): a is number => typeof a === "number" && Number.isFinite(a),
-      );
+      .filter((a): a is number => typeof a === "number" && Number.isFinite(a));
     const fromRefs: number[] = [];
     if (referenceCurves?.length) {
       for (const curve of referenceCurves) {

@@ -34,7 +34,9 @@ const DERIVED_OPTICAL_CHANNEL_IDS = new Set<StxmDerivedOpticalChannelId>([
 export function isStxmDerivedOpticalPlotChannel(
   channel: StxmIngestionPlotChannel,
 ): channel is StxmDerivedOpticalChannelId {
-  return DERIVED_OPTICAL_CHANNEL_IDS.has(channel as StxmDerivedOpticalChannelId);
+  return DERIVED_OPTICAL_CHANNEL_IDS.has(
+    channel as StxmDerivedOpticalChannelId,
+  );
 }
 
 /**
@@ -43,7 +45,9 @@ export function isStxmDerivedOpticalPlotChannel(
  * @param formula Chemical formula string; whitespace is trimmed before parsing.
  * @returns Number density or null when the formula is empty or invalid.
  */
-export function resolveStxmOpticalNumberDensity(formula: string): number | null {
+export function resolveStxmOpticalNumberDensity(
+  formula: string,
+): number | null {
   const trimmed = formula.trim();
   if (!trimmed) {
     return null;
@@ -70,7 +74,12 @@ function pairedBetaDelta(
   for (let index = 0; index < len; index += 1) {
     const b = beta[index];
     const d = delta[index];
-    if (typeof b === "number" && Number.isFinite(b) && typeof d === "number" && Number.isFinite(d)) {
+    if (
+      typeof b === "number" &&
+      Number.isFinite(b) &&
+      typeof d === "number" &&
+      Number.isFinite(d)
+    ) {
       paired.push({ index, beta: b, delta: d });
     }
   }

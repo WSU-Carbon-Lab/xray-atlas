@@ -111,5 +111,8 @@ export function validateChemistryConsistency(
     );
   }
 
-  return { ok: warnings.length === 0, warnings: dedupeChemistryWarnings(warnings) };
+  return {
+    ok: warnings.length === 0,
+    warnings: dedupeChemistryWarnings(warnings),
+  };
 }

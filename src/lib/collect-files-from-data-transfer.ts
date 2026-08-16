@@ -73,7 +73,9 @@ async function collectFromEntry(entry: FileSystemEntryLike): Promise<File[]> {
   const directory = entry as FileSystemDirectoryEntryLike;
   const reader = directory.createReader();
   const children = await readAllDirectoryEntries(reader);
-  const nested = await Promise.all(children.map((child) => collectFromEntry(child)));
+  const nested = await Promise.all(
+    children.map((child) => collectFromEntry(child)),
+  );
   return nested.flat();
 }
 
@@ -114,7 +116,9 @@ export async function collectFilesFromDataTransfer(
     }
 
     if (entries.length > 0) {
-      const nested = await Promise.all(entries.map((entry) => collectFromEntry(entry)));
+      const nested = await Promise.all(
+        entries.map((entry) => collectFromEntry(entry)),
+      );
       const files = nested.flat();
       if (files.length > 0) {
         return files;

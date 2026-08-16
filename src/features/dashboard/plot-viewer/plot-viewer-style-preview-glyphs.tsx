@@ -1,12 +1,17 @@
 "use client";
 
-import type { PlotViewerLineDash, PlotViewerMarkerSymbol } from "./plot-viewer-trace-styles";
+import type {
+  PlotViewerLineDash,
+  PlotViewerMarkerSymbol,
+} from "./plot-viewer-trace-styles";
 
 const PREVIEW_WIDTH = 28;
 const PREVIEW_HEIGHT = 12;
 const MARKER_GLYPH_SIZE = 10;
 
-function lineDashStrokeDasharray(lineDash: PlotViewerLineDash): string | undefined {
+function lineDashStrokeDasharray(
+  lineDash: PlotViewerLineDash,
+): string | undefined {
   switch (lineDash) {
     case "solid":
       return undefined;
@@ -115,7 +120,11 @@ export function PlotViewerMarkerShapeGlyph({
       viewBox={`0 0 ${MARKER_GLYPH_SIZE} ${MARKER_GLYPH_SIZE}`}
       className={className}
       aria-hidden
-      style={scale !== 1 ? { transform: `scale(${scale})`, transformOrigin: "center" } : undefined}
+      style={
+        scale !== 1
+          ? { transform: `scale(${scale})`, transformOrigin: "center" }
+          : undefined
+      }
     >
       <path d={markerPath(symbol)} fill={color} />
     </svg>

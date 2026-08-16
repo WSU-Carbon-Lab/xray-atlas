@@ -54,8 +54,7 @@ function authorDisplayName(author: Record<string, unknown>): string {
     return literal;
   }
   const given = typeof author.given === "string" ? author.given.trim() : "";
-  const family =
-    typeof author.family === "string" ? author.family.trim() : "";
+  const family = typeof author.family === "string" ? author.family.trim() : "";
   const parts = [given, family].filter((part) => part.length > 0);
   return parts.join(" ");
 }
@@ -193,7 +192,9 @@ function parseDataCiteAttributes(
   };
 }
 
-async function fetchCrossrefWork(doi: string): Promise<PublicationCitation | null> {
+async function fetchCrossrefWork(
+  doi: string,
+): Promise<PublicationCitation | null> {
   const encoded = encodeURIComponent(doi);
   const response = await fetch(`${CROSSREF_WORKS_URL}/${encoded}`, {
     headers: { Accept: "application/json", "User-Agent": LOOKUP_USER_AGENT },
@@ -209,10 +210,15 @@ async function fetchCrossrefWork(doi: string): Promise<PublicationCitation | nul
   return parseCrossrefMessage(json.message);
 }
 
-async function fetchDataCiteWork(doi: string): Promise<PublicationCitation | null> {
+async function fetchDataCiteWork(
+  doi: string,
+): Promise<PublicationCitation | null> {
   const encoded = encodeURIComponent(doi);
   const response = await fetch(`${DATACITE_DOIS_URL}/${encoded}`, {
-    headers: { Accept: "application/vnd.api+json", "User-Agent": LOOKUP_USER_AGENT },
+    headers: {
+      Accept: "application/vnd.api+json",
+      "User-Agent": LOOKUP_USER_AGENT,
+    },
     signal: AbortSignal.timeout(12_000),
   });
   if (!response.ok) {

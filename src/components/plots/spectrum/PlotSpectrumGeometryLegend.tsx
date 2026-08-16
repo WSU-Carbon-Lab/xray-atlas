@@ -81,418 +81,402 @@ function isSwatchToggleTarget(target: EventTarget | null): boolean {
  * single mode shows one channel column plus angle. When both θ and φ vary,
  * the legend uses explicit θ and φ columns with tabular numeric alignment.
  */
-export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLegend(
-  props: PlotSpectrumGeometryLegendProps,
-) {
-  const {
-    visibleTraceIds,
-    onToggleGeometry,
-    themeColors,
-    plotWidth,
-    plotHeight,
-    angleColumnTitle,
-    graphStyle = "line",
-    legendBorderRadius = 8,
-    plotSvgRef: plotSvgRefProp,
-    plotMarginLeft = 0,
-    plotMarginTop = 0,
-    positionResetKey,
-    defaultCorner = "top-right",
-  } = props;
+export const PlotSpectrumGeometryLegend = memo(
+  function PlotSpectrumGeometryLegend(props: PlotSpectrumGeometryLegendProps) {
+    const {
+      visibleTraceIds,
+      onToggleGeometry,
+      themeColors,
+      plotWidth,
+      plotHeight,
+      angleColumnTitle,
+      graphStyle = "line",
+      legendBorderRadius = 8,
+      plotSvgRef: plotSvgRefProp,
+      plotMarginLeft = 0,
+      plotMarginTop = 0,
+      positionResetKey,
+      defaultCorner = "top-right",
+    } = props;
 
-  const legendGroupSvgRef = useRef<SVGSVGElement | null>(null);
-  const legendPanelRef = useRef<HTMLDivElement | null>(null);
-  const setLegendGroupRef = useCallback((node: SVGGElement | null) => {
-    legendGroupSvgRef.current = node?.ownerSVGElement ?? null;
-  }, []);
-  const plotSvgRef = plotSvgRefProp ?? legendGroupSvgRef;
+    const legendGroupSvgRef = useRef<SVGSVGElement | null>(null);
+    const legendPanelRef = useRef<HTMLDivElement | null>(null);
+    const setLegendGroupRef = useCallback((node: SVGGElement | null) => {
+      legendGroupSvgRef.current = node?.ownerSVGElement ?? null;
+    }, []);
+    const plotSvgRef = plotSvgRefProp ?? legendGroupSvgRef;
 
-  const isLinked = props.mode === "linked";
-  const rows = props.rows;
-  const linkedAreaBandLegend = isLinked && graphStyle === "area";
-  const usesPairAngleColumns = rows.some(
-    (row) => row.angleDisplay.mode === "pair",
-  );
-  const angleColumnsTemplate = usesPairAngleColumns
-    ? "minmax(0, max-content) minmax(0, max-content)"
-    : "minmax(0, max-content)";
-  const gridTemplateColumns = linkedAreaBandLegend
-    ? `${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`
-    : isLinked
-      ? `${LEGEND_SWATCH_WIDTH}px ${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`
-      : `${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`;
+    const isLinked = props.mode === "linked";
+    const rows = props.rows;
+    const linkedAreaBandLegend = isLinked && graphStyle === "area";
+    const usesPairAngleColumns = rows.some(
+      (row) => row.angleDisplay.mode === "pair",
+    );
+    const angleColumnsTemplate = usesPairAngleColumns
+      ? "minmax(0, max-content) minmax(0, max-content)"
+      : "minmax(0, max-content)";
+    const gridTemplateColumns = linkedAreaBandLegend
+      ? `${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`
+      : isLinked
+        ? `${LEGEND_SWATCH_WIDTH}px ${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`
+        : `${LEGEND_SWATCH_WIDTH}px ${angleColumnsTemplate}`;
 
-  const headerGlyphs = useMemo(() => {
-    if (isLinked) {
-      return {
-        col1: props.imaginaryColumnGlyph,
-        col2: props.realColumnGlyph,
-      };
-    }
-    return { col1: props.channelColumnGlyph, col2: null as string | null };
-  }, [isLinked, props]);
+    const headerGlyphs = useMemo(() => {
+      if (isLinked) {
+        return {
+          col1: props.imaginaryColumnGlyph,
+          col2: props.realColumnGlyph,
+        };
+      }
+      return { col1: props.channelColumnGlyph, col2: null as string | null };
+    }, [isLinked, props]);
 
-  const estimatedBoxHeight = computeGeometryLegendBoxHeight(rows.length);
-  const estimatedLegendWidth = useMemo(
-    () =>
-      computeGeometryLegendWidth({
+    const estimatedBoxHeight = computeGeometryLegendBoxHeight(rows.length);
+    const estimatedLegendWidth = useMemo(
+      () =>
+        computeGeometryLegendWidth({
+          plotWidth,
+          angleDisplays: rows.map((row) => row.angleDisplay),
+          headerCol1: headerGlyphs.col1,
+          headerCol2: headerGlyphs.col2,
+          isLinked,
+          linkedAreaBandLegend,
+        }),
+      [
         plotWidth,
-        angleDisplays: rows.map((row) => row.angleDisplay),
-        headerCol1: headerGlyphs.col1,
-        headerCol2: headerGlyphs.col2,
+        rows,
+        headerGlyphs.col1,
+        headerGlyphs.col2,
         isLinked,
         linkedAreaBandLegend,
-      }),
-    [
+      ],
+    );
+
+    const [measuredBoxSize, setMeasuredBoxSize] = useState<{
+      width: number;
+      height: number;
+    } | null>(null);
+
+    const legendWidth = measuredBoxSize?.width ?? estimatedLegendWidth;
+    const boxHeight = measuredBoxSize?.height ?? estimatedBoxHeight;
+    const { panelWidth, panelHeight } = geometryLegendPanelDimensions(
+      legendWidth,
+      boxHeight,
+    );
+
+    useLayoutEffect(() => {
+      const panel = legendPanelRef.current;
+      if (!panel) {
+        return;
+      }
+
+      const syncMeasuredSize = () => {
+        const contentWidth = Math.ceil(panel.scrollWidth);
+        const contentHeight = Math.ceil(panel.scrollHeight);
+        const minBoxWidth = estimatedLegendWidth;
+        const nextWidth = Math.min(
+          Math.max(0, plotWidth - LEGEND_INSET * 2),
+          Math.max(minBoxWidth, contentWidth + LEGEND_BORDER_PX * 2),
+        );
+        const nextHeight = contentHeight + LEGEND_BORDER_PX * 2;
+        setMeasuredBoxSize((previous) => {
+          if (
+            previous !== null &&
+            previous.width === nextWidth &&
+            previous.height === nextHeight
+          ) {
+            return previous;
+          }
+          return { width: nextWidth, height: nextHeight };
+        });
+      };
+
+      syncMeasuredSize();
+      const observer = new ResizeObserver(syncMeasuredSize);
+      observer.observe(panel);
+      return () => observer.disconnect();
+    }, [
       plotWidth,
+      estimatedLegendWidth,
       rows,
       headerGlyphs.col1,
       headerGlyphs.col2,
+      angleColumnTitle,
       isLinked,
       linkedAreaBandLegend,
-    ],
-  );
+      graphStyle,
+    ]);
 
-  const [measuredBoxSize, setMeasuredBoxSize] = useState<{
-    width: number;
-    height: number;
-  } | null>(null);
+    const defaultX = plotWidth - legendWidth - LEGEND_INSET;
+    const defaultY =
+      defaultCorner === "bottom-right"
+        ? Math.max(LEGEND_INSET, plotHeight - boxHeight - LEGEND_INSET)
+        : LEGEND_INSET;
+    const shouldRender = rows.length > 0 && legendWidth > 0;
 
-  const legendWidth = measuredBoxSize?.width ?? estimatedLegendWidth;
-  const boxHeight = measuredBoxSize?.height ?? estimatedBoxHeight;
-  const { panelWidth, panelHeight } = geometryLegendPanelDimensions(
-    legendWidth,
-    boxHeight,
-  );
+    const {
+      position,
+      isDragging,
+      consumeLegendToggleClick,
+      handleLegendPointerDown,
+      handleLegendPointerMove,
+      handleLegendPointerUp,
+      handleLegendPointerCancel,
+    } = useDraggablePlotLegendPosition({
+      plotSvgRef,
+      plotMarginLeft,
+      plotMarginTop,
+      plotWidth,
+      plotHeight,
+      legendWidth,
+      boxHeight,
+      defaultX,
+      defaultY,
+      positionResetKey,
+    });
 
-  useLayoutEffect(() => {
-    const panel = legendPanelRef.current;
-    if (!panel) {
-      return;
+    const handleLegendSurfacePointerDownCapture = useCallback(
+      (event: React.PointerEvent<HTMLDivElement>) => {
+        if (isSwatchToggleTarget(event.target)) {
+          return;
+        }
+        handleLegendPointerDown(event);
+      },
+      [handleLegendPointerDown],
+    );
+
+    const isRowVisible = useCallback(
+      (
+        row: LinkedSpectrumGeometryLegendRow | SingleSpectrumGeometryLegendRow,
+      ): boolean => {
+        if (visibleTraceIds.size === 0) {
+          return true;
+        }
+        if (isLinked) {
+          const linked = row as LinkedSpectrumGeometryLegendRow;
+          return (
+            visibleTraceIds.has(linked.imaginaryTraceId) &&
+            visibleTraceIds.has(linked.realTraceId)
+          );
+        }
+        const single = row as SingleSpectrumGeometryLegendRow;
+        return visibleTraceIds.has(single.traceId);
+      },
+      [visibleTraceIds, isLinked],
+    );
+
+    if (!shouldRender) {
+      return null;
     }
 
-    const syncMeasuredSize = () => {
-      const contentWidth = Math.ceil(panel.scrollWidth);
-      const contentHeight = Math.ceil(panel.scrollHeight);
-      const minBoxWidth = estimatedLegendWidth;
-      const nextWidth = Math.min(
-        Math.max(0, plotWidth - LEGEND_INSET * 2),
-        Math.max(minBoxWidth, contentWidth + LEGEND_BORDER_PX * 2),
-      );
-      const nextHeight = contentHeight + LEGEND_BORDER_PX * 2;
-      setMeasuredBoxSize((previous) => {
-        if (
-          previous !== null &&
-          previous.width === nextWidth &&
-          previous.height === nextHeight
-        ) {
-          return previous;
-        }
-        return { width: nextWidth, height: nextHeight };
-      });
-    };
+    const swatchToggleGridColumn = linkedAreaBandLegend
+      ? "1 / span 1"
+      : isLinked
+        ? "1 / span 2"
+        : "1 / span 1";
 
-    syncMeasuredSize();
-    const observer = new ResizeObserver(syncMeasuredSize);
-    observer.observe(panel);
-    return () => observer.disconnect();
-  }, [
-    plotWidth,
-    estimatedLegendWidth,
-    rows,
-    headerGlyphs.col1,
-    headerGlyphs.col2,
-    angleColumnTitle,
-    isLinked,
-    linkedAreaBandLegend,
-    graphStyle,
-  ]);
+    const legendCursor = isDragging ? "grabbing" : "move";
 
-  const defaultX = plotWidth - legendWidth - LEGEND_INSET;
-  const defaultY =
-    defaultCorner === "bottom-right"
-      ? Math.max(LEGEND_INSET, plotHeight - boxHeight - LEGEND_INSET)
-      : LEGEND_INSET;
-  const shouldRender = rows.length > 0 && legendWidth > 0;
+    const panelX = position.x + LEGEND_BORDER_PX;
+    const panelY = position.y + LEGEND_BORDER_PX;
 
-  const {
-    position,
-    isDragging,
-    consumeLegendToggleClick,
-    handleLegendPointerDown,
-    handleLegendPointerMove,
-    handleLegendPointerUp,
-    handleLegendPointerCancel,
-  } = useDraggablePlotLegendPosition({
-    plotSvgRef,
-    plotMarginLeft,
-    plotMarginTop,
-    plotWidth,
-    plotHeight,
-    legendWidth,
-    boxHeight,
-    defaultX,
-    defaultY,
-    positionResetKey,
-  });
-
-  const handleLegendSurfacePointerDownCapture = useCallback(
-    (event: React.PointerEvent<HTMLDivElement>) => {
-      if (isSwatchToggleTarget(event.target)) {
-        return;
-      }
-      handleLegendPointerDown(event);
-    },
-    [handleLegendPointerDown],
-  );
-
-  const isRowVisible = useCallback(
-    (
-      row: LinkedSpectrumGeometryLegendRow | SingleSpectrumGeometryLegendRow,
-    ): boolean => {
-      if (visibleTraceIds.size === 0) {
-        return true;
-      }
-      if (isLinked) {
-        const linked = row as LinkedSpectrumGeometryLegendRow;
-        return (
-          visibleTraceIds.has(linked.imaginaryTraceId) &&
-          visibleTraceIds.has(linked.realTraceId)
-        );
-      }
-      const single = row as SingleSpectrumGeometryLegendRow;
-      return visibleTraceIds.has(single.traceId);
-    },
-    [visibleTraceIds, isLinked],
-  );
-
-  if (!shouldRender) {
-    return null;
-  }
-
-  const swatchToggleGridColumn = linkedAreaBandLegend
-    ? "1 / span 1"
-    : isLinked
-      ? "1 / span 2"
-      : "1 / span 1";
-
-  const legendCursor = isDragging ? "grabbing" : "move";
-
-  const panelX = position.x + LEGEND_BORDER_PX;
-  const panelY = position.y + LEGEND_BORDER_PX;
-
-  return (
-    <g ref={setLegendGroupRef} pointerEvents="all">
-      <rect
-        x={position.x}
-        y={position.y}
-        width={legendWidth}
-        height={boxHeight}
-        rx={legendBorderRadius}
-        ry={legendBorderRadius}
-        fill={themeColors.paper}
-        fillOpacity={0.95}
-        stroke={themeColors.axis}
-        strokeWidth={LEGEND_BORDER_PX}
-        pointerEvents="none"
-      />
-      <foreignObject
-        x={panelX}
-        y={panelY}
-        width={panelWidth}
-        height={panelHeight}
-        style={{ overflow: "visible", pointerEvents: "all" }}
-      >
-        <div
-          ref={legendPanelRef}
-          data-export-legend-container
-          data-legend-drag-handle="true"
-          onPointerDownCapture={handleLegendSurfacePointerDownCapture}
-          onPointerMove={handleLegendPointerMove}
-          onPointerUp={handleLegendPointerUp}
-          onPointerCancel={handleLegendPointerCancel}
-          style={{
-            boxSizing: "border-box",
-            width: "100%",
-            padding: LEGEND_PADDING,
-            backgroundColor: "transparent",
-            borderRadius: Math.max(0, legendBorderRadius - LEGEND_BORDER_PX),
-            fontFamily: LEGEND_FONT_FAMILY,
-            fontSize: LEGEND_FONT_SIZE,
-            userSelect: "none",
-            touchAction: "none",
-            cursor: legendCursor,
-          }}
+    return (
+      <g ref={setLegendGroupRef} pointerEvents="all">
+        <rect
+          x={position.x}
+          y={position.y}
+          width={legendWidth}
+          height={boxHeight}
+          rx={legendBorderRadius}
+          ry={legendBorderRadius}
+          fill={themeColors.paper}
+          fillOpacity={0.95}
+          stroke={themeColors.axis}
+          strokeWidth={LEGEND_BORDER_PX}
+          pointerEvents="none"
+        />
+        <foreignObject
+          x={panelX}
+          y={panelY}
+          width={panelWidth}
+          height={panelHeight}
+          style={{ overflow: "visible", pointerEvents: "all" }}
         >
           <div
+            ref={legendPanelRef}
+            data-export-legend-container
+            data-legend-drag-handle="true"
+            onPointerDownCapture={handleLegendSurfacePointerDownCapture}
+            onPointerMove={handleLegendPointerMove}
+            onPointerUp={handleLegendPointerUp}
+            onPointerCancel={handleLegendPointerCancel}
             style={{
-              display: "grid",
-              gridTemplateColumns,
-              gap: LEGEND_GAP,
-              alignItems: "center",
-              marginBottom: LEGEND_HEADER_MARGIN_BOTTOM,
-              color: themeColors.text,
-              fontSize: LEGEND_HEADER_FONT_SIZE,
-              fontWeight: 600,
-              lineHeight: 1,
+              boxSizing: "border-box",
+              width: "100%",
+              padding: LEGEND_PADDING,
+              backgroundColor: "transparent",
+              borderRadius: Math.max(0, legendBorderRadius - LEGEND_BORDER_PX),
+              fontFamily: LEGEND_FONT_FAMILY,
+              fontSize: LEGEND_FONT_SIZE,
+              userSelect: "none",
+              touchAction: "none",
+              cursor: legendCursor,
             }}
           >
-            {linkedAreaBandLegend ? (
-              <span style={{ textAlign: "center" }}>
-                {headerGlyphs.col1}
-                <span style={{ opacity: 0.55, margin: "0 2px" }}>|</span>
-                {headerGlyphs.col2}
-              </span>
-            ) : (
-              <>
-                <span style={{ textAlign: "center" }}>{headerGlyphs.col1}</span>
-                {isLinked ? (
-                  <span style={{ textAlign: "center" }}>{headerGlyphs.col2}</span>
-                ) : null}
-              </>
-            )}
-            {usesPairAngleColumns ? (
-              <>
-                <span
-                  style={{
-                    textAlign: "right",
-                    fontVariantNumeric: "tabular-nums",
-                    paddingRight: 2,
-                  }}
-                >
-                  θ
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns,
+                gap: LEGEND_GAP,
+                alignItems: "center",
+                marginBottom: LEGEND_HEADER_MARGIN_BOTTOM,
+                color: themeColors.text,
+                fontSize: LEGEND_HEADER_FONT_SIZE,
+                fontWeight: 600,
+                lineHeight: 1,
+              }}
+            >
+              {linkedAreaBandLegend ? (
+                <span style={{ textAlign: "center" }}>
+                  {headerGlyphs.col1}
+                  <span style={{ opacity: 0.55, margin: "0 2px" }}>|</span>
+                  {headerGlyphs.col2}
                 </span>
-                <span
-                  style={{
-                    textAlign: "right",
-                    fontVariantNumeric: "tabular-nums",
-                    paddingRight: 2,
-                  }}
-                >
-                  φ
-                </span>
-              </>
-            ) : (
-              <span style={{ textAlign: "right", paddingRight: 2 }}>
-                {angleColumnTitle}
-              </span>
-            )}
-          </div>
-          <div
-            data-export-legend-entries
-            data-export-legend-layout="geometry-rows"
-            style={{
-              display: "flex",
-              flexDirection: "column",
-              gap: LEGEND_GAP,
-            }}
-          >
-            {rows.map((row) => {
-              const visible = isRowVisible(row);
-              const toggleHint = visible
-                ? `Hide ${angleColumnTitle} ${row.angleLabel}`
-                : `Show ${angleColumnTitle} ${row.angleLabel}`;
-              return (
-                <div
-                  key={row.geometryKey}
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns,
-                    gap: LEGEND_GAP,
-                    alignItems: "center",
-                    minHeight: LEGEND_ROW_HEIGHT,
-                  }}
-                >
-                  <button
-                    type="button"
-                    data-legend-swatch-toggle="true"
-                    title={toggleHint}
-                    aria-label={toggleHint}
-                    aria-pressed={visible}
-                    onClick={() => {
-                      if (consumeLegendToggleClick()) return;
-                      onToggleGeometry(row.geometryKey);
-                    }}
-                    style={{
-                      gridColumn: swatchToggleGridColumn,
-                      display: "inline-flex",
-                      flexDirection: "row",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      gap: LEGEND_GAP,
-                      padding: 0,
-                      border: "none",
-                      background: "transparent",
-                      cursor: "pointer",
-                      opacity: visible ? 1 : 0.55,
-                    }}
-                  >
-                    {isLinked ? (
-                      linkedAreaBandLegend ? (
-                        <LegendSwatch
-                          color={row.color}
-                          variant="band"
-                          graphStyle={graphStyle}
-                          bandLineVariants={{
-                            top: (row as LinkedSpectrumGeometryLegendRow)
-                              .imaginaryLineDash,
-                            bottom: (row as LinkedSpectrumGeometryLegendRow)
-                              .realLineDash,
-                          }}
-                        />
-                      ) : (
-                        <>
-                          <LegendSwatch
-                            color={row.color}
-                            variant={
-                              (row as LinkedSpectrumGeometryLegendRow)
-                                .imaginaryLineDash
-                            }
-                            graphStyle={graphStyle}
-                            markerShape="circle"
-                          />
-                          <LegendSwatch
-                            color={row.color}
-                            variant={
-                              (row as LinkedSpectrumGeometryLegendRow)
-                                .realLineDash
-                            }
-                            graphStyle={graphStyle}
-                            markerShape="square"
-                          />
-                        </>
-                      )
-                    ) : (
-                      <LegendSwatch
-                        color={row.color}
-                        variant={
-                          (row as SingleSpectrumGeometryLegendRow).lineDash
-                        }
-                        graphStyle={graphStyle}
-                      />
-                    )}
-                  </button>
+              ) : (
+                <>
+                  <span style={{ textAlign: "center" }}>
+                    {headerGlyphs.col1}
+                  </span>
+                  {isLinked ? (
+                    <span style={{ textAlign: "center" }}>
+                      {headerGlyphs.col2}
+                    </span>
+                  ) : null}
+                </>
+              )}
+              {usesPairAngleColumns ? (
+                <>
                   <span
-                    data-export-legend-label
                     style={{
                       textAlign: "right",
-                      fontWeight: 500,
-                      fontSize: LEGEND_FONT_SIZE,
-                      lineHeight: 1,
-                      paddingRight: 2,
-                      color: themeColors.text,
-                      opacity: visible ? 1 : 0.55,
                       fontVariantNumeric: "tabular-nums",
-                      whiteSpace: "nowrap",
+                      paddingRight: 2,
                     }}
                   >
-                    {row.angleDisplay.mode === "pair"
-                      ? row.angleDisplay.thetaLabel
-                      : row.angleDisplay.label}
+                    θ
                   </span>
-                  {usesPairAngleColumns ? (
+                  <span
+                    style={{
+                      textAlign: "right",
+                      fontVariantNumeric: "tabular-nums",
+                      paddingRight: 2,
+                    }}
+                  >
+                    φ
+                  </span>
+                </>
+              ) : (
+                <span style={{ textAlign: "right", paddingRight: 2 }}>
+                  {angleColumnTitle}
+                </span>
+              )}
+            </div>
+            <div
+              data-export-legend-entries
+              data-export-legend-layout="geometry-rows"
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                gap: LEGEND_GAP,
+              }}
+            >
+              {rows.map((row) => {
+                const visible = isRowVisible(row);
+                const toggleHint = visible
+                  ? `Hide ${angleColumnTitle} ${row.angleLabel}`
+                  : `Show ${angleColumnTitle} ${row.angleLabel}`;
+                return (
+                  <div
+                    key={row.geometryKey}
+                    style={{
+                      display: "grid",
+                      gridTemplateColumns,
+                      gap: LEGEND_GAP,
+                      alignItems: "center",
+                      minHeight: LEGEND_ROW_HEIGHT,
+                    }}
+                  >
+                    <button
+                      type="button"
+                      data-legend-swatch-toggle="true"
+                      title={toggleHint}
+                      aria-label={toggleHint}
+                      aria-pressed={visible}
+                      onClick={() => {
+                        if (consumeLegendToggleClick()) return;
+                        onToggleGeometry(row.geometryKey);
+                      }}
+                      style={{
+                        gridColumn: swatchToggleGridColumn,
+                        display: "inline-flex",
+                        flexDirection: "row",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        gap: LEGEND_GAP,
+                        padding: 0,
+                        border: "none",
+                        background: "transparent",
+                        cursor: "pointer",
+                        opacity: visible ? 1 : 0.55,
+                      }}
+                    >
+                      {isLinked ? (
+                        linkedAreaBandLegend ? (
+                          <LegendSwatch
+                            color={row.color}
+                            variant="band"
+                            graphStyle={graphStyle}
+                            bandLineVariants={{
+                              top: (row as LinkedSpectrumGeometryLegendRow)
+                                .imaginaryLineDash,
+                              bottom: (row as LinkedSpectrumGeometryLegendRow)
+                                .realLineDash,
+                            }}
+                          />
+                        ) : (
+                          <>
+                            <LegendSwatch
+                              color={row.color}
+                              variant={
+                                (row as LinkedSpectrumGeometryLegendRow)
+                                  .imaginaryLineDash
+                              }
+                              graphStyle={graphStyle}
+                              markerShape="circle"
+                            />
+                            <LegendSwatch
+                              color={row.color}
+                              variant={
+                                (row as LinkedSpectrumGeometryLegendRow)
+                                  .realLineDash
+                              }
+                              graphStyle={graphStyle}
+                              markerShape="square"
+                            />
+                          </>
+                        )
+                      ) : (
+                        <LegendSwatch
+                          color={row.color}
+                          variant={
+                            (row as SingleSpectrumGeometryLegendRow).lineDash
+                          }
+                          graphStyle={graphStyle}
+                        />
+                      )}
+                    </button>
                     <span
-                      data-export-legend-label-phi
+                      data-export-legend-label
                       style={{
                         textAlign: "right",
                         fontWeight: 500,
@@ -506,16 +490,36 @@ export const PlotSpectrumGeometryLegend = memo(function PlotSpectrumGeometryLege
                       }}
                     >
                       {row.angleDisplay.mode === "pair"
-                        ? row.angleDisplay.phiLabel
-                        : ""}
+                        ? row.angleDisplay.thetaLabel
+                        : row.angleDisplay.label}
                     </span>
-                  ) : null}
-                </div>
-              );
-            })}
+                    {usesPairAngleColumns ? (
+                      <span
+                        data-export-legend-label-phi
+                        style={{
+                          textAlign: "right",
+                          fontWeight: 500,
+                          fontSize: LEGEND_FONT_SIZE,
+                          lineHeight: 1,
+                          paddingRight: 2,
+                          color: themeColors.text,
+                          opacity: visible ? 1 : 0.55,
+                          fontVariantNumeric: "tabular-nums",
+                          whiteSpace: "nowrap",
+                        }}
+                      >
+                        {row.angleDisplay.mode === "pair"
+                          ? row.angleDisplay.phiLabel
+                          : ""}
+                      </span>
+                    ) : null}
+                  </div>
+                );
+              })}
+            </div>
           </div>
-        </div>
-      </foreignObject>
-    </g>
-  );
-});
+        </foreignObject>
+      </g>
+    );
+  },
+);

@@ -115,11 +115,22 @@ export function LcfFittingTab({
   onPersistLcf,
 }: LcfFittingTabProps) {
   const entries = previewMetadata.spectra;
-  const atlasEntries = previewMetadata.atlasExperiments ?? [];
-  const atlasGeometryByExperimentId =
-    previewMetadata.atlasGeometryByExperimentId ?? {};
-  const ingestionByScanId = previewMetadata.ingestionCache ?? {};
-  const regionSpectraByScanId = previewMetadata.regionSpectraCache ?? {};
+  const atlasEntries = useMemo(
+    () => previewMetadata.atlasExperiments ?? [],
+    [previewMetadata.atlasExperiments],
+  );
+  const atlasGeometryByExperimentId = useMemo(
+    () => previewMetadata.atlasGeometryByExperimentId ?? {},
+    [previewMetadata.atlasGeometryByExperimentId],
+  );
+  const ingestionByScanId = useMemo(
+    () => previewMetadata.ingestionCache ?? {},
+    [previewMetadata.ingestionCache],
+  );
+  const regionSpectraByScanId = useMemo(
+    () => previewMetadata.regionSpectraCache ?? {},
+    [previewMetadata.regionSpectraCache],
+  );
 
   const [channel, setChannel] = useState<StxmPreviewCompareChannel>(
     lcfMetadata?.channel ?? "od",
@@ -189,11 +200,14 @@ export function LcfFittingTab({
     [atlasEntries, groupByExperimentId],
   );
 
-  const { datasets: atlasDatasets, spectraByExperimentId, isLoading: atlasSpectraLoading } =
-    useDashboardPlotSpectra(catalogSelections, {
-      enabled: atlasExperimentIds.length > 0,
-      geometryKeysByExperimentId: atlasGeometryByExperimentId,
-    });
+  const {
+    datasets: atlasDatasets,
+    spectraByExperimentId,
+    isLoading: atlasSpectraLoading,
+  } = useDashboardPlotSpectra(catalogSelections, {
+    enabled: atlasExperimentIds.length > 0,
+    geometryKeysByExperimentId: atlasGeometryByExperimentId,
+  });
 
   useEffect(() => {
     if (atlasExperimentIds.length === 0) {
@@ -265,7 +279,8 @@ export function LcfFittingTab({
   );
 
   const candidateByKey = useMemo(
-    () => new Map(candidates.map((candidate) => [candidate.traceKey, candidate])),
+    () =>
+      new Map(candidates.map((candidate) => [candidate.traceKey, candidate])),
     [candidates],
   );
 
@@ -447,7 +462,9 @@ export function LcfFittingTab({
     } catch (error) {
       setFitResult(null);
       setFitError(
-        error instanceof Error ? error.message : "Linear combination fit failed.",
+        error instanceof Error
+          ? error.message
+          : "Linear combination fit failed.",
       );
     } finally {
       setIsFitting(false);
@@ -468,6 +485,7 @@ export function LcfFittingTab({
     }
   }, [componentSpectra.length, targetSpectrum]);
 
+  const componentTraceKeysSignature = componentTraceKeys.join("|");
   useEffect(() => {
     setFitResult(null);
     setFitError(null);
@@ -477,7 +495,7 @@ export function LcfFittingTab({
     energyMinEv,
     energyMaxEv,
     sumToOne,
-    componentTraceKeys.join("|"),
+    componentTraceKeysSignature,
   ]);
 
   const plotSeries = useMemo(() => {
@@ -520,7 +538,9 @@ export function LcfFittingTab({
   };
 
   const removeComponentRow = (index: number) => {
-    setComponentTraceKeys((current) => current.filter((_, row) => row !== index));
+    setComponentTraceKeys((current) =>
+      current.filter((_, row) => row !== index),
+    );
     setComponentWeights((current) => current.filter((_, row) => row !== index));
   };
 
@@ -549,22 +569,27 @@ export function LcfFittingTab({
         <div>
           <h2 className="text-foreground text-sm font-semibold">LC fitting</h2>
           <p className="text-muted mt-1 text-xs leading-relaxed">
-            Fit the <span className="text-foreground font-medium">target</span> spectrum
-            as a non-negative blend of{" "}
-            <span className="text-foreground font-medium">standard</span> reference
-            traces on raw optical density (or another channel) over a shared energy grid.
+            Fit the <span className="text-foreground font-medium">target</span>{" "}
+            spectrum as a non-negative blend of{" "}
+            <span className="text-foreground font-medium">standard</span>{" "}
+            reference traces on raw optical density (or another channel) over a
+            shared energy grid.
           </p>
         </div>
 
-        <StxmPreviewChannelSelect channel={channel} onChannelChange={setChannel} />
+        <StxmPreviewChannelSelect
+          channel={channel}
+          onChannelChange={setChannel}
+        />
 
         <div className="flex flex-col gap-2">
-          <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+          <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
             Target (unknown spectrum)
           </Label>
           {!hasCachedSpectra ? (
             <p className="text-muted text-xs">
-              Reduce scans on Ingestion or keep spectra in Preview to populate targets.
+              Reduce scans on Ingestion or keep spectra in Preview to populate
+              targets.
             </p>
           ) : (
             <div className="flex max-h-36 flex-col gap-1 overflow-y-auto">
@@ -601,7 +626,7 @@ export function LcfFittingTab({
 
         <div className="flex flex-col gap-2">
           <div className="flex items-center justify-between gap-2">
-            <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+            <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
               Standards / components
             </Label>
             <LcfAddComponentPicker
@@ -760,7 +785,9 @@ export function LcfFittingTab({
           onChange={() => setSumToOne((current) => !current)}
         >
           <Checkbox.Control className={plotViewerCheckboxControlClassName}>
-            <Checkbox.Indicator className={plotViewerCheckboxIndicatorClassName} />
+            <Checkbox.Indicator
+              className={plotViewerCheckboxIndicatorClassName}
+            />
           </Checkbox.Control>
           <Checkbox.Content>
             <span className="text-foreground text-sm">
@@ -773,7 +800,9 @@ export function LcfFittingTab({
         <Button
           variant="primary"
           onPress={() => runFit()}
-          isDisabled={isFitting || !targetTraceKey || componentTraceKeys.length === 0}
+          isDisabled={
+            isFitting || !targetTraceKey || componentTraceKeys.length === 0
+          }
         >
           {isFitting ? "Refining fit…" : "Refine fit now"}
         </Button>
@@ -786,10 +815,15 @@ export function LcfFittingTab({
 
         {fitResult ? (
           <div className="border-border rounded-md border p-3">
-            <p className="text-foreground text-xs font-medium">Optimized composition</p>
+            <p className="text-foreground text-xs font-medium">
+              Optimized composition
+            </p>
             <ul className="mt-2 space-y-1">
               {fitResult.referenceLabels.map((label, index) => (
-                <li key={label} className="text-muted flex justify-between text-xs">
+                <li
+                  key={label}
+                  className="text-muted flex justify-between text-xs"
+                >
                   <span className="truncate pr-2">{label}</span>
                   <span className="text-foreground tabular-nums">
                     {singleComponentMode
@@ -832,13 +866,17 @@ export function LcfFittingTab({
                     isSelected={!hidden}
                     onChange={() => toggleHiddenTrace(row.id)}
                   >
-                    <Checkbox.Control className={plotViewerCheckboxControlClassName}>
+                    <Checkbox.Control
+                      className={plotViewerCheckboxControlClassName}
+                    >
                       <Checkbox.Indicator
                         className={plotViewerCheckboxIndicatorClassName}
                       />
                     </Checkbox.Control>
                     <Checkbox.Content>
-                      <span className="text-foreground text-xs">{row.label}</span>
+                      <span className="text-foreground text-xs">
+                        {row.label}
+                      </span>
                     </Checkbox.Content>
                   </Checkbox>
                 );

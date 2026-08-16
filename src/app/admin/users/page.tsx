@@ -60,6 +60,7 @@ function RoleFaviconUrlPreview({
   if (!t) return null;
   return (
     <div className="relative mt-2 inline-block">
+      {/* oxlint-disable-next-line next/no-img-element -- admin-entered arbitrary external favicon URL; next/image requires a fixed remote-pattern allowlist that doesn't fit this use case */}
       <img
         key={t}
         src={t}
@@ -106,12 +107,7 @@ function AdminQueryError({
         </code>{" "}
         (local and Supabase MCP targets can differ).
       </p>
-      <Button
-        size="sm"
-        variant="secondary"
-        className="mt-3"
-        onPress={onRetry}
-      >
+      <Button size="sm" variant="secondary" className="mt-3" onPress={onRetry}>
         Retry
       </Button>
     </div>
@@ -154,6 +150,7 @@ function AdminRoleChipContent({
   return (
     <span className="flex min-w-0 items-center gap-1">
       {faviconUrl ? (
+        // oxlint-disable-next-line next/no-img-element -- admin-entered arbitrary external favicon URL; next/image requires a fixed remote-pattern allowlist that doesn't fit this use case
         <img
           src={faviconUrl}
           alt={`${displayName} role favicon`}
@@ -261,7 +258,7 @@ function RolePermissionEditor({
                   <Checkbox.Content>
                     <Label
                       htmlFor={fieldId}
-                      className="text-foreground cursor-pointer text-sm font-normal leading-snug"
+                      className="text-foreground cursor-pointer text-sm leading-snug font-normal"
                     >
                       {item.label}
                     </Label>
@@ -290,7 +287,7 @@ function SortableColumnHeader({
   return (
     <button
       type="button"
-      className="text-muted hover:text-foreground flex w-full min-w-0 items-center justify-between gap-2 text-left text-xs font-semibold uppercase tracking-wide"
+      className="text-muted hover:text-foreground flex w-full min-w-0 items-center justify-between gap-2 text-left text-xs font-semibold tracking-wide uppercase"
       onClick={onPress}
     >
       <span className="truncate">{label}</span>
@@ -694,10 +691,10 @@ export default function AdminUsersPage() {
           User administration
         </h1>
         <p className="text-muted mt-2 max-w-2xl text-sm leading-relaxed">
-          Edit display name and roles; manage custom roles; remove
-          accounts. At most one of Administrator, Maintainer, or Contributor per
-          user, plus any custom roles. Changes apply on the next request or session
-          refresh where relevant.
+          Edit display name and roles; manage custom roles; remove accounts. At
+          most one of Administrator, Maintainer, or Contributor per user, plus
+          any custom roles. Changes apply on the next request or session refresh
+          where relevant.
         </p>
       </header>
 
@@ -788,7 +785,7 @@ export default function AdminUsersPage() {
                   roles, or remove accounts.
                 </Card.Description>
               </div>
-              <div className="min-w-0 w-full lg:max-w-2xl lg:flex-1">
+              <div className="w-full min-w-0 lg:max-w-2xl lg:flex-1">
                 <SearchField
                   name="admin-user-search"
                   value={searchDraft}
@@ -848,203 +845,203 @@ export default function AdminUsersPage() {
                 Loading users…
               </div>
             ) : (
-            <Table.ScrollContainer>
-              <Table.Content
-                aria-label="Users"
-                className="table-fixed w-full min-w-[36rem] md:min-w-[40rem]"
-              >
-                <Table.Header>
-                  <Table.Column
-                    id="member"
-                    className="min-w-[12rem] max-w-[20rem] px-3 py-2 align-middle [&:first-child]:pl-4"
-                    isRowHeader
-                  >
-                    <SortableColumnHeader
-                      label="Member"
-                      active={userSort.column === "member"}
-                      direction={userSort.direction}
-                      onPress={() => toggleUserSort("member")}
-                    />
-                  </Table.Column>
-                  <Table.Column
-                    id="orcid"
-                    className="min-w-[9.5rem] max-w-[14rem] px-2 py-2 align-middle"
-                  >
-                    <SortableColumnHeader
-                      label="ORCID"
-                      active={userSort.column === "orcid"}
-                      direction={userSort.direction}
-                      onPress={() => toggleUserSort("orcid")}
-                    />
-                  </Table.Column>
-                  <Table.Column
-                    id="roles"
-                    className="min-w-[10rem] px-2 py-2 align-middle"
-                  >
-                    <SortableColumnHeader
-                      label="Roles"
-                      active={userSort.column === "roles"}
-                      direction={userSort.direction}
-                      onPress={() => toggleUserSort("roles")}
-                    />
-                  </Table.Column>
-                  <Table.Column className="w-[6.75rem] min-w-[6.75rem] max-w-[6.75rem] px-2 py-2 text-end align-middle [&:last-child]:pr-4">
-                    <span className="text-muted block text-xs font-semibold uppercase tracking-wide">
-                      Actions
-                    </span>
-                  </Table.Column>
-                </Table.Header>
-                <Table.Body items={sortedUserRows}>
-                  {(u: AdminUserRow) => {
-                    const isSelf = selfId === u.id;
-                    return (
-                      <Table.Row id={u.id}>
-                        <Table.Cell className="align-middle px-3 py-2.5 [&:first-child]:pl-4">
-                          <div className="flex items-center gap-3">
-                            <CustomAvatar
-                              user={{
-                                id: u.id,
-                                name: u.name,
-                                image: u.image,
-                              }}
-                              size="sm"
-                            />
-                            <div className="flex min-w-0 flex-1 flex-col gap-1">
-                              <div className="flex min-w-0 items-center gap-1">
-                                <span className="text-foreground truncate text-sm font-medium">
-                                  {u.name ?? "No name"}
-                                </span>
-                                <Button
-                                  isIconOnly
-                                  size="sm"
-                                  variant="ghost"
-                                  className="text-muted size-8 shrink-0"
-                                  aria-label={`Copy ORCID iD for ${u.name ?? "user"}`}
-                                  onPress={() => void copyUserId(u.id)}
-                                >
-                                  <Copy className="size-3.5" />
-                                </Button>
-                              </div>
-                              <span className="text-muted truncate font-mono text-xs tabular-nums">
-                                {u.id}
-                              </span>
-                            </div>
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell className="align-middle px-2 py-2.5">
-                          <a
-                            href={`https://orcid.org/${u.id}`}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="text-muted hover:text-accent inline-flex max-w-full items-center gap-1.5 text-xs transition-colors"
-                          >
-                            <ORCIDIcon
-                              className="size-3.5 shrink-0"
-                              authenticated
-                            />
-                            <span className="tabular-nums">{u.id}</span>
-                          </a>
-                        </Table.Cell>
-                        <Table.Cell className="align-middle px-2 py-2.5">
-                          <div className="flex flex-wrap gap-1">
-                            {u.userAppRoles.map((ur) => (
-                              <Chip
-                                key={ur.role.id}
-                                size="sm"
-                                variant="soft"
-                                className={ADMIN_ROLE_TABLE_CHIP_CLASS}
-                                style={{
-                                  borderLeftColor: ur.role.color,
-                                }}
-                              >
-                                <AdminRoleChipContent
-                                  displayName={ur.role.displayName}
-                                  faviconUrl={ur.role.faviconUrl}
-                                />
-                              </Chip>
-                            ))}
-                          </div>
-                        </Table.Cell>
-                        <Table.Cell className="align-middle px-2 py-2.5 pr-4">
-                          <div
-                            role="group"
-                            aria-label={`Actions for ${u.name ?? u.id}`}
-                            className="ml-auto grid w-[6.25rem] grid-cols-3 place-items-center gap-0"
-                          >
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="ghost"
-                              aria-label={`Open profile for ${u.name ?? u.id}`}
-                              className="text-foreground size-9 min-h-9 min-w-9"
-                              onPress={() => router.push(`/users/${u.id}`)}
-                            >
-                              <Eye className="size-4 shrink-0" />
-                            </Button>
-                            <Button
-                              isIconOnly
-                              size="sm"
-                              variant="ghost"
-                              aria-label={`Edit user ${u.name ?? u.id}`}
-                              className="text-foreground size-9 min-h-9 min-w-9"
-                              onPress={() =>
-                                setEditUserTarget({
+              <Table.ScrollContainer>
+                <Table.Content
+                  aria-label="Users"
+                  className="w-full min-w-[36rem] table-fixed md:min-w-[40rem]"
+                >
+                  <Table.Header>
+                    <Table.Column
+                      id="member"
+                      className="max-w-[20rem] min-w-[12rem] px-3 py-2 align-middle [&:first-child]:pl-4"
+                      isRowHeader
+                    >
+                      <SortableColumnHeader
+                        label="Member"
+                        active={userSort.column === "member"}
+                        direction={userSort.direction}
+                        onPress={() => toggleUserSort("member")}
+                      />
+                    </Table.Column>
+                    <Table.Column
+                      id="orcid"
+                      className="max-w-[14rem] min-w-[9.5rem] px-2 py-2 align-middle"
+                    >
+                      <SortableColumnHeader
+                        label="ORCID"
+                        active={userSort.column === "orcid"}
+                        direction={userSort.direction}
+                        onPress={() => toggleUserSort("orcid")}
+                      />
+                    </Table.Column>
+                    <Table.Column
+                      id="roles"
+                      className="min-w-[10rem] px-2 py-2 align-middle"
+                    >
+                      <SortableColumnHeader
+                        label="Roles"
+                        active={userSort.column === "roles"}
+                        direction={userSort.direction}
+                        onPress={() => toggleUserSort("roles")}
+                      />
+                    </Table.Column>
+                    <Table.Column className="w-[6.75rem] max-w-[6.75rem] min-w-[6.75rem] px-2 py-2 text-end align-middle [&:last-child]:pr-4">
+                      <span className="text-muted block text-xs font-semibold tracking-wide uppercase">
+                        Actions
+                      </span>
+                    </Table.Column>
+                  </Table.Header>
+                  <Table.Body items={sortedUserRows}>
+                    {(u: AdminUserRow) => {
+                      const isSelf = selfId === u.id;
+                      return (
+                        <Table.Row id={u.id}>
+                          <Table.Cell className="px-3 py-2.5 align-middle [&:first-child]:pl-4">
+                            <div className="flex items-center gap-3">
+                              <CustomAvatar
+                                user={{
                                   id: u.id,
                                   name: u.name,
-                                  userAppRoles: u.userAppRoles,
-                                })
-                              }
+                                  image: u.image,
+                                }}
+                                size="sm"
+                              />
+                              <div className="flex min-w-0 flex-1 flex-col gap-1">
+                                <div className="flex min-w-0 items-center gap-1">
+                                  <span className="text-foreground truncate text-sm font-medium">
+                                    {u.name ?? "No name"}
+                                  </span>
+                                  <Button
+                                    isIconOnly
+                                    size="sm"
+                                    variant="ghost"
+                                    className="text-muted size-8 shrink-0"
+                                    aria-label={`Copy ORCID iD for ${u.name ?? "user"}`}
+                                    onPress={() => void copyUserId(u.id)}
+                                  >
+                                    <Copy className="size-3.5" />
+                                  </Button>
+                                </div>
+                                <span className="text-muted truncate font-mono text-xs tabular-nums">
+                                  {u.id}
+                                </span>
+                              </div>
+                            </div>
+                          </Table.Cell>
+                          <Table.Cell className="px-2 py-2.5 align-middle">
+                            <a
+                              href={`https://orcid.org/${u.id}`}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted hover:text-accent inline-flex max-w-full items-center gap-1.5 text-xs transition-colors"
                             >
-                              <Pencil className="size-4 shrink-0" />
-                            </Button>
+                              <ORCIDIcon
+                                className="size-3.5 shrink-0"
+                                authenticated
+                              />
+                              <span className="tabular-nums">{u.id}</span>
+                            </a>
+                          </Table.Cell>
+                          <Table.Cell className="px-2 py-2.5 align-middle">
+                            <div className="flex flex-wrap gap-1">
+                              {u.userAppRoles.map((ur) => (
+                                <Chip
+                                  key={ur.role.id}
+                                  size="sm"
+                                  variant="soft"
+                                  className={ADMIN_ROLE_TABLE_CHIP_CLASS}
+                                  style={{
+                                    borderLeftColor: ur.role.color,
+                                  }}
+                                >
+                                  <AdminRoleChipContent
+                                    displayName={ur.role.displayName}
+                                    faviconUrl={ur.role.faviconUrl}
+                                  />
+                                </Chip>
+                              ))}
+                            </div>
+                          </Table.Cell>
+                          <Table.Cell className="px-2 py-2.5 pr-4 align-middle">
                             <div
-                              className={cn(
-                                "flex size-9 items-center justify-center",
-                                isSelf &&
-                                  "rounded-lg bg-default/45 ring-border/60 ring-1 ring-inset",
-                              )}
-                              title={
-                                isSelf
-                                  ? "You cannot delete your own account from the admin console."
-                                  : undefined
-                              }
+                              role="group"
+                              aria-label={`Actions for ${u.name ?? u.id}`}
+                              className="ml-auto grid w-[6.25rem] grid-cols-3 place-items-center gap-0"
                             >
                               <Button
                                 isIconOnly
                                 size="sm"
                                 variant="ghost"
-                                isDisabled={isSelf}
-                                aria-label={
-                                  isSelf
-                                    ? "Delete unavailable for your own account"
-                                    : `Delete ${u.name ?? u.id}`
-                                }
-                                className={cn(
-                                  "size-9 min-h-9 min-w-9",
-                                  isSelf
-                                    ? "text-muted cursor-not-allowed opacity-45"
-                                    : "text-danger hover:bg-danger/10",
-                                )}
-                                onPress={() => {
-                                  if (!isSelf) setDeleteUserId(u.id);
-                                }}
+                                aria-label={`Open profile for ${u.name ?? u.id}`}
+                                className="text-foreground size-9 min-h-9 min-w-9"
+                                onPress={() => router.push(`/users/${u.id}`)}
                               >
-                                <Trash2
-                                  className={cn(
-                                    "size-4 shrink-0",
-                                    isSelf && "stroke-[1.25]",
-                                  )}
-                                />
+                                <Eye className="size-4 shrink-0" />
                               </Button>
+                              <Button
+                                isIconOnly
+                                size="sm"
+                                variant="ghost"
+                                aria-label={`Edit user ${u.name ?? u.id}`}
+                                className="text-foreground size-9 min-h-9 min-w-9"
+                                onPress={() =>
+                                  setEditUserTarget({
+                                    id: u.id,
+                                    name: u.name,
+                                    userAppRoles: u.userAppRoles,
+                                  })
+                                }
+                              >
+                                <Pencil className="size-4 shrink-0" />
+                              </Button>
+                              <div
+                                className={cn(
+                                  "flex size-9 items-center justify-center",
+                                  isSelf &&
+                                    "rounded-lg bg-default/45 ring-border/60 ring-1 ring-inset",
+                                )}
+                                title={
+                                  isSelf
+                                    ? "You cannot delete your own account from the admin console."
+                                    : undefined
+                                }
+                              >
+                                <Button
+                                  isIconOnly
+                                  size="sm"
+                                  variant="ghost"
+                                  isDisabled={isSelf}
+                                  aria-label={
+                                    isSelf
+                                      ? "Delete unavailable for your own account"
+                                      : `Delete ${u.name ?? u.id}`
+                                  }
+                                  className={cn(
+                                    "size-9 min-h-9 min-w-9",
+                                    isSelf
+                                      ? "text-muted cursor-not-allowed opacity-45"
+                                      : "text-danger hover:bg-danger/10",
+                                  )}
+                                  onPress={() => {
+                                    if (!isSelf) setDeleteUserId(u.id);
+                                  }}
+                                >
+                                  <Trash2
+                                    className={cn(
+                                      "size-4 shrink-0",
+                                      isSelf && "stroke-[1.25]",
+                                    )}
+                                  />
+                                </Button>
+                              </div>
                             </div>
-                          </div>
-                        </Table.Cell>
-                      </Table.Row>
-                    );
-                  }}
-                </Table.Body>
-              </Table.Content>
-            </Table.ScrollContainer>
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    }}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
             )}
           </Card.Content>
           <Card.Footer className="border-border bg-surface-1 text-muted flex flex-wrap items-center justify-between gap-3 border-t px-5 py-3 text-sm">
@@ -1057,10 +1054,10 @@ export default function AdminUsersPage() {
                 Loading user list…
               </span>
             ) : (
-            <span>
-              Page {currentPage} of {totalPages} (
-              {listUsers.data?.total ?? 0} users)
-            </span>
+              <span>
+                Page {currentPage} of {totalPages} ({listUsers.data?.total ?? 0}{" "}
+                users)
+              </span>
             )}
             <div className="flex gap-2">
               <Button
@@ -1117,88 +1114,91 @@ export default function AdminUsersPage() {
               onRetry={() => void listRoles.refetch()}
             />
           ) : listRoles.data ? (
-          <div className="flex min-w-0 flex-col gap-4">
-            <div className="min-w-0">
-              <Label htmlFor="admin-edit-display-name">Display name</Label>
-              <p className="text-muted mt-1 mb-2 text-xs leading-relaxed wrap-break-word">
-                Shown in the app and directory listings.
-              </p>
-              <Input
-                id="admin-edit-display-name"
-                value={editUserDisplayName}
-                onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
-                  setEditUserDisplayName(e.target.value)
-                }
-                placeholder="Display name"
-                className="mt-0 w-full min-w-0"
-              />
-            </div>
-            <div className="min-w-0">
-              <Label>ORCID iD</Label>
-              <p className="text-muted mt-1 mb-2 font-mono text-xs tabular-nums wrap-break-word">
-                {editUserTarget?.id ?? "—"}
-              </p>
-              <p className="text-muted text-xs leading-relaxed">
-                The ORCID iD is the account primary key and cannot be changed here.
-              </p>
-            </div>
-            <div className="border-border border-t pt-2">
-              <p className="text-foreground mb-2 text-sm font-medium">Roles</p>
-              <p className="text-muted mb-2 text-sm">
-                Pick any custom roles. Only one of Administrator, Maintainer, or
-                Contributor can be selected; choosing another replaces the current
-                one. At least one role is required.
-              </p>
-              <div className="flex max-h-56 flex-col gap-2 overflow-y-auto">
-                {listRoles.data.map((role) => {
-                  const rid = `admin-edit-user-role-${role.id}`;
-                  return (
-                    <Checkbox
-                      key={role.id}
-                      id={rid}
-                      className="items-start gap-3"
-                      isSelected={selectedRoleIds.has(role.id)}
-                      onChange={() => toggleRoleSelection(role.id, role.slug)}
-                    >
-                      <Checkbox.Control>
-                        <Checkbox.Indicator />
-                      </Checkbox.Control>
-                      <Checkbox.Content>
-                        <Label
-                          htmlFor={rid}
-                          className="text-foreground cursor-pointer text-sm font-normal"
-                        >
-                          {role.displayName}{" "}
-                          <span className="text-muted">({role.slug})</span>
-                        </Label>
-                      </Checkbox.Content>
-                    </Checkbox>
-                  );
-                })}
+            <div className="flex min-w-0 flex-col gap-4">
+              <div className="min-w-0">
+                <Label htmlFor="admin-edit-display-name">Display name</Label>
+                <p className="text-muted mt-1 mb-2 text-xs leading-relaxed wrap-break-word">
+                  Shown in the app and directory listings.
+                </p>
+                <Input
+                  id="admin-edit-display-name"
+                  value={editUserDisplayName}
+                  onChange={(e: React.ChangeEvent<HTMLInputElement>) =>
+                    setEditUserDisplayName(e.target.value)
+                  }
+                  placeholder="Display name"
+                  className="mt-0 w-full min-w-0"
+                />
+              </div>
+              <div className="min-w-0">
+                <Label>ORCID iD</Label>
+                <p className="text-muted mt-1 mb-2 font-mono text-xs wrap-break-word tabular-nums">
+                  {editUserTarget?.id ?? "—"}
+                </p>
+                <p className="text-muted text-xs leading-relaxed">
+                  The ORCID iD is the account primary key and cannot be changed
+                  here.
+                </p>
+              </div>
+              <div className="border-border border-t pt-2">
+                <p className="text-foreground mb-2 text-sm font-medium">
+                  Roles
+                </p>
+                <p className="text-muted mb-2 text-sm">
+                  Pick any custom roles. Only one of Administrator, Maintainer,
+                  or Contributor can be selected; choosing another replaces the
+                  current one. At least one role is required.
+                </p>
+                <div className="flex max-h-56 flex-col gap-2 overflow-y-auto">
+                  {listRoles.data.map((role) => {
+                    const rid = `admin-edit-user-role-${role.id}`;
+                    return (
+                      <Checkbox
+                        key={role.id}
+                        id={rid}
+                        className="items-start gap-3"
+                        isSelected={selectedRoleIds.has(role.id)}
+                        onChange={() => toggleRoleSelection(role.id, role.slug)}
+                      >
+                        <Checkbox.Control>
+                          <Checkbox.Indicator />
+                        </Checkbox.Control>
+                        <Checkbox.Content>
+                          <Label
+                            htmlFor={rid}
+                            className="text-foreground cursor-pointer text-sm font-normal"
+                          >
+                            {role.displayName}{" "}
+                            <span className="text-muted">({role.slug})</span>
+                          </Label>
+                        </Checkbox.Content>
+                      </Checkbox>
+                    );
+                  })}
+                </div>
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" onPress={() => setEditUserTarget(null)}>
+                  Cancel
+                </Button>
+                <Button
+                  variant="primary"
+                  isDisabled={
+                    selectedRoleIds.size === 0 || updateUser.isPending
+                  }
+                  onPress={() => {
+                    if (!editUserTarget || selectedRoleIds.size === 0) return;
+                    updateUser.mutate({
+                      userId: editUserTarget.id,
+                      name: editUserDisplayName,
+                      roleIds: Array.from(selectedRoleIds),
+                    });
+                  }}
+                >
+                  Save
+                </Button>
               </div>
             </div>
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" onPress={() => setEditUserTarget(null)}>
-                Cancel
-              </Button>
-              <Button
-                variant="primary"
-                isDisabled={
-                  selectedRoleIds.size === 0 || updateUser.isPending
-                }
-                onPress={() => {
-                  if (!editUserTarget || selectedRoleIds.size === 0) return;
-                  updateUser.mutate({
-                    userId: editUserTarget.id,
-                    name: editUserDisplayName,
-                    roleIds: Array.from(selectedRoleIds),
-                  });
-                }}
-              >
-                Save
-              </Button>
-            </div>
-          </div>
           ) : (
             <p className="text-muted py-4 text-sm">No roles are defined yet.</p>
           )
@@ -1214,8 +1214,8 @@ export default function AdminUsersPage() {
           This removes the account and content they created (experiments and
           molecules they authored), the same as self-service account deletion.
           Their favorites are removed with the account; anonymous molecule-view
-          rows are kept without a user id. Engagement and favorite-related metrics
-          may no longer match historical totals. This cannot be undone.
+          rows are kept without a user id. Engagement and favorite-related
+          metrics may no longer match historical totals. This cannot be undone.
         </p>
         <div className="mt-4 flex justify-end gap-2">
           <Button variant="ghost" onPress={() => setDeleteUserId(null)}>
@@ -1330,9 +1330,9 @@ export default function AdminUsersPage() {
             <Label htmlFor="new-role-favicon">Favicon URL</Label>
             <p className="text-muted mt-1 mb-2 text-xs leading-relaxed">
               External image URL (for example a site favicon). Shown beside the
-              role in lists. After a valid URL is entered, the server samples the
-              image and sets the role accent color automatically (you can still
-              change it below).
+              role in lists. After a valid URL is entered, the server samples
+              the image and sets the role accent color automatically (you can
+              still change it below).
             </p>
             <Input
               id="new-role-favicon"
@@ -1403,9 +1403,7 @@ export default function AdminUsersPage() {
               isDisabled={createRole.isPending || !newRoleName.trim()}
               onPress={() => {
                 if (!newRoleName.trim()) return;
-                const hex = roleHexColorSchema.safeParse(
-                  newRoleColor.trim(),
-                );
+                const hex = roleHexColorSchema.safeParse(newRoleColor.trim());
                 if (!hex.success) {
                   showToast(
                     hex.error.issues[0]?.message ?? "Invalid color.",
@@ -1545,9 +1543,7 @@ export default function AdminUsersPage() {
                   <Button
                     variant="danger"
                     size="sm"
-                    isDisabled={
-                      deleteRole.isPending || updateRole.isPending
-                    }
+                    isDisabled={deleteRole.isPending || updateRole.isPending}
                     onPress={() =>
                       setDeleteRolePending({
                         id: editingRole.id,

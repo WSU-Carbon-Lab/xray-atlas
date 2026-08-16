@@ -64,7 +64,11 @@ function badgeColorForStatus(
   return "success";
 }
 
-function AttributionRoleListItem({ option }: { option: AttributionRoleOption }) {
+function AttributionRoleListItem({
+  option,
+}: {
+  option: AttributionRoleOption;
+}) {
   return (
     <ListBox.Item
       id={option.contributorType}
@@ -74,7 +78,9 @@ function AttributionRoleListItem({ option }: { option: AttributionRoleOption }) 
         <span className="text-foreground flex flex-wrap items-center gap-1.5 font-medium">
           <span>{option.label}</span>
           {option.subtitle ? (
-            <span className="text-muted text-xs font-normal">{option.subtitle}</span>
+            <span className="text-muted text-xs font-normal">
+              {option.subtitle}
+            </span>
           ) : null}
           {option.requiredAtUpload ? (
             <Chip
@@ -87,7 +93,9 @@ function AttributionRoleListItem({ option }: { option: AttributionRoleOption }) 
             </Chip>
           ) : null}
         </span>
-        <span className="text-muted text-xs leading-snug">{option.description}</span>
+        <span className="text-muted text-xs leading-snug">
+          {option.description}
+        </span>
       </div>
       <ListBox.ItemIndicator />
     </ListBox.Item>
@@ -132,9 +140,7 @@ export function AddResearcherAttributionForm({
     isFetching: isSearching,
     isError: searchFailed,
   } = trpc.users.searchForAttribution.useQuery(
-    searchEnabled
-      ? { query: debouncedSearchQuery, limit: 15 }
-      : skipToken,
+    searchEnabled ? { query: debouncedSearchQuery, limit: 15 } : skipToken,
     { staleTime: 30_000, retry: false },
   );
 
@@ -144,10 +150,9 @@ export function AddResearcherAttributionForm({
   );
 
   const { data: resolvedUser, isFetching: isResolving } =
-    trpc.users.getById.useQuery(
-      lookupOrcid ? { id: lookupOrcid } : skipToken,
-      { retry: false },
-    );
+    trpc.users.getById.useQuery(lookupOrcid ? { id: lookupOrcid } : skipToken, {
+      retry: false,
+    });
 
   const applyOrcidSelection = useCallback(
     (orcid: string, displayName?: string | null) => {
@@ -219,7 +224,9 @@ export function AddResearcherAttributionForm({
         isUploaderContributorRole(row.role),
       );
       if (existingUploader && existingUploader.orcid !== orcid) {
-        setOrcidError("Only one data curator (uploader) is allowed per dataset");
+        setOrcidError(
+          "Only one data curator (uploader) is allowed per dataset",
+        );
         return false;
       }
     }
@@ -242,8 +249,7 @@ export function AddResearcherAttributionForm({
       clientId: crypto.randomUUID(),
       orcid,
       role: roleDraft,
-      displayName:
-        resolvedUser?.name ?? matchedSearch?.displayName ?? null,
+      displayName: resolvedUser?.name ?? matchedSearch?.displayName ?? null,
       userId: hasAtlasProfile ? (resolvedUser?.id ?? orcid) : null,
       isClaimed: hasAtlasProfile,
       hasContributionAgreement,
@@ -351,80 +357,85 @@ export function AddResearcherAttributionForm({
           </ComboBox.InputGroup>
           <ComboBox.Popover>
             <div data-attribution-nested-overlay="true">
-            <ScrollShadow
-              className="max-h-56 min-h-0"
-              hideScrollBar
-              orientation="vertical"
-            >
-              <ListBox
-                aria-label="Researcher search results"
-                renderEmptyState={() => (
-                  <div className="text-muted px-3 py-2 text-xs">
-                    {emptyStateMessage}
-                  </div>
-                )}
+              <ScrollShadow
+                className="max-h-56 min-h-0"
+                hideScrollBar
+                orientation="vertical"
               >
-                {searchResults.map((hit) => (
-                  <ListBox.Item
-                    key={hit.orcid}
-                    id={hit.orcid}
-                    textValue={`${hit.displayName} ${hit.orcid}`}
-                  >
-                    {(() => {
-                      const status = researcherAttributionBadgeStatus({
-                        isClaimed: hit.hasAtlasProfile,
-                        hasContributionAgreement: hit.hasContributionAgreement,
-                      });
-                      return (
-                    <div className="flex min-w-0 items-center gap-2.5">
-                      <Badge.Anchor className="shrink-0">
-                        <ResearcherAvatar
-                          displayName={hit.displayName}
-                          imageUrl={hit.imageUrl}
-                          identitySeed={hit.orcid}
-                          isAtlasProfile={hit.hasAtlasProfile}
-                          placeholder={hit.hasAtlasProfile ? "initials" : "person"}
-                          size="sm"
-                          className="h-8 w-8 shrink-0"
-                        />
-                        <Badge
-                          color={badgeColorForStatus(status)}
-                          size="sm"
-                          placement="bottom-right"
-                          className="size-2.5 min-h-0 min-w-0 rounded-full p-0"
-                        />
-                      </Badge.Anchor>
-                      <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-                        <span className="text-foreground flex min-w-0 items-center gap-1.5 truncate text-sm font-medium">
-                          <span className="truncate">{hit.displayName}</span>
-                          {hit.hasAtlasProfile ? (
-                            <Chip
-                              size="sm"
-                              variant="soft"
-                              color="accent"
-                              className="h-5 shrink-0 px-1.5 text-[10px]"
-                            >
-                              Atlas
-                            </Chip>
-                          ) : null}
-                        </span>
-                        <span className="text-muted font-mono text-xs tabular-nums">
-                          {hit.orcid}
-                        </span>
-                        {hit.affiliation ? (
-                          <span className="text-muted truncate text-xs">
-                            {hit.affiliation}
-                          </span>
-                        ) : null}
-                      </div>
+                <ListBox
+                  aria-label="Researcher search results"
+                  renderEmptyState={() => (
+                    <div className="text-muted px-3 py-2 text-xs">
+                      {emptyStateMessage}
                     </div>
-                      );
-                    })()}
-                    <ListBox.ItemIndicator />
-                  </ListBox.Item>
-                ))}
-              </ListBox>
-            </ScrollShadow>
+                  )}
+                >
+                  {searchResults.map((hit) => (
+                    <ListBox.Item
+                      key={hit.orcid}
+                      id={hit.orcid}
+                      textValue={`${hit.displayName} ${hit.orcid}`}
+                    >
+                      {(() => {
+                        const status = researcherAttributionBadgeStatus({
+                          isClaimed: hit.hasAtlasProfile,
+                          hasContributionAgreement:
+                            hit.hasContributionAgreement,
+                        });
+                        return (
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <Badge.Anchor className="shrink-0">
+                              <ResearcherAvatar
+                                displayName={hit.displayName}
+                                imageUrl={hit.imageUrl}
+                                identitySeed={hit.orcid}
+                                isAtlasProfile={hit.hasAtlasProfile}
+                                placeholder={
+                                  hit.hasAtlasProfile ? "initials" : "person"
+                                }
+                                size="sm"
+                                className="h-8 w-8 shrink-0"
+                              />
+                              <Badge
+                                color={badgeColorForStatus(status)}
+                                size="sm"
+                                placement="bottom-right"
+                                className="size-2.5 min-h-0 min-w-0 rounded-full p-0"
+                              />
+                            </Badge.Anchor>
+                            <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                              <span className="text-foreground flex min-w-0 items-center gap-1.5 truncate text-sm font-medium">
+                                <span className="truncate">
+                                  {hit.displayName}
+                                </span>
+                                {hit.hasAtlasProfile ? (
+                                  <Chip
+                                    size="sm"
+                                    variant="soft"
+                                    color="accent"
+                                    className="h-5 shrink-0 px-1.5 text-[10px]"
+                                  >
+                                    Atlas
+                                  </Chip>
+                                ) : null}
+                              </span>
+                              <span className="text-muted font-mono text-xs tabular-nums">
+                                {hit.orcid}
+                              </span>
+                              {hit.affiliation ? (
+                                <span className="text-muted truncate text-xs">
+                                  {hit.affiliation}
+                                </span>
+                              ) : null}
+                            </div>
+                          </div>
+                        );
+                      })()}
+                      <ListBox.ItemIndicator />
+                    </ListBox.Item>
+                  ))}
+                </ListBox>
+              </ScrollShadow>
             </div>
           </ComboBox.Popover>
         </ComboBox>
@@ -473,37 +484,39 @@ export function AddResearcherAttributionForm({
           </Select.Trigger>
           <Select.Popover>
             <div data-attribution-nested-overlay="true">
-            <ScrollShadow
-              className="max-h-64 min-h-0"
-              hideScrollBar
-              orientation="vertical"
-            >
-              <ListBox aria-label="Attribution roles" className="p-1">
-                {roleOptionSections.map((section, sectionIndex) => (
-                  <Fragment key={section.tier}>
-                    {sectionIndex > 0 ? <Separator className="my-1" /> : null}
-                    <ListBox.Section>
-                      <Header className="text-muted px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
-                        {section.sectionLabel}
-                      </Header>
-                      {section.options.map((option) => (
-                        <AttributionRoleListItem
-                          key={option.contributorType}
-                          option={option}
-                        />
-                      ))}
-                    </ListBox.Section>
-                  </Fragment>
-                ))}
-              </ListBox>
-            </ScrollShadow>
+              <ScrollShadow
+                className="max-h-64 min-h-0"
+                hideScrollBar
+                orientation="vertical"
+              >
+                <ListBox aria-label="Attribution roles" className="p-1">
+                  {roleOptionSections.map((section, sectionIndex) => (
+                    <Fragment key={section.tier}>
+                      {sectionIndex > 0 ? <Separator className="my-1" /> : null}
+                      <ListBox.Section>
+                        <Header className="text-muted px-2 py-1.5 text-[11px] font-semibold tracking-wide uppercase">
+                          {section.sectionLabel}
+                        </Header>
+                        {section.options.map((option) => (
+                          <AttributionRoleListItem
+                            key={option.contributorType}
+                            option={option}
+                          />
+                        ))}
+                      </ListBox.Section>
+                    </Fragment>
+                  ))}
+                </ListBox>
+              </ScrollShadow>
             </div>
           </Select.Popover>
         </Select>
       </div>
 
       {orcidError ? (
-        <ErrorMessage className="text-danger text-xs">{orcidError}</ErrorMessage>
+        <ErrorMessage className="text-danger text-xs">
+          {orcidError}
+        </ErrorMessage>
       ) : null}
 
       <div className="flex justify-end gap-2">

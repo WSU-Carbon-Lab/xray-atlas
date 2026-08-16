@@ -111,7 +111,7 @@ export function ContributionAgreementModal({
                 <div className="mb-6">
                   <Dialog.Title
                     as="h3"
-                    className="text-foreground text-2xl font-bold leading-6"
+                    className="text-foreground text-2xl leading-6 font-bold"
                   >
                     Contribution Agreement
                   </Dialog.Title>

@@ -41,7 +41,9 @@ export function previewBareAtomOverlaySupportedForChannel(
   return previewBareAtomMatrixChannelForCompareChannel(channel) != null;
 }
 
-function strictlyAscendingUniqueEnergies(energies: readonly number[]): number[] {
+function strictlyAscendingUniqueEnergies(
+  energies: readonly number[],
+): number[] {
   const sorted = [...energies]
     .filter((value) => Number.isFinite(value))
     .sort((a, b) => a - b);
@@ -189,8 +191,7 @@ export async function buildPreviewCompareBareAtomReferenceCurve(params: {
   if (!matrixChannel || params.energyEv.length < 2) {
     return null;
   }
-  const buildMatrix =
-    params.buildMatrix ?? buildBareAtomRepresentationMatrix;
+  const buildMatrix = params.buildMatrix ?? buildBareAtomRepresentationMatrix;
   const matrix = await buildMatrix(
     params.chemicalFormula.trim(),
     params.energyEv,

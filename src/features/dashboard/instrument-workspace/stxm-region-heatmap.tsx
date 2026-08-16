@@ -8,12 +8,7 @@ import {
   valueToGrayscaleByte,
 } from "~/lib/stxm/heatmap";
 
-type DragHandle =
-  | "sampleLo"
-  | "sampleHi"
-  | "izeroLo"
-  | "izeroHi"
-  | null;
+type DragHandle = "sampleLo" | "sampleHi" | "izeroLo" | "izeroHi" | null;
 
 type StxmRegionHeatmapProps = {
   image: Float64Array[];
@@ -85,10 +80,22 @@ export function StxmRegionHeatmap({
       const y = clientY - rect.top;
       const height = canvas.height;
       const candidates: Array<{ key: DragHandle; dist: number }> = [
-        { key: "sampleLo", dist: Math.abs(y - valueToPixelY(bounds.sampleLo, height)) },
-        { key: "sampleHi", dist: Math.abs(y - valueToPixelY(bounds.sampleHi, height)) },
-        { key: "izeroLo", dist: Math.abs(y - valueToPixelY(bounds.izeroLo, height)) },
-        { key: "izeroHi", dist: Math.abs(y - valueToPixelY(bounds.izeroHi, height)) },
+        {
+          key: "sampleLo",
+          dist: Math.abs(y - valueToPixelY(bounds.sampleLo, height)),
+        },
+        {
+          key: "sampleHi",
+          dist: Math.abs(y - valueToPixelY(bounds.sampleHi, height)),
+        },
+        {
+          key: "izeroLo",
+          dist: Math.abs(y - valueToPixelY(bounds.izeroLo, height)),
+        },
+        {
+          key: "izeroHi",
+          dist: Math.abs(y - valueToPixelY(bounds.izeroHi, height)),
+        },
       ];
       candidates.sort((a, b) => a.dist - b.dist);
       const best = candidates[0];
@@ -195,7 +202,7 @@ export function StxmRegionHeatmap({
       ref={canvasRef}
       className={
         className ??
-        "border-border bg-default/20 h-72 w-full cursor-ns-resize rounded-md border touch-none"
+        "border-border bg-default/20 h-72 w-full cursor-ns-resize touch-none rounded-md border"
       }
       role="img"
       aria-label="STXM line scan heatmap with draggable sample and izero regions"

@@ -1,9 +1,6 @@
 import type { StxmIngestionPlotChannel } from "./stxm-ingestion-display";
 import { STXM_RAW_SPECTROSCOPY_TRAY_CHANNEL_IDS } from "./stxm-ingestion-plot-data-rail-config";
-import {
-  isStxmImaginaryChannel,
-  isStxmRealChannel,
-} from "./stxm-optical-link";
+import { isStxmImaginaryChannel, isStxmRealChannel } from "./stxm-optical-link";
 
 const SPECTROSCOPY_TRAY_CHANNEL_SET = new Set<StxmIngestionPlotChannel>(
   STXM_RAW_SPECTROSCOPY_TRAY_CHANNEL_IDS,
@@ -70,5 +67,7 @@ export function stxmPlotSplitAvailable(
   if (!linkImaginaryReal) {
     return false;
   }
-  return isStxmImaginaryChannel(activeChannel) || isStxmRealChannel(activeChannel);
+  return (
+    isStxmImaginaryChannel(activeChannel) || isStxmRealChannel(activeChannel)
+  );
 }

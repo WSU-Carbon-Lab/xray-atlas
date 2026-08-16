@@ -11,7 +11,10 @@ import {
   LEGEND_ROW_HEIGHT,
   geometryLegendPanelDimensions,
 } from "./spectrum-geometry-legend-layout";
-import type { DescriptorTraceLegendColumn, DescriptorTraceLegendRow } from "../types";
+import type {
+  DescriptorTraceLegendColumn,
+  DescriptorTraceLegendRow,
+} from "../types";
 
 const MEASURE_SUBPIXEL_BUFFER_PX = 2;
 const COLUMN_GAP_PX = 8;
@@ -36,9 +39,10 @@ function measureTextWidthPx(
 export function descriptorTraceLegendGridTemplateColumns(
   descriptorColumnCount: number,
 ): string {
-  const descriptorCols = Array.from({ length: descriptorColumnCount }, () => "1fr").join(
-    " ",
-  );
+  const descriptorCols = Array.from(
+    { length: descriptorColumnCount },
+    () => "1fr",
+  ).join(" ");
   return `${LEGEND_SWATCH_WIDTH}px ${descriptorCols}`.trim();
 }
 
@@ -59,8 +63,8 @@ export function computeDescriptorTraceLegendWidth(input: {
   let descriptorWidth = 0;
   for (const column of input.columns) {
     const header = measureHeader(column.title);
-    const cells = input.rows.map(
-      (row) => measureCell(row.cells[column.id] ?? "—"),
+    const cells = input.rows.map((row) =>
+      measureCell(row.cells[column.id] ?? "—"),
     );
     descriptorWidth += Math.max(header, ...cells, 32);
   }
@@ -77,7 +81,9 @@ export function computeDescriptorTraceLegendWidth(input: {
   );
 }
 
-export function computeDescriptorTraceLegendBoxHeight(rowCount: number): number {
+export function computeDescriptorTraceLegendBoxHeight(
+  rowCount: number,
+): number {
   const rowGaps = rowCount > 0 ? (rowCount - 1) * LEGEND_GAP : 0;
   const panelHeight =
     LEGEND_PADDING * 2 +

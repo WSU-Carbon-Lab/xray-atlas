@@ -30,15 +30,15 @@ export function PasskeyEnrollmentPrompt({
     : "Register a passkey with your browser before filling in contribution forms. Browse and read-only access remain available with ORCID sign-in.";
 
   return (
-    <Card className="border border-border-default bg-surface-2 p-6">
+    <Card className="border-border-default bg-surface-2 border p-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start">
         <div className="bg-accent/10 text-accent flex h-11 w-11 shrink-0 items-center justify-center rounded-xl">
           <Key className="h-5 w-5" aria-hidden />
         </div>
         <div className="flex flex-1 flex-col gap-3">
           <div>
-            <h2 className="text-lg font-semibold text-text-primary">{title}</h2>
-            <p className="mt-1 text-sm text-text-secondary">
+            <h2 className="text-text-primary text-lg font-semibold">{title}</h2>
+            <p className="text-text-secondary mt-1 text-sm">
               {description ?? defaultDescription}
             </p>
           </div>

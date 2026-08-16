@@ -53,11 +53,7 @@ import {
 } from "./spectrum-geometry-legend-types";
 import { ExportPlotModal } from "./ExportPlotModal";
 import { ChartCrosshairAndDots } from "./ChartCrosshairAndDots";
-import {
-  getValueAtEnergy,
-  getTraceLabel,
-  getTraceColor,
-} from "./utils";
+import { getValueAtEnergy, getTraceLabel, getTraceColor } from "./utils";
 import { PeakPlotAnnotations } from "./PeakPlotAnnotations";
 import { InspectPinLayer } from "./InspectPinLayer";
 import { useInspectPins } from "../hooks/useInspectPins";
@@ -390,11 +386,7 @@ export function SpectrumPlotInner({
         visibleTraceIds.has(row.realTraceId)
       );
     });
-  }, [
-    linkedOpticalAreaBands,
-    linkedOptical.legendRows,
-    visibleTraceIds,
-  ]);
+  }, [linkedOpticalAreaBands, linkedOptical.legendRows, visibleTraceIds]);
 
   const regionLegendRows = useMemo((): SingleSpectrumGeometryLegendRow[] => {
     if (!hideGeometryLegend) {
@@ -486,7 +478,9 @@ export function SpectrumPlotInner({
         return;
       }
       const row = (
-        regionLegendRows.length > 0 ? regionLegendRows : singleGeometryLegend.rows
+        regionLegendRows.length > 0
+          ? regionLegendRows
+          : singleGeometryLegend.rows
       ).find((r) => r.geometryKey === geometryKey);
       if (!row) {
         return;
@@ -643,11 +637,7 @@ export function SpectrumPlotInner({
     yAxisQuantity,
   );
 
-  const {
-    mainPlot: defaultMainPlot,
-    peakPlot,
-    hasSubplot,
-  } = subplotLayout;
+  const { mainPlot: defaultMainPlot, peakPlot, hasSubplot } = subplotLayout;
   const mainPlot = residualSplitActive
     ? residualSubplotLayout.mainPlot
     : defaultMainPlot;
@@ -831,7 +821,11 @@ export function SpectrumPlotInner({
   ]);
 
   const handleZoomOut = useCallback(() => {
-    const nextX = stepZoomOutAxisDomain(zoomedXDomain, dataXBounds, minZoomSpan);
+    const nextX = stepZoomOutAxisDomain(
+      zoomedXDomain,
+      dataXBounds,
+      minZoomSpan,
+    );
     setZoomedXDomain(nextX);
     if (yAxisZoomPanEnabled) {
       const nextY = stepZoomOutAxisDomain(
@@ -899,8 +893,7 @@ export function SpectrumPlotInner({
 
   const cursorMode = externalCursorMode ?? "inspect";
 
-  const effectiveCursorMode =
-    selectionTarget != null ? "select" : cursorMode;
+  const effectiveCursorMode = selectionTarget != null ? "select" : cursorMode;
 
   const handleCursorModeChange = useCallback(
     (mode: "pan" | "zoom" | "select" | "peak" | "inspect") => {
@@ -974,7 +967,9 @@ export function SpectrumPlotInner({
         });
         return;
       }
-      const tracesForSnap = visibleTraces.filter((t) => !isBareAtomTraceName(t));
+      const tracesForSnap = visibleTraces.filter(
+        (t) => !isBareAtomTraceName(t),
+      );
       const snapTraces =
         tracesForSnap.length > 0 ? tracesForSnap : visibleTraces;
       const closestTraceIndex = findClosestTraceIndex(
@@ -1272,8 +1267,7 @@ export function SpectrumPlotInner({
     }
     if (traceStackSplitActive && traceStackSplitLayout.panels.length > 0) {
       const first = traceStackSplitLayout.panels[0]!.dimensions.margins;
-      const last =
-        traceStackSplitLayout.panels.at(-1)!.dimensions.margins;
+      const last = traceStackSplitLayout.panels.at(-1)!.dimensions.margins;
       return {
         left: first.left,
         right: first.right,
@@ -1506,12 +1500,7 @@ export function SpectrumPlotInner({
         event.clientY - rect.top <=
           mainPlot.dimensions.height +
             residualSubplotLayout.residualPlot.dimensions.height;
-      if (
-        !inYGutter &&
-        !inXGutter &&
-        !inPlotInterior &&
-        !inResidualInterior
-      ) {
+      if (!inYGutter && !inXGutter && !inPlotInterior && !inResidualInterior) {
         return;
       }
       event.preventDefault();
@@ -1615,15 +1604,13 @@ export function SpectrumPlotInner({
             readOnly
             aria-hidden
             tabIndex={-1}
-            className="pointer-events-none fixed left-0 top-0 m-0 h-px w-px overflow-hidden border-0 p-0 opacity-0"
+            className="pointer-events-none fixed top-0 left-0 m-0 h-px w-px overflow-hidden border-0 p-0 opacity-0"
           />
         ) : null}
         {spectrumCsvCopyListenerActive && spectrumCsvContextMenu ? (
           <NexafsSpectrumPlotContextMenu
             open={plotCsvContextMenu != null}
-            anchor={
-              plotCsvContextMenu ?? { top: 0, left: 0 }
-            }
+            anchor={plotCsvContextMenu ?? { top: 0, left: 0 }}
             onClose={closePlotCsvContextMenu}
             filenameBase={spectrumCsvContextMenu.filenameBase}
             sortedAllPoints={spectrumCsvContextMenu.sortedAllPoints}
@@ -1720,427 +1707,452 @@ export function SpectrumPlotInner({
               contentHeight={contentHeight}
             />
           ) : (
-          <>
-          <defs>
-            <clipPath id={plotClipId}>
-              <rect x={0} y={0} width={mainPlotWidth} height={mainPlotHeight} />
-            </clipPath>
-            {residualSplitActive ? (
-              <clipPath id={residualPlotClipId}>
-                <rect
-                  x={0}
-                  y={0}
-                  width={residualPlotMetrics.plotWidth}
-                  height={residualPlotMetrics.plotHeight}
-                />
-              </clipPath>
-            ) : null}
-          </defs>
-          <g>
-            <rect
-              data-export-plot-background
-              x={mainPlot.dimensions.margins.left}
-              y={mainPlot.dimensions.margins.top}
-              width={
-                mainPlot.dimensions.width -
-                mainPlot.dimensions.margins.left -
-                mainPlot.dimensions.margins.right
-              }
-              height={mainPlotHeight}
-              fill={themeColors.plot}
-            />
-            <g
-              transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-            >
-              <ChartGrid
-                scales={mainPlotScales}
-                dimensions={mainPlot.dimensions}
-                themeColors={themeColors}
-              />
-            </g>
-            <g
-              ref={panGroupRef}
-              transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-              style={{
-                cursor: isManualPeakMode
-                  ? "crosshair"
-                  : selectionTarget === "pre"
-                    ? "w-resize"
-                    : selectionTarget === "post"
-                      ? "e-resize"
-                      : effectiveCursorMode === "zoom"
-                        ? "crosshair"
-                        : effectiveCursorMode === "pan"
-                          ? "grab"
-                          : "default",
-              }}
-              onPointerDown={handlePanStart}
-              onPointerMove={handlePanMove}
-              onPointerUp={handlePanEnd}
-              onPointerLeave={handlePanEnd}
-              onClick={handlePlotAreaClick}
-            >
-              <g clipPath={`url(#${plotClipId})`}>
-                {normalizationRegions &&
-                (selectionTarget !== null || showNormalizationShading) ? (
-                  <NormalizationRegionBands
-                    normalizationRegions={normalizationRegions}
-                    xScale={mainPlotScales.xScale}
-                    offsetX={0}
-                    offsetY={0}
+            <>
+              <defs>
+                <clipPath id={plotClipId}>
+                  <rect
+                    x={0}
+                    y={0}
+                    width={mainPlotWidth}
                     height={mainPlotHeight}
-                    plotInnerWidth={mainPlotWidth}
                   />
+                </clipPath>
+                {residualSplitActive ? (
+                  <clipPath id={residualPlotClipId}>
+                    <rect
+                      x={0}
+                      y={0}
+                      width={residualPlotMetrics.plotWidth}
+                      height={residualPlotMetrics.plotHeight}
+                    />
+                  </clipPath>
                 ) : null}
+              </defs>
+              <g>
                 <rect
-                  width={mainPlotWidth}
+                  data-export-plot-background
+                  x={mainPlot.dimensions.margins.left}
+                  y={mainPlot.dimensions.margins.top}
+                  width={
+                    mainPlot.dimensions.width -
+                    mainPlot.dimensions.margins.left -
+                    mainPlot.dimensions.margins.right
+                  }
                   height={mainPlotHeight}
-                  fill="transparent"
-                  style={{
-                    pointerEvents: inspectPlotHitSurfaceActive ? "all" : "none",
-                  }}
+                  fill={themeColors.plot}
                 />
-                {yAxisQuantity === "delta" && (
-                  <line
-                    x1={0}
-                    x2={mainPlotWidth}
-                    y1={mainPlotScales.yScale(0)}
-                    y2={mainPlotScales.yScale(0)}
-                    stroke={themeColors.axis}
-                    strokeWidth={1}
-                    vectorEffect="non-scaling-stroke"
-                    pointerEvents="none"
-                  />
-                )}
-                <ChartSpectrumLines
-                  traces={visibleTraces}
-                  scales={mainPlotScales}
-                  graphStyle={graphStyle}
-                  idPrefix="main"
-                  linkedOpticalAreaBands={visibleLinkedOpticalAreaBands}
-                />
-                <PeakIndicators
-                  peaks={peaks}
-                  scales={mainPlotScales}
-                  dimensions={mainPlot.dimensions}
-                  selectedPeakId={selectedPeakId ?? null}
-                  variant={isManualPeakMode ? "peak-edit" : "default"}
-                />
-                {isManualPeakMode && (
-                  <PeakOverlayLayer
-                    isActive
-                    peaks={peaks}
-                    scales={mainPlotScales}
-                    dimensions={mainPlot.dimensions}
-                    selectedPeakId={selectedPeakId}
-                    isManualPeakMode
-                    onPeakSelect={onPeakSelect}
-                    onPeakAdd={onPeakAdd}
-                    onPeakDelete={onPeakDelete}
-                    onPeakUpdate={onPeakUpdate}
-                    onPeakEnergyUpdate={handlePeakEnergyUpdate}
-                    plotRef={svgRef}
-                    getYValueAtEnergy={getYValueAtEnergy}
-                  />
-                )}
-                <InspectPinLayer
-                  slot="svg"
-                  pins={inspectPins}
-                  selectedPinId={selectedInspectPinId}
-                  visibleTraces={visibleTraces}
-                  scales={mainPlotScales}
-                  dimensions={mainPlot.dimensions}
-                  themeColors={themeColors}
-                  plotSvgRef={svgRef}
-                  onSelectPin={selectInspectPin}
-                  onRemovePin={removeInspectPin}
-                  onUpdatePinEnergy={updateInspectPinEnergy}
-                  overlayWidth={width}
-                  overlayHeight={contentHeight}
-                  yAxisQuantity={yAxisQuantity}
-                  showThetaData={showThetaData}
-                  showPhiData={showPhiData}
-                  linkedImaginaryGlyph={opticalLinkConfig?.imaginaryGlyph}
-                  linkedRealGlyph={opticalLinkConfig?.realGlyph}
-                />
-              </g>
-            </g>
-            {selectionTarget && (
-              <NormalizationBrush
-                xScale={mainPlotScales.xScale}
-                yScale={mainPlotScales.yScale}
-                dimensions={mainPlot.dimensions}
-                selectionTarget={selectionTarget}
-                onSelectionChange={
-                  onSelectionChange as (s: SpectrumSelection | null) => void
-                }
-                isDark={isDark}
-                themeColors={themeColors}
-              />
-            )}
-            {normalizationRegions &&
-              normalizationEdgeHandlesEnabled &&
-              onNormalizationEdgeEnergyChange &&
-              (selectionTarget !== null || showNormalizationShading) && (
                 <g
-                  style={{ pointerEvents: "auto" }}
                   transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
                 >
-                  <NormalizationRegionHandles
-                    normalizationRegions={normalizationRegions}
-                    xScale={mainPlotScales.xScale}
+                  <ChartGrid
+                    scales={mainPlotScales}
                     dimensions={mainPlot.dimensions}
-                    plotSvgRef={svgRef}
-                    energyDomain={dataXBounds}
-                    onEdgeEnergyChange={onNormalizationEdgeEnergyChange}
-                    onInteractionChange={onNormalizationInteractionChange}
+                    themeColors={themeColors}
                   />
                 </g>
-              )}
-            {effectiveCursorMode === "zoom" && !selectionTarget && (
-              <BrushZoom
-                xScale={mainPlotScales.xScale}
-                yScale={mainPlotScales.yScale}
-                dimensions={mainPlot.dimensions}
-                isDark={isDark}
-                themeColors={themeColors}
-                zoomMode={zoomMode}
-                onZoom={handleMarqueeZoom}
-                onReset={handleResetZoom}
-                enableDirectionalMarquee={yAxisZoomPanEnabled}
-                enableVerticalMarquee={yAxisZoomPanEnabled}
-                yAxisGutterWidth={
-                  yAxisZoomPanEnabled
-                    ? mainPlot.dimensions.margins.left
-                    : 0
-                }
-                xAxisGutterHeight={xAxisGutterHeight}
-              />
-            )}
-            {effectiveCursorMode === "pan" && (
-              <g
-                ref={panOverlayRef}
-                transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-                style={{ cursor: "grab" }}
-                onPointerDown={handlePanStart}
-                onPointerMove={handlePanMove}
-                onPointerUp={handlePanEnd}
-                onPointerLeave={handlePanEnd}
-              >
-                <rect
-                  width={mainPlotWidth}
-                  height={mainPlotHeight}
-                  fill="transparent"
-                  pointerEvents="all"
-                />
-              </g>
-            )}
-            <ChartAxes
-              scales={mainPlotScales}
-              dimensions={mainPlot.dimensions}
-              themeColors={themeColors}
-              showXAxisLabel={!hasSubplot && !residualSplitActive}
-              yAxisLabel={yAxisPrimary.label}
-              yTickFormat={(v) => yAxisPrimary.tickFormat(Number(v))}
-            />
-            {tooltipData && effectiveCursorMode === "inspect" && (
-              <ChartCrosshairAndDots
-                energy={tooltipData.energy}
-                dots={crosshairDots}
-                xScale={mainPlotScales.xScale}
-                yScale={mainPlotScales.yScale}
-                dimensions={mainPlot.dimensions}
-                themeColors={themeColors}
-              />
-            )}
-            <g
-              transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
-            >
-              {showDescriptorTraceLegend && descriptorTraceLegend ? (
-                <PlotDescriptorTraceLegend
-                  rows={descriptorTraceLegend.rows}
-                  columns={descriptorTraceLegend.columns}
-                  channelColumnTitle={descriptorTraceLegend.channelColumnTitle}
-                  hiddenTraceIds={descriptorTraceLegend.hiddenTraceIds}
-                  onToggleTrace={descriptorTraceLegend.onToggleTrace}
-                  themeColors={themeColors}
-                  plotWidth={mainPlotWidth}
-                  plotHeight={mainPlotHeight}
-                  plotSvgRef={svgRef}
-                  plotMarginLeft={mainPlot.dimensions.margins.left}
-                  plotMarginTop={mainPlot.dimensions.margins.top}
-                  positionResetKey={geometryLegendPositionResetKey}
-                />
-              ) : null}
-              {showGeometryLegend ? (
-                linkedOptical.active && opticalLinkConfig ? (
-                  <PlotSpectrumGeometryLegend
-                    mode="linked"
-                    rows={linkedOptical.legendRows}
-                    visibleTraceIds={visibleTraceIds}
-                    onToggleGeometry={toggleGeometryLegend}
-                    themeColors={themeColors}
-                    plotWidth={mainPlotWidth}
-                    plotHeight={mainPlotHeight}
-                    plotSvgRef={svgRef}
-                    plotMarginLeft={mainPlot.dimensions.margins.left}
-                    plotMarginTop={mainPlot.dimensions.margins.top}
-                    positionResetKey={geometryLegendPositionResetKey}
-                    graphStyle={graphStyle}
-                    imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
-                    realColumnGlyph={opticalLinkConfig.realGlyph}
-                    angleColumnTitle={geometryLegendAngleTitle}
-                    defaultCorner={geometryLegendCorner}
-                  />
-                ) : (
-                  <PlotSpectrumGeometryLegend
-                    mode="single"
-                    rows={
-                      regionLegendRows.length > 0
-                        ? regionLegendRows
-                        : singleGeometryLegend.rows
-                    }
-                    visibleTraceIds={visibleTraceIds}
-                    onToggleGeometry={toggleGeometryLegend}
-                    themeColors={themeColors}
-                    plotWidth={mainPlotWidth}
-                    plotHeight={mainPlotHeight}
-                    plotSvgRef={svgRef}
-                    plotMarginLeft={mainPlot.dimensions.margins.left}
-                    plotMarginTop={mainPlot.dimensions.margins.top}
-                    positionResetKey={geometryLegendPositionResetKey}
-                    graphStyle={graphStyle}
-                    channelColumnGlyph={channelLegendGlyph}
-                    angleColumnTitle={geometryLegendAngleTitle}
-                    defaultCorner={geometryLegendCorner}
-                  />
-                )
-              ) : null}
-            </g>
-          </g>
-
-          {residualSplitActive &&
-          residualSubplotTrace != null &&
-          residualSubplot != null ? (
-            <g transform={`translate(0, ${mainPlot.dimensions.height})`}>
-              <rect
-                x={residualSubplotLayout.residualPlot.dimensions.margins.left}
-                y={residualSubplotLayout.residualPlot.dimensions.margins.top}
-                width={residualPlotMetrics.plotWidth}
-                height={residualPlotMetrics.plotHeight}
-                fill={themeColors.plot}
-              />
-              <g
-                transform={`translate(${residualSubplotLayout.residualPlot.dimensions.margins.left}, ${residualSubplotLayout.residualPlot.dimensions.margins.top})`}
-              >
-                <ChartGrid
-                  scales={{
-                    xScale: residualPlotMetrics.xScale,
-                    yScale: residualPlotMetrics.yScale,
+                <g
+                  ref={panGroupRef}
+                  transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                  style={{
+                    cursor: isManualPeakMode
+                      ? "crosshair"
+                      : selectionTarget === "pre"
+                        ? "w-resize"
+                        : selectionTarget === "post"
+                          ? "e-resize"
+                          : effectiveCursorMode === "zoom"
+                            ? "crosshair"
+                            : effectiveCursorMode === "pan"
+                              ? "grab"
+                              : "default",
                   }}
-                  dimensions={residualSubplotLayout.residualPlot.dimensions}
+                  onPointerDown={handlePanStart}
+                  onPointerMove={handlePanMove}
+                  onPointerUp={handlePanEnd}
+                  onPointerLeave={handlePanEnd}
+                  onClick={handlePlotAreaClick}
+                >
+                  <g clipPath={`url(#${plotClipId})`}>
+                    {normalizationRegions &&
+                    (selectionTarget !== null || showNormalizationShading) ? (
+                      <NormalizationRegionBands
+                        normalizationRegions={normalizationRegions}
+                        xScale={mainPlotScales.xScale}
+                        offsetX={0}
+                        offsetY={0}
+                        height={mainPlotHeight}
+                        plotInnerWidth={mainPlotWidth}
+                      />
+                    ) : null}
+                    <rect
+                      width={mainPlotWidth}
+                      height={mainPlotHeight}
+                      fill="transparent"
+                      style={{
+                        pointerEvents: inspectPlotHitSurfaceActive
+                          ? "all"
+                          : "none",
+                      }}
+                    />
+                    {yAxisQuantity === "delta" && (
+                      <line
+                        x1={0}
+                        x2={mainPlotWidth}
+                        y1={mainPlotScales.yScale(0)}
+                        y2={mainPlotScales.yScale(0)}
+                        stroke={themeColors.axis}
+                        strokeWidth={1}
+                        vectorEffect="non-scaling-stroke"
+                        pointerEvents="none"
+                      />
+                    )}
+                    <ChartSpectrumLines
+                      traces={visibleTraces}
+                      scales={mainPlotScales}
+                      graphStyle={graphStyle}
+                      idPrefix="main"
+                      linkedOpticalAreaBands={visibleLinkedOpticalAreaBands}
+                    />
+                    <PeakIndicators
+                      peaks={peaks}
+                      scales={mainPlotScales}
+                      dimensions={mainPlot.dimensions}
+                      selectedPeakId={selectedPeakId ?? null}
+                      variant={isManualPeakMode ? "peak-edit" : "default"}
+                    />
+                    {isManualPeakMode && (
+                      <PeakOverlayLayer
+                        isActive
+                        peaks={peaks}
+                        scales={mainPlotScales}
+                        dimensions={mainPlot.dimensions}
+                        selectedPeakId={selectedPeakId}
+                        isManualPeakMode
+                        onPeakSelect={onPeakSelect}
+                        onPeakAdd={onPeakAdd}
+                        onPeakDelete={onPeakDelete}
+                        onPeakUpdate={onPeakUpdate}
+                        onPeakEnergyUpdate={handlePeakEnergyUpdate}
+                        plotRef={svgRef}
+                        getYValueAtEnergy={getYValueAtEnergy}
+                      />
+                    )}
+                    <InspectPinLayer
+                      slot="svg"
+                      pins={inspectPins}
+                      selectedPinId={selectedInspectPinId}
+                      visibleTraces={visibleTraces}
+                      scales={mainPlotScales}
+                      dimensions={mainPlot.dimensions}
+                      themeColors={themeColors}
+                      plotSvgRef={svgRef}
+                      onSelectPin={selectInspectPin}
+                      onRemovePin={removeInspectPin}
+                      onUpdatePinEnergy={updateInspectPinEnergy}
+                      overlayWidth={width}
+                      overlayHeight={contentHeight}
+                      yAxisQuantity={yAxisQuantity}
+                      showThetaData={showThetaData}
+                      showPhiData={showPhiData}
+                      linkedImaginaryGlyph={opticalLinkConfig?.imaginaryGlyph}
+                      linkedRealGlyph={opticalLinkConfig?.realGlyph}
+                    />
+                  </g>
+                </g>
+                {selectionTarget && (
+                  <NormalizationBrush
+                    xScale={mainPlotScales.xScale}
+                    yScale={mainPlotScales.yScale}
+                    dimensions={mainPlot.dimensions}
+                    selectionTarget={selectionTarget}
+                    onSelectionChange={
+                      onSelectionChange as (s: SpectrumSelection | null) => void
+                    }
+                    isDark={isDark}
+                    themeColors={themeColors}
+                  />
+                )}
+                {normalizationRegions &&
+                  normalizationEdgeHandlesEnabled &&
+                  onNormalizationEdgeEnergyChange &&
+                  (selectionTarget !== null || showNormalizationShading) && (
+                    <g
+                      style={{ pointerEvents: "auto" }}
+                      transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                    >
+                      <NormalizationRegionHandles
+                        normalizationRegions={normalizationRegions}
+                        xScale={mainPlotScales.xScale}
+                        dimensions={mainPlot.dimensions}
+                        plotSvgRef={svgRef}
+                        energyDomain={dataXBounds}
+                        onEdgeEnergyChange={onNormalizationEdgeEnergyChange}
+                        onInteractionChange={onNormalizationInteractionChange}
+                      />
+                    </g>
+                  )}
+                {effectiveCursorMode === "zoom" && !selectionTarget && (
+                  <BrushZoom
+                    xScale={mainPlotScales.xScale}
+                    yScale={mainPlotScales.yScale}
+                    dimensions={mainPlot.dimensions}
+                    isDark={isDark}
+                    themeColors={themeColors}
+                    zoomMode={zoomMode}
+                    onZoom={handleMarqueeZoom}
+                    onReset={handleResetZoom}
+                    enableDirectionalMarquee={yAxisZoomPanEnabled}
+                    enableVerticalMarquee={yAxisZoomPanEnabled}
+                    yAxisGutterWidth={
+                      yAxisZoomPanEnabled ? mainPlot.dimensions.margins.left : 0
+                    }
+                    xAxisGutterHeight={xAxisGutterHeight}
+                  />
+                )}
+                {effectiveCursorMode === "pan" && (
+                  <g
+                    ref={panOverlayRef}
+                    transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                    style={{ cursor: "grab" }}
+                    onPointerDown={handlePanStart}
+                    onPointerMove={handlePanMove}
+                    onPointerUp={handlePanEnd}
+                    onPointerLeave={handlePanEnd}
+                  >
+                    <rect
+                      width={mainPlotWidth}
+                      height={mainPlotHeight}
+                      fill="transparent"
+                      pointerEvents="all"
+                    />
+                  </g>
+                )}
+                <ChartAxes
+                  scales={mainPlotScales}
+                  dimensions={mainPlot.dimensions}
                   themeColors={themeColors}
+                  showXAxisLabel={!hasSubplot && !residualSplitActive}
+                  yAxisLabel={yAxisPrimary.label}
+                  yTickFormat={(v) => yAxisPrimary.tickFormat(Number(v))}
                 />
-                <g clipPath={`url(#${residualPlotClipId})`}>
-                  <ChartSpectrumLines
-                    traces={[residualSubplotTrace]}
+                {tooltipData && effectiveCursorMode === "inspect" && (
+                  <ChartCrosshairAndDots
+                    energy={tooltipData.energy}
+                    dots={crosshairDots}
+                    xScale={mainPlotScales.xScale}
+                    yScale={mainPlotScales.yScale}
+                    dimensions={mainPlot.dimensions}
+                    themeColors={themeColors}
+                  />
+                )}
+                <g
+                  transform={`translate(${mainPlot.dimensions.margins.left}, ${mainPlot.dimensions.margins.top})`}
+                >
+                  {showDescriptorTraceLegend && descriptorTraceLegend ? (
+                    <PlotDescriptorTraceLegend
+                      rows={descriptorTraceLegend.rows}
+                      columns={descriptorTraceLegend.columns}
+                      channelColumnTitle={
+                        descriptorTraceLegend.channelColumnTitle
+                      }
+                      hiddenTraceIds={descriptorTraceLegend.hiddenTraceIds}
+                      onToggleTrace={descriptorTraceLegend.onToggleTrace}
+                      themeColors={themeColors}
+                      plotWidth={mainPlotWidth}
+                      plotHeight={mainPlotHeight}
+                      plotSvgRef={svgRef}
+                      plotMarginLeft={mainPlot.dimensions.margins.left}
+                      plotMarginTop={mainPlot.dimensions.margins.top}
+                      positionResetKey={geometryLegendPositionResetKey}
+                    />
+                  ) : null}
+                  {showGeometryLegend ? (
+                    linkedOptical.active && opticalLinkConfig ? (
+                      <PlotSpectrumGeometryLegend
+                        mode="linked"
+                        rows={linkedOptical.legendRows}
+                        visibleTraceIds={visibleTraceIds}
+                        onToggleGeometry={toggleGeometryLegend}
+                        themeColors={themeColors}
+                        plotWidth={mainPlotWidth}
+                        plotHeight={mainPlotHeight}
+                        plotSvgRef={svgRef}
+                        plotMarginLeft={mainPlot.dimensions.margins.left}
+                        plotMarginTop={mainPlot.dimensions.margins.top}
+                        positionResetKey={geometryLegendPositionResetKey}
+                        graphStyle={graphStyle}
+                        imaginaryColumnGlyph={opticalLinkConfig.imaginaryGlyph}
+                        realColumnGlyph={opticalLinkConfig.realGlyph}
+                        angleColumnTitle={geometryLegendAngleTitle}
+                        defaultCorner={geometryLegendCorner}
+                      />
+                    ) : (
+                      <PlotSpectrumGeometryLegend
+                        mode="single"
+                        rows={
+                          regionLegendRows.length > 0
+                            ? regionLegendRows
+                            : singleGeometryLegend.rows
+                        }
+                        visibleTraceIds={visibleTraceIds}
+                        onToggleGeometry={toggleGeometryLegend}
+                        themeColors={themeColors}
+                        plotWidth={mainPlotWidth}
+                        plotHeight={mainPlotHeight}
+                        plotSvgRef={svgRef}
+                        plotMarginLeft={mainPlot.dimensions.margins.left}
+                        plotMarginTop={mainPlot.dimensions.margins.top}
+                        positionResetKey={geometryLegendPositionResetKey}
+                        graphStyle={graphStyle}
+                        channelColumnGlyph={channelLegendGlyph}
+                        angleColumnTitle={geometryLegendAngleTitle}
+                        defaultCorner={geometryLegendCorner}
+                      />
+                    )
+                  ) : null}
+                </g>
+              </g>
+
+              {residualSplitActive &&
+              residualSubplotTrace != null &&
+              residualSubplot != null ? (
+                <g transform={`translate(0, ${mainPlot.dimensions.height})`}>
+                  <rect
+                    x={
+                      residualSubplotLayout.residualPlot.dimensions.margins.left
+                    }
+                    y={
+                      residualSubplotLayout.residualPlot.dimensions.margins.top
+                    }
+                    width={residualPlotMetrics.plotWidth}
+                    height={residualPlotMetrics.plotHeight}
+                    fill={themeColors.plot}
+                  />
+                  <g
+                    transform={`translate(${residualSubplotLayout.residualPlot.dimensions.margins.left}, ${residualSubplotLayout.residualPlot.dimensions.margins.top})`}
+                  >
+                    <ChartGrid
+                      scales={{
+                        xScale: residualPlotMetrics.xScale,
+                        yScale: residualPlotMetrics.yScale,
+                      }}
+                      dimensions={residualSubplotLayout.residualPlot.dimensions}
+                      themeColors={themeColors}
+                    />
+                    <g clipPath={`url(#${residualPlotClipId})`}>
+                      <ChartSpectrumLines
+                        traces={[residualSubplotTrace]}
+                        scales={{
+                          xScale: residualPlotMetrics.xScale,
+                          yScale: residualPlotMetrics.yScale,
+                        }}
+                        graphStyle={graphStyle}
+                        idPrefix="lcf-residual"
+                      />
+                    </g>
+                  </g>
+                  <ChartAxes
                     scales={{
                       xScale: residualPlotMetrics.xScale,
                       yScale: residualPlotMetrics.yScale,
                     }}
-                    graphStyle={graphStyle}
-                    idPrefix="lcf-residual"
+                    dimensions={residualSubplotLayout.residualPlot.dimensions}
+                    themeColors={themeColors}
+                    showXAxisLabel
+                    yAxisLabel={residualYAxisPresentation.label}
+                    yTickFormat={(value) =>
+                      residualYAxisPresentation.tickFormat(
+                        typeof value === "number" ? value : value.valueOf(),
+                      )
+                    }
                   />
+                  <text
+                    x={
+                      residualSubplotLayout.residualPlot.dimensions.margins
+                        .left + 4
+                    }
+                    y={
+                      residualSubplotLayout.residualPlot.dimensions.margins
+                        .top + 12
+                    }
+                    className="fill-[var(--text-secondary)] text-[10px] font-medium"
+                  >
+                    {residualSubplot.label}
+                  </text>
                 </g>
-              </g>
-              <ChartAxes
-                scales={{
-                  xScale: residualPlotMetrics.xScale,
-                  yScale: residualPlotMetrics.yScale,
-                }}
-                dimensions={residualSubplotLayout.residualPlot.dimensions}
-                themeColors={themeColors}
-                showXAxisLabel
-                yAxisLabel={residualYAxisPresentation.label}
-                yTickFormat={(value) =>
-                  residualYAxisPresentation.tickFormat(
-                    typeof value === "number" ? value : value.valueOf(),
-                  )
-                }
-              />
-              <text
-                x={residualSubplotLayout.residualPlot.dimensions.margins.left + 4}
-                y={residualSubplotLayout.residualPlot.dimensions.margins.top + 12}
-                className="fill-[var(--text-secondary)] text-[10px] font-medium"
-              >
-                {residualSubplot.label}
-              </text>
-            </g>
-          ) : null}
+              ) : null}
 
-          {hasSubplot && peakPlot && (
-            <g transform={`translate(0, ${interactionPlot.dimensions.height})`}>
-              <rect
-                x={peakPlot.dimensions.margins.left}
-                y={peakPlot.dimensions.margins.top}
-                width={
-                  peakPlot.dimensions.width -
-                  peakPlot.dimensions.margins.left -
-                  peakPlot.dimensions.margins.right
-                }
-                height={
-                  peakPlot.dimensions.height -
-                  peakPlot.dimensions.margins.top -
-                  peakPlot.dimensions.margins.bottom
-                }
-                fill={themeColors.plot}
-              />
-              <ChartGrid
-                scales={{ xScale: peakPlot.xScale, yScale: peakPlot.yScale }}
-                dimensions={peakPlot.dimensions}
-                themeColors={themeColors}
-              />
-              <ChartAxes
-                scales={{ xScale: peakPlot.xScale, yScale: peakPlot.yScale }}
-                dimensions={peakPlot.dimensions}
-                themeColors={themeColors}
-                showXAxisLabel
-              />
-              {peakViz.selectedGeometryTrace && (
+              {hasSubplot && peakPlot && (
                 <g
-                  transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
+                  transform={`translate(0, ${interactionPlot.dimensions.height})`}
                 >
-                  <ChartSpectrumLines
-                    traces={[peakViz.selectedGeometryTrace]}
+                  <rect
+                    x={peakPlot.dimensions.margins.left}
+                    y={peakPlot.dimensions.margins.top}
+                    width={
+                      peakPlot.dimensions.width -
+                      peakPlot.dimensions.margins.left -
+                      peakPlot.dimensions.margins.right
+                    }
+                    height={
+                      peakPlot.dimensions.height -
+                      peakPlot.dimensions.margins.top -
+                      peakPlot.dimensions.margins.bottom
+                    }
+                    fill={themeColors.plot}
+                  />
+                  <ChartGrid
                     scales={{
                       xScale: peakPlot.xScale,
                       yScale: peakPlot.yScale,
                     }}
-                    graphStyle={graphStyle}
-                    idPrefix="peak"
+                    dimensions={peakPlot.dimensions}
+                    themeColors={themeColors}
                   />
-                </g>
-              )}
-              {peakViz.hasPeakVisualization && energyRange.length > 0 && (
-                <g
-                  transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
-                >
-                  <PeakCurves
-                    peaks={peaks}
+                  <ChartAxes
                     scales={{
                       xScale: peakPlot.xScale,
                       yScale: peakPlot.yScale,
-                      xInvert: (p: number) => peakPlot.xScale.invert(p),
-                      yInvert: (p: number) => peakPlot.yScale.invert(p),
                     }}
-                    selectedPeakId={selectedPeakId ?? null}
-                    energyRange={energyRange}
+                    dimensions={peakPlot.dimensions}
+                    themeColors={themeColors}
+                    showXAxisLabel
                   />
+                  {peakViz.selectedGeometryTrace && (
+                    <g
+                      transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
+                    >
+                      <ChartSpectrumLines
+                        traces={[peakViz.selectedGeometryTrace]}
+                        scales={{
+                          xScale: peakPlot.xScale,
+                          yScale: peakPlot.yScale,
+                        }}
+                        graphStyle={graphStyle}
+                        idPrefix="peak"
+                      />
+                    </g>
+                  )}
+                  {peakViz.hasPeakVisualization && energyRange.length > 0 && (
+                    <g
+                      transform={`translate(${peakPlot.dimensions.margins.left}, ${peakPlot.dimensions.margins.top})`}
+                    >
+                      <PeakCurves
+                        peaks={peaks}
+                        scales={{
+                          xScale: peakPlot.xScale,
+                          yScale: peakPlot.yScale,
+                          xInvert: (p: number) => peakPlot.xScale.invert(p),
+                          yInvert: (p: number) => peakPlot.yScale.invert(p),
+                        }}
+                        selectedPeakId={selectedPeakId ?? null}
+                        energyRange={energyRange}
+                      />
+                    </g>
+                  )}
                 </g>
               )}
-            </g>
-          )}
-          </>
+            </>
           )}
         </svg>
         <PeakPlotAnnotations

@@ -21,8 +21,12 @@ const experimentName = "2024-03-AuNP";
 describe("resolveStxmSessionForMutation", () => {
   it("returns null while the session file is not ready", () => {
     const loaded = createEmptyStxmSessionFile(experimentName);
-    expect(resolveStxmSessionForMutation(false, loaded, experimentName)).toBeNull();
-    expect(resolveStxmSessionForMutation(false, null, experimentName)).toBeNull();
+    expect(
+      resolveStxmSessionForMutation(false, loaded, experimentName),
+    ).toBeNull();
+    expect(
+      resolveStxmSessionForMutation(false, null, experimentName),
+    ).toBeNull();
   });
 
   it("reuses the loaded session snapshot when ready", () => {

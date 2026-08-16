@@ -5,7 +5,10 @@ export {
   type RegionSumSigmaResult,
   type StxmWeightingMode,
 } from "./estimators";
-export { isNexafsLineScanType, NEXAFS_LINE_SCAN_TYPE } from "./isNexafsLineScan";
+export {
+  isNexafsLineScanType,
+  NEXAFS_LINE_SCAN_TYPE,
+} from "./isNexafsLineScan";
 export { loadStxm } from "./loadStxm";
 export { downsampleHeatmap, percentile, valueToGrayscaleByte } from "./heatmap";
 export {
@@ -42,7 +45,10 @@ export {
   STXM_SCAN_CATEGORY_ORDER,
   type StxmScanCategory,
 } from "./scanType";
-export { lineScanThumbnailDataUrl, scanThumbnailDataUrl } from "./scanThumbnail";
+export {
+  lineScanThumbnailDataUrl,
+  scanThumbnailDataUrl,
+} from "./scanThumbnail";
 export {
   isAllowedStxmFilename,
   stxmFileKindFromName,

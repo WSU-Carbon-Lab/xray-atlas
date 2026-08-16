@@ -37,10 +37,7 @@ export type TraceStackSplitSpectrumBodyProps = {
   readonly contentHeight: number;
 };
 
-function panelTrace(
-  panel: TraceStackSplitPanel,
-  color: string,
-): TraceData {
+function panelTrace(panel: TraceStackSplitPanel, color: string): TraceData {
   return {
     type: "scattergl",
     mode: "lines",
@@ -101,7 +98,9 @@ export function TraceStackSplitSpectrumBody({
         const plotWidth =
           dimensions.width - dimensions.margins.left - dimensions.margins.right;
         const plotHeight =
-          dimensions.height - dimensions.margins.top - dimensions.margins.bottom;
+          dimensions.height -
+          dimensions.margins.top -
+          dimensions.margins.bottom;
 
         const xScale = zoomedXScale.copy().range([0, plotWidth]);
         const scales = { xScale, yScale, plotWidth, plotHeight };

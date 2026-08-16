@@ -94,8 +94,7 @@ function normalizeStewardImageUrl(
 function stewardToAvatarUser(steward: InstrumentStewardPublic): UserWithOrcid {
   const trimmedName = steward.name?.trim() ?? "";
   const stewardHasAtlasProfile = trimmedName.length > 0;
-  const displayName =
-    trimmedName.length > 0 ? trimmedName : steward.userId;
+  const displayName = trimmedName.length > 0 ? trimmedName : steward.userId;
 
   return {
     id: steward.userId,

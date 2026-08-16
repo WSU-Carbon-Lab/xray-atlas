@@ -1,6 +1,6 @@
-import { MoleculeCardSkeleton } from "@/components/feedback/loading-state";
-import { MoleculeSearch } from "@/components/molecules/molecule-search";
-import { DefaultButton as Button } from "@/components/ui/button";
+import { MoleculeCardSkeleton } from "~/components/feedback/loading-state";
+import { MoleculeSearch } from "~/components/molecules/molecule-search";
+import { DefaultButton as Button } from "~/components/ui/button";
 import Link from "next/link";
 import { Search, Upload } from "lucide-react";
 import { mission, site } from "~/app/brand";

@@ -110,7 +110,10 @@ function parseCsvParam(raw: string | null, maxCount?: number): string[] {
   if (!raw) {
     return [];
   }
-  const parts = raw.split(",").map((part) => part.trim()).filter(Boolean);
+  const parts = raw
+    .split(",")
+    .map((part) => part.trim())
+    .filter(Boolean);
   if (maxCount == null) {
     return parts;
   }
@@ -221,7 +224,9 @@ export function parsePlotViewerLegendTrayOpen(
   return true;
 }
 
-function parseDescriptorFields(searchParams: URLSearchParams): PlotViewerDescriptorField[] {
+function parseDescriptorFields(
+  searchParams: URLSearchParams,
+): PlotViewerDescriptorField[] {
   const descRaw = searchParams.get("desc");
   if (descRaw) {
     return normalizePlotViewerDescriptorFields(parseCsvParam(descRaw));
@@ -248,10 +253,9 @@ export function readPlotViewerParams(
   const layoutRaw = searchParams.get("layout") ?? "overlay";
   const viewMode = isPlotViewerViewMode(layoutRaw) ? layoutRaw : "overlay";
   const paletteRaw = searchParams.get("palette") ?? "spectrum";
-  const paletteId = isPlotViewerPaletteId(paletteRaw)
-    ? paletteRaw
-    : "spectrum";
-  const colorByRaw = searchParams.get("colorBy") ?? DEFAULT_PLOT_VIEWER_COLOR_BY;
+  const paletteId = isPlotViewerPaletteId(paletteRaw) ? paletteRaw : "spectrum";
+  const colorByRaw =
+    searchParams.get("colorBy") ?? DEFAULT_PLOT_VIEWER_COLOR_BY;
   const colorBy = isPlotViewerStyleMappingField(colorByRaw)
     ? colorByRaw
     : DEFAULT_PLOT_VIEWER_COLOR_BY;
@@ -277,7 +281,10 @@ export function readPlotViewerParams(
     ),
     channel,
     facets: {
-      edge: parseCsvParam(searchParams.get("edge"), PLOT_VIEWER_MAX_FACET_VALUES),
+      edge: parseCsvParam(
+        searchParams.get("edge"),
+        PLOT_VIEWER_MAX_FACET_VALUES,
+      ),
       mol: parseCsvParam(searchParams.get("mol"), PLOT_VIEWER_MAX_FACET_VALUES),
       instrument: parseCsvParam(
         searchParams.get("instrument"),
@@ -422,7 +429,10 @@ export function writePlotViewerParams(
   }
 }
 
-function stringArraysEqual(a: readonly string[], b: readonly string[]): boolean {
+function stringArraysEqual(
+  a: readonly string[],
+  b: readonly string[],
+): boolean {
   if (a.length !== b.length) {
     return false;
   }

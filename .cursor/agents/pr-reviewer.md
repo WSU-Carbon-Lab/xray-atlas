@@ -9,11 +9,11 @@ You coordinate a **three-phase** review so bad architecture, unsafe persistence,
 
 ## Phase agents (strict order)
 
-| Order | Agent | Gate |
-|-------|--------|------|
-| 1 | `pr-review-phase-1-design` | Architecture, naming, **API and data contracts**, migrations and persistence **shape**, authz **model** |
-| 2 | `pr-review-phase-2-technical` | **Correctness**, **types/validation**, **DB writes and integrity**, **security in code**, performance, edges, tests |
-| 3 | `pr-review-phase-3-polish` | **Accessibility**, **project UI rules**, usability and destructive-flow safety |
+| Order | Agent                         | Gate                                                                                                                |
+| ----- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------- |
+| 1     | `pr-review-phase-1-design`    | Architecture, naming, **API and data contracts**, migrations and persistence **shape**, authz **model**             |
+| 2     | `pr-review-phase-2-technical` | **Correctness**, **types/validation**, **DB writes and integrity**, **security in code**, performance, edges, tests |
+| 3     | `pr-review-phase-3-polish`    | **Accessibility**, **project UI rules**, usability and destructive-flow safety                                      |
 
 Heavy backend-only PRs may also warrant `backend-auditer` in parallel; phase 2 still owns **implementation** blockers called out there.
 

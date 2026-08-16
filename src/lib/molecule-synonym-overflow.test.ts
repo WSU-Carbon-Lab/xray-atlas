@@ -23,15 +23,17 @@ describe("moleculeSynonymMatchesReference", () => {
   });
 
   it("matches slug-equivalent labels", () => {
-    expect(moleculeSynonymMatchesReference("Test Name", "test-name")).toBe(true);
+    expect(moleculeSynonymMatchesReference("Test Name", "test-name")).toBe(
+      true,
+    );
   });
 });
 
 describe("moleculeOverflowSynonyms", () => {
   it("returns empty when only synonym equals primary", () => {
-    expect(
-      moleculeOverflowSynonyms(["Y11"], { primaryName: "Y11" }),
-    ).toEqual([]);
+    expect(moleculeOverflowSynonyms(["Y11"], { primaryName: "Y11" })).toEqual(
+      [],
+    );
   });
 
   it("keeps additional names after primary", () => {

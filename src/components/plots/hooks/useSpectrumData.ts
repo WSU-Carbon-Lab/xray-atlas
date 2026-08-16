@@ -56,7 +56,16 @@ export function filterSpectrumPointsForGroupedPlot(
 export type SpectrumDataResult = {
   traces: TraceData[];
   keys: string[];
-  groups: Map<string, { label: string; theta?: number; phi?: number; energies: number[]; absorptions: number[] }>;
+  groups: Map<
+    string,
+    {
+      label: string;
+      theta?: number;
+      phi?: number;
+      energies: number[];
+      absorptions: number[];
+    }
+  >;
 };
 
 /**
@@ -76,7 +85,9 @@ export function useSpectrumData(
   primaryTraceMarkerEvery?: number,
   primaryTraceMarkerSize?: number,
 ): SpectrumDataResult {
-  const palette = isDark ? SPECTRUM_TRACE_GRADIENT_DARK : SPECTRUM_TRACE_GRADIENT_LIGHT;
+  const palette = isDark
+    ? SPECTRUM_TRACE_GRADIENT_DARK
+    : SPECTRUM_TRACE_GRADIENT_LIGHT;
   return useMemo(() => {
     // Filter points based on showThetaData and showPhiData
     // If difference spectra are being shown, don't show original data
@@ -123,8 +134,7 @@ export function useSpectrumData(
             index === 0 && primaryTraceMarkerSize != null
               ? primaryTraceMarkerSize
               : 4,
-          opacity:
-            index === 0 && primaryTraceMarkerSymbol ? 0.85 : 0.7,
+          opacity: index === 0 && primaryTraceMarkerSymbol ? 0.85 : 0.7,
           symbol:
             index === 0 && primaryTraceMarkerSymbol
               ? primaryTraceMarkerSymbol

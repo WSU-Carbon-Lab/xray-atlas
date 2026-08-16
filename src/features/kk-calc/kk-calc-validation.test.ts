@@ -67,7 +67,10 @@ interface KkcalcOpticalDeltaGoldenFile {
 function loadKkcalcOpticalDeltaGolden(): readonly number[] {
   const raw = readFileSync(kkcalcOpticalDeltaGoldenPath, "utf-8");
   const v = JSON.parse(raw) as KkcalcOpticalDeltaGoldenFile;
-  if (!Array.isArray(v.delta) || !v.delta.every((x): x is number => typeof x === "number")) {
+  if (
+    !Array.isArray(v.delta) ||
+    !v.delta.every((x): x is number => typeof x === "number")
+  ) {
     throw new TypeError("golden.delta must be a number array");
   }
   return v.delta;
@@ -84,15 +87,22 @@ interface CsvSpectrumWithPersistedDelta extends CsvSpectrum {
 
 function loadNexafsCsvEnergyBeta(csvAbsolutePath: string): CsvSpectrum {
   const text = readFileSync(csvAbsolutePath, "utf-8");
-  const lines = text.trimEnd().split("\n").filter((line) => line.length > 0);
+  const lines = text
+    .trimEnd()
+    .split("\n")
+    .filter((line) => line.length > 0);
   if (lines.length < 2) {
-    throw new RangeError("CSV must contain a header row and at least one data row");
+    throw new RangeError(
+      "CSV must contain a header row and at least one data row",
+    );
   }
   const header = lines[0]!.split(",");
   const ie = header.indexOf("energy_eV");
   const ib = header.indexOf("beta");
   if (ie < 0 || ib < 0) {
-    throw new RangeError('CSV must include "energy_eV" and "beta" header columns');
+    throw new RangeError(
+      'CSV must include "energy_eV" and "beta" header columns',
+    );
   }
   const energyEv: number[] = [];
   const beta: number[] = [];
@@ -106,7 +116,9 @@ function loadNexafsCsvEnergyBeta(csvAbsolutePath: string): CsvSpectrum {
   }
   for (let i = 0; i < energyEv.length; i++) {
     if (!Number.isFinite(energyEv[i]) || !Number.isFinite(beta[i])) {
-      throw new RangeError("energy_eV and beta must contain only finite numbers");
+      throw new RangeError(
+        "energy_eV and beta must contain only finite numbers",
+      );
     }
   }
   for (let i = 1; i < energyEv.length; i++) {
@@ -123,9 +135,14 @@ function loadNexafsCsvEnergyBetaDeltaPersisted(
   csvAbsolutePath: string,
 ): CsvSpectrumWithPersistedDelta {
   const text = readFileSync(csvAbsolutePath, "utf-8");
-  const lines = text.trimEnd().split("\n").filter((line) => line.length > 0);
+  const lines = text
+    .trimEnd()
+    .split("\n")
+    .filter((line) => line.length > 0);
   if (lines.length < 2) {
-    throw new RangeError("CSV must contain a header row and at least one data row");
+    throw new RangeError(
+      "CSV must contain a header row and at least one data row",
+    );
   }
   const header = lines[0]!.split(",");
   const ie = header.indexOf("energy_eV");
@@ -154,7 +171,9 @@ function loadNexafsCsvEnergyBetaDeltaPersisted(
       !Number.isFinite(beta[i]) ||
       !Number.isFinite(deltaPersisted[i])
     ) {
-      throw new RangeError("energy_eV, beta, and delta must contain only finite numbers");
+      throw new RangeError(
+        "energy_eV, beta, and delta must contain only finite numbers",
+      );
     }
   }
   for (let i = 1; i < energyEv.length; i++) {
@@ -192,7 +211,10 @@ function parseNumberArrayField(raw: string, field: "delta"): number[] {
     throw new TypeError(`Expected JSON object with "${field}" array`);
   }
   const arr = (v as Record<string, unknown>)[field];
-  if (!Array.isArray(arr) || !arr.every((x): x is number => typeof x === "number")) {
+  if (
+    !Array.isArray(arr) ||
+    !arr.every((x): x is number => typeof x === "number")
+  ) {
     throw new TypeError(`"${field}" must be an array of numbers`);
   }
   return arr;
@@ -407,7 +429,10 @@ describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
       coarseDeltaTs,
     );
 
-    const signVersusTs = pickTsDeltaSignVersusKkcalcDelta(deltaTsPath, deltaKkcalc);
+    const signVersusTs = pickTsDeltaSignVersusKkcalcDelta(
+      deltaTsPath,
+      deltaKkcalc,
+    );
     const tsCompared = deltaTsPath.map((v) => signVersusTs * v);
 
     const pearsonR = pearsonSampleCorrelation(tsCompared, deltaKkcalc);
@@ -416,7 +441,8 @@ describe("kk-calc validation vs Python kkcalc2 + SciPy", () => {
 
     console.info(
       JSON.stringify({
-        csvFixture: "src/features/kk-calc/__fixtures__/nexafs-experiment-30539a6a-pol-86906b55-th55-ph0.csv",
+        csvFixture:
+          "src/features/kk-calc/__fixtures__/nexafs-experiment-30539a6a-pol-86906b55-th55-ph0.csv",
         deltaSimilarityTsKkcalcCoarseMakimaVersusGolden: {
           coarseGridStep: step,
           signVersusTsDelta: signVersusTs,

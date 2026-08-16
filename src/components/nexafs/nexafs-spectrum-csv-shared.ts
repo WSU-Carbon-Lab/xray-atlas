@@ -10,7 +10,10 @@ import { parseTraceGeometryIdentity } from "~/components/plots/spectrum/parse-tr
 
 export type { NexafsSpectrumCsvExportOptions };
 
-export function formatThetaPhiLabel(theta: number | null, phi: number | null): string {
+export function formatThetaPhiLabel(
+  theta: number | null,
+  phi: number | null,
+): string {
   const t =
     theta != null && Number.isFinite(theta) ? `${theta.toFixed(1)}` : "—";
   const p = phi != null && Number.isFinite(phi) ? `${phi.toFixed(1)}` : "—";
@@ -65,9 +68,10 @@ export function spectrumGeometryCsvRowsFromTree(
   return rows;
 }
 
-function thetaPhiFromSpectrumPoint(
-  point: SpectrumPoint | undefined,
-): { theta?: number; phi?: number } {
+function thetaPhiFromSpectrumPoint(point: SpectrumPoint | undefined): {
+  theta?: number;
+  phi?: number;
+} {
   if (!point) {
     return {};
   }

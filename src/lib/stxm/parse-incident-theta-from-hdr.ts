@@ -4,7 +4,9 @@
  * Scans common beamline header keys (`Polarization`, `Sample Polar`, `Incident Angle`, and
  * `Comment` tokens such as `theta=55`) and returns the first finite value found.
  */
-export function parseIncidentThetaDegFromHdrText(hdrText: string): number | undefined {
+export function parseIncidentThetaDegFromHdrText(
+  hdrText: string,
+): number | undefined {
   const patterns = [
     /Polarization\s*=\s*\{\s*Value\s*=\s*\(\s*([-\d.]+)/i,
     /Sample\s+Polar(?:ization)?\s*=\s*\(?\s*([-\d.]+)/i,
@@ -31,7 +33,9 @@ export function parseIncidentThetaDegFromHdrText(hdrText: string): number | unde
 /**
  * Parses incident θ from a scan basename when encoded as `th55`, `theta55`, or `55deg` tokens.
  */
-export function parseIncidentThetaDegFromScanLabel(scanLabel: string): number | undefined {
+export function parseIncidentThetaDegFromScanLabel(
+  scanLabel: string,
+): number | undefined {
   const trimmed = scanLabel.trim();
   if (trimmed.length === 0) {
     return undefined;

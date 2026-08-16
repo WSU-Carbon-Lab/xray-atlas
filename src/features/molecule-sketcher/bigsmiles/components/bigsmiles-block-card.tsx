@@ -26,7 +26,7 @@ export function BigSmilesBlockCard({
 
   return (
     <article
-      className="border-border bg-surface flex min-w-[220px] max-w-[280px] flex-col gap-2 rounded-lg border p-3 shadow-sm"
+      className="border-border bg-surface flex max-w-[280px] min-w-[220px] flex-col gap-2 rounded-lg border p-3 shadow-sm"
       aria-labelledby={`${baseId}-label`}
     >
       <div className="flex flex-wrap items-center gap-2">
@@ -36,9 +36,7 @@ export function BigSmilesBlockCard({
           variant="secondary"
           className="font-semibold"
           style={
-            showAccent
-              ? { borderColor: accent, color: accent }
-              : undefined
+            showAccent ? { borderColor: accent, color: accent } : undefined
           }
         >
           <Chip.Label>Block {block.label}</Chip.Label>

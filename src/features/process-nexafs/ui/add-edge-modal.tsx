@@ -85,7 +85,9 @@ export function AddEdgeModal({
           value={coreState || null}
           onChange={(value) => {
             setCoreState(
-              value == null ? "" : String(Array.isArray(value) ? value[0] : value),
+              value == null
+                ? ""
+                : String(Array.isArray(value) ? value[0] : value),
             );
           }}
         >
@@ -120,7 +122,7 @@ export function AddEdgeModal({
           <button
             type="submit"
             disabled={!isValid || createEdge.isPending}
-            className="bg-accent text-accent-foreground hover:opacity-90 disabled:opacity-50 rounded-md px-3 py-2 text-sm font-medium disabled:cursor-not-allowed"
+            className="bg-accent text-accent-foreground rounded-md px-3 py-2 text-sm font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
           >
             {createEdge.isPending ? "Adding..." : "Add edge"}
           </button>

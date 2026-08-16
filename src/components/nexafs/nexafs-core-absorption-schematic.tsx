@@ -5,12 +5,7 @@
 
 "use client";
 
-import {
-  useEffect,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import { cn } from "@heroui/styles";
 
 import {
@@ -135,10 +130,7 @@ export function NexafsCoreAbsorptionSchematic({
     }
 
     const syncPlayback = (): void => {
-      if (
-        document.visibilityState === "hidden" ||
-        !intersectingRef.current
-      ) {
+      if (document.visibilityState === "hidden" || !intersectingRef.current) {
         svg.pauseAnimations();
       } else {
         svg.unpauseAnimations();
@@ -179,12 +171,8 @@ export function NexafsCoreAbsorptionSchematic({
       if (!alive) {
         return;
       }
-      if (
-        document.visibilityState === "visible" &&
-        intersectingRef.current
-      ) {
-        wavePhaseRef.current =
-          (performance.now() * 0.021) % (2 * Math.PI);
+      if (document.visibilityState === "visible" && intersectingRef.current) {
+        wavePhaseRef.current = (performance.now() * 0.021) % (2 * Math.PI);
         setWaveFrame((n) => (n + 1) % 1_000_000);
       }
       frameId = requestAnimationFrame(tick);
@@ -262,10 +250,8 @@ export function NexafsCoreAbsorptionSchematic({
     tPhotonHit - timing.impactElectronFadeLeadBeforeHit;
   const tImpactElectronGone =
     tPhotonHit + timing.impactElectronFadeTrailAfterHit;
-  const tAbsorbGlowStart =
-    tPhotonHit - timing.absorbGlowStartLeadBeforeHit;
-  const tAbsorbGlowRampEnd =
-    tPhotonHit - timing.absorbGlowRampEndLeadBeforeHit;
+  const tAbsorbGlowStart = tPhotonHit - timing.absorbGlowStartLeadBeforeHit;
+  const tAbsorbGlowRampEnd = tPhotonHit - timing.absorbGlowRampEndLeadBeforeHit;
 
   const photonTargetId = shot.targetElectronId;
 
@@ -312,8 +298,9 @@ export function NexafsCoreAbsorptionSchematic({
         xmlns="http://www.w3.org/2000/svg"
       >
         <title id="nexafs-absorption-schematic-title">
-          Tunable photon absorption at a core 1s site: an inbound wave packet intersects the core shell
-          and a photoelectron leaves along an outward trajectory in this simplified shell schematic
+          Tunable photon absorption at a core 1s site: an inbound wave packet
+          intersects the core shell and a photoelectron leaves along an outward
+          trajectory in this simplified shell schematic
         </title>
         <defs>
           <linearGradient
@@ -336,14 +323,38 @@ export function NexafsCoreAbsorptionSchematic({
             x2={ejBx}
             y2={ejBy}
           >
-            <stop offset="0%" stopColor="oklch(78% 0.14 230)" stopOpacity="0.35" />
-            <stop offset="45%" stopColor="oklch(82% 0.12 220)" stopOpacity="0.95" />
-            <stop offset="100%" stopColor="oklch(88% 0.08 200)" stopOpacity="0.55" />
+            <stop
+              offset="0%"
+              stopColor="oklch(78% 0.14 230)"
+              stopOpacity="0.35"
+            />
+            <stop
+              offset="45%"
+              stopColor="oklch(82% 0.12 220)"
+              stopOpacity="0.95"
+            />
+            <stop
+              offset="100%"
+              stopColor="oklch(88% 0.08 200)"
+              stopOpacity="0.55"
+            />
           </linearGradient>
           <radialGradient id="nexafs-stage-vignette" cx="50%" cy="48%" r="68%">
-            <stop offset="0%" stopColor="oklch(58% 0.07 286)" stopOpacity="0.22" />
-            <stop offset="50%" stopColor="oklch(72% 0.04 264)" stopOpacity="0.1" />
-            <stop offset="100%" stopColor="oklch(88% 0.02 264)" stopOpacity="0.03" />
+            <stop
+              offset="0%"
+              stopColor="oklch(58% 0.07 286)"
+              stopOpacity="0.22"
+            />
+            <stop
+              offset="50%"
+              stopColor="oklch(72% 0.04 264)"
+              stopOpacity="0.1"
+            />
+            <stop
+              offset="100%"
+              stopColor="oklch(88% 0.02 264)"
+              stopOpacity="0.03"
+            />
           </radialGradient>
           <radialGradient id="nexafs-nucleus-a" cx="35%" cy="35%" r="65%">
             <stop offset="0%" stopColor="oklch(92% 0.06 290)" />
@@ -363,31 +374,77 @@ export function NexafsCoreAbsorptionSchematic({
             <stop offset="55%" stopColor="oklch(62% 0.17 250)" />
             <stop offset="100%" stopColor="oklch(42% 0.15 260)" />
           </radialGradient>
-          <radialGradient id="nexafs-electron-valence" cx="35%" cy="28%" r="58%">
+          <radialGradient
+            id="nexafs-electron-valence"
+            cx="35%"
+            cy="28%"
+            r="58%"
+          >
             <stop offset="0%" stopColor="oklch(93% 0.05 150)" />
             <stop offset="55%" stopColor="oklch(72% 0.17 150)" />
             <stop offset="100%" stopColor="oklch(48% 0.14 155)" />
           </radialGradient>
-          <radialGradient id="nexafs-electron-covalent" cx="34%" cy="30%" r="58%">
+          <radialGradient
+            id="nexafs-electron-covalent"
+            cx="34%"
+            cy="30%"
+            r="58%"
+          >
             <stop offset="0%" stopColor="oklch(94% 0.04 25)" />
             <stop offset="55%" stopColor="oklch(62% 0.22 25)" />
             <stop offset="100%" stopColor="oklch(46% 0.17 20)" />
           </radialGradient>
           <radialGradient id="nexafs-unoccupied-slot" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="oklch(65% 0.14 290)" stopOpacity="0.12" />
-            <stop offset="70%" stopColor="oklch(55% 0.08 290)" stopOpacity="0.28" />
-            <stop offset="100%" stopColor="oklch(45% 0.06 290)" stopOpacity="0.06" />
+            <stop
+              offset="0%"
+              stopColor="oklch(65% 0.14 290)"
+              stopOpacity="0.12"
+            />
+            <stop
+              offset="70%"
+              stopColor="oklch(55% 0.08 290)"
+              stopOpacity="0.28"
+            />
+            <stop
+              offset="100%"
+              stopColor="oklch(45% 0.06 290)"
+              stopOpacity="0.06"
+            />
           </radialGradient>
           <radialGradient id="nexafs-absorption-core" cx="50%" cy="50%" r="48%">
             <stop offset="0%" stopColor="oklch(94% 0.09 95)" stopOpacity="1" />
-            <stop offset="35%" stopColor="oklch(82% 0.14 75)" stopOpacity="0.85" />
-            <stop offset="72%" stopColor="oklch(72% 0.18 55)" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="oklch(60% 0.15 40)" stopOpacity="0" />
+            <stop
+              offset="35%"
+              stopColor="oklch(82% 0.14 75)"
+              stopOpacity="0.85"
+            />
+            <stop
+              offset="72%"
+              stopColor="oklch(72% 0.18 55)"
+              stopOpacity="0.35"
+            />
+            <stop
+              offset="100%"
+              stopColor="oklch(60% 0.15 40)"
+              stopOpacity="0"
+            />
           </radialGradient>
           <radialGradient id="nexafs-absorption-halo" cx="50%" cy="50%" r="50%">
-            <stop offset="0%" stopColor="oklch(78% 0.2 290)" stopOpacity="0.55" />
-            <stop offset="55%" stopColor="oklch(62% 0.14 280)" stopOpacity="0.18" />
-            <stop offset="100%" stopColor="oklch(45% 0.08 270)" stopOpacity="0" />
+            <stop
+              offset="0%"
+              stopColor="oklch(78% 0.2 290)"
+              stopOpacity="0.55"
+            />
+            <stop
+              offset="55%"
+              stopColor="oklch(62% 0.14 280)"
+              stopOpacity="0.18"
+            />
+            <stop
+              offset="100%"
+              stopColor="oklch(45% 0.08 270)"
+              stopOpacity="0"
+            />
           </radialGradient>
           <filter
             id="nexafs-blur-soft"
@@ -402,7 +459,13 @@ export function NexafsCoreAbsorptionSchematic({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="nexafs-bloom-wide" x="-35%" y="-35%" width="170%" height="170%">
+          <filter
+            id="nexafs-bloom-wide"
+            x="-35%"
+            y="-35%"
+            width="170%"
+            height="170%"
+          >
             <feGaussianBlur in="SourceGraphic" stdDeviation="9" result="blur" />
             <feColorMatrix
               in="blur"
@@ -415,7 +478,13 @@ export function NexafsCoreAbsorptionSchematic({
               <feMergeNode in="SourceGraphic" />
             </feMerge>
           </filter>
-          <filter id="nexafs-glow-tight" x="-80%" y="-80%" width="260%" height="260%">
+          <filter
+            id="nexafs-glow-tight"
+            x="-80%"
+            y="-80%"
+            width="260%"
+            height="260%"
+          >
             <feGaussianBlur stdDeviation="3.2" result="g" />
             <feMerge>
               <feMergeNode in="g" />
@@ -471,14 +540,51 @@ export function NexafsCoreAbsorptionSchematic({
         ) : null}
 
         <g aria-hidden className="opacity-[0.35]">
-          <circle cx={cx} cy={cy} r={r2p + 18} fill="none" stroke="oklch(70% 0.06 280)" strokeWidth="1" />
-          <circle cx={cx} cy={cy} r={r2p + 30} fill="none" stroke="oklch(58% 0.05 280)" strokeWidth="0.75" opacity={0.55} />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r2p + 18}
+            fill="none"
+            stroke="oklch(70% 0.06 280)"
+            strokeWidth="1"
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r2p + 30}
+            fill="none"
+            stroke="oklch(58% 0.05 280)"
+            strokeWidth="0.75"
+            opacity={0.55}
+          />
         </g>
 
         <g filter="url(#nexafs-blur-soft)" opacity={0.45} aria-hidden>
-          <circle cx={cx} cy={cy} r={r2p} fill="none" stroke="oklch(78% 0.06 280)" strokeWidth="10" strokeDasharray="10 12" />
-          <circle cx={cx} cy={cy} r={r2s} fill="none" stroke="oklch(82% 0.05 200)" strokeWidth="8" />
-          <circle cx={cx} cy={cy} r={r1s} fill="none" stroke="oklch(85% 0.05 220)" strokeWidth="8" />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r2p}
+            fill="none"
+            stroke="oklch(78% 0.06 280)"
+            strokeWidth="10"
+            strokeDasharray="10 12"
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r2s}
+            fill="none"
+            stroke="oklch(82% 0.05 200)"
+            strokeWidth="8"
+          />
+          <circle
+            cx={cx}
+            cy={cy}
+            r={r1s}
+            fill="none"
+            stroke="oklch(85% 0.05 220)"
+            strokeWidth="8"
+          />
         </g>
 
         <circle
@@ -514,9 +620,27 @@ export function NexafsCoreAbsorptionSchematic({
         />
 
         <g aria-hidden>
-          <circle cx={cx - 5} cy={cy + 3} r={11} fill="url(#nexafs-nucleus-a)" filter="url(#nexafs-glow-tight)" />
-          <circle cx={cx + 8} cy={cy - 4} r={9} fill="url(#nexafs-nucleus-b)" opacity={0.96} />
-          <circle cx={cx + 2} cy={cy + 11} r={7.5} fill="url(#nexafs-nucleus-c)" opacity={0.92} />
+          <circle
+            cx={cx - 5}
+            cy={cy + 3}
+            r={11}
+            fill="url(#nexafs-nucleus-a)"
+            filter="url(#nexafs-glow-tight)"
+          />
+          <circle
+            cx={cx + 8}
+            cy={cy - 4}
+            r={9}
+            fill="url(#nexafs-nucleus-b)"
+            opacity={0.96}
+          />
+          <circle
+            cx={cx + 2}
+            cy={cy + 11}
+            r={7.5}
+            fill="url(#nexafs-nucleus-c)"
+            opacity={0.92}
+          />
         </g>
 
         <ShellOrbitalGlyphs cx={cx} cy={cy} r={r2p} slots={shellGlyphs2p} />
@@ -524,8 +648,21 @@ export function NexafsCoreAbsorptionSchematic({
 
         {!runMotion ? (
           <>
-            <circle cx={hx} cy={hy} r={34} fill="url(#nexafs-absorption-halo)" opacity={0.52} aria-hidden />
-            <circle cx={hx} cy={hy} r={22} fill="url(#nexafs-absorption-core)" aria-hidden />
+            <circle
+              cx={hx}
+              cy={hy}
+              r={34}
+              fill="url(#nexafs-absorption-halo)"
+              opacity={0.52}
+              aria-hidden
+            />
+            <circle
+              cx={hx}
+              cy={hy}
+              r={22}
+              fill="url(#nexafs-absorption-core)"
+              aria-hidden
+            />
           </>
         ) : null}
 
@@ -574,7 +711,13 @@ export function NexafsCoreAbsorptionSchematic({
         {runMotion ? (
           <g aria-hidden>
             <g>
-              <circle cx={hx} cy={hy} r={34} fill="url(#nexafs-absorption-halo)" opacity={0}>
+              <circle
+                cx={hx}
+                cy={hy}
+                r={34}
+                fill="url(#nexafs-absorption-halo)"
+                opacity={0}
+              >
                 <animate
                   attributeName="opacity"
                   attributeType="XML"
@@ -585,7 +728,13 @@ export function NexafsCoreAbsorptionSchematic({
                   calcMode="linear"
                 />
               </circle>
-              <circle cx={hx} cy={hy} r={22} fill="url(#nexafs-absorption-core)" opacity={0}>
+              <circle
+                cx={hx}
+                cy={hy}
+                r={22}
+                fill="url(#nexafs-absorption-core)"
+                opacity={0}
+              >
                 <animate
                   attributeName="opacity"
                   attributeType="XML"
@@ -747,7 +896,14 @@ export function NexafsCoreAbsorptionSchematic({
                   repeatCount="indefinite"
                   calcMode="linear"
                 />
-                <circle cx={0} cy={0} r={13} fill="oklch(64% 0.2 298)" filter="url(#nexafs-bloom-wide)" opacity={0}>
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={13}
+                  fill="oklch(64% 0.2 298)"
+                  filter="url(#nexafs-bloom-wide)"
+                  opacity={0}
+                >
                   <animate
                     attributeName="opacity"
                     attributeType="XML"
@@ -758,7 +914,12 @@ export function NexafsCoreAbsorptionSchematic({
                     calcMode="linear"
                   />
                 </circle>
-                <circle cx={0} cy={0} r={7.5} fill="url(#nexafs-electron-core)" />
+                <circle
+                  cx={0}
+                  cy={0}
+                  r={7.5}
+                  fill="url(#nexafs-electron-core)"
+                />
               </g>
             </g>
           </g>
@@ -868,8 +1029,20 @@ function ShellOrbitalGlyphs({
         if (slot.variant === "bound-electron") {
           return (
             <g key={`${slot.angleDeg}-bound`}>
-              <circle cx={x} cy={y} r={9} fill={slot.filledFill} opacity={0.22} />
-              <circle cx={x - 1} cy={y - 1} r={7} fill={slot.filledFill} filter="url(#nexafs-glow-tight)" />
+              <circle
+                cx={x}
+                cy={y}
+                r={9}
+                fill={slot.filledFill}
+                opacity={0.22}
+              />
+              <circle
+                cx={x - 1}
+                cy={y - 1}
+                r={7}
+                fill={slot.filledFill}
+                filter="url(#nexafs-glow-tight)"
+              />
             </g>
           );
         }

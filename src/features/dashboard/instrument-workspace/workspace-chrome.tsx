@@ -36,7 +36,10 @@ export function WorkspaceChrome({
         <nav aria-label="Breadcrumb" className="min-w-0">
           <ol className="text-muted flex flex-wrap items-center gap-1 text-sm">
             {breadcrumb.map((segment, index) => (
-              <li key={`${segment}-${index}`} className="flex items-center gap-1">
+              <li
+                key={`${segment}-${index}`}
+                className="flex items-center gap-1"
+              >
                 {index > 0 ? <span aria-hidden>/</span> : null}
                 <span
                   className={cn(

@@ -74,9 +74,7 @@ export function MoleculeCopyButton({
             className={cn(
               iconClass,
               transitionClass,
-              isCopied
-                ? "pointer-events-none opacity-0"
-                : "opacity-100",
+              isCopied ? "pointer-events-none opacity-0" : "opacity-100",
             )}
             aria-hidden
           />
@@ -85,9 +83,7 @@ export function MoleculeCopyButton({
               iconClass,
               "absolute shrink-0 text-success",
               transitionClass,
-              isCopied
-                ? "opacity-100"
-                : "pointer-events-none opacity-0",
+              isCopied ? "opacity-100" : "pointer-events-none opacity-0",
             )}
             aria-hidden
           />

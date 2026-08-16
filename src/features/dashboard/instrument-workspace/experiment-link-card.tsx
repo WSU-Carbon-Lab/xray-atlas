@@ -75,17 +75,16 @@ export function ExperimentLinkCard({
     onError: (error) => showToast(error.message, "error"),
   });
 
-  const results = useMemo(
-    () => searchQuery.data ?? [],
-    [searchQuery.data],
-  );
+  const results = useMemo(() => searchQuery.data ?? [], [searchQuery.data]);
 
   if (linkedExperiment) {
     return (
       <section className="border-border bg-surface rounded-lg border px-5 py-4">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <p className="text-foreground text-sm font-medium">Linked experiment</p>
+            <p className="text-foreground text-sm font-medium">
+              Linked experiment
+            </p>
             <p className="text-muted mt-1 text-sm">
               {linkedExperiment.moleculeLabel ?? "Dataset"} ·{" "}
               {linkedExperiment.instrumentName ?? "Instrument"}
@@ -99,14 +98,18 @@ export function ExperimentLinkCard({
           <div className="flex flex-wrap gap-2">
             <Link
               href={linkedExperiment.browseHref}
-              className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "sm" }),
+              )}
             >
               <ExternalLink className="h-3.5 w-3.5" aria-hidden />
               Browse
             </Link>
             <Link
               href={linkedExperiment.contributeHref}
-              className={cn(buttonVariants({ variant: "secondary", size: "sm" }))}
+              className={cn(
+                buttonVariants({ variant: "secondary", size: "sm" }),
+              )}
             >
               Contribute
             </Link>
@@ -130,10 +133,12 @@ export function ExperimentLinkCard({
       <div className="flex items-start gap-3">
         <Link2 className="text-accent mt-0.5 h-4 w-4 shrink-0" aria-hidden />
         <div className="min-w-0 flex-1">
-          <p className="text-foreground text-sm font-medium">Link Atlas experiment</p>
+          <p className="text-foreground text-sm font-medium">
+            Link Atlas experiment
+          </p>
           <p className="text-muted mt-1 text-sm">
-            Search datasets you can edit, then link this session to upload raw STXM
-            files to experiment-aux storage.
+            Search datasets you can edit, then link this session to upload raw
+            STXM files to experiment-aux storage.
           </p>
           <TextField className="mt-3 max-w-md">
             <Label className="sr-only">Search experiments</Label>
@@ -150,7 +155,10 @@ export function ExperimentLinkCard({
           ) : results.length === 0 ? (
             <p className="text-muted mt-3 text-sm">
               No editable experiments found. Create a dataset on{" "}
-              <Link href="/contribute/nexafs" className="text-accent hover:underline">
+              <Link
+                href="/contribute/nexafs"
+                className="text-accent hover:underline"
+              >
                 Contribute NEXAFS
               </Link>{" "}
               first, then return here to link it.

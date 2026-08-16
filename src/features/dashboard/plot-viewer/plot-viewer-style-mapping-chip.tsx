@@ -46,14 +46,10 @@ export type PlotViewerStyleMappingChipProps = {
 /**
  * Popover trigger for global trace style encodings (also inlined in the style accordion).
  */
-export function PlotViewerStyleMappingChip(props: PlotViewerStyleMappingChipProps) {
-  const {
-    paletteId,
-    colorBy,
-    lineStyleBy,
-    markerBy,
-    descriptorFields,
-  } = props;
+export function PlotViewerStyleMappingChip(
+  props: PlotViewerStyleMappingChipProps,
+) {
+  const { paletteId, colorBy, lineStyleBy, markerBy, descriptorFields } = props;
   const activeMappingCount =
     (colorBy !== "thetaPhi" ? 1 : 0) +
     (lineStyleBy !== "none" ? 1 : 0) +
