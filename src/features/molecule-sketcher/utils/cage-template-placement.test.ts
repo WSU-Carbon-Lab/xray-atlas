@@ -45,7 +45,12 @@ describe("cage-template-placement MVP", () => {
     );
     const clone = cloneDrawCanvasMolecule(layout.molecule);
     const svg = stripCageDepictionLabelsFromSvgMarkup(
-      clone.toSVG(400, 400, "cage-2d-all-bonds", configureOclDepictionForCage(400, 400)),
+      clone.toSVG(
+        400,
+        400,
+        "cage-2d-all-bonds",
+        configureOclDepictionForCage(400, 400),
+      ),
     );
     expect(Object.keys(depthMarks).length).toBe(90);
     expect(countVisibleOclBondLines(svg)).toBeGreaterThanOrEqual(70);

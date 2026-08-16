@@ -74,7 +74,9 @@ export type SpectrumEnergyConflictResolutionChoice =
     };
 
 /** Result when every duplicate-energy cluster is value-identical and collapsed. */
-export interface SpectrumEnergyUniquenessOk<T extends SpectrumEnergyKeyedPoint> {
+export interface SpectrumEnergyUniquenessOk<
+  T extends SpectrumEnergyKeyedPoint,
+> {
   ok: true;
   /** Points after collapsing identical duplicate energies; last row wins. */
   points: T[];
@@ -90,8 +92,7 @@ export interface SpectrumEnergyUniquenessConflict {
 }
 
 export type SpectrumEnergyUniquenessResult<T extends SpectrumEnergyKeyedPoint> =
-  | SpectrumEnergyUniquenessOk<T>
-  | SpectrumEnergyUniquenessConflict;
+  SpectrumEnergyUniquenessOk<T> | SpectrumEnergyUniquenessConflict;
 
 /** Outcome of upload preflight across all polarization groups. */
 export type SpectrumEnergyUploadPreflightResult<
@@ -424,7 +425,10 @@ export function preflightSpectrumPointsEnergyUniqueness<
     const slice = indices.map((index) => points[index]!);
     const uniqueness = prepareSpectrumPointsForUniqueEnergyInsert(slice);
     if (!uniqueness.ok) {
-      return { ok: false, conflicts: detectSpectrumEnergyConflictGroups(points) };
+      return {
+        ok: false,
+        conflicts: detectSpectrumEnergyConflictGroups(points),
+      };
     }
 
     collapsedCount += uniqueness.collapsedEnergies.length;

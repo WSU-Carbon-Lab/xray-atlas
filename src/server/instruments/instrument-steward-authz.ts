@@ -38,11 +38,16 @@ export async function assertUserMayManageInstrumentStewards(
   userId: string,
   instrumentId: string,
 ): Promise<void> {
-  const allowed = await userMayManageInstrumentStewards(db, userId, instrumentId);
+  const allowed = await userMayManageInstrumentStewards(
+    db,
+    userId,
+    instrumentId,
+  );
   if (!allowed) {
     throw new TRPCError({
       code: "FORBIDDEN",
-      message: "You must be a beamline scientist for this instrument or an administrator.",
+      message:
+        "You must be a beamline scientist for this instrument or an administrator.",
     });
   }
 }

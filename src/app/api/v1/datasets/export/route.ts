@@ -64,7 +64,11 @@ function toCsvValue(value: string | number | null): string {
     return "";
   }
   const asString = String(value);
-  if (asString.includes(",") || asString.includes('"') || asString.includes("\n")) {
+  if (
+    asString.includes(",") ||
+    asString.includes('"') ||
+    asString.includes("\n")
+  ) {
     return `"${asString.replaceAll('"', '""')}"`;
   }
   return asString;
@@ -73,9 +77,7 @@ function toCsvValue(value: string | number | null): string {
 function encodeRowsAsCsv(rows: DatasetExportRow[]): string {
   const header = datasetExportColumns.join(",");
   const lines = rows.map((row) =>
-    datasetExportColumns
-      .map((column) => toCsvValue(row[column]))
-      .join(","),
+    datasetExportColumns.map((column) => toCsvValue(row[column])).join(","),
   );
   return [header, ...lines].join("\n");
 }
@@ -191,7 +193,8 @@ export async function GET(request: Request): Promise<NextResponse> {
         status: 200,
         headers: {
           "Content-Type": "text/csv; charset=utf-8",
-          "Content-Disposition": 'attachment; filename="xray-atlas-datasets-v1.csv"',
+          "Content-Disposition":
+            'attachment; filename="xray-atlas-datasets-v1.csv"',
         },
       });
     }
@@ -208,7 +211,10 @@ export async function GET(request: Request): Promise<NextResponse> {
     });
   } catch (error) {
     if (error instanceof ZodError) {
-      return jsonError(error.issues[0]?.message ?? "Invalid query parameters.", 400);
+      return jsonError(
+        error.issues[0]?.message ?? "Invalid query parameters.",
+        400,
+      );
     }
     return jsonError("Failed to export datasets.", 500);
   }

@@ -17,10 +17,7 @@ type ExpectAssertions = {
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
-const it = bunIt as (
-  name: string,
-  fn: () => void | Promise<void>,
-) => void;
+const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
 function jsonResponse(body: unknown, status = 200): Response {
@@ -37,10 +34,7 @@ describe("createZenodoClient", () => {
       url: string;
       contentType: string | null;
     }> = [];
-    const fetchImpl = (async (
-      input: RequestInfo | URL,
-      init?: RequestInit,
-    ) => {
+    const fetchImpl = (async (input: RequestInfo | URL, init?: RequestInit) => {
       const url =
         typeof input === "string"
           ? input

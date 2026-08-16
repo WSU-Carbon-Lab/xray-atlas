@@ -69,9 +69,10 @@ export function formatMoleculeFormulaForKind(
     return trimmed;
   }
   if (kind === "polymer" || kind === "macromolecule") {
-    const inner = trimmed.startsWith("(") && trimmed.endsWith(")")
-      ? trimmed
-      : `(${trimmed})`;
+    const inner =
+      trimmed.startsWith("(") && trimmed.endsWith(")")
+        ? trimmed
+        : `(${trimmed})`;
     return `${inner}n`;
   }
   return trimmed;

@@ -61,9 +61,7 @@ export function useInspectPins(): UseInspectPinsResult {
   }, []);
 
   const updatePinEnergy = useCallback((id: string, energy: number) => {
-    setPins((prev) =>
-      prev.map((p) => (p.id === id ? { ...p, energy } : p)),
-    );
+    setPins((prev) => prev.map((p) => (p.id === id ? { ...p, energy } : p)));
   }, []);
 
   const selectPin = useCallback((id: string | null) => {

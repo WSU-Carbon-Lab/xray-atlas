@@ -4,11 +4,7 @@ import { useEffect, useState } from "react";
 import type { ExperimentType } from "~/prisma/browser";
 import { Label, ListBox, Select, Button, Tooltip } from "@heroui/react";
 import { SimpleDialog } from "~/components/ui/dialog";
-import {
-  CheckIcon,
-  TrashIcon,
-  XMarkIcon,
-} from "@heroicons/react/24/outline";
+import { CheckIcon, TrashIcon, XMarkIcon } from "@heroicons/react/24/outline";
 
 export type NexafsBrowseRefineInstrument = {
   id: string;
@@ -73,8 +69,8 @@ export function NexafsBrowseRefineDialog({
       maxWidth="max-w-md"
     >
       <p className="text-muted mb-4 text-sm">
-        Optional filters for instrument and acquisition mode. Use the header
-        for molecule and edge, and the search field for free-text matching.
+        Optional filters for instrument and acquisition mode. Use the header for
+        molecule and edge, and the search field for free-text matching.
       </p>
       <div className="space-y-5">
         <Tooltip delay={0}>
@@ -149,7 +145,10 @@ export function NexafsBrowseRefineDialog({
                 }}
               >
                 <Label htmlFor="refine-type-select">Acquisition mode</Label>
-                <Select.Trigger id="refine-type-select" className="min-h-[44px]">
+                <Select.Trigger
+                  id="refine-type-select"
+                  className="min-h-[44px]"
+                >
                   <Select.Value />
                   <Select.Indicator />
                 </Select.Trigger>
@@ -178,7 +177,7 @@ export function NexafsBrowseRefineDialog({
         </Tooltip>
       </div>
 
-      <div className="mt-6 flex flex-wrap items-center justify-end gap-2 border-t border-border pt-4">
+      <div className="border-border mt-6 flex flex-wrap items-center justify-end gap-2 border-t pt-4">
         <Button variant="ghost" size="sm" onPress={handleClearInDialog}>
           <TrashIcon className="h-4 w-4" aria-hidden />
           Reset fields

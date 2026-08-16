@@ -4,13 +4,7 @@ import { useCallback, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { ChevronDownIcon } from "lucide-react";
-import {
-  Accordion,
-  Button,
-  Card,
-  Spinner,
-  type Key,
-} from "@heroui/react";
+import { Accordion, Button, Card, Spinner, type Key } from "@heroui/react";
 import { contributorRoleLabel } from "~/lib/datacite-contributor-types";
 import { showToast } from "~/components/ui/toast";
 import { SimpleDialog } from "~/components/ui/dialog";
@@ -73,7 +67,8 @@ export function PendingAttributionsPage({
 }: PendingAttributionsPageProps) {
   const router = useRouter();
   const utils = trpc.useUtils();
-  const pendingQuery = trpc.datasetAttributions.listPendingForSession.useQuery();
+  const pendingQuery =
+    trpc.datasetAttributions.listPendingForSession.useQuery();
   const {
     prefs,
     isLoading: prefsLoading,
@@ -81,12 +76,17 @@ export function PendingAttributionsPage({
     handleAutoAcceptChange,
     handleDisplayModeChange,
   } = useAttributionPreferences();
-  const acceptMutation = trpc.datasetAttributions.acceptAttribution.useMutation();
+  const acceptMutation =
+    trpc.datasetAttributions.acceptAttribution.useMutation();
   const acceptAllMutation =
     trpc.datasetAttributions.acceptAllPending.useMutation();
-  const declineMutation = trpc.datasetAttributions.declineAttribution.useMutation();
-  const unclaimMutation = trpc.datasetAttributions.unclaimAttribution.useMutation();
-  const [busyContributorId, setBusyContributorId] = useState<string | null>(null);
+  const declineMutation =
+    trpc.datasetAttributions.declineAttribution.useMutation();
+  const unclaimMutation =
+    trpc.datasetAttributions.unclaimAttribution.useMutation();
+  const [busyContributorId, setBusyContributorId] = useState<string | null>(
+    null,
+  );
   const [prefsExpandedKeys, setPrefsExpandedKeys] = useState<Set<Key>>(
     () => new Set<Key>(),
   );
@@ -260,7 +260,7 @@ export function PendingAttributionsPage({
                 </Accordion.Trigger>
               </Accordion.Heading>
               <Accordion.Panel className="w-full min-w-0">
-                <Accordion.Body className="w-full min-w-0 px-4 pb-4 pt-0">
+                <Accordion.Body className="w-full min-w-0 px-4 pt-0 pb-4">
                   {prefs ? (
                     <div className="border-border flex w-full min-w-0 flex-col gap-4 border-t pt-4">
                       <AttributionPreferencesForm

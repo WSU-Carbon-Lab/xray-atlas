@@ -36,10 +36,7 @@ export function facilityDetailHrefFromName(
   name: string,
   instrumentId?: string,
 ): string {
-  return facilityDetailHref(
-    canonicalFacilitySlugFromName(name),
-    instrumentId,
-  );
+  return facilityDetailHref(canonicalFacilitySlugFromName(name), instrumentId);
 }
 
 const facilityRouteSelect = {

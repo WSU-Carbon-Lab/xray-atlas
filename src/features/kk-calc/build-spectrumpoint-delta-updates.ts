@@ -29,7 +29,8 @@ export function buildSpectrumpointDeltaUpdatesFromRows(
   material: KkcalcMaterialContext,
 ): { id: string; delta: number }[] {
   const eligible = rows.filter(
-    (r) => r.beta != null && Number.isFinite(r.beta) && Number.isFinite(r.energyev),
+    (r) =>
+      r.beta != null && Number.isFinite(r.beta) && Number.isFinite(r.energyev),
   );
   if (eligible.length < 4) {
     return [];

@@ -3,11 +3,7 @@ import type { DatasetState } from "../types";
 import { uploadGeometryIsComplete } from "../utils/default-upload-phi";
 import { hasSpectrumEnergyConflicts } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 
-export type DatasetStatus =
-  | "complete"
-  | "incomplete"
-  | "error"
-  | "processing";
+export type DatasetStatus = "complete" | "incomplete" | "error" | "processing";
 
 export interface DatasetStatusInfo {
   status: DatasetStatus;
@@ -49,7 +45,9 @@ export function useDatasetStatus(dataset: DatasetState): DatasetStatusInfo {
     const hasThetaMapping = Boolean(dataset.columnMappings.theta);
     const hasPhiMapping = Boolean(dataset.columnMappings.phi);
     if (hasPhiMapping && !hasThetaMapping) {
-      errors.push("Map a theta column when phi is mapped, or use fixed geometry");
+      errors.push(
+        "Map a theta column when phi is mapped, or use fixed geometry",
+      );
     }
     if (
       !uploadGeometryIsComplete({

@@ -102,9 +102,9 @@ describe("buildDatasetAllDataBundle", () => {
       expect(buffer.length).toBeGreaterThan(10);
 
       const decompressed = gunzipSync(buffer);
-      expect(decompressed.includes(Buffer.from("spectrum-all-polarizations.csv"))).toBe(
-        true,
-      );
+      expect(
+        decompressed.includes(Buffer.from("spectrum-all-polarizations.csv")),
+      ).toBe(true);
       expect(decompressed.includes(Buffer.from("bare_atom_mu"))).toBe(false);
       expect(decompressed.includes(Buffer.from("280.000000"))).toBe(true);
     } finally {

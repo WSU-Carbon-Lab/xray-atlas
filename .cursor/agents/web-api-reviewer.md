@@ -9,11 +9,11 @@ You review **backend-facing** TypeScript in **T3-style** Next apps: **tRPC** pro
 
 ## Skills to load
 
-| Topic | Skill |
-|-------|--------|
-| Procedure design, REST bridge | **web-trpc-api** |
-| TypeScript depth | **typescript-types** |
-| Language/tooling | **general-typescript** |
+| Topic                         | Skill                  |
+| ----------------------------- | ---------------------- |
+| Procedure design, REST bridge | **web-trpc-api**       |
+| TypeScript depth              | **typescript-types**   |
+| Language/tooling              | **general-typescript** |
 
 ## Review emphasis
 

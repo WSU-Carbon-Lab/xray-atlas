@@ -35,7 +35,7 @@ async function fetchApi(path) {
 
   try {
     const response = await fetch(url, {
-      headers: {"User-Agent": "HeroUI-Skill/1.0"},
+      headers: { "User-Agent": "HeroUI-Skill/1.0" },
       signal: AbortSignal.timeout(30000),
     });
 
@@ -68,12 +68,12 @@ async function fetchFallback(path) {
 
   try {
     const response = await fetch(url, {
-      headers: {"User-Agent": "HeroUI-Skill/1.0"},
+      headers: { "User-Agent": "HeroUI-Skill/1.0" },
       signal: AbortSignal.timeout(30000),
     });
 
     if (!response.ok) {
-      return {error: `HTTP ${response.status}: ${response.statusText}`, path};
+      return { error: `HTTP ${response.status}: ${response.statusText}`, path };
     }
 
     const content = await response.text();
@@ -86,7 +86,7 @@ async function fetchFallback(path) {
       url,
     };
   } catch (error) {
-    return {error: `Fetch Error: ${error.message}`, path};
+    return { error: `Fetch Error: ${error.message}`, path };
   }
 }
 
@@ -98,7 +98,9 @@ async function main() {
 
   if (args.length === 0) {
     console.error("Usage: node get_docs.mjs <path>");
-    console.error("Example: node get_docs.mjs /docs/react/getting-started/theming");
+    console.error(
+      "Example: node get_docs.mjs /docs/react/getting-started/theming",
+    );
     console.error();
     console.error("Available paths include:");
     console.error("  /docs/react/getting-started/theming");
@@ -106,7 +108,9 @@ async function main() {
     console.error("  /docs/react/getting-started/animations");
     console.error("  /docs/react/releases/v3-0-0-beta-3");
     console.error();
-    console.error("Note: For component docs, use get_component_docs.mjs instead.");
+    console.error(
+      "Note: For component docs, use get_component_docs.mjs instead.",
+    );
     process.exit(1);
   }
 
@@ -114,9 +118,12 @@ async function main() {
 
   // Check if user is trying to get component docs
   if (path.includes("/components/")) {
-    console.error("# Warning: Use get_component_docs.mjs for component documentation.");
+    console.error(
+      "# Warning: Use get_component_docs.mjs for component documentation.",
+    );
     const componentName = path.split("/").pop().replace(".mdx", "");
-    const titleCase = componentName.charAt(0).toUpperCase() + componentName.slice(1);
+    const titleCase =
+      componentName.charAt(0).toUpperCase() + componentName.slice(1);
 
     console.error(`# Example: node get_component_docs.mjs ${titleCase}`);
   }

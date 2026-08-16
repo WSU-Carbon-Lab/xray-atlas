@@ -133,7 +133,7 @@ function SynonymsPopup({
                 top: position.top,
                 zIndex: 650,
               }}
-              className="min-w-[200px] max-w-[320px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-xl dark:border-zinc-700 dark:bg-zinc-800"
+              className="max-w-[320px] min-w-[200px] rounded-lg border border-zinc-200 bg-zinc-100 shadow-xl dark:border-zinc-700 dark:bg-zinc-800"
               onClick={(event) => event.stopPropagation()}
               onPointerDown={(event) => event.stopPropagation()}
             >
@@ -200,7 +200,7 @@ export const SynonymChips = ({
       : `${SYNONYM_CHIP_CLASS} min-w-0 max-w-[6rem] shrink truncate`;
   return (
     <div
-      className={`flex min-w-0 flex-nowrap items-center gap-0.5 leading-none overflow-hidden sm:gap-1 ${className}`}
+      className={`flex min-w-0 flex-nowrap items-center gap-0.5 overflow-hidden leading-none sm:gap-1 ${className}`}
     >
       {truncated.map((syn: string) => (
         <span key={syn} className={chipClass} title={syn}>
@@ -344,7 +344,7 @@ export function SynonymTagGroupEditable({
                 <span className="min-w-0 truncate">{item.name}</span>
                 {allowRemove && (
                   <Tag.RemoveButton
-                    className="text-muted hover:text-foreground focus-visible:ring-accent ml-1 rounded-md bg-surface-secondary p-0.5 transition-colors hover:bg-surface-tertiary focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
+                    className="text-muted hover:text-foreground focus-visible:ring-accent bg-surface-secondary hover:bg-surface-tertiary ml-1 rounded-md p-0.5 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-1"
                     aria-label={`Remove ${item.name}`}
                   >
                     <X className="h-3 w-3" aria-hidden />

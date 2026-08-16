@@ -3,10 +3,7 @@ import { createRequire } from "node:module";
 import { Molecule, Resources } from "openchemlib";
 import { TRPCError } from "@trpc/server";
 import { z } from "zod";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 
 let oclResourcesRegistered = false;
 
@@ -68,7 +65,9 @@ export const moleculeStructureRouter = createTRPCRouter({
         return { isomericSmiles, idCode };
       } catch (cause) {
         const detail =
-          cause instanceof Error ? cause.message : "Invalid molfile or structure.";
+          cause instanceof Error
+            ? cause.message
+            : "Invalid molfile or structure.";
         throw new TRPCError({
           code: "BAD_REQUEST",
           message: `Structure parse failed: ${detail}`,

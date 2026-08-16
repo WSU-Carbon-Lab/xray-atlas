@@ -14,7 +14,6 @@ import {
   validateStxmFilePair,
   validateStxmFileSize,
 } from "~/lib/stxm/validateStxmFile";
-import { readHdr } from "~/lib/stxm/readHdr";
 import {
   countHdrFilesInDirectory,
   findXimFileForHdr,
@@ -36,7 +35,8 @@ import {
 export const BEAMTIME_CATALOG_STALL_TIMEOUT_MS = 30_000;
 
 /** @deprecated Use {@link BEAMTIME_CATALOG_STALL_TIMEOUT_MS}. */
-export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS = BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
+export const BEAMTIME_CATALOG_BUILD_TIMEOUT_MS =
+  BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
 
 const DEFAULT_CATALOG_BATCH_FLUSH_MS = 50;
 
@@ -179,8 +179,7 @@ function indicesNeedingThumbnailEnrichment(
   return entries
     .map((entry, index) => ({ entry, index }))
     .filter(
-      ({ entry }) =>
-        !entry.thumbnailDataUrl && isLineScanCatalogEntry(entry),
+      ({ entry }) => !entry.thumbnailDataUrl && isLineScanCatalogEntry(entry),
     )
     .sort((left, right) => {
       const priority =
@@ -200,9 +199,7 @@ async function peekHdrTypeText(ref: StxmFileRef): Promise<string | null> {
     validateStxmFileSize(hdrFile.size, "hdr");
     const peekLength = Math.min(hdrFile.size, HDR_SCAN_TYPE_PEEK_BYTES);
     const peekBlob =
-      peekLength < hdrFile.size
-        ? hdrFile.slice(0, peekLength)
-        : hdrFile;
+      peekLength < hdrFile.size ? hdrFile.slice(0, peekLength) : hdrFile;
     return await peekBlob.text();
   } catch {
     return null;
@@ -252,7 +249,9 @@ export async function parsePlaceholderCatalogEntries(
 ): Promise<void> {
   const concurrency = options?.concurrency ?? HDR_PROBE_CONCURRENCY;
   const pending = refs.filter((ref) => {
-    const existing = entries.find((row) => row.relativePath === ref.relativePath);
+    const existing = entries.find(
+      (row) => row.relativePath === ref.relativePath,
+    );
     return (
       !existing || catalogEntryEnrichmentStatus(existing) === "placeholder"
     );
@@ -333,7 +332,11 @@ export async function hydrateBeamtimeCatalogFromCheckpoint(
   layout: StxmDirectoryLayout,
   experimentName: string,
 ): Promise<StxmCatalogEntry[]> {
-  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const experimentDir = await getExperimentDirectory(
+    root,
+    layout,
+    experimentName,
+  );
   const checkpoint = await readStxmCatalogCheckpoint(experimentDir);
   if (
     checkpoint?.experimentName !== experimentName ||
@@ -360,10 +363,7 @@ export async function readCheckpointScanCountsForExperiments(
       layout.displayName,
     );
     const checkpoint = await readStxmCatalogCheckpoint(experimentDir);
-    counts.set(
-      layout.displayName,
-      summarizeCheckpointEntryCounts(checkpoint),
-    );
+    counts.set(layout.displayName, summarizeCheckpointEntryCounts(checkpoint));
     return counts;
   }
   await Promise.all(
@@ -404,9 +404,14 @@ export async function streamBeamtimeCatalogFast(
   experimentName: string,
   options?: StreamBeamtimeCatalogOptions,
 ): Promise<StreamBeamtimeCatalogResult> {
-  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const experimentDir = await getExperimentDirectory(
+    root,
+    layout,
+    experimentName,
+  );
   const batchFlushMs = options?.batchFlushMs ?? DEFAULT_CATALOG_BATCH_FLUSH_MS;
-  const stallTimeoutMs = options?.stallTimeoutMs ?? BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
+  const stallTimeoutMs =
+    options?.stallTimeoutMs ?? BEAMTIME_CATALOG_STALL_TIMEOUT_MS;
   let lastProgressAt = Date.now();
   let flushTimer: ReturnType<typeof setTimeout> | null = null;
   let stalled = false;
@@ -592,7 +597,11 @@ export async function enrichBeamtimeCatalogThumbnails(
   entries: StxmCatalogEntry[],
   options?: EnrichCatalogThumbnailsOptions,
 ): Promise<StxmCatalogEntry[]> {
-  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const experimentDir = await getExperimentDirectory(
+    root,
+    layout,
+    experimentName,
+  );
   const updated = entries.map((entry) => ({ ...entry }));
   const pendingIndices = indicesNeedingThumbnailEnrichment(updated);
 
@@ -616,8 +625,16 @@ export async function enrichBeamtimeCatalogThumbnails(
       validateStxmFileSize(hdrFile.size, "hdr");
       const hdrText = await hdrFile.text();
       const ximNames = ximBasenamesForHdrBasename(hdrName);
-      const hdrRef = { name: hdrName, relativePath: entry.relativePath, handle: hdrHandle };
-      const ximHandle = await findXimFileForHdr(hdrRef, ximNames, experimentDir);
+      const hdrRef = {
+        name: hdrName,
+        relativePath: entry.relativePath,
+        handle: hdrHandle,
+      };
+      const ximHandle = await findXimFileForHdr(
+        hdrRef,
+        ximNames,
+        experimentDir,
+      );
       if (!ximHandle) {
         continue;
       }
@@ -701,7 +718,11 @@ export async function loadScanFilesFromCatalogEntry(
   experimentName: string,
   entry: StxmCatalogEntry,
 ): Promise<{ hdrFile: File; ximFile: File } | null> {
-  const experimentDir = await getExperimentDirectory(root, layout, experimentName);
+  const experimentDir = await getExperimentDirectory(
+    root,
+    layout,
+    experimentName,
+  );
   const parts = entry.relativePath.split("/");
   const hdrName = parts.pop() ?? entry.basename;
   let directory = experimentDir;

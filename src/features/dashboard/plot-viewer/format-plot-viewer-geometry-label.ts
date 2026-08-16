@@ -11,7 +11,9 @@ import {
 /**
  * Formats one finite polarization angle in compact legend copy (`55°`, not `θ=55.0°`).
  */
-export function formatPlotViewerAngleDegrees(value: number | undefined): string {
+export function formatPlotViewerAngleDegrees(
+  value: number | undefined,
+): string {
   if (typeof value !== "number" || !Number.isFinite(value)) {
     return "—";
   }
@@ -43,7 +45,10 @@ export function resolvePlotViewerAngleSplit(
 ): SpectrumGeometryAngleSplit {
   const geometries = geometryKeys
     .map(parsePlotViewerGeometryKey)
-    .filter((geometry): geometry is { theta?: number; phi?: number } => geometry !== null);
+    .filter(
+      (geometry): geometry is { theta?: number; phi?: number } =>
+        geometry !== null,
+    );
   return resolveLinkedOpticalAngleSplit(geometries);
 }
 
@@ -72,8 +77,7 @@ export function formatPlotViewerGeometryCellLabel(params: {
   }
 
   const split =
-    params.split ??
-    resolvePlotViewerAngleSplit([params.geometryKey]);
+    params.split ?? resolvePlotViewerAngleSplit([params.geometryKey]);
   const theta = params.theta;
   const phi = params.phi;
   const finiteTheta = typeof theta === "number" && Number.isFinite(theta);

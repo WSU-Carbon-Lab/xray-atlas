@@ -2,9 +2,7 @@
 
 import { Label, TextField, InputGroup } from "@heroui/react";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
-import {
-  sampleFormOptionalSuffix,
-} from "./sample-form-select";
+import { sampleFormOptionalSuffix } from "./sample-form-select";
 
 import {
   sampleFormInsetControlClass,
@@ -58,7 +56,11 @@ export function SampleFormInsetTextRow({
         fullWidth
         className={sampleFormInsetControlClass}
       >
-        <InputGroup variant="secondary" fullWidth className={insetInputGroupClass}>
+        <InputGroup
+          variant="secondary"
+          fullWidth
+          className={insetInputGroupClass}
+        >
           <InputGroup.Input
             type={type}
             placeholder={placeholder}

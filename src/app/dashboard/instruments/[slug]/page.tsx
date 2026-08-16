@@ -33,7 +33,9 @@ function WorkspaceFallback() {
 /**
  * Dynamic instrument workspace route resolved through the dashboard connector registry.
  */
-export default async function InstrumentSlugPage({ params }: InstrumentSlugPageProps) {
+export default async function InstrumentSlugPage({
+  params,
+}: InstrumentSlugPageProps) {
   const { slug } = await params;
   const connector = resolveDashboardConnector(slug);
   if (!connector || !isDashboardWorkspaceAccessible(slug)) {

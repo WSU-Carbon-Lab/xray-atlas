@@ -13,7 +13,8 @@ export type AttributionTeamMemberDraft = {
 export const ATTRIBUTION_TEAM_GROUP_TYPES = ["beamtime", "working"] as const;
 
 /** Beamtime vs working group classification for saved attribution teams. */
-export type AttributionTeamGroupType = (typeof ATTRIBUTION_TEAM_GROUP_TYPES)[number];
+export type AttributionTeamGroupType =
+  (typeof ATTRIBUTION_TEAM_GROUP_TYPES)[number];
 
 /** DataCite types reserved for the PI dedicated slot (legacy teams may still store `ProjectLeader`). */
 const PI_SLOT_CONTRIBUTOR_TYPES = ["Supervisor", "ProjectLeader"] as const;

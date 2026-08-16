@@ -55,10 +55,7 @@ function phiKeyOf(p: SpectrumPoint): string {
 export function groupSpectrumByPolarizationThetaPhi(
   rows: AnnotatedSpectrumRow[],
 ): SpectrumPolarizationNode[] {
-  type Bucket = Map<
-    string,
-    Map<string, Map<string, SpectrumPoint[]>>
-  >;
+  type Bucket = Map<string, Map<string, Map<string, SpectrumPoint[]>>>;
 
   const polBuckets: Bucket = new Map();
 

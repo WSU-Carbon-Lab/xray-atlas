@@ -49,11 +49,7 @@ function createAuthzMockDb(config: {
       findMany: async () => config.contributors ?? [],
     },
     userAppRole: {
-      findMany: async ({
-        where,
-      }: {
-        where?: { userId?: string };
-      }) => {
+      findMany: async ({ where }: { where?: { userId?: string } }) => {
         const userId = where?.userId;
         if (userId && privilegedUserIds.has(userId)) {
           return [

@@ -3,14 +3,14 @@
 import { useState, useEffect, Suspense } from "react";
 import { useSearchParams, useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
-import { FacilityCardCompact } from "@/components/facilities/facility-card";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
-import { BrowseTabs } from "@/components/layout/browse-tabs";
-import { AddFacilityButton } from "@/components/contribute";
-import { BrowseHeader } from "@/components/browse/browse-header";
-import { BrowsePageLayout } from "@/components/browse/browse-page-layout";
-import { BrowseEmptyState } from "@/components/browse/browse-empty-state";
-import { ItemsPerPageSelect } from "@/components/browse/items-per-page-select";
+import { FacilityCardCompact } from "~/components/facilities/facility-card";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
+import { BrowseTabs } from "~/components/layout/browse-tabs";
+import { AddFacilityButton } from "~/components/contribute";
+import { BrowseHeader } from "~/components/browse/browse-header";
+import { BrowsePageLayout } from "~/components/browse/browse-page-layout";
+import { BrowseEmptyState } from "~/components/browse/browse-empty-state";
+import { ItemsPerPageSelect } from "~/components/browse/items-per-page-select";
 import { Pagination } from "@heroui/react";
 
 function FacilitiesBrowseContent() {
@@ -181,7 +181,7 @@ function FacilitiesBrowseContent() {
                           onPress={() =>
                             setCurrentPage((p) => Math.max(1, p - 1))
                           }
-                          className="rounded-lg border border-border bg-surface"
+                          className="border-border bg-surface rounded-lg border"
                         >
                           <Pagination.PreviousIcon />
                         </Pagination.Previous>
@@ -195,7 +195,7 @@ function FacilitiesBrowseContent() {
                               <Pagination.Link
                                 isActive={p === currentPage}
                                 onPress={() => setCurrentPage(p)}
-                                className={`rounded-lg border border-border bg-surface text-foreground ${
+                                className={`border-border bg-surface text-foreground rounded-lg border ${
                                   p === currentPage
                                     ? "border-accent bg-accent text-accent-foreground"
                                     : ""
@@ -218,11 +218,9 @@ function FacilitiesBrowseContent() {
                           isDisabled={currentPage >= totalPages}
                           aria-label="Next page"
                           onPress={() =>
-                            setCurrentPage((p) =>
-                              Math.min(totalPages, p + 1),
-                            )
+                            setCurrentPage((p) => Math.min(totalPages, p + 1))
                           }
-                          className="rounded-lg border border-border bg-surface"
+                          className="border-border bg-surface rounded-lg border"
                         >
                           <Pagination.NextIcon />
                         </Pagination.Next>
@@ -243,10 +241,7 @@ export default function FacilitiesBrowsePage() {
   return (
     <Suspense
       fallback={
-        <BrowsePageLayout
-          title="Browse Facilities"
-          subtitle="Loading..."
-        >
+        <BrowsePageLayout title="Browse Facilities" subtitle="Loading...">
           <BrowseTabs />
         </BrowsePageLayout>
       }

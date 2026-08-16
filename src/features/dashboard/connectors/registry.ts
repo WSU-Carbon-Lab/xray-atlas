@@ -20,9 +20,9 @@ const WORKSPACE_LOADERS: Readonly<
   Record<string, DashboardConnectorDefinition["loadWorkspace"]>
 > = {
   [ALS_5322_INSTRUMENT_SLUG]: () =>
-    import(
-      "~/features/dashboard/instrument-workspace/stxm-als-5322-workspace"
-    ).then((module) => ({ default: module.StxmAls5322Workspace })),
+    import("~/features/dashboard/instrument-workspace/stxm-als-5322-workspace").then(
+      (module) => ({ default: module.StxmAls5322Workspace }),
+    ),
   "als-11012": async () => {
     throw new Error("ALS 11.0.1.2 workspace is not available yet.");
   },
@@ -117,5 +117,7 @@ export function dashboardConnectorReadinessBadge(
 export function listDashboardConnectors(): readonly DashboardConnectorDefinition[] {
   return listDashboardConnectorBindings()
     .map((binding) => resolveDashboardConnector(binding.slug))
-    .filter((entry): entry is DashboardConnectorDefinition => entry !== undefined);
+    .filter(
+      (entry): entry is DashboardConnectorDefinition => entry !== undefined,
+    );
 }

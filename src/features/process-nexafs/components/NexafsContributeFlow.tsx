@@ -7,7 +7,7 @@ import {
   ArrowPathIcon,
   ExclamationTriangleIcon,
 } from "@heroicons/react/24/outline";
-import { ContributionFileDropOverlay } from "@/components/contribute";
+import { ContributionFileDropOverlay } from "~/components/contribute";
 import {
   ColumnMappingModal,
   NexafsUploadPortal,
@@ -18,14 +18,13 @@ import {
   SpectrumEnergyConflictBanner,
   SpectrumRowConflictModal,
 } from "~/features/process-nexafs/ui";
-import {
-  Tooltip,
-  Label,
-  Description,
-  ErrorMessage,
-} from "@heroui/react";
+import { Tooltip, Label, Description, ErrorMessage } from "@heroui/react";
 import { Button as HeroButton } from "@heroui/react";
-import type { DatasetState, CSVColumnMappings, CsvParseOptionsState } from "../types";
+import type {
+  DatasetState,
+  CSVColumnMappings,
+  CsvParseOptionsState,
+} from "../types";
 import type {
   SpectrumEnergyConflictGroup,
   SpectrumEnergyConflictResolutionChoice,
@@ -290,9 +289,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
   return (
     <GlobalFileDropZoneProvider
       spectrumDropEnabled
-      newDatasetUploadLabel={
-        datasets.length > 0 ? "a new dataset" : ""
-      }
+      newDatasetUploadLabel={datasets.length > 0 ? "a new dataset" : ""}
       onSpectrumFiles={(files) => {
         void handleFilesSelected(files);
       }}
@@ -456,10 +453,7 @@ function EmptyDatasetDropZone({ children }: { children: ReactNode }) {
   const zoneId = GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET;
 
   return (
-    <div
-      {...globalDropZoneProps(zoneId)}
-      className="relative"
-    >
+    <div {...globalDropZoneProps(zoneId)} className="relative">
       {children}
       <ContributionFileDropOverlay
         variant="inset"

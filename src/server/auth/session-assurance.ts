@@ -56,7 +56,8 @@ export async function upsertOrcidSessionAssurance(
   });
 
   const idToken = decryptNullableOAuthToken(account?.id_token ?? null);
-  const claims = idToken !== null ? await resolveOrcidIdTokenClaims(idToken) : null;
+  const claims =
+    idToken !== null ? await resolveOrcidIdTokenClaims(idToken) : null;
 
   const establishedAt = establishedAtFromAuthTime(claims?.authTime ?? null);
   const amrFromUpstream =

@@ -106,7 +106,9 @@ function atlasGradientFallbackClass(seed: string): string {
     return atlasGradientFallbackClasses[0];
   }
   const hash = hashAvatarSeed(seed);
-  return atlasGradientFallbackClasses[hash % atlasGradientFallbackClasses.length]!;
+  return atlasGradientFallbackClasses[
+    hash % atlasGradientFallbackClasses.length
+  ]!;
 }
 
 function isGeneratedPlaceholderAvatarUrl(
@@ -143,7 +145,8 @@ function resolveAvatarFallbackStyle(params: {
   placeholder: ResearcherAvatarPlaceholder;
 }): AvatarFallbackStyle {
   const resolvedImageUrl = normalizeProfileImageUrl(params.imageUrl);
-  const hasGeneratedPlaceholder = isGeneratedPlaceholderAvatarUrl(resolvedImageUrl);
+  const hasGeneratedPlaceholder =
+    isGeneratedPlaceholderAvatarUrl(resolvedImageUrl);
   const imageUrl = hasGeneratedPlaceholder ? null : resolvedImageUrl;
   if (imageUrl) {
     return {
@@ -258,7 +261,8 @@ export function ResearcherAvatar({
   const badgeSizeClass =
     size === "sm" ? "size-2.5" : size === "md" ? "size-3" : "size-3.5";
   const initialsSizeClass =
-    researcherAvatarInitialsSizeClasses[size] ?? researcherAvatarInitialsSizeClasses.sm;
+    researcherAvatarInitialsSizeClasses[size] ??
+    researcherAvatarInitialsSizeClasses.sm;
   const personIconSizeClass =
     researcherAvatarPersonIconSizeClasses[size] ??
     researcherAvatarPersonIconSizeClasses.sm;
@@ -301,10 +305,7 @@ export function ResearcherAvatar({
         color={badgeColorForStatus(attributionBadgeStatus)}
         size="sm"
         placement="top-left"
-        className={cn(
-          badgeSizeClass,
-          "min-h-0 min-w-0 rounded-full p-0",
-        )}
+        className={cn(badgeSizeClass, "min-h-0 min-w-0 rounded-full p-0")}
       />
     </Badge.Anchor>
   );
@@ -345,7 +346,11 @@ export const CustomAvatar = ({
           fallbackStyle.fallbackClassName,
         )}
       >
-        {showIconFallback ? <UserIcon className="size-3.5" aria-hidden /> : initials.slice(0, 2)}
+        {showIconFallback ? (
+          <UserIcon className="size-3.5" aria-hidden />
+        ) : (
+          initials.slice(0, 2)
+        )}
       </Avatar.Fallback>
     </Avatar>
   );
@@ -416,11 +421,9 @@ export function AvatarButton({
       aria-controls={isOpen ? menuId : undefined}
     >
       <CustomAvatar user={user} size="md" />
-      {whatsNewMounted &&
-      isWhatsNewUnread &&
-      pendingAttributionCount === 0 ? (
+      {whatsNewMounted && isWhatsNewUnread && pendingAttributionCount === 0 ? (
         <span
-          className="bg-accent absolute top-0.5 right-0.5 size-2 rounded-full ring-2 ring-background"
+          className="bg-accent ring-background absolute top-0.5 right-0.5 size-2 rounded-full ring-2"
           aria-hidden
         />
       ) : null}
@@ -599,11 +602,7 @@ export function AvatarButton({
 
 import { trpc } from "~/trpc/client";
 
-export function CustomUserButton({
-  whatsNew,
-}: {
-  whatsNew?: WhatsNewSummary;
-}) {
+export function CustomUserButton({ whatsNew }: { whatsNew?: WhatsNewSummary }) {
   const router = useRouter();
   const { data: session } = useSession();
   const [isOpen, setIsOpen] = useState(false);
@@ -741,8 +740,7 @@ export function avatarGroupStackWidthPx(params: {
   const max = params.max ?? 5;
   const count = Math.max(params.avatarCount, 0);
   const visible = Math.min(count, max);
-  const overflow =
-    params.includeOverflowSlot && count > max ? 1 : 0;
+  const overflow = params.includeOverflowSlot && count > max ? 1 : 0;
   const trailing = params.trailingSlotCount ?? 0;
   const slotCount = visible + overflow + trailing;
   if (slotCount <= 0) {
@@ -780,8 +778,7 @@ export function AttributionAvatarRowSkeleton({
     includeOverflowSlot,
   });
   const visible = Math.min(Math.max(avatarCount, 1), max);
-  const overflow =
-    includeOverflowSlot && avatarCount > max ? 1 : 0;
+  const overflow = includeOverflowSlot && avatarCount > max ? 1 : 0;
   const slotCount = visible + overflow + trailingSlotCount;
 
   return (
@@ -886,8 +883,7 @@ function AvatarIdentityTooltipContent({
       }
       onRoleChangeRow={
         onRoleChangeContributorRow
-          ? (rowKey, role) =>
-              onRoleChangeContributorRow({ user, rowKey, role })
+          ? (rowKey, role) => onRoleChangeContributorRow({ user, rowKey, role })
           : undefined
       }
       roleOptionSections={contributorRoleOptionSections}
@@ -987,7 +983,9 @@ function AvatarWithTooltip({
         createPortal(
           <div
             className={`z-tooltip fixed -translate-x-1/2 -translate-y-full ${
-              tooltipVariant === "name-orcid" ? "pointer-events-auto" : "pointer-events-none"
+              tooltipVariant === "name-orcid"
+                ? "pointer-events-auto"
+                : "pointer-events-none"
             }`}
             style={{ left: position.left, top: position.top }}
           >
@@ -1092,7 +1090,8 @@ export function AvatarGroup({
     arrowOffset: 0,
   });
 
-  const useSharedTooltip = tooltipVariant === "name-orcid" && tooltipMode === "shared";
+  const useSharedTooltip =
+    tooltipVariant === "name-orcid" && tooltipMode === "shared";
   const displayUsers = users.slice(0, max);
   const remaining = users.length - max;
 
@@ -1113,7 +1112,10 @@ export function AvatarGroup({
     const triggerCenter = triggerRect.left + triggerRect.width / 2;
     const maxArrowOffset = SHARED_TOOLTIP_MAX_ARROW_OFFSET_PX;
     const rawOffset = triggerCenter - left;
-    const arrowOffset = Math.max(-maxArrowOffset, Math.min(maxArrowOffset, rawOffset));
+    const arrowOffset = Math.max(
+      -maxArrowOffset,
+      Math.min(maxArrowOffset, rawOffset),
+    );
     setSharedTooltipPosition({
       left,
       top: triggerRect.top - TOOLTIP_VERTICAL_OFFSET_PX,
@@ -1121,7 +1123,10 @@ export function AvatarGroup({
     });
   };
 
-  const openSharedTooltip = (user: UserWithOrcid, triggerEl: HTMLSpanElement) => {
+  const openSharedTooltip = (
+    user: UserWithOrcid,
+    triggerEl: HTMLSpanElement,
+  ) => {
     clearCloseTimer();
     triggerRef.current = triggerEl;
     setActiveUser(user);
@@ -1162,7 +1167,10 @@ export function AvatarGroup({
 
   if (!users || users.length === 0) {
     return (
-      <div className="flex items-center overflow-visible" role={trailingSlot ? "group" : undefined}>
+      <div
+        className="flex items-center overflow-visible"
+        role={trailingSlot ? "group" : undefined}
+      >
         {trailingSlot ? null : (
           <span
             className={`bg-surface-1 relative z-0 flex overflow-hidden rounded-full shadow-sm ${sizeClass}`}
@@ -1196,63 +1204,63 @@ export function AvatarGroup({
       >
         <div className="flex items-center -space-x-2.5 overflow-visible">
           {displayUsers.map((user, index) => {
-          const userKey = avatarGroupUserReactKey(user, index);
-          if (wrapAvatarTrigger || contributorAvatars) {
-            const researcherAvatarNode = (
-              <span className={researcherAvatarWrapperClass}>
-                <ResearcherAvatar
-                  displayName={user.name}
-                  imageUrl={user.image}
-                  identitySeed={firstNonEmptyOrcidOrId(
-                    user.orcid,
-                    user.id,
-                    user.avatarStackKey,
-                    user.name,
-                  )}
-                  isAtlasProfile={
-                    user.isAtlasProfile ?? Boolean(user.id?.trim())
-                  }
-                  placeholder={
-                    user.avatarPlaceholder ??
-                    (user.isAtlasProfile !== false ? "initials" : "person")
-                  }
-                  attributionBadgeStatus={user.attributionBadgeStatus}
-                  size={size}
-                  className={constrainedClass}
-                />
-              </span>
-            );
-            if (wrapAvatarTrigger) {
-              return (
-                <span
+            const userKey = avatarGroupUserReactKey(user, index);
+            if (wrapAvatarTrigger || contributorAvatars) {
+              const researcherAvatarNode = (
+                <span className={researcherAvatarWrapperClass}>
+                  <ResearcherAvatar
+                    displayName={user.name}
+                    imageUrl={user.image}
+                    identitySeed={firstNonEmptyOrcidOrId(
+                      user.orcid,
+                      user.id,
+                      user.avatarStackKey,
+                      user.name,
+                    )}
+                    isAtlasProfile={
+                      user.isAtlasProfile ?? Boolean(user.id?.trim())
+                    }
+                    placeholder={
+                      user.avatarPlaceholder ??
+                      (user.isAtlasProfile !== false ? "initials" : "person")
+                    }
+                    attributionBadgeStatus={user.attributionBadgeStatus}
+                    size={size}
+                    className={constrainedClass}
+                  />
+                </span>
+              );
+              if (wrapAvatarTrigger) {
+                return (
+                  <span
+                    key={userKey}
+                    className={`inline-flex shrink-0 items-center justify-center ${sizeClass}`}
+                  >
+                    {wrapAvatarTrigger({
+                      user,
+                      index,
+                      avatar: researcherAvatarNode,
+                    })}
+                  </span>
+                );
+              }
+              return useSharedTooltip ? (
+                <AvatarTrigger
                   key={userKey}
-                  className={`inline-flex shrink-0 items-center justify-center ${sizeClass}`}
-                >
-                  {wrapAvatarTrigger({
-                    user,
-                    index,
-                    avatar: researcherAvatarNode,
-                  })}
+                  user={user}
+                  avatarWrapperClass={researcherAvatarWrapperClass}
+                  constrainedClass={constrainedClass}
+                  size={size}
+                  onActivate={openSharedTooltip}
+                  onDeactivate={scheduleSharedTooltipClose}
+                  avatarContent={researcherAvatarNode}
+                />
+              ) : (
+                <span key={userKey} className="inline-flex shrink-0">
+                  {researcherAvatarNode}
                 </span>
               );
             }
-            return useSharedTooltip ? (
-              <AvatarTrigger
-                key={userKey}
-                user={user}
-                avatarWrapperClass={researcherAvatarWrapperClass}
-                constrainedClass={constrainedClass}
-                size={size}
-                onActivate={openSharedTooltip}
-                onDeactivate={scheduleSharedTooltipClose}
-                avatarContent={researcherAvatarNode}
-              />
-            ) : (
-              <span key={userKey} className="inline-flex shrink-0">
-                {researcherAvatarNode}
-              </span>
-            );
-          }
             return useSharedTooltip ? (
               <AvatarTrigger
                 key={userKey}
@@ -1291,7 +1299,10 @@ export function AvatarGroup({
           </span>
         ) : null}
       </div>
-      {useSharedTooltip && isSharedTooltipOpen && activeUser && typeof document !== "undefined"
+      {useSharedTooltip &&
+      isSharedTooltipOpen &&
+      activeUser &&
+      typeof document !== "undefined"
         ? createPortal(
             <div
               className="z-tooltip pointer-events-auto fixed -translate-x-1/2 -translate-y-full"

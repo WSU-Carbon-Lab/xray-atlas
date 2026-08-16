@@ -44,10 +44,7 @@ function median(values: readonly number[]): number | null {
   return (lo + hi) / 2;
 }
 
-function neighborValues(
-  series: readonly number[],
-  index: number,
-): number[] {
+function neighborValues(series: readonly number[], index: number): number[] {
   const neighbors: number[] = [];
   if (index > 0) {
     const prev = series[index - 1];
@@ -153,7 +150,12 @@ export function buildStxmEnergyValidityMask(
   const length = Math.max(i0.length, it?.length ?? 0, ie?.length ?? 0);
   const glitchIndices = new Set<number>();
   if (it !== undefined && it.length > 0) {
-    for (const glitch of detectStxmIntensityGlitches(i0, it, undefined, glitchOptions)) {
+    for (const glitch of detectStxmIntensityGlitches(
+      i0,
+      it,
+      undefined,
+      glitchOptions,
+    )) {
       glitchIndices.add(glitch.energyIndex);
     }
   }

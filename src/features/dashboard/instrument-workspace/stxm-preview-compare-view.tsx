@@ -24,9 +24,7 @@ import { mapPlotViewerLegendToDescriptorConfig } from "~/features/dashboard/plot
 import { PlotViewerCompactLegend } from "~/features/dashboard/plot-viewer/plot-viewer-compact-legend";
 import { PlotViewerLegendPlacementToggle } from "~/features/dashboard/plot-viewer/plot-viewer-legend-placement";
 import { PlotViewerPopoutLegend } from "~/features/dashboard/plot-viewer/plot-viewer-popout-legend";
-import {
-  buildPlotViewerTraceOverrideRows,
-} from "~/features/dashboard/plot-viewer/plot-viewer-style-mapping-utils";
+import { buildPlotViewerTraceOverrideRows } from "~/features/dashboard/plot-viewer/plot-viewer-style-mapping-utils";
 import {
   readStxmPreviewStyleOverrides,
   writeStxmPreviewExperimentColorMode,
@@ -42,9 +40,7 @@ import {
 } from "~/features/dashboard/plot-viewer/plot-viewer-style-overrides";
 import { PlotViewerStyleAccordion } from "~/features/dashboard/plot-viewer/plot-viewer-style-accordion";
 import { buildPlotViewerExperimentStyleItems } from "~/features/dashboard/plot-viewer/plot-viewer-experiment-styles";
-import {
-  type PlotViewerPaletteId,
-} from "~/features/dashboard/plot-viewer/plot-viewer-palette-catalog";
+import { type PlotViewerPaletteId } from "~/features/dashboard/plot-viewer/plot-viewer-palette-catalog";
 import type {
   PlotViewerLegendDock,
   PlotViewerLegendPlacement,
@@ -58,9 +54,7 @@ import type {
 import { channelDefinitionById } from "~/components/plots/data-rail";
 import { STXM_INGESTION_PLOT_DATA_RAIL_DEFINITION } from "~/lib/stxm/stxm-ingestion-plot-data-rail-config";
 import { StxmPreviewChannelSelect } from "./stxm-preview-channel-select";
-import {
-  StxmPreviewSelectionPanelHeader,
-} from "./stxm-preview-selection-panel";
+import { StxmPreviewSelectionPanelHeader } from "./stxm-preview-selection-panel";
 import {
   buildPreviewCompareStyledTraces,
   DEFAULT_STXM_PREVIEW_COLOR_BY,
@@ -168,7 +162,8 @@ export function StxmPreviewCompareView({
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === "dark";
 
-  const [channel, setChannel] = useState<StxmPreviewCompareChannel>("od_normalized");
+  const [channel, setChannel] =
+    useState<StxmPreviewCompareChannel>("od_normalized");
   const [paletteId, setPaletteId] = useState<PlotViewerPaletteId>("spectrum");
   const [colorBy, setColorBy] = useState<PlotViewerStyleMappingField>(
     DEFAULT_STXM_PREVIEW_COLOR_BY,
@@ -192,22 +187,23 @@ export function StxmPreviewCompareView({
   const [bareAtomCurve, setBareAtomCurve] = useState<ReferenceCurve | null>(
     null,
   );
-  const [styleOverrides, setStyleOverrides] = useState<PlotViewerStyleOverrides>(() =>
-    typeof window === "undefined"
-      ? {
-          lineDash: {},
-          marker: {},
-          experimentLineDash: {},
-          experimentLineWidth: {},
-          experimentMarker: {},
-          experimentMarkerSize: {},
-          experimentMarkerEvery: {},
-          experimentColorMode: {},
-          experimentFixedColor: {},
-          traceOverrides: {},
-        }
-      : readStxmPreviewStyleOverrides(),
-  );
+  const [styleOverrides, setStyleOverrides] =
+    useState<PlotViewerStyleOverrides>(() =>
+      typeof window === "undefined"
+        ? {
+            lineDash: {},
+            marker: {},
+            experimentLineDash: {},
+            experimentLineWidth: {},
+            experimentMarker: {},
+            experimentMarkerSize: {},
+            experimentMarkerEvery: {},
+            experimentColorMode: {},
+            experimentFixedColor: {},
+            traceOverrides: {},
+          }
+        : readStxmPreviewStyleOverrides(),
+    );
 
   const allCandidates = useMemo(() => {
     const stxm = listStxmPreviewTraceCandidates({
@@ -371,8 +367,7 @@ export function StxmPreviewCompareView({
   );
 
   const visibleTraces = useMemo(
-    () =>
-      filterPlotViewerTracesByHiddenIds(styledPlot.traces, hiddenTraceIds),
+    () => filterPlotViewerTracesByHiddenIds(styledPlot.traces, hiddenTraceIds),
     [hiddenTraceIds, styledPlot.traces],
   );
 
@@ -412,13 +407,16 @@ export function StxmPreviewCompareView({
     );
   }, []);
 
-  const toggleDescriptorField = useCallback((field: PlotViewerDescriptorField) => {
-    setDescriptorFields((current) =>
-      current.includes(field)
-        ? current.filter((value) => value !== field)
-        : [...current, field],
-    );
-  }, []);
+  const toggleDescriptorField = useCallback(
+    (field: PlotViewerDescriptorField) => {
+      setDescriptorFields((current) =>
+        current.includes(field)
+          ? current.filter((value) => value !== field)
+          : [...current, field],
+      );
+    },
+    [],
+  );
 
   const overlayModel = useMemo(() => {
     const [primary, ...rest] = visibleTraces;
@@ -494,7 +492,8 @@ export function StxmPreviewCompareView({
   }, [bareAtomCurve, showBareAtomOverlay]);
 
   const useInPlotLegend = legendPlacement === "inplot";
-  const usePopoutLegend = legendPlacement === "panel" && visibleTraces.length > 0;
+  const usePopoutLegend =
+    legendPlacement === "panel" && visibleTraces.length > 0;
 
   const descriptorTraceLegend = useMemo(() => {
     if (!useInPlotLegend) {
@@ -613,7 +612,10 @@ export function StxmPreviewCompareView({
               }}
               onExperimentMarkerChange={(experimentId, marker) => {
                 setStyleOverrides(
-                  writeStxmPreviewExperimentMarkerOverride(experimentId, marker),
+                  writeStxmPreviewExperimentMarkerOverride(
+                    experimentId,
+                    marker,
+                  ),
                 );
               }}
               onExperimentMarkerSizeChange={(experimentId, markerSize) => {
@@ -634,7 +636,11 @@ export function StxmPreviewCompareView({
               }}
               onTraceStyleOverrideChange={(traceKey, patch, clearKeys) => {
                 setStyleOverrides(
-                  writeStxmPreviewTraceStyleOverride(traceKey, patch, clearKeys),
+                  writeStxmPreviewTraceStyleOverride(
+                    traceKey,
+                    patch,
+                    clearKeys,
+                  ),
                 );
               }}
             />

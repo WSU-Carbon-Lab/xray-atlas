@@ -9,11 +9,7 @@
 import { useMemo, useCallback, useRef, useState } from "react";
 import { useTheme } from "next-themes";
 import { ParentSize } from "@visx/responsive";
-import type {
-  SpectrumPlotProps,
-  SpectrumSelection,
-  TraceData,
-} from "../types";
+import type { SpectrumPlotProps, SpectrumSelection, TraceData } from "../types";
 import {
   DEFAULT_PLOT_HEIGHT,
   FILL_CONTAINER_MIN_HEIGHT,

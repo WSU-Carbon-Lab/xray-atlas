@@ -57,12 +57,42 @@ export interface RingTemplatePreset {
 /** Small rings and fused aromatics for ChemDraw-style placement. */
 export const SMALL_RING_TEMPLATE_PRESETS: readonly RingTemplatePreset[] = [
   { id: "benzene", name: "Benzene", smiles: "c1ccccc1", category: "ring" },
-  { id: "cyclohexane", name: "Cyclohexane", smiles: "C1CCCCC1", category: "ring" },
-  { id: "cyclopentane", name: "Cyclopentane", smiles: "C1CCCC1", category: "ring" },
-  { id: "cyclobutane", name: "Cyclobutane", smiles: "C1CCC1", category: "ring" },
-  { id: "cyclopropane", name: "Cyclopropane", smiles: "C1CC1", category: "ring" },
-  { id: "cycloheptane", name: "Cycloheptane", smiles: "C1CCCCCC1", category: "ring" },
-  { id: "naphthalene", name: "Naphthalene", smiles: "c1ccc2ccccc2c1", category: "ring" },
+  {
+    id: "cyclohexane",
+    name: "Cyclohexane",
+    smiles: "C1CCCCC1",
+    category: "ring",
+  },
+  {
+    id: "cyclopentane",
+    name: "Cyclopentane",
+    smiles: "C1CCCC1",
+    category: "ring",
+  },
+  {
+    id: "cyclobutane",
+    name: "Cyclobutane",
+    smiles: "C1CCC1",
+    category: "ring",
+  },
+  {
+    id: "cyclopropane",
+    name: "Cyclopropane",
+    smiles: "C1CC1",
+    category: "ring",
+  },
+  {
+    id: "cycloheptane",
+    name: "Cycloheptane",
+    smiles: "C1CCCCCC1",
+    category: "ring",
+  },
+  {
+    id: "naphthalene",
+    name: "Naphthalene",
+    smiles: "c1ccc2ccccc2c1",
+    category: "ring",
+  },
   { id: "pyridine", name: "Pyridine", smiles: "c1ccncc1", category: "ring" },
   { id: "thiophene", name: "Thiophene", smiles: "c1ccsc1", category: "ring" },
   { id: "furan", name: "Furan", smiles: "c1ccoc1", category: "ring" },
@@ -71,8 +101,18 @@ export const SMALL_RING_TEMPLATE_PRESETS: readonly RingTemplatePreset[] = [
 
 /** Curated macrocycle templates for medchem and polymer drawing (large rings and porphyrin). */
 export const MACROCYCLE_TEMPLATE_PRESETS: readonly RingTemplatePreset[] = [
-  { id: "cyclooctane", name: "Cyclooctane", smiles: "C1CCCCCCC1", category: "macrocycle" },
-  { id: "cyclododecane", name: "Cyclododecane", smiles: "C1CCCCCCCCCC1", category: "macrocycle" },
+  {
+    id: "cyclooctane",
+    name: "Cyclooctane",
+    smiles: "C1CCCCCCC1",
+    category: "macrocycle",
+  },
+  {
+    id: "cyclododecane",
+    name: "Cyclododecane",
+    smiles: "C1CCCCCCCCCC1",
+    category: "macrocycle",
+  },
   {
     id: "cyclohexadecane",
     name: "Cyclohexadecane",
@@ -147,7 +187,12 @@ export interface AbbreviatedAlkylTailSpec {
  * view tools). When active, pointer handling on the canvas applies layout
  * picks or drag transforms instead of the primary {@link DrawTool}.
  */
-export type LayoutTool = "translate" | "rotate" | "align" | "pivot" | "cage-orbit";
+export type LayoutTool =
+  | "translate"
+  | "rotate"
+  | "align"
+  | "pivot"
+  | "cage-orbit";
 
 /**
  * Bond flavor the draw tools create or report. `dative` maps to OpenChemLib's

@@ -43,7 +43,10 @@ export function DatabaseUnavailableState({
       )}
     >
       <SignalSlashIcon
-        className={cn("text-warning shrink-0", compact ? "h-8 w-8" : "h-12 w-12")}
+        className={cn(
+          "text-warning shrink-0",
+          compact ? "h-8 w-8" : "h-12 w-12",
+        )}
         aria-hidden
       />
       <div className="space-y-2">
@@ -68,7 +71,11 @@ export function DatabaseUnavailableState({
         </p>
       </div>
       {onRetry ? (
-        <Button onPress={onRetry} variant="outline" size={compact ? "sm" : "md"}>
+        <Button
+          onPress={onRetry}
+          variant="outline"
+          size={compact ? "sm" : "md"}
+        >
           <ArrowPathIcon className="h-4 w-4" aria-hidden />
           <span>Try again</span>
         </Button>

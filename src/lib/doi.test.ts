@@ -21,9 +21,9 @@ const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
 describe("normalizeDoi", () => {
   it("strips doi.org prefix and lowercases", () => {
-    expect(
-      normalizeDoi("https://doi.org/10.1038/nphys1234"),
-    ).toBe("10.1038/nphys1234");
+    expect(normalizeDoi("https://doi.org/10.1038/nphys1234")).toBe(
+      "10.1038/nphys1234",
+    );
   });
 
   it("returns null for empty input", () => {
@@ -43,12 +43,12 @@ describe("isCanonicalDoiShape", () => {
 
 describe("classifyPublicationLookupQuery", () => {
   it("classifies DOI-shaped input", () => {
-    expect(
-      classifyPublicationLookupQuery("10.1038/s41586-020-1234-5"),
-    ).toEqual({
-      mode: "doi",
-      normalizedDoi: "10.1038/s41586-020-1234-5",
-    });
+    expect(classifyPublicationLookupQuery("10.1038/s41586-020-1234-5")).toEqual(
+      {
+        mode: "doi",
+        normalizedDoi: "10.1038/s41586-020-1234-5",
+      },
+    );
   });
 
   it("classifies title-like input as text", () => {

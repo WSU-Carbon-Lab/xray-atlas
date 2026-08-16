@@ -62,10 +62,7 @@ function copyToClipboard(text: string): void {
   }
 }
 
-function buildPinCsv(
-  energy: number,
-  rows: InspectPinRow[],
-): string {
+function buildPinCsv(energy: number, rows: InspectPinRow[]): string {
   const headers = ["energy_eV", ...rows.map((r) => r.display.csvLabel)];
   const values = [
     formatEnergyEv(energy),
@@ -76,7 +73,9 @@ function buildPinCsv(
   return `${headers.join(",")}\n${values.join(",")}`;
 }
 
-function collapseUniformBareAtomBetaPinRows(rows: InspectPinRow[]): InspectPinRow[] {
+function collapseUniformBareAtomBetaPinRows(
+  rows: InspectPinRow[],
+): InspectPinRow[] {
   const bareRows = rows.filter((r) => r.display.isBareAtomBeta);
   if (bareRows.length <= 1) {
     return rows;
@@ -211,18 +210,12 @@ export function InspectPinLayer({
     displayContext,
   );
 
-  const setOffsetForPin = useCallback(
-    (pinId: string, next: PopoverOffset) => {
-      setPopoverOffsets((prev) => ({ ...prev, [pinId]: next }));
-    },
-    [],
-  );
+  const setOffsetForPin = useCallback((pinId: string, next: PopoverOffset) => {
+    setPopoverOffsets((prev) => ({ ...prev, [pinId]: next }));
+  }, []);
 
   useEffect(() => {
-    if (
-      draggingPinId != null &&
-      !pins.some((p) => p.id === draggingPinId)
-    ) {
+    if (draggingPinId != null && !pins.some((p) => p.id === draggingPinId)) {
       setDraggingPinId(null);
     }
   }, [pins, draggingPinId]);
@@ -242,13 +235,7 @@ export function InspectPinLayer({
       map.set(pin.id, rows);
     }
     return map;
-  }, [
-    pins,
-    scales.xScale,
-    themeColors.text,
-    traceDisplays,
-    visibleTraces,
-  ]);
+  }, [pins, scales.xScale, themeColors.text, traceDisplays, visibleTraces]);
 
   if (pins.length === 0) return null;
 
@@ -317,7 +304,7 @@ export function InspectPinLayer({
 
   return (
     <div
-      className="pointer-events-none absolute left-0 top-0 z-[18]"
+      className="pointer-events-none absolute top-0 left-0 z-[18]"
       style={{ width: overlayWidth, height: overlayHeight }}
     >
       {pins.map((pin, index) => {
@@ -343,11 +330,11 @@ export function InspectPinLayer({
             zIndex={isSelected ? 26 : 24}
             title={
               <span className="flex items-center gap-1.5">
-                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-[color-mix(in_oklab,var(--chart-grid-strong)_45%,transparent)] bg-[color-mix(in_oklab,var(--chart-background)_88%,transparent)] px-1 text-[9px] font-semibold tabular-nums text-[var(--chart-text-secondary)]">
+                <span className="inline-flex h-4 min-w-4 items-center justify-center rounded-full border border-[color-mix(in_oklab,var(--chart-grid-strong)_45%,transparent)] bg-[color-mix(in_oklab,var(--chart-background)_88%,transparent)] px-1 text-[9px] font-semibold text-[var(--chart-text-secondary)] tabular-nums">
                   {index + 1}
                 </span>
                 <span>Pin</span>
-                <span className="font-mono text-[11px] tabular-nums text-[var(--chart-text-secondary)]">
+                <span className="font-mono text-[11px] text-[var(--chart-text-secondary)] tabular-nums">
                   {formatEnergyEv(pin.energy)} eV
                 </span>
               </span>
@@ -356,7 +343,7 @@ export function InspectPinLayer({
             <div className="flex flex-col gap-1.5">
               <div className="flex items-center justify-between gap-2 border-b border-[color-mix(in_oklab,var(--chart-grid-strong)_35%,transparent)] pb-1">
                 <div className="min-w-0 flex-1">
-                  <div className="text-[10px] uppercase tracking-wider text-[var(--chart-text-secondary)]">
+                  <div className="text-[10px] tracking-wider text-[var(--chart-text-secondary)] uppercase">
                     Energy
                   </div>
                   <div className="font-mono text-[12px] font-semibold tabular-nums">
@@ -381,7 +368,7 @@ export function InspectPinLayer({
                 </div>
               </div>
               {rows.length === 0 ? (
-                <p className="text-[11px] italic text-[var(--chart-text-secondary)]">
+                <p className="text-[11px] text-[var(--chart-text-secondary)] italic">
                   No visible traces
                 </p>
               ) : useTableLayout ? (
@@ -456,16 +443,14 @@ function InspectPinTraceList({ rows }: { rows: InspectPinRow[] }) {
           <span className="min-w-0 flex-1 truncate text-[var(--chart-text)]">
             {row.display.listLabel}
           </span>
-          <span className="font-mono tabular-nums text-[var(--chart-text)]">
+          <span className="font-mono text-[var(--chart-text)] tabular-nums">
             {formatTraceValue(row.value)}
           </span>
           <InlineCopyButton
             label={`Copy ${row.display.listLabel}`}
             disabled={row.value == null}
             onCopy={() =>
-              copyToClipboard(
-                row.value == null ? "" : String(row.value),
-              )
+              copyToClipboard(row.value == null ? "" : String(row.value))
             }
           />
         </li>
@@ -487,13 +472,13 @@ function InspectPinTraceTable({
     <div className="overflow-x-auto">
       <table className="w-full min-w-[12rem] border-collapse text-[11px]">
         <thead>
-          <tr className="text-left text-[10px] uppercase tracking-wider text-[var(--chart-text-secondary)]">
-            <th className="pb-0.5 pr-2 font-medium">Trace</th>
-            <th className="pb-0.5 pr-2 font-medium tabular-nums">
+          <tr className="text-left text-[10px] tracking-wider text-[var(--chart-text-secondary)] uppercase">
+            <th className="pr-2 pb-0.5 font-medium">Trace</th>
+            <th className="pr-2 pb-0.5 font-medium tabular-nums">
               {angleColumnTitle}
             </th>
-            <th className="pb-0.5 pr-1 text-right font-medium">y</th>
-            <th className="pb-0.5 w-6" aria-hidden />
+            <th className="pr-1 pb-0.5 text-right font-medium">y</th>
+            <th className="w-6 pb-0.5" aria-hidden />
           </tr>
         </thead>
         <tbody>
@@ -513,10 +498,10 @@ function InspectPinTraceTable({
                   </span>
                 </span>
               </td>
-              <td className="py-0.5 pr-2 tabular-nums text-[var(--chart-text-secondary)]">
+              <td className="py-0.5 pr-2 text-[var(--chart-text-secondary)] tabular-nums">
                 {row.display.angleLabel || "\u2014"}
               </td>
-              <td className="py-0.5 pr-1 text-right font-mono tabular-nums text-[var(--chart-text)]">
+              <td className="py-0.5 pr-1 text-right font-mono text-[var(--chart-text)] tabular-nums">
                 {formatTraceValue(row.value)}
               </td>
               <td className="py-0.5 text-right">
@@ -524,9 +509,7 @@ function InspectPinTraceTable({
                   label={`Copy ${row.display.channelGlyph} at ${formatEnergyEv(pinEnergy)} eV`}
                   disabled={row.value == null}
                   onCopy={() =>
-                    copyToClipboard(
-                      row.value == null ? "" : String(row.value),
-                    )
+                    copyToClipboard(row.value == null ? "" : String(row.value))
                   }
                 />
               </td>

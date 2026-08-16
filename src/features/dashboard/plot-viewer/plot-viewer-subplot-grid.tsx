@@ -48,7 +48,9 @@ function tracesToCompanionSpectra(
   };
 }
 
-function swatchVariant(lineDash: PlotViewerStyledTrace["lineDash"]): "solid" | "dash" {
+function swatchVariant(
+  lineDash: PlotViewerStyledTrace["lineDash"],
+): "solid" | "dash" {
   return lineDash === "solid" ? "solid" : "dash";
 }
 
@@ -121,7 +123,9 @@ export function PlotViewerSubplotGrid({
             className="border-border bg-default/10 flex min-h-[280px] min-w-0 flex-col rounded-lg border"
           >
             <div className="border-border border-b px-3 py-2">
-              <p className="text-foreground text-sm font-medium">{panel.angleLabel}</p>
+              <p className="text-foreground text-sm font-medium">
+                {panel.angleLabel}
+              </p>
               <p className="text-muted text-xs">
                 {panel.traces.length} dataset
                 {panel.traces.length === 1 ? "" : "s"}
@@ -133,14 +137,16 @@ export function PlotViewerSubplotGrid({
                 {panel.traces.map((trace) => (
                   <li
                     key={trace.traceKey}
-                    className="text-foreground inline-flex min-w-0 max-w-full items-center gap-1.5 text-[11px]"
+                    className="text-foreground inline-flex max-w-full min-w-0 items-center gap-1.5 text-[11px]"
                   >
                     <LegendSwatch
                       color={trace.color}
                       variant={swatchVariant(trace.lineDash)}
                       graphStyle="line"
                     />
-                    <span className="truncate">{trace.descriptors.molecule}</span>
+                    <span className="truncate">
+                      {trace.descriptors.molecule}
+                    </span>
                   </li>
                 ))}
               </ul>

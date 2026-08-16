@@ -329,9 +329,7 @@ export async function acceptAllPendingAttributionsForOrcid(
     },
   });
 
-  const experimentIds = [
-    ...new Set(pending.map((row) => row.experimentid)),
-  ];
+  const experimentIds = [...new Set(pending.map((row) => row.experimentid))];
   for (const experimentId of experimentIds) {
     scheduleZenodoDepositSync(db, experimentId, { mode: "metadata" });
   }

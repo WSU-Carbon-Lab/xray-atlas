@@ -90,7 +90,8 @@ export function BrushZoom({
   yAxisGutterWidth = 0,
   xAxisGutterHeight = 0,
 }: BrushZoomProps) {
-  const themeColors = themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
+  const themeColors =
+    themeColorsProp ?? (isDark ? THEME_COLORS.dark : THEME_COLORS.light);
 
   const plotWidth =
     dimensions.width - dimensions.margins.left - dimensions.margins.right;
@@ -198,12 +199,8 @@ export function BrushZoom({
         return;
       }
       const pt = eventToPlotCoords(e, svg, left, top);
-      const endX = pt
-        ? Math.max(0, Math.min(plotWidth, pt.x))
-        : current.end.x;
-      const endY = pt
-        ? Math.max(0, Math.min(plotHeight, pt.y))
-        : current.end.y;
+      const endX = pt ? Math.max(0, Math.min(plotWidth, pt.x)) : current.end.x;
+      const endY = pt ? Math.max(0, Math.min(plotHeight, pt.y)) : current.end.y;
 
       if (current.mode === "vertical") {
         const y0 = Math.min(current.start.y, endY);
@@ -253,14 +250,24 @@ export function BrushZoom({
       setMarquee(null);
     };
 
-    window.addEventListener("pointermove", handlePointerMove, { capture: true });
+    window.addEventListener("pointermove", handlePointerMove, {
+      capture: true,
+    });
     window.addEventListener("pointerup", handlePointerUp, { capture: true });
-    window.addEventListener("pointercancel", handlePointerUp, { capture: true });
+    window.addEventListener("pointercancel", handlePointerUp, {
+      capture: true,
+    });
 
     return () => {
-      window.removeEventListener("pointermove", handlePointerMove, { capture: true });
-      window.removeEventListener("pointerup", handlePointerUp, { capture: true });
-      window.removeEventListener("pointercancel", handlePointerUp, { capture: true });
+      window.removeEventListener("pointermove", handlePointerMove, {
+        capture: true,
+      });
+      window.removeEventListener("pointerup", handlePointerUp, {
+        capture: true,
+      });
+      window.removeEventListener("pointercancel", handlePointerUp, {
+        capture: true,
+      });
     };
   }, [
     marquee,
@@ -315,12 +322,7 @@ export function BrushZoom({
     (event: React.PointerEvent) => {
       const svg = svgRef.current;
       if (!svg) return;
-      const pt = eventToPlotCoords(
-        event.nativeEvent,
-        svg,
-        left,
-        top,
-      );
+      const pt = eventToPlotCoords(event.nativeEvent, svg, left, top);
       if (!pt) return;
       const x = Math.max(0, Math.min(plotWidth, pt.x));
       const y = Math.max(0, Math.min(plotHeight, pt.y));
@@ -329,7 +331,9 @@ export function BrushZoom({
         return;
       }
       const mode =
-        zoomMode === "vertical" && !enableVerticalMarquee ? "horizontal" : zoomMode;
+        zoomMode === "vertical" && !enableVerticalMarquee
+          ? "horizontal"
+          : zoomMode;
       beginMarquee(x, y, mode);
     },
     [
@@ -349,12 +353,7 @@ export function BrushZoom({
       if (!enableVerticalMarquee) return;
       const svg = svgRef.current;
       if (!svg) return;
-      const pt = eventToPlotCoords(
-        event.nativeEvent,
-        svg,
-        left,
-        top,
-      );
+      const pt = eventToPlotCoords(event.nativeEvent, svg, left, top);
       if (!pt) return;
       const y = Math.max(0, Math.min(plotHeight, pt.y));
       beginMarquee(0, y, "vertical");
@@ -366,12 +365,7 @@ export function BrushZoom({
     (event: React.PointerEvent) => {
       const svg = svgRef.current;
       if (!svg) return;
-      const pt = eventToPlotCoords(
-        event.nativeEvent,
-        svg,
-        left,
-        top,
-      );
+      const pt = eventToPlotCoords(event.nativeEvent, svg, left, top);
       if (!pt) return;
       const x = Math.max(0, Math.min(plotWidth, pt.x));
       beginMarquee(x, 0, "horizontal");
@@ -383,9 +377,7 @@ export function BrushZoom({
   const showXGutter = xAxisGutterHeight > 0;
 
   const activeMode =
-    marquee?.mode === "pending"
-      ? null
-      : marquee?.mode ?? null;
+    marquee?.mode === "pending" ? null : (marquee?.mode ?? null);
   const mainPlotCursor =
     activeMode === "vertical"
       ? "ns-resize"
@@ -405,28 +397,29 @@ export function BrushZoom({
     strokeDasharray: "4 4",
   };
 
-  const selectionRect = marquee && marquee.mode !== "pending"
-    ? marquee.mode === "vertical"
-      ? {
-          x: 0,
-          y: Math.min(marquee.start.y, marquee.end.y),
-          width: plotWidth,
-          height: Math.abs(marquee.end.y - marquee.start.y),
-        }
-      : marquee.mode === "horizontal"
+  const selectionRect =
+    marquee && marquee.mode !== "pending"
+      ? marquee.mode === "vertical"
         ? {
-            x: Math.min(marquee.start.x, marquee.end.x),
-            y: 0,
-            width: Math.abs(marquee.end.x - marquee.start.x),
-            height: plotHeight,
-          }
-        : {
-            x: Math.min(marquee.start.x, marquee.end.x),
+            x: 0,
             y: Math.min(marquee.start.y, marquee.end.y),
-            width: Math.abs(marquee.end.x - marquee.start.x),
+            width: plotWidth,
             height: Math.abs(marquee.end.y - marquee.start.y),
           }
-    : null;
+        : marquee.mode === "horizontal"
+          ? {
+              x: Math.min(marquee.start.x, marquee.end.x),
+              y: 0,
+              width: Math.abs(marquee.end.x - marquee.start.x),
+              height: plotHeight,
+            }
+          : {
+              x: Math.min(marquee.start.x, marquee.end.x),
+              y: Math.min(marquee.start.y, marquee.end.y),
+              width: Math.abs(marquee.end.x - marquee.start.x),
+              height: Math.abs(marquee.end.y - marquee.start.y),
+            }
+      : null;
 
   return (
     <g ref={setSvgRef} transform={`translate(${left}, ${top})`}>

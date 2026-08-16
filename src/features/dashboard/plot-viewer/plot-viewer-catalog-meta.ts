@@ -16,7 +16,9 @@ export function shortPlotViewerExperimentId(experimentId: string): string {
 /**
  * Builds the experiment accordion label: molecule, edge, and abbreviated instrument.
  */
-export function plotViewerExperimentGroupLabel(group: NexafsBrowseGroup): string {
+export function plotViewerExperimentGroupLabel(
+  group: NexafsBrowseGroup,
+): string {
   const edge = `${group.edge.targetatom} ${group.edge.corestate}`;
   const instrument = abbreviateInstrumentName(group.instrument.name);
   return `${group.molecule.displayName} · ${edge} · ${instrument}`;
@@ -40,7 +42,9 @@ export function catalogMetaFromBrowseGroup(
 /**
  * Supplies minimal catalog metadata when browse rows cannot be resolved for a selected experiment.
  */
-export function catalogMetaFallback(experimentId: string): PlotViewerCatalogMeta {
+export function catalogMetaFallback(
+  experimentId: string,
+): PlotViewerCatalogMeta {
   const shortId = shortPlotViewerExperimentId(experimentId);
   return {
     experimentId,

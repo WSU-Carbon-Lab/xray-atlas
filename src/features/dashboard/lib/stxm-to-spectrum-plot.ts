@@ -5,9 +5,7 @@ import type {
   SpectrumPoint,
   SpectrumYAxisQuantity,
 } from "~/components/plots/types";
-import {
-  type StxmIngestionResult,
-} from "~/features/dashboard/lib/computeStxmIngestion";
+import { type StxmIngestionResult } from "~/features/dashboard/lib/computeStxmIngestion";
 import type { DashboardIngestionResult } from "~/lib/dashboard-processing-session";
 import { channelDefinitionById } from "~/components/plots/data-rail";
 import {
@@ -358,7 +356,9 @@ function buildCompareCompanionSpectra(
         points,
       };
     })
-    .filter((spectrum) => stxmSpectrumPointsHaveFiniteAbsorption(spectrum.points));
+    .filter((spectrum) =>
+      stxmSpectrumPointsHaveFiniteAbsorption(spectrum.points),
+    );
 }
 
 function buildReferenceCurves(
@@ -461,7 +461,8 @@ function buildChannelPoints(
   if (multiRegionIngestion) {
     return {
       points: [],
-      primaryRegionId: sampleRegionSeriesList(regionSpectra)[0]?.regionId ?? null,
+      primaryRegionId:
+        sampleRegionSeriesList(regionSpectra)[0]?.regionId ?? null,
       regionScoped: true,
     };
   }
@@ -475,7 +476,10 @@ function buildChannelPoints(
     const primarySeries = resolvePrimaryRegionSeries(regionSpectra, channel);
     if (primarySeries) {
       primaryRegionId = primarySeries.regionId;
-      const validityMask = regionSeriesValidityMask(regionSpectra, primarySeries);
+      const validityMask = regionSeriesValidityMask(
+        regionSpectra,
+        primarySeries,
+      );
       points = pointsFromRegionSeriesForChannel(
         primarySeries,
         channel,
@@ -598,7 +602,9 @@ function buildSingleChannelPlotModel(
     primaryTraceLabel: regionScoped
       ? channelPoints.primaryTraceLabel
       : resolvePrimaryTraceLabel(channel, primaryTraceLabel, pureRegionLabel),
-    primaryTraceColor: regionScoped ? channelPoints.primaryTraceColor : undefined,
+    primaryTraceColor: regionScoped
+      ? channelPoints.primaryTraceColor
+      : undefined,
     primaryTraceLegendId: regionScoped
       ? channelPoints.primaryTraceLegendId
       : undefined,

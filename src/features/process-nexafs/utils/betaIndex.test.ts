@@ -28,7 +28,7 @@ describe("computeBetaIndex", () => {
     );
 
     const hcEvCm = 1.23984193e-4;
-    const expected = (hcEvCm / E) / (4 * Math.PI);
+    const expected = hcEvCm / E / (4 * Math.PI);
     expect(out).toHaveLength(1);
     expect(out[0]!.absorption).toBeCloseTo(expected, 12);
   });
@@ -46,9 +46,8 @@ describe("computeBetaIndex", () => {
     );
 
     const hcEvCm = 1.23984193e-4;
-    const expected = (hcEvCm / E) / (4 * Math.PI);
+    const expected = hcEvCm / E / (4 * Math.PI);
     expect(out).toHaveLength(1);
     expect(out[0]!.absorption).toBeCloseTo(expected, 12);
   });
 });
-

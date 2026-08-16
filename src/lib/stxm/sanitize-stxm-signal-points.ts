@@ -1,9 +1,7 @@
 import type { SpectrumPoint } from "~/components/plots/types";
 import {
   buildStxmEnergyValidityMask,
-  detectStxmIntensityGlitches,
   type DetectStxmIntensityGlitchesOptions,
-  type StxmIntensityGlitch,
 } from "./detect-stxm-intensity-glitches";
 
 export {

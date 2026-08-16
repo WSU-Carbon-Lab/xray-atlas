@@ -66,7 +66,9 @@ export function applyPasskeyClientRedirect(
   }
 }
 
-function readSessionAalAppCode(data: unknown): SessionWriteAssuranceAppCode | null {
+function readSessionAalAppCode(
+  data: unknown,
+): SessionWriteAssuranceAppCode | null {
   if (typeof data !== "object" || data === null || !("appCode" in data)) {
     return null;
   }

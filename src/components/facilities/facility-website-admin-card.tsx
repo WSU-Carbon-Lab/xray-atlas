@@ -37,7 +37,9 @@ function validateWebsiteDraft(value: string): string | null {
   if (value.trim() === "") return null;
   const result = facilityWebsiteUrlInputSchema.safeParse(value.trim());
   if (!result.success) {
-    return result.error.issues[0]?.message ?? "Enter a valid http or https URL.";
+    return (
+      result.error.issues[0]?.message ?? "Enter a valid http or https URL."
+    );
   }
   return null;
 }
@@ -265,12 +267,16 @@ export function FacilityWebsiteAdminCard({
               <Button
                 variant="secondary"
                 size="sm"
-                isDisabled={isPending || draftTrimmed === "" || Boolean(validationError)}
+                isDisabled={
+                  isPending || draftTrimmed === "" || Boolean(validationError)
+                }
                 onPress={() => {
                   refreshMutation.mutate({ facilityId });
                 }}
               >
-                {refreshMutation.isPending ? "Refreshing..." : "Refresh favicon"}
+                {refreshMutation.isPending
+                  ? "Refreshing..."
+                  : "Refresh favicon"}
               </Button>
             </div>
           </Accordion.Body>

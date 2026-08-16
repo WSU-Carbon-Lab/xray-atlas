@@ -1,4 +1,7 @@
-import { autoMultiRegionFromProfile, segmentedRegionBoundsFromImage } from "./regions";
+import {
+  autoMultiRegionFromProfile,
+  segmentedRegionBoundsFromImage,
+} from "./regions";
 import type { StxmIzeroBounds, StxmSampleRegion } from "./stxm-region-types";
 import type { StxmRegionBounds } from "~/lib/dashboard-processing-session";
 
@@ -84,7 +87,8 @@ export function autoMultiRegionFromImage(
   const sampleBounds =
     profileResult.sampleRegions.length > 0
       ? profileResult.sampleRegions.slice(0, maxSampleRegions)
-      : segmentedRegionBoundsFromImage(image, spatial, maxSampleRegions).sampleBounds;
+      : segmentedRegionBoundsFromImage(image, spatial, maxSampleRegions)
+          .sampleBounds;
 
   const rowProfile = image.map((row) => row[row.length - 1] ?? 0);
   let pureIndex = 0;
@@ -118,7 +122,8 @@ export function autoMultiRegionFromImage(
     };
   });
 
-  const pureRegionId = regions[pureIndex]?.id ?? regions[0]?.id ?? newRegionId();
+  const pureRegionId =
+    regions[pureIndex]?.id ?? regions[0]?.id ?? newRegionId();
   return {
     regions:
       regions.length > 0

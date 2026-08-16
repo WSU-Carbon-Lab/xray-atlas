@@ -12,9 +12,7 @@ export async function GET(request: Request) {
   try {
     const session = await auth();
     if (!session?.user?.id) {
-      return NextResponse.redirect(
-        new URL("/sign-in", request.url),
-      );
+      return NextResponse.redirect(new URL("/sign-in", request.url));
     }
 
     const { searchParams } = new URL(request.url);
@@ -23,7 +21,10 @@ export async function GET(request: Request) {
     const validationResult = linkAccountSchema.safeParse({ provider });
     if (!validationResult.success) {
       return NextResponse.redirect(
-        new URL(`/users/${session.user.id}?error=Invalid provider`, request.url),
+        new URL(
+          `/users/${session.user.id}?error=Invalid provider`,
+          request.url,
+        ),
       );
     }
 
@@ -36,7 +37,10 @@ export async function GET(request: Request) {
 
     if (existingAccount) {
       return NextResponse.redirect(
-        new URL(`/users/${session.user.id}?error=Account already linked`, request.url),
+        new URL(
+          `/users/${session.user.id}?error=Account already linked`,
+          request.url,
+        ),
       );
     }
 
@@ -60,7 +64,8 @@ export async function GET(request: Request) {
       redirect: true,
     });
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : "Unknown error";
+    const errorMessage =
+      error instanceof Error ? error.message : "Unknown error";
 
     if (errorMessage.includes("NEXT_REDIRECT")) {
       throw error;
@@ -73,7 +78,10 @@ export async function GET(request: Request) {
 
     if (errorMessage.includes("ACCOUNT_EXISTS")) {
       return NextResponse.redirect(
-        new URL(`/users/${userId}?error=Account already linked to another user`, request.url),
+        new URL(
+          `/users/${userId}?error=Account already linked to another user`,
+          request.url,
+        ),
       );
     }
 

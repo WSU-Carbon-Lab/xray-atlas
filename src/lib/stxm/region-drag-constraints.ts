@@ -24,7 +24,11 @@ function clamp(value: number, min: number, max: number): number {
   return Math.min(Math.max(value, min), max);
 }
 
-function enforceMinGap(values: number[], minGap: number, pinnedIndex: number): number[] {
+function enforceMinGap(
+  values: number[],
+  minGap: number,
+  pinnedIndex: number,
+): number[] {
   const next = [...values];
   for (let index = pinnedIndex + 1; index < next.length; index += 1) {
     next[index] = Math.max(next[index]!, next[index - 1]! + minGap);
@@ -58,24 +62,36 @@ export function applySampleRegionBoundaryDrag(
   }
 
   const ordered = [...regions].sort(
-    (left, right) => left.sampleLo - right.sampleLo || left.sampleHi - right.sampleHi,
+    (left, right) =>
+      left.sampleLo - right.sampleLo || left.sampleHi - right.sampleHi,
   );
   const orderIndex = ordered.findIndex((region) => region.id === dragRegion.id);
   if (orderIndex < 0) {
     return { regions, izero, clampedToIzero: false };
   }
 
-  const values = ordered.flatMap((region) => [region.sampleLo, region.sampleHi]);
+  const values = ordered.flatMap((region) => [
+    region.sampleLo,
+    region.sampleHi,
+  ]);
   const dragValueIndex = orderIndex * 2 + (drag.edge === "lo" ? 0 : 1);
   const clampedTarget = clamp(targetSample, sampleMin, sampleMax);
   values[dragValueIndex] = clampedTarget;
 
   const sorted = [...values].sort((left, right) => left - right);
   const pinnedIndex = sorted.indexOf(clampedTarget);
-  let spaced = enforceMinGap(sorted, minGap, pinnedIndex >= 0 ? pinnedIndex : dragValueIndex);
+  let spaced = enforceMinGap(
+    sorted,
+    minGap,
+    pinnedIndex >= 0 ? pinnedIndex : dragValueIndex,
+  );
   spaced[0] = Math.max(spaced[0]!, sampleMin);
   spaced[spaced.length - 1] = Math.min(spaced[spaced.length - 1]!, sampleMax);
-  spaced = enforceMinGap(spaced, minGap, pinnedIndex >= 0 ? pinnedIndex : dragValueIndex);
+  spaced = enforceMinGap(
+    spaced,
+    minGap,
+    pinnedIndex >= 0 ? pinnedIndex : dragValueIndex,
+  );
 
   let clampedToIzero = false;
   const nextOrdered = ordered.map((region, index) => {
@@ -159,8 +175,7 @@ export function resolveSampleRegionsAfterIzeroChange(
       return false;
     }
     return (
-      prior.sampleLo !== region.sampleLo ||
-      prior.sampleHi !== region.sampleHi
+      prior.sampleLo !== region.sampleLo || prior.sampleHi !== region.sampleHi
     );
   });
   return { regions: next, clampedToIzero };

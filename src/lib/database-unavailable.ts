@@ -98,7 +98,9 @@ function isFetchFailure(error: unknown, message: string): boolean {
   if (error instanceof TypeError && /fetch/i.test(message)) {
     return true;
   }
-  return /\bfailed to fetch\b/i.test(message) || /\bload failed\b/i.test(message);
+  return (
+    /\bfailed to fetch\b/i.test(message) || /\bload failed\b/i.test(message)
+  );
 }
 
 /**
@@ -118,7 +120,10 @@ export function isDatabaseUnavailableError(error: unknown): boolean {
     return true;
   }
 
-  if (trpcCode === "INTERNAL_SERVER_ERROR" && messageLooksLikeDatabaseUnavailable(message)) {
+  if (
+    trpcCode === "INTERNAL_SERVER_ERROR" &&
+    messageLooksLikeDatabaseUnavailable(message)
+  ) {
     return true;
   }
 
@@ -130,7 +135,10 @@ export function isDatabaseUnavailableError(error: unknown): boolean {
     return true;
   }
 
-  if (error instanceof TRPCClientError && trpcCode === "INTERNAL_SERVER_ERROR") {
+  if (
+    error instanceof TRPCClientError &&
+    trpcCode === "INTERNAL_SERVER_ERROR"
+  ) {
     const lowered = message.toLowerCase();
     if (
       lowered.includes("database") ||
@@ -154,5 +162,7 @@ export function resolveDatabaseErrorMessage(error: unknown): string {
     return databaseUnavailableMessage;
   }
   const message = readErrorMessage(error).trim();
-  return message || "We could not load this data. Please try again in a moment.";
+  return (
+    message || "We could not load this data. Please try again in a moment."
+  );
 }

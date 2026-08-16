@@ -80,7 +80,10 @@ async function searchByFullOrcid(
   });
 
   if (atlasUser && orcidUserIdSchema.safeParse(atlasUser.id).success) {
-    return { results: [hitFromAtlasUser(atlasUser)], orcidSearchUnavailable: false };
+    return {
+      results: [hitFromAtlasUser(atlasUser)],
+      orcidSearchUnavailable: false,
+    };
   }
 
   try {
@@ -190,7 +193,8 @@ async function searchByNameText(
     },
   });
 
-  let orcidHits: Awaited<ReturnType<typeof fetchOrcidExpandedSearchByName>> = [];
+  let orcidHits: Awaited<ReturnType<typeof fetchOrcidExpandedSearchByName>> =
+    [];
   let orcidSearchUnavailable = false;
 
   const [atlasUsers, orcidResult] = await Promise.all([

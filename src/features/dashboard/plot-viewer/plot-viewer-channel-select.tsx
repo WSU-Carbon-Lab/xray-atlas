@@ -22,7 +22,7 @@ export function PlotViewerChannelSelect({
 }: PlotViewerChannelSelectProps) {
   return (
     <div className="flex flex-col gap-1">
-      <Label className="text-muted text-[10px] font-medium uppercase tracking-wide">
+      <Label className="text-muted text-[10px] font-medium tracking-wide uppercase">
         Channel
       </Label>
       <Select
@@ -30,7 +30,9 @@ export function PlotViewerChannelSelect({
         isDisabled={disabled}
         onSelectionChange={(key) => {
           if (typeof key === "string") {
-            const match = PLOT_VIEWER_CHANNELS.find((option) => option.id === key);
+            const match = PLOT_VIEWER_CHANNELS.find(
+              (option) => option.id === key,
+            );
             if (match) {
               onChannelChange(match.id);
             }

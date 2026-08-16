@@ -3,9 +3,7 @@ import {
   expect as bunExpect,
   it as bunIt,
 } from "bun:test";
-import {
-  PLOT_VIEWER_FIXED_COLOR_PRESETS,
-} from "./plot-viewer-fixed-color-panel";
+import { PLOT_VIEWER_FIXED_COLOR_PRESETS } from "./plot-viewer-fixed-color-panel";
 import {
   writePlotViewerExperimentColorMode,
   writePlotViewerTraceStyleOverride,

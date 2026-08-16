@@ -60,7 +60,9 @@ function elementSelectionState(
   selectedSet: Set<string>,
 ): SelectionState {
   if (elementEdgeIds.length === 0) return "none";
-  const selectedCount = elementEdgeIds.filter((id) => selectedSet.has(id)).length;
+  const selectedCount = elementEdgeIds.filter((id) =>
+    selectedSet.has(id),
+  ).length;
   if (selectedCount === 0) return "none";
   if (selectedCount === elementEdgeIds.length) return "all";
   return "partial";
@@ -89,7 +91,10 @@ export function PeriodicEdgeModal({
   onChange,
 }: PeriodicEdgeModalProps) {
   const anchorZRef = useRef<number | null>(null);
-  const selectedSet = useMemo(() => new Set(selectedEdgeIds), [selectedEdgeIds]);
+  const selectedSet = useMemo(
+    () => new Set(selectedEdgeIds),
+    [selectedEdgeIds],
+  );
 
   const catalogStatsQuery = trpc.experiments.edgeCatalogStats.useQuery(
     undefined,
@@ -121,9 +126,7 @@ export function PeriodicEdgeModal({
         ),
       );
     }
-    return new Set(
-      [...elementEdgesMap.keys()].map((s) => s.toUpperCase()),
-    );
+    return new Set([...elementEdgesMap.keys()].map((s) => s.toUpperCase()));
   }, [catalogStatsQuery.data, elementEdgesMap]);
 
   const catalogElements = useMemo(
@@ -204,8 +207,8 @@ export function PeriodicEdgeModal({
       maxWidth="max-w-5xl"
     >
       <p className="text-muted mb-3 text-xs">
-        Highlighted elements have edges in the catalog. Click to toggle; Shift-click to
-        range-select; Cmd/Ctrl-click to add.
+        Highlighted elements have edges in the catalog. Click to toggle;
+        Shift-click to range-select; Cmd/Ctrl-click to add.
       </p>
 
       <div
@@ -263,10 +266,10 @@ export function PeriodicEdgeModal({
                   : "bg-default/30 text-muted opacity-40 cursor-not-allowed",
               ].join(" ")}
             >
-              <span className="text-[10px] leading-none tabular-nums text-current/60">
+              <span className="text-[10px] leading-none text-current/60 tabular-nums">
                 {el.z}
               </span>
-              <span className="mt-0.5 text-xs font-semibold leading-none">
+              <span className="mt-0.5 text-xs leading-none font-semibold">
                 {el.symbol}
               </span>
             </button>
@@ -275,7 +278,7 @@ export function PeriodicEdgeModal({
       </div>
 
       {/* Energy density chart */}
-      <div className="mt-3 border-t border-border pt-2">
+      <div className="border-border mt-3 border-t pt-2">
         <p className="text-muted mb-1 text-xs font-medium tracking-wide">
           Catalog photon energy coverage
         </p>
@@ -291,8 +294,8 @@ export function PeriodicEdgeModal({
       </div>
 
       {selectedEdgeObjects.length > 0 ? (
-        <div className="mt-4 border-t border-border pt-3">
-          <p className="text-muted mb-2 text-xs font-semibold uppercase tracking-wide">
+        <div className="border-border mt-4 border-t pt-3">
+          <p className="text-muted mb-2 text-xs font-semibold tracking-wide uppercase">
             Selected edges ({selectedEdgeObjects.length})
           </p>
           <div className="flex flex-wrap gap-1.5">
@@ -312,7 +315,12 @@ export function PeriodicEdgeModal({
                   }}
                   className="hover:text-foreground ml-0.5 rounded"
                 >
-                  <svg className="h-3 w-3" viewBox="0 0 20 20" fill="currentColor" aria-hidden>
+                  <svg
+                    className="h-3 w-3"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                    aria-hidden
+                  >
                     <path d="M6.28 5.22a.75.75 0 00-1.06 1.06L8.94 10l-3.72 3.72a.75.75 0 101.06 1.06L10 11.06l3.72 3.72a.75.75 0 101.06-1.06L11.06 10l3.72-3.72a.75.75 0 00-1.06-1.06L10 8.94 6.28 5.22z" />
                   </svg>
                 </button>
@@ -322,7 +330,7 @@ export function PeriodicEdgeModal({
         </div>
       ) : null}
 
-      <div className="mt-4 flex items-center justify-between border-t border-border pt-3">
+      <div className="border-border mt-4 flex items-center justify-between border-t pt-3">
         <Button
           variant="ghost"
           size="sm"

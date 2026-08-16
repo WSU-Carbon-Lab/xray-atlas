@@ -173,10 +173,7 @@ export function StxmPreviewSelectionPanel({
           const ingestion = ingestionByScanId[entry.scanId];
           const pointCount = ingestion?.energyEv.length ?? 0;
           return (
-            <div
-              key={entry.scanId}
-              className="border-border rounded-md border"
-            >
+            <div key={entry.scanId} className="border-border rounded-md border">
               <div className="flex items-start gap-1 px-2 py-2">
                 <button
                   type="button"
@@ -280,8 +277,8 @@ export function StxmPreviewSelectionPanel({
               ...atlasDatasets.flatMap((dataset) => {
                 const keys =
                   atlasGeometryByExperimentId[dataset.experimentId] ?? [];
-                return keys.map((geometryKey) =>
-                  `${dataset.experimentId}:${geometryKey}`,
+                return keys.map(
+                  (geometryKey) => `${dataset.experimentId}:${geometryKey}`,
                 );
               }),
             ])

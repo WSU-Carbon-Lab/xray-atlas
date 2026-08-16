@@ -2,15 +2,15 @@
 
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
-import { SignInButton } from "@/components/auth/sign-in-button";
+import { SignInButton } from "~/components/auth/sign-in-button";
 import {
   AddNexafsCard,
   AddMoleculeCard,
   AddFacilityCard,
-} from "@/components/contribute";
-import { ContributionAgreementModal } from "@/components/contribute";
+} from "~/components/contribute";
+import { ContributionAgreementModal } from "~/components/contribute";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
-import { PasskeyEnrollmentPrompt } from "@/components/auth/passkey-enrollment-prompt";
+import { PasskeyEnrollmentPrompt } from "~/components/auth/passkey-enrollment-prompt";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";
 

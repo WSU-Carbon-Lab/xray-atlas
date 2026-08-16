@@ -6,7 +6,10 @@ import {
   plotViewerThetaPhiColumnTitle,
   resolvePlotViewerAngleSplit,
 } from "./format-plot-viewer-geometry-label";
-import type { PlotViewerLineDash, PlotViewerMarkerSymbol } from "./plot-viewer-trace-styles";
+import type {
+  PlotViewerLineDash,
+  PlotViewerMarkerSymbol,
+} from "./plot-viewer-trace-styles";
 
 export type PlotViewerDescriptorField =
   | "theta"
@@ -45,17 +48,20 @@ export const PLOT_VIEWER_DESCRIPTOR_OPTIONS: readonly {
 ];
 
 /** @deprecated Use PLOT_VIEWER_DESCRIPTOR_OPTIONS. */
-export const PLOT_VIEWER_IDENTIFIER_OPTIONS = PLOT_VIEWER_DESCRIPTOR_OPTIONS.filter(
-  (option): option is {
-    id: PlotViewerIdentifierField;
-    label: string;
-    columnTitle: string;
-  } =>
-    option.id === "molecule" ||
-    option.id === "edge" ||
-    option.id === "instrument" ||
-    option.id === "facility",
-);
+export const PLOT_VIEWER_IDENTIFIER_OPTIONS =
+  PLOT_VIEWER_DESCRIPTOR_OPTIONS.filter(
+    (
+      option,
+    ): option is {
+      id: PlotViewerIdentifierField;
+      label: string;
+      columnTitle: string;
+    } =>
+      option.id === "molecule" ||
+      option.id === "edge" ||
+      option.id === "instrument" ||
+      option.id === "facility",
+  );
 
 export type PlotViewerLegendSwatch = {
   color: string;
@@ -93,7 +99,9 @@ const PLOT_VIEWER_DESCRIPTOR_FIELD_SET = new Set<PlotViewerDescriptorField>(
 export function isPlotViewerDescriptorField(
   value: string,
 ): value is PlotViewerDescriptorField {
-  return PLOT_VIEWER_DESCRIPTOR_FIELD_SET.has(value as PlotViewerDescriptorField);
+  return PLOT_VIEWER_DESCRIPTOR_FIELD_SET.has(
+    value as PlotViewerDescriptorField,
+  );
 }
 
 /**
@@ -169,7 +177,8 @@ export function plotViewerDescriptorFieldsEqual(
   right: readonly PlotViewerDescriptorField[],
 ): boolean {
   return (
-    left.length === right.length && left.every((field, index) => field === right[index])
+    left.length === right.length &&
+    left.every((field, index) => field === right[index])
   );
 }
 
@@ -190,17 +199,17 @@ export function buildPlotViewerLegendRows(
       ? descriptorFields
       : [...DEFAULT_PLOT_VIEWER_DESCRIPTOR_FIELDS];
 
-  const geometryOrder = [...new Set(traces.map((trace) => trace.geometryKey))].sort(
-    (leftKey, rightKey) => {
-      const leftSort =
-        traces.find((trace) => trace.geometryKey === leftKey)?.geometrySortKey ??
-        leftKey;
-      const rightSort =
-        traces.find((trace) => trace.geometryKey === rightKey)?.geometrySortKey ??
-        rightKey;
-      return leftSort.localeCompare(rightSort);
-    },
-  );
+  const geometryOrder = [
+    ...new Set(traces.map((trace) => trace.geometryKey)),
+  ].sort((leftKey, rightKey) => {
+    const leftSort =
+      traces.find((trace) => trace.geometryKey === leftKey)?.geometrySortKey ??
+      leftKey;
+    const rightSort =
+      traces.find((trace) => trace.geometryKey === rightKey)?.geometrySortKey ??
+      rightKey;
+    return leftSort.localeCompare(rightSort);
+  });
 
   const rows: PlotViewerLegendRow[] = [];
   for (const geometryKey of geometryOrder) {

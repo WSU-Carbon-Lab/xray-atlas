@@ -75,7 +75,9 @@ export function WelcomeAttributionIntro({
     orcid: profile.orcid,
     resolved: pendingResolved,
   });
-  const pendingModeLabel = attributionDisplayModeLabel(effectiveDisplay.pending);
+  const pendingModeLabel = attributionDisplayModeLabel(
+    effectiveDisplay.pending,
+  );
   const autoAcceptLabel = autoAcceptModeLabel(prefs.autoAcceptMode);
 
   return (

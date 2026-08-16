@@ -16,11 +16,13 @@ Accessibility is not optional - design for everyone from the start.
 ### Color and Contrast
 
 **Minimum Contrast Ratios (WCAG 2.1 AA):**
+
 - Normal text (< 18px): **4.5:1**
 - Large text (>= 18px or 14px bold): **3:1**
 - UI components and graphics: **3:1**
 
 **Never rely on color alone:**
+
 ```tsx
 // Bad: Color is the only indicator
 <span className={error ? "text-red-500" : "text-green-500"}>
@@ -36,6 +38,7 @@ Accessibility is not optional - design for everyone from the start.
 ```
 
 **Support for color blindness:**
+
 - Use patterns, shapes, or icons in addition to color
 - Test with color blindness simulators
 - Avoid red/green as the only differentiator
@@ -43,15 +46,17 @@ Accessibility is not optional - design for everyone from the start.
 ### Text and Typography
 
 **Support Dynamic Type / user font preferences:**
+
 ```tsx
 // Use relative units, not fixed pixels
-className="text-base" // Not: style={{ fontSize: '16px' }}
+className = "text-base"; // Not: style={{ fontSize: '16px' }}
 
 // Respect user's font size preferences
-className="text-sm md:text-base lg:text-lg"
+className = "text-sm md:text-base lg:text-lg";
 ```
 
 **Text legibility requirements:**
+
 - Minimum body text size: 16px (1rem)
 - Line height: 1.4-1.6 for body text
 - Maximum line length: 65-80 characters
@@ -60,9 +65,11 @@ className="text-sm md:text-base lg:text-lg"
 ### Visual Indicators
 
 **Focus states must be visible:**
+
 ```tsx
 // Always provide visible focus indicators
-className="focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2"
+className =
+  "focus:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-2";
 
 // Never remove focus outlines without replacement
 // Bad: outline-none (alone)
@@ -70,6 +77,7 @@ className="focus:outline-none focus-visible:ring-2 focus-visible:ring-accent foc
 ```
 
 **Loading and progress states:**
+
 - Provide visual feedback for all async operations
 - Use aria-live regions for dynamic content updates
 - Include text alternatives for spinners/loaders
@@ -79,6 +87,7 @@ className="focus:outline-none focus-visible:ring-2 focus-visible:ring-accent foc
 ### Touch and Click Targets
 
 **Minimum target sizes:**
+
 - Touch targets: **44x44 points** minimum
 - Adequate spacing between targets: **8px** minimum
 
@@ -95,6 +104,7 @@ className="min-h-[44px] min-w-[44px] p-3"
 ### Keyboard Navigation
 
 **All interactive elements must be keyboard accessible:**
+
 ```tsx
 // Ensure proper tab order
 <button tabIndex={0}>Focusable</button>
@@ -113,6 +123,7 @@ onKeyDown={(e) => {
 ```
 
 **Keyboard shortcuts:**
+
 - Provide keyboard alternatives for all mouse actions
 - Document keyboard shortcuts
 - Allow customization where possible
@@ -121,11 +132,13 @@ onKeyDown={(e) => {
 ### Timing and Gestures
 
 **Don't require precise timing:**
+
 - Allow users to extend time limits
 - Avoid time-based interactions when possible
 - Provide pause/stop controls for moving content
 
 **Support alternative input methods:**
+
 - Don't require complex gestures
 - Provide button alternatives for gestures
 - Support single-pointer alternatives for multi-touch
@@ -135,6 +148,7 @@ onKeyDown={(e) => {
 ### Semantic HTML
 
 **Use semantic elements:**
+
 ```tsx
 // Use proper heading hierarchy
 <h1>Page Title</h1>
@@ -157,6 +171,7 @@ onKeyDown={(e) => {
 ### ARIA Labels and Roles
 
 **Label all interactive elements:**
+
 ```tsx
 // Icon buttons need labels
 <button aria-label="Download spectrum data">
@@ -172,6 +187,7 @@ onKeyDown={(e) => {
 ```
 
 **ARIA roles for custom components:**
+
 ```tsx
 // Custom tabs
 <div role="tablist">
@@ -192,6 +208,7 @@ onKeyDown={(e) => {
 ### Live Regions
 
 **Announce dynamic content changes:**
+
 ```tsx
 // For status messages
 <div aria-live="polite" aria-atomic="true">
@@ -214,6 +231,7 @@ onKeyDown={(e) => {
 ### Charts and Graphs
 
 **Provide text alternatives for data visualizations:**
+
 ```tsx
 // Include accessible data table
 <figure>
@@ -221,15 +239,18 @@ onKeyDown={(e) => {
   <figcaption className="sr-only">
     NEXAFS spectrum showing carbon K-edge with peaks at 285.1 eV and 288.5 eV
   </figcaption>
-  
+
   {/* Hidden data table for screen readers */}
   <table className="sr-only">
     <caption>Spectrum Data Points</caption>
     <thead>
-      <tr><th>Energy (eV)</th><th>Intensity</th></tr>
+      <tr>
+        <th>Energy (eV)</th>
+        <th>Intensity</th>
+      </tr>
     </thead>
     <tbody>
-      {data.map(point => (
+      {data.map((point) => (
         <tr key={point.x}>
           <td>{point.x}</td>
           <td>{point.y}</td>
@@ -241,6 +262,7 @@ onKeyDown={(e) => {
 ```
 
 **Interactive chart elements:**
+
 - Provide keyboard navigation for data points
 - Announce values on focus
 - Include sonification where appropriate
@@ -248,6 +270,7 @@ onKeyDown={(e) => {
 ## Reduced Motion
 
 **Respect user preferences:**
+
 ```tsx
 // Check for reduced motion preference
 const prefersReducedMotion = window.matchMedia(

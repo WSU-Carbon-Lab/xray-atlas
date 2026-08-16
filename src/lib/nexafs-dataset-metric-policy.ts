@@ -29,14 +29,22 @@ export const POINT_SPACING_SCORE_PERCENT = [
  * @returns Percent-like score in `[6, 100]`; callers surface literal spacing gaps `< ~5e-4 eV` as measurement quirks rather than forcing extreme highs beyond calibration intent.
  */
 export function spacingEvToPercent(spacingEv: number): number {
-  return monotoneBreakpointsDescending(spacingEv, POINT_SPACING_SCORE_EV, POINT_SPACING_SCORE_PERCENT);
+  return monotoneBreakpointsDescending(
+    spacingEv,
+    POINT_SPACING_SCORE_EV,
+    POINT_SPACING_SCORE_PERCENT,
+  );
 }
 
 /** Canonical ascending SNR checkpoints (`mean(|y|)/std(y)` over populated finite samples). */
-export const SNR_SCORE_KNOTS = [2.2, 5.5, 11, 22, 40] as const satisfies readonly number[];
+export const SNR_SCORE_KNOTS = [
+  2.2, 5.5, 11, 22, 40,
+] as const satisfies readonly number[];
 
 /** Matching percents at `SNR_SCORE_KNOTS` knots before clamping to `[8, 100]`. */
-export const SNR_SCORE_PERCENT = [14, 36, 58, 78, 92, 100] as const satisfies readonly number[];
+export const SNR_SCORE_PERCENT = [
+  14, 36, 58, 78, 92, 100,
+] as const satisfies readonly number[];
 
 /**
  * Converts an amplitude-domain SNR into a 0–100 score using monotone breakpoints (larger is better).
@@ -61,7 +69,9 @@ export const NORM_DISTANCE_SCORE_PERCENT = [
  *
  * Callers supply one scalar per channel assembled upstream when normalization ranges exist and finite samples lie in those windows.
  */
-export function normalizationMeanDeviationToPercent(meanDeviation: number): number {
+export function normalizationMeanDeviationToPercent(
+  meanDeviation: number,
+): number {
   return monotoneBreakpointsDescending(
     meanDeviation,
     NORM_DISTANCE_SCORE_KNOTS,
@@ -92,9 +102,12 @@ export const DATASET_METRIC_TIER_PERCENT_CUTOFFS = {
  */
 export function tierFromPercent(percent: number): DatasetMetricTier {
   if (!Number.isFinite(percent)) return "poor";
-  if (percent >= DATASET_METRIC_TIER_PERCENT_CUTOFFS.excellentMinPercent) return "excellent";
-  if (percent >= DATASET_METRIC_TIER_PERCENT_CUTOFFS.goodMinPercent) return "good";
-  if (percent >= DATASET_METRIC_TIER_PERCENT_CUTOFFS.fairMinPercent) return "fair";
+  if (percent >= DATASET_METRIC_TIER_PERCENT_CUTOFFS.excellentMinPercent)
+    return "excellent";
+  if (percent >= DATASET_METRIC_TIER_PERCENT_CUTOFFS.goodMinPercent)
+    return "good";
+  if (percent >= DATASET_METRIC_TIER_PERCENT_CUTOFFS.fairMinPercent)
+    return "fair";
   return "poor";
 }
 
@@ -103,7 +116,9 @@ export function tierFromPercent(percent: number): DatasetMetricTier {
  *
  * Used both server-side when storing aggregates and client-side when recombining breakdown bars already constrained to `[0, 100]`.
  */
-export function combinePercentsMean(parts: readonly (number | null | undefined)[]): number | null {
+export function combinePercentsMean(
+  parts: readonly (number | null | undefined)[],
+): number | null {
   let sum = 0;
   let count = 0;
   for (const value of parts) {
@@ -144,7 +159,9 @@ export function tierGaugeFgClass(tier: DatasetMetricTier): string {
 }
 
 /** SVG stroke accents for circular score rings keyed by tier (pairs with {@link tierGaugeFgClass}). */
-export function tierRingStrokeClass(tier: DatasetMetricTier | "unknown"): string {
+export function tierRingStrokeClass(
+  tier: DatasetMetricTier | "unknown",
+): string {
   switch (tier) {
     case "excellent":
       return "stroke-emerald-400";
@@ -160,7 +177,9 @@ export function tierRingStrokeClass(tier: DatasetMetricTier | "unknown"): string
 }
 
 /** Primary numeric label color classes for large measurement displays keyed by tier. */
-export function tierValueTextClass(tier: DatasetMetricTier | "unknown"): string {
+export function tierValueTextClass(
+  tier: DatasetMetricTier | "unknown",
+): string {
   switch (tier) {
     case "excellent":
       return "text-emerald-400";
@@ -223,7 +242,11 @@ function monotoneBreakpointsAscending(
   return percents[lastKnotIndex + 1]!;
 }
 
-function blendPercents(leftPercent: number, rightPercent: number, t: number): number {
+function blendPercents(
+  leftPercent: number,
+  rightPercent: number,
+  t: number,
+): number {
   const blended = leftPercent + t * (rightPercent - leftPercent);
   return Math.min(100, Math.max(0, blended));
 }

@@ -36,6 +36,8 @@ describe("spectrumpointsWhereForPlotGeometryKeys", () => {
   });
 
   it("ignores malformed keys", () => {
-    expect(spectrumpointsWhereForPlotGeometryKeys(["bad", "nocolon"])).toBeNull();
+    expect(
+      spectrumpointsWhereForPlotGeometryKeys(["bad", "nocolon"]),
+    ).toBeNull();
   });
 });

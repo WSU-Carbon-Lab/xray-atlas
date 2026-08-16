@@ -48,8 +48,10 @@ type YAxisPresentationMeta = {
   displayOffset?: number;
 };
 
-const Y_AXIS_PRESENTATION: Record<SpectrumYAxisQuantity, YAxisPresentationMeta> =
-  {
+const Y_AXIS_PRESENTATION: Record<
+  SpectrumYAxisQuantity,
+  YAxisPresentationMeta
+> = {
   "optical-density": { name: "Optical density", unit: "", flatScale: true },
   "mass-absorption": {
     name: "Mass absorption",
@@ -89,8 +91,7 @@ export function spectrumYAxisPresentation(
     : yScaleExponentFromDomain(minDisplay, maxDisplay);
   const mult = exp === 0 ? "" : ` × 10${toUnicodeSuperscriptInt(exp)}`;
   const unitSuffix = meta.unit ? ` (${meta.unit})` : "";
-  const tickFormat = (v: number) =>
-    formatYTickScaled(v - displayOffset, exp);
+  const tickFormat = (v: number) => formatYTickScaled(v - displayOffset, exp);
   return {
     label: `${meta.name}${unitSuffix}${mult}`,
     tickFormat,

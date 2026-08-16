@@ -111,9 +111,7 @@ export function useStxmSessionFile(
   }, []);
 
   const syncIsWriting = useCallback(() => {
-    setIsWriting(
-      writeInFlightRef.current || writeTimerRef.current !== null,
-    );
+    setIsWriting(writeInFlightRef.current || writeTimerRef.current !== null);
   }, []);
 
   const writeNow = useCallback(async () => {
@@ -188,19 +186,13 @@ export function useStxmSessionFile(
       if (cancelled) {
         return;
       }
-      let next =
-        parsed ??
-        createEmptyStxmSessionFile(experimentName);
+      let next = parsed ?? createEmptyStxmSessionFile(experimentName);
       const legacy = legacyStepMetadataRef.current;
       const legacyBeamtime = legacy?.workspace?.beamtimeName?.trim();
       const shouldImportLegacy =
-        Boolean(legacy) &&
-        legacyBeamtime === experimentName.trim();
+        Boolean(legacy) && legacyBeamtime === experimentName.trim();
       if (!parsed && shouldImportLegacy && !legacyImportedRef.current) {
-        next = importLegacyDashboardMetadataIntoSessionFile(
-          next,
-          legacy,
-        );
+        next = importLegacyDashboardMetadataIntoSessionFile(next, legacy);
         legacyImportedRef.current = true;
         void writeStxmSessionFile(experimentDirectory, next);
       }
@@ -220,7 +212,13 @@ export function useStxmSessionFile(
       syncIsWriting();
       void writeNow();
     };
-  }, [applySession, experimentDirectory, experimentName, syncIsWriting, writeNow]);
+  }, [
+    applySession,
+    experimentDirectory,
+    experimentName,
+    syncIsWriting,
+    writeNow,
+  ]);
 
   const mutateSession = useCallback(
     (updater: (current: StxmSessionFile) => StxmSessionFile) => {
@@ -281,7 +279,9 @@ export function useStxmSessionFile(
 
   const persistPreview = useCallback(
     async (preview: DashboardPreviewStepMetadata) => {
-      mutateSession((current) => applyPreviewCacheToSessionScans(current, preview));
+      mutateSession((current) =>
+        applyPreviewCacheToSessionScans(current, preview),
+      );
     },
     [mutateSession],
   );
@@ -320,7 +320,8 @@ export function useStxmSessionFile(
   );
 
   const resolveRegionSpectra = useCallback(
-    (scanId: string) => resolveStxmSessionRegionSpectra(sessionRef.current, scanId),
+    (scanId: string) =>
+      resolveStxmSessionRegionSpectra(sessionRef.current, scanId),
     [],
   );
 

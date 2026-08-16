@@ -621,7 +621,8 @@ export function NexafsDatasetDoiCiteControl({
   const { toasts, removeToast, showToast } = useToast();
   const utils = trpc.useUtils();
   const { data: session, status: sessionStatus } = useSession();
-  const isSignedIn = sessionStatus === "authenticated" && Boolean(session?.user);
+  const isSignedIn =
+    sessionStatus === "authenticated" && Boolean(session?.user);
 
   useEffect(() => {
     setLocalDoi(datasetDoi);
@@ -656,9 +657,7 @@ export function NexafsDatasetDoiCiteControl({
     !pollExhausted &&
     (mintMutation.isPending ||
       (userInitiatedMint && isInFlightState(localState)) ||
-      (isSignedIn &&
-        openPopover === "doi" &&
-        isInFlightState(localState)));
+      (isSignedIn && openPopover === "doi" && isInFlightState(localState)));
 
   const statusQuery = trpc.experiments.getZenodoDepositStatus.useQuery(
     { experimentId },

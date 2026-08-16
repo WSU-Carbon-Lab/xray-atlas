@@ -23,7 +23,9 @@ export interface HenkeElementF2Table {
   readonly f2: readonly number[];
 }
 
-export type HenkeElementF2Bundle = Readonly<Record<string, HenkeElementF2Table>>;
+export type HenkeElementF2Bundle = Readonly<
+  Record<string, HenkeElementF2Table>
+>;
 
 const BUNDLE = henkeElementF2Bundle as HenkeElementF2Bundle;
 
@@ -69,7 +71,9 @@ export function henkeElementF2AtEv(
   const key = elementSymbol.trim();
   const tab = BUNDLE[key];
   if (tab == null) {
-    throw new RangeError(`Henke bundle has no table for element: ${elementSymbol}`);
+    throw new RangeError(
+      `Henke bundle has no table for element: ${elementSymbol}`,
+    );
   }
   return linearInterpSortedEval(tab.energiesEv, tab.f2, energyEv);
 }
@@ -133,7 +137,9 @@ export function henkeCompositionTabulatedSpan(
     maxEv = Math.min(maxEv, hi);
   }
   if (!(maxEv > minEv)) {
-    throw new RangeError("Henke tables for this composition have empty energy span intersection");
+    throw new RangeError(
+      "Henke tables for this composition have empty energy span intersection",
+    );
   }
   return { minEv, maxEv };
 }
@@ -143,8 +149,14 @@ export function henkeCompoundGridInRange(
   eMinEv: number,
   eMaxEv: number,
 ): { energiesEv: number[]; f2: number[] } {
-  if (!(eMaxEv > eMinEv) || !Number.isFinite(eMinEv) || !Number.isFinite(eMaxEv)) {
-    throw new RangeError("eMinEv and eMaxEv must be finite with eMaxEv > eMinEv");
+  if (
+    !(eMaxEv > eMinEv) ||
+    !Number.isFinite(eMinEv) ||
+    !Number.isFinite(eMaxEv)
+  ) {
+    throw new RangeError(
+      "eMinEv and eMaxEv must be finite with eMaxEv > eMinEv",
+    );
   }
   const zs = new Set<number>();
   for (const t of composition) {
@@ -194,7 +206,9 @@ export function bareAtomBetaFromHenkeCompoundF2(
   if (!(massDensityGPerCm3 > 0)) {
     throw new RangeError("massDensityGPerCm3 must be finite and positive");
   }
-  const f2OnGrid = targetEnergyEv.map((e) => henkeCompoundF2AtEv(composition, e));
+  const f2OnGrid = targetEnergyEv.map((e) =>
+    henkeCompoundF2AtEv(composition, e),
+  );
   const nd = numberDensityFromMassDensity(
     massDensityGPerCm3,
     formulaMassFromComposition(composition),

@@ -22,14 +22,86 @@ const GRAYSCALE_COLUMN: readonly string[] = [
 ];
 
 const HUE_ROWS: readonly (readonly string[])[] = [
-  ["#FF6B6B", "#FF922B", "#FCC419", "#94D82D", "#51CF66", "#22B8CF", "#339AF0", "#748FFC"],
-  ["#F06595", "#FF8787", "#FFA94D", "#FFD43B", "#A9E34B", "#63E6BE", "#74C0FC", "#B197FC"],
-  ["#E03131", "#E8590C", "#F59F00", "#74B816", "#37B24D", "#1098AD", "#1971C2", "#5C7CFA"],
-  ["#C92A2A", "#D9480F", "#E67700", "#66A80F", "#2F9E44", "#0C8599", "#1864AB", "#4263EB"],
-  ["#A61E4D", "#C92A2A", "#D9480F", "#5C940D", "#087F5B", "#0B7285", "#364FC7", "#5F3DC4"],
-  ["#862E9C", "#9C36B5", "#AE3EC9", "#495057", "#343A40", "#212529", "#1C7ED6", "#364FC7"],
-  ["#FAB005", "#FD7E14", "#FA5252", "#40C057", "#15AABF", "#228BE6", "#7950F2", "#BE4BDB"],
-  ["#FFE066", "#FFA8A8", "#FFC078", "#8CE99A", "#66D9E8", "#91A7FF", "#DA77F2", "#E599F7"],
+  [
+    "#FF6B6B",
+    "#FF922B",
+    "#FCC419",
+    "#94D82D",
+    "#51CF66",
+    "#22B8CF",
+    "#339AF0",
+    "#748FFC",
+  ],
+  [
+    "#F06595",
+    "#FF8787",
+    "#FFA94D",
+    "#FFD43B",
+    "#A9E34B",
+    "#63E6BE",
+    "#74C0FC",
+    "#B197FC",
+  ],
+  [
+    "#E03131",
+    "#E8590C",
+    "#F59F00",
+    "#74B816",
+    "#37B24D",
+    "#1098AD",
+    "#1971C2",
+    "#5C7CFA",
+  ],
+  [
+    "#C92A2A",
+    "#D9480F",
+    "#E67700",
+    "#66A80F",
+    "#2F9E44",
+    "#0C8599",
+    "#1864AB",
+    "#4263EB",
+  ],
+  [
+    "#A61E4D",
+    "#C92A2A",
+    "#D9480F",
+    "#5C940D",
+    "#087F5B",
+    "#0B7285",
+    "#364FC7",
+    "#5F3DC4",
+  ],
+  [
+    "#862E9C",
+    "#9C36B5",
+    "#AE3EC9",
+    "#495057",
+    "#343A40",
+    "#212529",
+    "#1C7ED6",
+    "#364FC7",
+  ],
+  [
+    "#FAB005",
+    "#FD7E14",
+    "#FA5252",
+    "#40C057",
+    "#15AABF",
+    "#228BE6",
+    "#7950F2",
+    "#BE4BDB",
+  ],
+  [
+    "#FFE066",
+    "#FFA8A8",
+    "#FFC078",
+    "#8CE99A",
+    "#66D9E8",
+    "#91A7FF",
+    "#DA77F2",
+    "#E599F7",
+  ],
 ];
 
 export const PLOT_VIEWER_FIXED_COLOR_PRESETS: readonly string[] = [
@@ -106,7 +178,11 @@ export function PlotViewerPaletteSchemePicker({
   className,
 }: PlotViewerPaletteSchemePickerProps) {
   return (
-    <ul className={cn("space-y-1", className)} role="listbox" aria-label="Color scheme">
+    <ul
+      className={cn("space-y-1", className)}
+      role="listbox"
+      aria-label="Color scheme"
+    >
       {PLOT_VIEWER_PALETTE_CATALOG.map((entry) => {
         const selected = paletteId === entry.id;
         return (
@@ -127,7 +203,7 @@ export function PlotViewerPaletteSchemePicker({
                 className="w-20 shrink-0"
               />
               <span className="min-w-0 flex-1">
-                <span className="text-foreground block truncate text-[11px] font-medium leading-tight">
+                <span className="text-foreground block truncate text-[11px] leading-tight font-medium">
                   {entry.label}
                 </span>
                 <span className="text-muted block truncate text-[10px] leading-tight">
@@ -176,13 +252,16 @@ export function PlotViewerFixedColorPanel({
       <div className="min-w-0 flex-1 space-y-1">
         <div
           className="grid gap-0.5"
-          style={{ gridTemplateColumns: `repeat(${1 + HUE_ROWS[0]!.length}, minmax(0, 1fr))` }}
+          style={{
+            gridTemplateColumns: `repeat(${1 + HUE_ROWS[0]!.length}, minmax(0, 1fr))`,
+          }}
           role="group"
           aria-label="Color presets"
         >
           {GRAYSCALE_COLUMN.map((gray, rowIndex) => {
             const hueRow = HUE_ROWS[rowIndex] ?? [];
-            const selectedGray = displayHex.toUpperCase() === gray.toUpperCase();
+            const selectedGray =
+              displayHex.toUpperCase() === gray.toUpperCase();
             return (
               <div key={gray} className="contents">
                 <button
@@ -197,7 +276,8 @@ export function PlotViewerFixedColorPanel({
                   onClick={() => onChange(coerceHexSix(gray, fallbackHex))}
                 />
                 {hueRow.map((hue) => {
-                  const selected = displayHex.toUpperCase() === hue.toUpperCase();
+                  const selected =
+                    displayHex.toUpperCase() === hue.toUpperCase();
                   return (
                     <button
                       key={hue}

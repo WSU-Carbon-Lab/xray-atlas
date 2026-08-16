@@ -9,12 +9,12 @@ You review **web UI** diffs in **Next.js App Router** + **HeroUI** + **Tailwind*
 
 ## Skills to load (by topic)
 
-| Topic | Skill |
-|-------|--------|
-| Stack, `src/` folders, RSC vs client | **typescript-web** |
-| HeroUI imports, theme, tokens | **heroui-components** |
+| Topic                                  | Skill                    |
+| -------------------------------------- | ------------------------ |
+| Stack, `src/` folders, RSC vs client   | **typescript-web**       |
+| HeroUI imports, theme, tokens          | **heroui-components**    |
 | Filters, search params, shareable URLs | **web-url-search-state** |
-| Bun, strict TS, async | **general-typescript** |
+| Bun, strict TS, async                  | **general-typescript**   |
 
 ## Review emphasis
 

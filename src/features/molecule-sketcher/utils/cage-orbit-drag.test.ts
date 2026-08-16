@@ -57,8 +57,12 @@ describe("cage-orbit-drag", () => {
   ensureOclResourcesNode();
 
   it("clampCageOrbitPitch limits pitch to the interactive range", () => {
-    expect(clampCageOrbitPitch(CAGE_ORBIT_PITCH_MIN - 0.5)).toBe(CAGE_ORBIT_PITCH_MIN);
-    expect(clampCageOrbitPitch(CAGE_ORBIT_PITCH_MAX + 0.5)).toBe(CAGE_ORBIT_PITCH_MAX);
+    expect(clampCageOrbitPitch(CAGE_ORBIT_PITCH_MIN - 0.5)).toBe(
+      CAGE_ORBIT_PITCH_MIN,
+    );
+    expect(clampCageOrbitPitch(CAGE_ORBIT_PITCH_MAX + 0.5)).toBe(
+      CAGE_ORBIT_PITCH_MAX,
+    );
     expect(clampCageOrbitPitch(0.2)).toBe(0.2);
   });
 
@@ -73,11 +77,16 @@ describe("cage-orbit-drag", () => {
     const c60 = RING_TEMPLATE_PRESETS.find((preset) => preset.id === "c60")!;
     const view = applyView3dAxisPreset(defaultView3d(), "face");
     const mol = parseDrawMolfile(emptyDrawMolfile());
-    const placed = placeRingTemplate(mol, c60.smiles, { x: 0, y: 0 }, {
-      templateCategory: "cage",
-      cageDepictionMode: "2d",
-      cageView3d: view,
-    });
+    const placed = placeRingTemplate(
+      mol,
+      c60.smiles,
+      { x: 0, y: 0 },
+      {
+        templateCategory: "cage",
+        cageDepictionMode: "2d",
+        cageView3d: view,
+      },
+    );
     const sessionResult = createMolecule3dSession(mol);
     expect(sessionResult.ok).toBe(true);
     if (!sessionResult.ok) {

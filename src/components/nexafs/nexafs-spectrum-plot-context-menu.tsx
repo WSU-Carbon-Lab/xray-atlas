@@ -1,6 +1,12 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useRef,
+  useState,
+} from "react";
 import { createPortal } from "react-dom";
 import { Copy, Download } from "lucide-react";
 import type { SpectrumPoint } from "~/components/plots/types";
@@ -146,7 +152,7 @@ export function NexafsSpectrumPlotContextMenu({
               <Copy className="size-4 shrink-0" strokeWidth={1.5} aria-hidden />
               Copy dataset
             </span>
-            <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+            <span className="text-xs text-[var(--text-secondary)] tabular-nums">
               {sortedAllPoints.length}{" "}
               {sortedAllPoints.length === 1 ? "row" : "rows"}
             </span>
@@ -165,7 +171,7 @@ export function NexafsSpectrumPlotContextMenu({
               />
               Download dataset
             </span>
-            <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+            <span className="text-xs text-[var(--text-secondary)] tabular-nums">
               CSV file
             </span>
           </button>
@@ -192,7 +198,7 @@ export function NexafsSpectrumPlotContextMenu({
                   />
                   Copy this angle
                 </span>
-                <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                   {geometryRow.rowCount}{" "}
                   {geometryRow.rowCount === 1 ? "row" : "rows"}
                 </span>
@@ -211,7 +217,7 @@ export function NexafsSpectrumPlotContextMenu({
                   />
                   Download this angle
                 </span>
-                <span className="text-xs tabular-nums text-[var(--text-secondary)]">
+                <span className="text-xs text-[var(--text-secondary)] tabular-nums">
                   CSV file
                 </span>
               </button>

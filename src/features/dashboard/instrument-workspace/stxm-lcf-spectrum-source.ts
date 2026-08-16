@@ -69,7 +69,9 @@ function persistedIngestionToRuntime(ingestion: DashboardIngestionResult) {
   };
 }
 
-function previewRegionToRuntime(region: RegionSpectrum): StxmRegionSpectrumSeries {
+function previewRegionToRuntime(
+  region: RegionSpectrum,
+): StxmRegionSpectrumSeries {
   return {
     regionId: region.regionId,
     spotLabel: region.spotLabel,
@@ -89,9 +91,11 @@ function previewRegionToRuntime(region: RegionSpectrum): StxmRegionSpectrumSerie
   };
 }
 
-function channelValuesFromPoints(
-  points: readonly SpectrumPoint[],
-): { energyEv: number[]; values: number[]; sigma: number[] } {
+function channelValuesFromPoints(points: readonly SpectrumPoint[]): {
+  energyEv: number[];
+  values: number[];
+  sigma: number[];
+} {
   const energyEv: number[] = [];
   const values: number[] = [];
   const sigma: number[] = [];
@@ -119,7 +123,9 @@ function resolveStxmTraceSpectrum(params: {
   traceKey: string;
   channel: StxmPreviewCompareChannel;
   entries: readonly DashboardPreviewSpectrumEntry[];
-  ingestionByScanId: Readonly<Record<string, DashboardIngestionResult | undefined>>;
+  ingestionByScanId: Readonly<
+    Record<string, DashboardIngestionResult | undefined>
+  >;
   regionSpectraByScanId: Readonly<
     Record<string, readonly DashboardPreviewRegionSpectrum[] | undefined>
   >;
@@ -189,7 +195,11 @@ function resolveStxmTraceSpectrum(params: {
       break;
     case "od_normalized":
       values = target.odNormalized ?? null;
-      if (!values?.some(Number.isFinite) && target.od && ingestion?.normalization) {
+      if (
+        !values?.some(Number.isFinite) &&
+        target.od &&
+        ingestion?.normalization
+      ) {
         const normalized = normalizeNexafsOd(
           Float64Array.from(target.energyEv),
           Float64Array.from(target.od),
@@ -254,7 +264,9 @@ function resolveAtlasTraceSpectrum(params: {
   channel: StxmPreviewCompareChannel;
   atlasEntries: readonly DashboardPreviewAtlasEntry[];
   atlasDatasets: readonly DashboardPlotDatasetInput[];
-  geometryByExperimentId: Readonly<Record<string, readonly string[] | undefined>>;
+  geometryByExperimentId: Readonly<
+    Record<string, readonly string[] | undefined>
+  >;
 }): LcfSpectrum | null {
   const parsed = parsePlotViewerTraceKey(params.traceKey);
   if (!parsed) {
@@ -298,13 +310,17 @@ function resolveAtlasTraceSpectrum(params: {
  */
 export function listLcfTraceCandidates(params: {
   entries: readonly DashboardPreviewSpectrumEntry[];
-  ingestionByScanId: Readonly<Record<string, DashboardIngestionResult | undefined>>;
+  ingestionByScanId: Readonly<
+    Record<string, DashboardIngestionResult | undefined>
+  >;
   regionSpectraByScanId: Readonly<
     Record<string, readonly DashboardPreviewRegionSpectrum[] | undefined>
   >;
   atlasEntries: readonly DashboardPreviewAtlasEntry[];
   atlasDatasets: readonly DashboardPlotDatasetInput[];
-  geometryByExperimentId: Readonly<Record<string, readonly string[] | undefined>>;
+  geometryByExperimentId: Readonly<
+    Record<string, readonly string[] | undefined>
+  >;
   channel: StxmPreviewCompareChannel;
 }): LcfTraceCandidate[] {
   const stxm = listStxmPreviewTraceCandidates({
@@ -349,13 +365,17 @@ export function resolveLcfSpectrumFromTraceKey(params: {
   traceKey: string;
   channel: StxmPreviewCompareChannel;
   entries: readonly DashboardPreviewSpectrumEntry[];
-  ingestionByScanId: Readonly<Record<string, DashboardIngestionResult | undefined>>;
+  ingestionByScanId: Readonly<
+    Record<string, DashboardIngestionResult | undefined>
+  >;
   regionSpectraByScanId: Readonly<
     Record<string, readonly DashboardPreviewRegionSpectrum[] | undefined>
   >;
   atlasEntries: readonly DashboardPreviewAtlasEntry[];
   atlasDatasets: readonly DashboardPlotDatasetInput[];
-  geometryByExperimentId: Readonly<Record<string, readonly string[] | undefined>>;
+  geometryByExperimentId: Readonly<
+    Record<string, readonly string[] | undefined>
+  >;
 }): LcfSpectrum | null {
   if (isAtlasPreviewCompareTraceKey(params.traceKey)) {
     return resolveAtlasTraceSpectrum(params);

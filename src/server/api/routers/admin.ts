@@ -21,9 +21,7 @@ import {
   emitAuditEvent,
   type AuditRequestMeta,
 } from "~/server/audit";
-import {
-  assertAal3PasskeyBeforePrivilegedRole,
-} from "~/server/auth/passkey-policy";
+import { assertAal3PasskeyBeforePrivilegedRole } from "~/server/auth/passkey-policy";
 import {
   countUsersWithManageCapabilityExcluding,
   hasManageUsersCapability,
@@ -456,8 +454,7 @@ export const adminRouter = createTRPCRouter({
     .output(appRoleAdminDtoSchema)
     .mutation(async ({ ctx, input }) => {
       const displayName = normalizeRoleDisplayName(input.name);
-      const slug =
-        input.slug ?? slugFromRoleDisplayName(displayName);
+      const slug = input.slug ?? slugFromRoleDisplayName(displayName);
       if (slug.length < 2) {
         throw new TRPCError({
           code: "BAD_REQUEST",
@@ -586,8 +583,7 @@ export const adminRouter = createTRPCRouter({
       if (role._count.userAppRoles > 0) {
         throw new TRPCError({
           code: "BAD_REQUEST",
-          message:
-            "Remove this role from all users before deleting it.",
+          message: "Remove this role from all users before deleting it.",
         });
       }
       await ctx.db.appRole.delete({ where: { id: input.id } });

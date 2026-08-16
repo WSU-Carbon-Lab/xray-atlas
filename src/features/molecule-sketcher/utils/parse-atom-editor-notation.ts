@@ -22,13 +22,16 @@ export interface ParsedAtomEditorNotation {
 }
 
 function toSubscriptDigits(value: string): string {
-  return [...value].map((char) => {
-    const digit = Number.parseInt(char, 10);
-    if (!Number.isFinite(digit) || digit < 0 || digit > 9) {
-      return char;
-    }
-    return SUBSCRIPT_DIGITS[digit] ?? char;
-  }).join("");
+  // oxlint-disable-next-line typescript/no-misused-spread -- only ever called with a single pre-validated ASCII digit
+  return [...value]
+    .map((char) => {
+      const digit = Number.parseInt(char, 10);
+      if (!Number.isFinite(digit) || digit < 0 || digit > 9) {
+        return char;
+      }
+      return SUBSCRIPT_DIGITS[digit] ?? char;
+    })
+    .join("");
 }
 
 function toSuperscriptSignedCharge(charge: number): string {
@@ -38,6 +41,7 @@ function toSuperscriptSignedCharge(charge: number): string {
     return sign;
   }
   const magnitudeText = String(magnitude);
+  // oxlint-disable-next-line typescript/no-misused-spread -- magnitudeText is String(number), guaranteed ASCII digits
   const superscriptMagnitude = [...magnitudeText]
     .map((char) => {
       const digit = Number.parseInt(char, 10);
@@ -100,9 +104,10 @@ function buildDisplayLabel(
   return label;
 }
 
-function extractChargeFromTail(
-  tail: string,
-): { middle: string; charge: number } {
+function extractChargeFromTail(tail: string): {
+  middle: string;
+  charge: number;
+} {
   const trimmed = tail.trim();
   if (trimmed.length === 0) {
     return { middle: "", charge: 0 };
@@ -165,7 +170,10 @@ function extractChargeFromTail(
  * @param symbol - Element symbol for the atom.
  * @param charge - Formal charge on the atom.
  */
-export function formatAtomEditorNotation(symbol: string, charge: number): string {
+export function formatAtomEditorNotation(
+  symbol: string,
+  charge: number,
+): string {
   if (charge === 0) {
     return symbol;
   }
@@ -233,7 +241,12 @@ export function previewAtomEditorNotation(raw: string): string | null {
   }
   const tail = partial[2] ?? "";
   const chargeResult = extractChargeFromTail(tail);
-  if (chargeResult.middle.length === 0 && chargeResult.charge === 0 && tail.length > 0 && !/[+-]/u.test(tail)) {
+  if (
+    chargeResult.middle.length === 0 &&
+    chargeResult.charge === 0 &&
+    tail.length > 0 &&
+    !/[+-]/u.test(tail)
+  ) {
     return symbol + tail;
   }
   return buildDisplayLabel(symbol, chargeResult.middle, chargeResult.charge);

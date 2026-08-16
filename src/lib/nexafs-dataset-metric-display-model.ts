@@ -8,9 +8,18 @@
  */
 
 import type { DatasetMetricTier } from "~/lib/nexafs-dataset-metric-policy";
-import { combinePercentsMean, snrToPercent, tierFromPercent } from "~/lib/nexafs-dataset-metric-policy";
+import {
+  combinePercentsMean,
+  snrToPercent,
+  tierFromPercent,
+} from "~/lib/nexafs-dataset-metric-policy";
 
-export const NEXAFS_DATASET_METRIC_CHANNEL_ORDER = ["rawabs", "od", "massabsorption", "beta"] as const;
+export const NEXAFS_DATASET_METRIC_CHANNEL_ORDER = [
+  "rawabs",
+  "od",
+  "massabsorption",
+  "beta",
+] as const;
 
 export type NexafsDatasetMetricChannelKey =
   (typeof NEXAFS_DATASET_METRIC_CHANNEL_ORDER)[number];
@@ -67,8 +76,11 @@ function finiteNumber(value: unknown): number | null {
   return value;
 }
 
-function densityContributionPercent(pointDensityPercent: number | null): number | null {
-  if (pointDensityPercent == null || !Number.isFinite(pointDensityPercent)) return null;
+function densityContributionPercent(
+  pointDensityPercent: number | null,
+): number | null {
+  if (pointDensityPercent == null || !Number.isFinite(pointDensityPercent))
+    return null;
   if (pointDensityPercent <= 100) return pointDensityPercent;
   const surplus = pointDensityPercent - 100;
   const maxBonus = 18;
@@ -92,7 +104,9 @@ export const DATASET_QUALITY_MISSING_STATISTIC_PENALTY = 5;
  * @param deltaEv Strictly positive finite spacing in eV; non-finite or non-positive values yield null.
  * @returns Score in `[0, ∞)`, anchored at 100 when `deltaEv` equals `RESOLUTION_SCORE_REF_EV`; null when unusable.
  */
-export function resolutionSpacingDecadeScorePercent(deltaEv: number | null): number | null {
+export function resolutionSpacingDecadeScorePercent(
+  deltaEv: number | null,
+): number | null {
   if (deltaEv == null || !Number.isFinite(deltaEv) || deltaEv <= 0) return null;
   const decadesFromRef = Math.log10(deltaEv / RESOLUTION_SCORE_REF_EV);
   const raw = 100 - RESOLUTION_SCORE_POINTS_PER_DECADE * decadesFromRef;
@@ -144,14 +158,12 @@ function p75MarkerFromDistribution(
   }
   if (p75DeltaEv < 1) {
     const frac =
-      progressFraction ??
-      clampPercent(((p75DeltaEv - 0.1) / 0.9) * 100) / 100;
+      progressFraction ?? clampPercent(((p75DeltaEv - 0.1) / 0.9) * 100) / 100;
     return hn + gn * frac;
   }
   if (p75DeltaEv <= 5) {
     const frac =
-      progressFraction ??
-      clampPercent(((p75DeltaEv - 1) / 4) * 100) / 100;
+      progressFraction ?? clampPercent(((p75DeltaEv - 1) / 4) * 100) / 100;
     return hn + gn + fn * frac;
   }
   const tailFrac = progressFraction ?? Math.min(1, (p75DeltaEv - 5) / 20);
@@ -225,7 +237,10 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
   );
 
   const rowsRaw = Array.isArray(channelsPayload) ? channelsPayload : [];
-  const byChannel = new Map<NexafsDatasetMetricChannelKey, NexafsBrowseExperimentMetricChannelPayload>();
+  const byChannel = new Map<
+    NexafsDatasetMetricChannelKey,
+    NexafsBrowseExperimentMetricChannelPayload
+  >();
   for (const row of rowsRaw) {
     if (!row || typeof row !== "object") continue;
     const r = row as NexafsBrowseExperimentMetricChannelPayload;
@@ -269,10 +284,9 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
             : "—",
       quantityUnit:
         p75SpacingEv != null || spacingEv != null ? "eV P75 ΔE" : "",
-      summary:
-        hasDistribution
-          ? "Population share by spacing tier: great (< 0.1 eV), good (0.1-1 eV), ok (1-5 eV), and bad (> 5 eV)."
-          : "Need enough uploaded points to resolve adjacent-spacing distribution.",
+      summary: hasDistribution
+        ? "Population share by spacing tier: great (< 0.1 eV), good (0.1-1 eV), ok (1-5 eV), and bad (> 5 eV)."
+        : "Need enough uploaded points to resolve adjacent-spacing distribution.",
       distribution: {
         hyperfinePercent: hyperfinePct,
         goodPercent: goodPct,
@@ -350,7 +364,14 @@ export function buildNexafsBrowseDatasetMetricsCardModel(
   };
 }
 
-function spectrumHasUploadedErrorBars(points: readonly { rawabsError?: number; odError?: number; massabsorptionError?: number; betaError?: number }[]): boolean {
+function spectrumHasUploadedErrorBars(
+  points: readonly {
+    rawabsError?: number;
+    odError?: number;
+    massabsorptionError?: number;
+    betaError?: number;
+  }[],
+): boolean {
   for (const point of points) {
     if (
       (typeof point.rawabsError === "number" &&

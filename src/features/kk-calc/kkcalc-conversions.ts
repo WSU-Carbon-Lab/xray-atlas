@@ -76,7 +76,9 @@ export function imaginaryAsfToOpticalBeta(
   for (let i = 0; i < n; i++) {
     const p = pref[i]!;
     if (!(p > 0)) {
-      throw new RangeError("refractive prefactor must be positive at every energy");
+      throw new RangeError(
+        "refractive prefactor must be positive at every energy",
+      );
     }
     out[i] = f2[i]! / p;
   }
@@ -158,7 +160,9 @@ export function imaginaryAsfToLinearAspCoefs(
     const f1 = factors[i + 1]!;
     const de = e1 - e0;
     if (!(de > 0)) {
-      throw new RangeError("Energies must be strictly ascending for ASF_to_ASP");
+      throw new RangeError(
+        "Energies must be strictly ascending for ASF_to_ASP",
+      );
     }
     const slope = (f1 - f0) / de;
     const intercept = f0 - slope * e0;

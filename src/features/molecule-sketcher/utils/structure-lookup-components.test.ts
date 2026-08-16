@@ -33,7 +33,8 @@ describe("normalizeComponentSmilesForPubchem", () => {
 
 describe("structureLookupComponentsFromSmiles", () => {
   it("normalizes bracketed repeat-unit SMILES into a searchable fragment", () => {
-    const components = structureLookupComponentsFromSmiles("[<]CC(c1ccccc1)[>]");
+    const components =
+      structureLookupComponentsFromSmiles("[<]CC(c1ccccc1)[>]");
     expect(components).toHaveLength(1);
     expect(components[0]?.smiles).toBe("CC(c1ccccc1)");
   });

@@ -4,9 +4,10 @@ import { SampleAuxAccordion } from "./SampleAuxAccordion";
 import { NexafsSampleInformationSection } from "./nexafs-sample-information-section";
 import type { NexafsSampleInformationSectionProps } from "./types";
 
-export type SampleInformationEditStackProps = NexafsSampleInformationSectionProps & {
-  hideAuxMethodSelectors?: boolean;
-};
+export type SampleInformationEditStackProps =
+  NexafsSampleInformationSectionProps & {
+    hideAuxMethodSelectors?: boolean;
+  };
 
 /**
  * Composes core sample information fields and extended preparation accordion for edit flows.

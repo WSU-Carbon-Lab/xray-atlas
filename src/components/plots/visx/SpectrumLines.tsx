@@ -51,10 +51,7 @@ export const SpectrumLines = memo(function SpectrumLines({
       {showAreaGradient && !useLinkedAreaBands && (
         <defs>
           {traces.map((trace, index) => {
-            const color =
-              trace.marker?.color ??
-              trace.line?.color ??
-              "#666";
+            const color = trace.marker?.color ?? trace.line?.color ?? "#666";
             const gradientId = `spectrum-area-${idPrefix}-${index}`;
             return (
               <linearGradient
@@ -106,10 +103,7 @@ export const SpectrumLines = memo(function SpectrumLines({
 
         if (points.length === 0) return null;
 
-        const color =
-          trace.marker?.color ??
-          trace.line?.color ??
-          "#666";
+        const color = trace.marker?.color ?? trace.line?.color ?? "#666";
 
         const lineWidth =
           typeof trace.line?.width === "number"
@@ -138,7 +132,11 @@ export const SpectrumLines = memo(function SpectrumLines({
                 y={(d) => scales.yScale(d.y)}
                 y0={() => yBaselinePixel}
                 yScale={scales.yScale}
-                fill={showAreaGradient ? `url(#spectrum-area-${idPrefix}-${index})` : color}
+                fill={
+                  showAreaGradient
+                    ? `url(#spectrum-area-${idPrefix}-${index})`
+                    : color
+                }
                 fillOpacity={showAreaGradient ? 1 : 0.45}
                 curve={curveLinear}
               />

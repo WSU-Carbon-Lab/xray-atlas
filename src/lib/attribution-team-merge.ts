@@ -48,8 +48,7 @@ export function mergeTeamMembersIntoDatasetAttributions(params: {
 
   const uploaderHasCuratorRole = merged.some(
     (row) =>
-      row.orcid.trim() === uploaderOrcid &&
-      isUploaderContributorRole(row.role),
+      row.orcid.trim() === uploaderOrcid && isUploaderContributorRole(row.role),
   );
 
   if (!uploaderHasCuratorRole) {

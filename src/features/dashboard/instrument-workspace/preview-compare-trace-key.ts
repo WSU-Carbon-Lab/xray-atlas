@@ -22,7 +22,9 @@ export function previewCompareTraceSource(
 /**
  * Splits mixed preview compare trace keys into STXM and Atlas buckets preserving order.
  */
-export function partitionPreviewCompareTraceKeys(traceKeys: readonly string[]): {
+export function partitionPreviewCompareTraceKeys(
+  traceKeys: readonly string[],
+): {
   stxmTraceKeys: string[];
   atlasTraceKeys: string[];
 } {

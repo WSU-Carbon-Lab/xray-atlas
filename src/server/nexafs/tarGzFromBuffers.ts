@@ -9,7 +9,9 @@ export type TarGzEntry = {
 /**
  * Packs in-memory files into a single gzip-compressed tar archive suitable for HTTP download.
  */
-export function buffersToTarGz(entries: readonly TarGzEntry[]): Promise<Buffer> {
+export function buffersToTarGz(
+  entries: readonly TarGzEntry[],
+): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     const tarball = createTarPack();
     const gzip = createGzip();

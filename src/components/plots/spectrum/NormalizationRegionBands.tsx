@@ -50,7 +50,14 @@ export function NormalizationRegionBands({
             plotInnerWidth,
           )
         : null,
-    [height, normalizationRegions.pre, offsetX, offsetY, plotInnerWidth, xScale],
+    [
+      height,
+      normalizationRegions.pre,
+      offsetX,
+      offsetY,
+      plotInnerWidth,
+      xScale,
+    ],
   );
 
   const postRect = useMemo(
@@ -65,7 +72,14 @@ export function NormalizationRegionBands({
             plotInnerWidth,
           )
         : null,
-    [height, normalizationRegions.post, offsetX, offsetY, plotInnerWidth, xScale],
+    [
+      height,
+      normalizationRegions.post,
+      offsetX,
+      offsetY,
+      plotInnerWidth,
+      xScale,
+    ],
   );
 
   if (!preRect && !postRect) {
@@ -77,7 +91,9 @@ export function NormalizationRegionBands({
   const baseFillOpacity = isDark ? 0.28 : 0.2;
   const hatchOpacity = isDark ? 0.72 : 0.58;
   const edgeOpacity = isDark ? 0.55 : 0.45;
-  const labelFill = isDark ? "rgba(248, 250, 252, 0.92)" : "rgba(15, 23, 42, 0.88)";
+  const labelFill = isDark
+    ? "rgba(248, 250, 252, 0.92)"
+    : "rgba(15, 23, 42, 0.88)";
 
   return (
     <g pointerEvents="none" aria-hidden>

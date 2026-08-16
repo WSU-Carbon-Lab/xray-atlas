@@ -34,30 +34,30 @@ Motion can make an experience more engaging and informative when used appropriat
 
 ```typescript
 const duration = {
-  instant: 0,       // Immediate feedback
-  fast: 100,        // Micro-interactions (hover, press)
-  normal: 200,      // Standard transitions
-  slow: 300,        // Complex transitions
-  slower: 500,      // Page transitions
-  slowest: 700,     // Dramatic reveals
+  instant: 0, // Immediate feedback
+  fast: 100, // Micro-interactions (hover, press)
+  normal: 200, // Standard transitions
+  slow: 300, // Complex transitions
+  slower: 500, // Page transitions
+  slowest: 700, // Dramatic reveals
 };
 ```
 
 ### Duration by Context
 
-| Context | Duration | Example |
-|---------|----------|---------|
-| Hover states | 100-150ms | Button color change |
-| Small elements | 150-200ms | Icons, badges |
-| Medium elements | 200-300ms | Cards, modals |
-| Large elements | 300-500ms | Page transitions |
-| Complex sequences | 500-800ms | Onboarding flows |
+| Context           | Duration  | Example             |
+| ----------------- | --------- | ------------------- |
+| Hover states      | 100-150ms | Button color change |
+| Small elements    | 150-200ms | Icons, badges       |
+| Medium elements   | 200-300ms | Cards, modals       |
+| Large elements    | 300-500ms | Page transitions    |
+| Complex sequences | 500-800ms | Onboarding flows    |
 
 ```tsx
 // Tailwind duration classes
-className="transition-colors duration-150"  // Hover
-className="transition-all duration-200"     // Standard
-className="transition-all duration-300"     // Complex
+className = "transition-colors duration-150"; // Hover
+className = "transition-all duration-200"; // Standard
+className = "transition-all duration-300"; // Complex
 ```
 
 ## Easing Functions
@@ -68,19 +68,19 @@ className="transition-all duration-300"     // Complex
 const easing = {
   // Default - smooth acceleration and deceleration
   default: "cubic-bezier(0.4, 0, 0.2, 1)",
-  
+
   // In - starts slow, accelerates
   in: "cubic-bezier(0.4, 0, 1, 1)",
-  
+
   // Out - starts fast, decelerates (most common)
   out: "cubic-bezier(0, 0, 0.2, 1)",
-  
+
   // In-Out - slow start and end
   inOut: "cubic-bezier(0.4, 0, 0.2, 1)",
-  
+
   // Spring - bouncy, playful
   spring: "cubic-bezier(0.34, 1.56, 0.64, 1)",
-  
+
   // Bounce - overshoots then settles
   bounce: "cubic-bezier(0.68, -0.55, 0.265, 1.55)",
 };
@@ -90,16 +90,16 @@ const easing = {
 
 ```tsx
 // ease-out: Elements entering (most common)
-className="transition-all duration-200 ease-out"
+className = "transition-all duration-200 ease-out";
 
 // ease-in: Elements exiting
-className="transition-opacity duration-150 ease-in"
+className = "transition-opacity duration-150 ease-in";
 
 // ease-in-out: Elements transforming in place
-className="transition-transform duration-300 ease-in-out"
+className = "transition-transform duration-300 ease-in-out";
 
 // spring: Playful interactions
-className="transition-transform duration-300 ease-spring"
+className = "transition-transform duration-300 ease-spring";
 ```
 
 ## Common Animation Patterns
@@ -150,7 +150,7 @@ className={`
 
 ```tsx
 // Fade in with slight rise
-import { motion } from 'framer-motion';
+import { motion } from "framer-motion";
 
 <motion.div
   initial={{ opacity: 0, y: 20 }}
@@ -159,7 +159,7 @@ import { motion } from 'framer-motion';
   transition={{ duration: 0.3, ease: "easeOut" }}
 >
   {content}
-</motion.div>
+</motion.div>;
 ```
 
 ### Modal/Dialog
@@ -206,12 +206,12 @@ const itemVariants = {
 };
 
 <motion.ul variants={containerVariants} initial="hidden" animate="visible">
-  {items.map(item => (
+  {items.map((item) => (
     <motion.li key={item.id} variants={itemVariants}>
       {item.content}
     </motion.li>
   ))}
-</motion.ul>
+</motion.ul>;
 ```
 
 ## Loading States
@@ -231,8 +231,12 @@ const itemVariants = {
 }
 
 @keyframes shimmer {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% {
+    background-position: 200% 0;
+  }
+  100% {
+    background-position: -200% 0;
+  }
 }
 ```
 
@@ -310,19 +314,19 @@ const itemVariants = {
 // React hook
 function usePrefersReducedMotion() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
-  
+
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
     setPrefersReducedMotion(mediaQuery.matches);
-    
+
     const handler = (e: MediaQueryListEvent) => {
       setPrefersReducedMotion(e.matches);
     };
-    
+
     mediaQuery.addEventListener('change', handler);
     return () => mediaQuery.removeEventListener('change', handler);
   }, []);
-  
+
   return prefersReducedMotion;
 }
 
@@ -350,11 +354,11 @@ const prefersReducedMotion = usePrefersReducedMotion();
 
 ```tsx
 // Good - GPU accelerated
-className="transition-transform"  // translate, scale, rotate
-className="transition-opacity"
+className = "transition-transform"; // translate, scale, rotate
+className = "transition-opacity";
 
 // Avoid - triggers layout
-className="transition-all"  // Be careful - animates everything
+className = "transition-all"; // Be careful - animates everything
 // Don't animate: width, height, top, left, margin, padding
 ```
 
@@ -374,7 +378,7 @@ onAnimationComplete={() => setWillChange(false)}
 // Don't animate on every scroll event
 const debouncedScroll = useMemo(
   () => debounce(handleScroll, 10),
-  [handleScroll]
+  [handleScroll],
 );
 ```
 

@@ -6,7 +6,10 @@ import { Molecule } from "openchemlib";
 
 import { bondStrokeHexForMoleculeSvgTheme } from "~/lib/molecule-svg-cpk-theme";
 import { MOLECULE_SVG_FONT_FAMILY_INLINE } from "~/lib/molecule-svg-typography";
-import { buildDatabaseDepictionSvg, buildDrawCanvasOclDepiction } from "../utils/molecule-2d-ocl-depiction";
+import {
+  buildDatabaseDepictionSvg,
+  buildDrawCanvasOclDepiction,
+} from "../utils/molecule-2d-ocl-depiction";
 import {
   MOLECULE_2D_ATOM_LABEL_FONT_WEIGHT,
   MOLECULE_2D_BOOKEND_STROKE_WIDTH,
@@ -146,7 +149,10 @@ function bookendOpeningTowardAtom(
     const otherMark = isOpen ? closeMark : openMark;
     const otherBond = resolveBondMark(mol, otherMark);
     if (otherBond >= 0) {
-      const targets = [mol.getBondAtom(0, otherBond), mol.getBondAtom(1, otherBond)];
+      const targets = [
+        mol.getBondAtom(0, otherBond),
+        mol.getBondAtom(1, otherBond),
+      ];
       const toward0 = targets.includes(atom0);
       const toward1 = targets.includes(atom1);
       if (toward0 && !toward1) {
@@ -224,14 +230,18 @@ export function WorkflowMiniDepiction({
     }
   }, [depictionMounted, smiles, isDark, width, height, svgId, prepareMolecule]);
 
-  const shellClassName = workflowMiniDepictionShellClassName(bare, fill, className);
+  const shellClassName = workflowMiniDepictionShellClassName(
+    bare,
+    fill,
+    className,
+  );
   const shellStyle = fill ? undefined : { width, height };
 
   if (!depictionMounted) {
     return (
       <div className={shellClassName} style={shellStyle}>
         <div
-          className="h-full w-full [&_svg]:block [&_svg]:h-full [&_svg]:w-full [&_svg]:max-h-full [&_svg]:max-w-full"
+          className="h-full w-full [&_svg]:block [&_svg]:h-full [&_svg]:max-h-full [&_svg]:w-full [&_svg]:max-w-full"
           aria-hidden
         />
       </div>
@@ -256,7 +266,7 @@ export function WorkflowMiniDepiction({
   return (
     <div className={shellClassName} style={shellStyle}>
       <div
-        className="h-full w-full [&_svg]:block [&_svg]:h-full [&_svg]:w-full [&_svg]:max-h-full [&_svg]:max-w-full"
+        className="h-full w-full [&_svg]:block [&_svg]:h-full [&_svg]:max-h-full [&_svg]:w-full [&_svg]:max-w-full"
         aria-hidden
         dangerouslySetInnerHTML={{ __html: svgMarkup }}
       />
@@ -315,7 +325,13 @@ export function WorkflowBookendDepiction({
     try {
       const mol = Molecule.fromSmiles(smiles);
       stabilizeLayout(mol);
-      const depiction = buildDrawCanvasOclDepiction(mol, width, height, svgId, isDark);
+      const depiction = buildDrawCanvasOclDepiction(
+        mol,
+        width,
+        height,
+        svgId,
+        isDark,
+      );
       if (depiction === null) {
         return null;
       }
@@ -329,7 +345,11 @@ export function WorkflowBookendDepiction({
       };
       const bondStroke = bondStrokeHexForMoleculeSvgTheme(isDark);
 
-      const bracketPaths: Array<{ d: string; key: string; subscript?: DrawPoint }> = [];
+      const bracketPaths: Array<{
+        d: string;
+        key: string;
+        subscript?: DrawPoint;
+      }> = [];
 
       const addBracket = (bond: number, isOpen: boolean, key: string) => {
         const a0 = mol.getBondAtom(0, bond);
@@ -386,7 +406,16 @@ export function WorkflowBookendDepiction({
     } catch {
       return null;
     }
-  }, [depictionMounted, smiles, openBond, closeBond, isDark, width, height, svgId]);
+  }, [
+    depictionMounted,
+    smiles,
+    openBond,
+    closeBond,
+    isDark,
+    width,
+    height,
+    svgId,
+  ]);
 
   const shellClassName = workflowVectorDepictionShellClassName(fill, className);
   const shellStyle = fill ? undefined : { width, height };
@@ -397,7 +426,7 @@ export function WorkflowBookendDepiction({
         <svg
           viewBox={`0 0 ${width} ${height}`}
           preserveAspectRatio="xMidYMid meet"
-          className="block h-full w-full max-h-full max-w-full"
+          className="block h-full max-h-full w-full max-w-full"
           aria-hidden
         />
       </div>
@@ -419,7 +448,7 @@ export function WorkflowBookendDepiction({
       <svg
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
         preserveAspectRatio="xMidYMid meet"
-        className="block h-full w-full max-h-full max-w-full"
+        className="block h-full max-h-full w-full max-w-full"
         style={{ fontFamily: MOLECULE_SVG_FONT_FAMILY_INLINE }}
         aria-hidden
       >
@@ -507,7 +536,13 @@ export function WorkflowChunkSliceDepiction({
     try {
       const mol = Molecule.fromSmiles(smiles);
       stabilizeLayout(mol);
-      const depiction = buildDrawCanvasOclDepiction(mol, width, height, svgId, isDark);
+      const depiction = buildDrawCanvasOclDepiction(
+        mol,
+        width,
+        height,
+        svgId,
+        isDark,
+      );
       if (depiction === null) {
         return null;
       }
@@ -526,7 +561,11 @@ export function WorkflowChunkSliceDepiction({
       const nx = (-dy / len) * 9;
       const ny = (dx / len) * 9;
 
-      const bracketPaths: Array<{ d: string; key: string; subscript?: DrawPoint }> = [];
+      const bracketPaths: Array<{
+        d: string;
+        key: string;
+        subscript?: DrawPoint;
+      }> = [];
       const bondStroke = bondStrokeHexForMoleculeSvgTheme(isDark);
 
       if (openBond !== undefined && closeBond !== undefined) {
@@ -624,7 +663,7 @@ export function WorkflowChunkSliceDepiction({
         <svg
           viewBox={`0 0 ${width} ${height}`}
           preserveAspectRatio="xMidYMid meet"
-          className="block h-full w-full max-h-full max-w-full"
+          className="block h-full max-h-full w-full max-w-full"
           aria-hidden
         />
       </div>
@@ -646,7 +685,7 @@ export function WorkflowChunkSliceDepiction({
       <svg
         viewBox={`${viewBox.x} ${viewBox.y} ${viewBox.width} ${viewBox.height}`}
         preserveAspectRatio="xMidYMid meet"
-        className="block h-full w-full max-h-full max-w-full"
+        className="block h-full max-h-full w-full max-w-full"
         style={{ fontFamily: MOLECULE_SVG_FONT_FAMILY_INLINE }}
         aria-hidden
       >

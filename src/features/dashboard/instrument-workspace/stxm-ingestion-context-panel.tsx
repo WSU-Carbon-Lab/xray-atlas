@@ -3,12 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useSession } from "next-auth/react";
 import { skipToken } from "@tanstack/react-query";
-import {
-  ErrorMessage,
-  InputGroup,
-  Label,
-  TextField,
-} from "@heroui/react";
+import { ErrorMessage, InputGroup, Label, TextField } from "@heroui/react";
 import { NexafsSampleInformationSection } from "~/components/forms";
 import {
   DatasetAttributionEditor,
@@ -191,14 +186,17 @@ export function StxmIngestionSampleSection({
           Sample information
         </h2>
         <p className="text-muted text-sm">
-          Preparation and vendor metadata stored with the reduced spectrum export.
+          Preparation and vendor metadata stored with the reduced spectrum
+          export.
         </p>
       </section>
 
       <NexafsSampleInformationSection
         processMethod={nexafsSample.processMethod}
         setProcessMethod={(value) =>
-          onSampleInfoChange(applyProcessMethodToSampleFields(sampleInfo, value))
+          onSampleInfoChange(
+            applyProcessMethodToSampleFields(sampleInfo, value),
+          )
         }
         substrate={nexafsSample.substrate}
         setSubstrate={(value) =>

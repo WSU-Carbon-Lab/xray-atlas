@@ -58,7 +58,10 @@ export interface NexafsWavePacketShapeScenario {
 export interface PhotonIngressTrajectoryScenario {
   readonly ingressAnchor: { readonly x: number; readonly y: number };
   readonly packetLeadIn: number;
-  readonly wavyGuide: { readonly wavelength: number; readonly amplitude: number };
+  readonly wavyGuide: {
+    readonly wavelength: number;
+    readonly amplitude: number;
+  };
 }
 
 /**
@@ -164,7 +167,9 @@ export function requireElectronSite(
 ): ElectronSiteScenario {
   const found = scenario.electrons.find((e) => e.id === id);
   if (!found) {
-    throw new Error(`Unknown electron site id "${id}" for NEXAFS core absorption scenario`);
+    throw new Error(
+      `Unknown electron site id "${id}" for NEXAFS core absorption scenario`,
+    );
   }
   return found;
 }

@@ -91,7 +91,9 @@ export function linearInterpHenkeF2Sorted(
 ): number {
   const n = energiesEv.length;
   if (n === 0 || f2.length !== n) {
-    throw new RangeError("linearInterpHenkeF2Sorted: energies and f2 must be same-length non-empty");
+    throw new RangeError(
+      "linearInterpHenkeF2Sorted: energies and f2 must be same-length non-empty",
+    );
   }
   if (xq <= energiesEv[0]!) {
     return f2[0]!;

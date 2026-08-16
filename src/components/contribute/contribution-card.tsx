@@ -60,14 +60,16 @@ function CardBody({
       <>
         {Icon ? (
           <span
-            className="text-accent bg-accent/10 flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors group-hover:bg-accent/15"
+            className="text-accent bg-accent/10 group-hover:bg-accent/15 flex h-9 w-9 shrink-0 items-center justify-center rounded-md transition-colors"
             aria-hidden
           >
             <Icon className="h-4 w-4 shrink-0 stroke-[1.75]" />
           </span>
         ) : null}
         <div className="min-w-0 flex-1">
-          <span className="text-foreground block text-sm font-semibold">{label}</span>
+          <span className="text-foreground block text-sm font-semibold">
+            {label}
+          </span>
           {description ? (
             <span className="text-muted mt-0.5 block text-sm leading-snug">
               {description}
@@ -85,7 +87,7 @@ function CardBody({
 
   return (
     <>
-      <div className="min-w-0 flex flex-col gap-2">
+      <div className="flex min-w-0 flex-col gap-2">
         <span className="text-accent text-sm font-semibold tracking-wide uppercase">
           {label}
         </span>
@@ -130,7 +132,9 @@ export function ContributionCard(props: ContributionCardProps) {
         ? shellCompact
         : shellDefault;
   const widthClass =
-    variant === "compact" || variant === "header" || fullWidth ? "" : "md:w-auto";
+    variant === "compact" || variant === "header" || fullWidth
+      ? ""
+      : "md:w-auto";
 
   const body = (
     <CardBody
@@ -142,7 +146,8 @@ export function ContributionCard(props: ContributionCardProps) {
     />
   );
 
-  const mergedClass = `${shell} ${layoutClass} ${widthClass} ${className}`.trim();
+  const mergedClass =
+    `${shell} ${layoutClass} ${widthClass} ${className}`.trim();
 
   if ("href" in props && props.href) {
     return (

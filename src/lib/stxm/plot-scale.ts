@@ -32,9 +32,10 @@ export function percentileLimits(
   pLow = 5,
   pHigh = 95,
 ): [number, number] {
-  const flat = (Array.isArray(values[0])
-    ? (values as number[][]).flat()
-    : (values as number[])
+  const flat = (
+    Array.isArray(values[0])
+      ? (values as number[][]).flat()
+      : (values as number[])
   ).filter((value) => Number.isFinite(value));
   if (flat.length === 0) {
     return [fallbackMin, fallbackMax];
@@ -104,7 +105,12 @@ export function lineScanImageDisplayScale(
       scaleMode === "log"
         ? lineScanDisplayValue(Math.max(fallbackMax, logFloor), "log", logFloor)
         : fallbackMax;
-    return { mode: scaleMode, vmin: fallbackVmin, vmax: fallbackVmax, logFloor };
+    return {
+      mode: scaleMode,
+      vmin: fallbackVmin,
+      vmax: fallbackVmax,
+      logFloor,
+    };
   }
   const displayValues = finite.map((value) =>
     lineScanDisplayValue(value, scaleMode, logFloor),
@@ -133,7 +139,8 @@ export function lineScanImageDisplayScale(
     };
   }
   if (vmax <= vmin) {
-    vmax = vmin + (scaleMode === "log" ? 0.25 : Math.max(Math.abs(vmin) * 1e-6, 1));
+    vmax =
+      vmin + (scaleMode === "log" ? 0.25 : Math.max(Math.abs(vmin) * 1e-6, 1));
   }
   return { mode: scaleMode, vmin, vmax, logFloor };
 }
@@ -193,7 +200,11 @@ export function computeRowSums(image: number[][]): number[] {
   });
 }
 
-export function normalizeToUnit(value: number, vmin: number, vmax: number): number {
+export function normalizeToUnit(
+  value: number,
+  vmin: number,
+  vmax: number,
+): number {
   const span = vmax - vmin;
   if (!Number.isFinite(span) || span <= 0) {
     return 0;

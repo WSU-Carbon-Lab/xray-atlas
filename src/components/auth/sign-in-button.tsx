@@ -6,7 +6,13 @@ import { DefaultButton } from "../ui/button";
 
 interface SignInButtonProps {
   children?: React.ReactNode;
-  variant?: "primary" | "secondary" | "tertiary" | "outline" | "ghost" | "danger";
+  variant?:
+    | "primary"
+    | "secondary"
+    | "tertiary"
+    | "outline"
+    | "ghost"
+    | "danger";
   size?: "sm" | "md" | "lg";
 }
 
@@ -22,9 +28,7 @@ export function SignInButton({
   const afterSignInUrl = pathname && pathname !== "/" ? pathname : "/";
 
   const handleSignIn = () => {
-    router.push(
-      `/sign-in?callbackUrl=${encodeURIComponent(afterSignInUrl)}`,
-    );
+    router.push(`/sign-in?callbackUrl=${encodeURIComponent(afterSignInUrl)}`);
   };
 
   if (session?.user) {

@@ -266,10 +266,7 @@ export function useGlobalFileDropZone(
     }
     setActiveZone(zoneUnderPointer(event));
     setSpectrumFileKind(
-      classifyDraggedSpectrumKind(
-        event.dataTransfer.items,
-        event.dataTransfer,
-      ),
+      classifyDraggedSpectrumKind(event.dataTransfer.items, event.dataTransfer),
     );
     setFileTypeLabel(
       dataTransferContainsDirectory(event.dataTransfer)

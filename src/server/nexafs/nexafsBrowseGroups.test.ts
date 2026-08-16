@@ -62,7 +62,10 @@ describe("buildNexafsBrowseWhereSql", () => {
   });
 
   it("adds an ANY(ARRAY[...]) clause for edgeIds with multiple elements", () => {
-    const result = buildNexafsBrowseWhereSql({ edgeIds: [UUID_A, UUID_B] }, null);
+    const result = buildNexafsBrowseWhereSql(
+      { edgeIds: [UUID_A, UUID_B] },
+      null,
+    );
     const frags = staticFragments(result);
     expect(frags).toContain("any(array[");
     expect(result.values).toContain(UUID_A);
@@ -78,7 +81,10 @@ describe("buildNexafsBrowseWhereSql", () => {
   });
 
   it("adds ANY(ARRAY[...]) for multiple instrumentIds", () => {
-    const result = buildNexafsBrowseWhereSql({ instrumentIds: ["inst-1", "inst-2"] }, null);
+    const result = buildNexafsBrowseWhereSql(
+      { instrumentIds: ["inst-1", "inst-2"] },
+      null,
+    );
     const frags = staticFragments(result);
     expect(frags).toContain("any(array[");
     expect(result.values).toContain("inst-1");
@@ -94,7 +100,10 @@ describe("buildNexafsBrowseWhereSql", () => {
   });
 
   it("adds ANY(ARRAY[...]) for multiple moleculeIds", () => {
-    const result = buildNexafsBrowseWhereSql({ moleculeIds: [UUID_A, UUID_C] }, null);
+    const result = buildNexafsBrowseWhereSql(
+      { moleculeIds: [UUID_A, UUID_C] },
+      null,
+    );
     const frags = staticFragments(result);
     expect(frags).toContain("s.moleculeid = any(array[");
     expect(result.values).toContain(UUID_A);
@@ -102,7 +111,10 @@ describe("buildNexafsBrowseWhereSql", () => {
   });
 
   it("adds EXISTS with single orcid_id for one contributorOrcid", () => {
-    const result = buildNexafsBrowseWhereSql({ contributorOrcids: [ORCID_A] }, null);
+    const result = buildNexafsBrowseWhereSql(
+      { contributorOrcids: [ORCID_A] },
+      null,
+    );
     const frags = staticFragments(result);
     expect(frags).toContain("exists");
     expect(frags).toContain("ecf.orcid_id =");
@@ -111,7 +123,10 @@ describe("buildNexafsBrowseWhereSql", () => {
   });
 
   it("adds EXISTS with ANY(ARRAY[...]) for multiple contributorOrcids", () => {
-    const result = buildNexafsBrowseWhereSql({ contributorOrcids: [ORCID_A, ORCID_B] }, null);
+    const result = buildNexafsBrowseWhereSql(
+      { contributorOrcids: [ORCID_A, ORCID_B] },
+      null,
+    );
     const frags = staticFragments(result);
     expect(frags).toContain("exists");
     expect(frags).toContain("any(array[");
@@ -120,7 +135,10 @@ describe("buildNexafsBrowseWhereSql", () => {
   });
 
   it("normalizes legacy contributorUserId singleton to single EXISTS clause", () => {
-    const result = buildNexafsBrowseWhereSql({ contributorUserId: ORCID_A }, null);
+    const result = buildNexafsBrowseWhereSql(
+      { contributorUserId: ORCID_A },
+      null,
+    );
     const frags = staticFragments(result);
     expect(frags).toContain("exists");
     expect(frags).toContain("ecf.orcid_id =");
@@ -154,7 +172,12 @@ describe("buildNexafsBrowseWhereSql", () => {
 
   it("produces no conditions when all array fields are empty", () => {
     const result = buildNexafsBrowseWhereSql(
-      { edgeIds: [], moleculeIds: [], instrumentIds: [], contributorOrcids: [] },
+      {
+        edgeIds: [],
+        moleculeIds: [],
+        instrumentIds: [],
+        contributorOrcids: [],
+      },
       null,
     );
     expect(staticFragments(result)).toBe("true");

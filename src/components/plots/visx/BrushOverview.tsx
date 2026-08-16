@@ -54,8 +54,14 @@ export function BrushOverview({
   brushKey = "default",
 }: BrushOverviewProps) {
   const brushDomain = initialBrushDomain ?? xDomain;
-  const innerWidth = Math.max(0, width - OVERVIEW_MARGINS.left - OVERVIEW_MARGINS.right);
-  const innerHeight = Math.max(0, height - OVERVIEW_MARGINS.top - OVERVIEW_MARGINS.bottom);
+  const innerWidth = Math.max(
+    0,
+    width - OVERVIEW_MARGINS.left - OVERVIEW_MARGINS.right,
+  );
+  const innerHeight = Math.max(
+    0,
+    height - OVERVIEW_MARGINS.top - OVERVIEW_MARGINS.bottom,
+  );
 
   const overviewXScale = useMemo(
     () => scaleLinear<number>().domain(xDomain).range([0, innerWidth]),
@@ -71,7 +77,10 @@ export function BrushOverview({
       const xV = t.x;
       const yV = t.y;
       if (!Array.isArray(xV) || !Array.isArray(yV) || xV.length !== yV.length)
-        return { points: [] as Array<{ x: number; y: number }>, color: themeColors.text };
+        return {
+          points: [] as Array<{ x: number; y: number }>,
+          color: themeColors.text,
+        };
       const points = xV
         .map((x, i) => ({ x, y: yV[i]! }))
         .filter(
@@ -128,7 +137,13 @@ export function BrushOverview({
   );
 
   const renderBrushHandle = useCallback(
-    (props: { x: number; y: number; width: number; height: number; isBrushActive?: boolean }) => {
+    (props: {
+      x: number;
+      y: number;
+      width: number;
+      height: number;
+      isBrushActive?: boolean;
+    }) => {
       const { x, y, width, height, isBrushActive } = props;
       if (!isBrushActive) return null;
       const w = Math.max(width, 8);
@@ -174,7 +189,11 @@ export function BrushOverview({
   const tickLabelColor = themeColors.text;
   const overviewLeft = OVERVIEW_MARGINS.left;
   const overviewTop = OVERVIEW_MARGINS.top;
-  const frameRadius = Math.min(PLOT_FRAME_RADIUS, innerWidth / 8, innerHeight / 8);
+  const frameRadius = Math.min(
+    PLOT_FRAME_RADIUS,
+    innerWidth / 8,
+    innerHeight / 8,
+  );
 
   if (!hasEnoughData || innerWidth <= 0 || innerHeight <= 0) {
     return null;

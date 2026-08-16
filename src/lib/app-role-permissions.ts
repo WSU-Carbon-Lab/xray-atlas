@@ -93,7 +93,9 @@ export const APP_PERMISSION_GROUPS: readonly PermissionGroupDefinition[] = [
     id: "labs",
     title: "Labs and experiments",
     description: "Privileged tooling and sandbox-style surfaces",
-    items: [{ key: "labs_access", label: "Access Labs / maintainer-tier tools" }],
+    items: [
+      { key: "labs_access", label: "Access Labs / maintainer-tier tools" },
+    ],
   },
 ] as const;
 
@@ -162,9 +164,7 @@ export function permissionsGrantManageUsers(
   permissions: readonly AppPermissionKey[],
 ): boolean {
   const s = new Set(permissions);
-  return (
-    s.has("user_directory") || s.has("user_roles") || s.has("user_delete")
-  );
+  return s.has("user_directory") || s.has("user_roles") || s.has("user_delete");
 }
 
 /**

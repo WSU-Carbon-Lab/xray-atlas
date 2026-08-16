@@ -1,6 +1,9 @@
 "use client";
 
-import { ChevronDownIcon, WrenchScrewdriverIcon } from "@heroicons/react/24/outline";
+import {
+  ChevronDownIcon,
+  WrenchScrewdriverIcon,
+} from "@heroicons/react/24/outline";
 import { Accordion, Chip } from "@heroui/react";
 import { RegisteredInstrumentEditor } from "./registered-instrument-editor";
 import { registeredInstrumentStatusPresentation } from "./instrument-status";

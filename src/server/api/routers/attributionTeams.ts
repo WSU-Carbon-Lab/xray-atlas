@@ -8,10 +8,7 @@ import {
 import { dataCiteContributorTypeSchema } from "~/lib/datacite-contributor-types";
 import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
 import { orcidUserIdSchema } from "~/lib/orcid";
-import {
-  createTRPCRouter,
-  protectedProcedure,
-} from "~/server/api/trpc";
+import { createTRPCRouter, protectedProcedure } from "~/server/api/trpc";
 import type { Prisma, PrismaClient } from "~/prisma/client";
 
 const attributionTeamGroupTypeSchema = z.enum(ATTRIBUTION_TEAM_GROUP_TYPES);
@@ -132,7 +129,9 @@ function mapTeamSummaryRow(
 }
 
 /** Prisma filter for teams the session user owns or is rostered on. */
-function teamsForSessionUserWhere(userId: string): Prisma.attributionteamWhereInput {
+function teamsForSessionUserWhere(
+  userId: string,
+): Prisma.attributionteamWhereInput {
   return {
     OR: [
       { ownerid: userId },
@@ -166,10 +165,7 @@ async function resolveMemberPersistFields(
   return {
     orcidid: orcid,
     userid: atlasUser?.id ?? null,
-    displayname:
-      member.displayName?.trim() ??
-      atlasUser?.name?.trim() ??
-      null,
+    displayname: member.displayName?.trim() ?? atlasUser?.name?.trim() ?? null,
     contributortype: member.contributorType,
   };
 }
@@ -238,7 +234,9 @@ function dedupeMemberInputs(
   return [...byKey.values()];
 }
 
-function normalizeNullableOrcid(value: string | null | undefined): string | null {
+function normalizeNullableOrcid(
+  value: string | null | undefined,
+): string | null {
   const trimmed = value?.trim();
   if (!trimmed) return null;
   return orcidUserIdSchema.parse(trimmed);

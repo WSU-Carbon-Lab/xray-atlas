@@ -232,8 +232,8 @@ describe("plotViewerDescriptorColumnTitle", () => {
       ["thetaPhi"],
     );
     const geometryKeys = rows.map((row) => row.geometryKey);
-    expect(
-      plotViewerDescriptorColumnTitle("thetaPhi", { geometryKeys }),
-    ).toBe("θ");
+    expect(plotViewerDescriptorColumnTitle("thetaPhi", { geometryKeys })).toBe(
+      "θ",
+    );
   });
 });

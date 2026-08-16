@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { WSULogoIcon } from "../icons";
 import GitHubStarsLink from "./github-stars-link";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import { trpc } from "~/trpc/client";
 import { attribution, mission, site } from "~/app/brand";
 

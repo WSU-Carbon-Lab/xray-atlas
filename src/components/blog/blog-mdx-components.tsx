@@ -13,7 +13,8 @@ export function BlogMdxImage({
   className,
   ...props
 }: ComponentPropsWithoutRef<"img">): ReactElement | null {
-  const imageSrc = typeof src === "string" ? resolveBlogHeroImageUrl(src) : undefined;
+  const imageSrc =
+    typeof src === "string" ? resolveBlogHeroImageUrl(src) : undefined;
   if (!imageSrc) {
     return null;
   }
@@ -39,8 +40,7 @@ export function BlogMdxImage({
   );
 }
 
-const BLOG_MDX_PARAGRAPH_CLASS =
-  "text-muted text-[1.05rem] leading-8";
+const BLOG_MDX_PARAGRAPH_CLASS = "text-muted text-[1.05rem] leading-8";
 
 function isWhitespaceMdxText(node: ReactNode): boolean {
   return typeof node === "string" && node.trim() === "";
@@ -110,19 +110,13 @@ function BlogMdxParagraph({
   }
   if (containsMdxBlockMedia(children)) {
     return (
-      <div
-        {...props}
-        className={cn(BLOG_MDX_PARAGRAPH_CLASS, className)}
-      >
+      <div {...props} className={cn(BLOG_MDX_PARAGRAPH_CLASS, className)}>
         {children}
       </div>
     );
   }
   return (
-    <p
-      {...props}
-      className={cn(BLOG_MDX_PARAGRAPH_CLASS, className)}
-    >
+    <p {...props} className={cn(BLOG_MDX_PARAGRAPH_CLASS, className)}>
       {children}
     </p>
   );

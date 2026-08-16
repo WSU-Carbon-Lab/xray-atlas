@@ -17,10 +17,7 @@ const describe = bunDescribe as (name: string, fn: () => void) => void;
 const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
-function blogEntry(
-  slug: string,
-  frontmatter: BlogFrontmatter,
-): BlogEntry {
+function blogEntry(slug: string, frontmatter: BlogFrontmatter): BlogEntry {
   return {
     slug,
     filePath: `/content/blog/${slug}.mdx`,

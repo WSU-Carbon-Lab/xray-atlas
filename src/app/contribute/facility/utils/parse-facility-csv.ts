@@ -77,8 +77,7 @@ export function parseFacilityCsvFile(file: File): Promise<ParsedFacilityData> {
         try {
           const rows = results.data;
           const headers =
-            results.meta.fields ??
-            (rows[0] ? Object.keys(rows[0]) : []);
+            results.meta.fields ?? (rows[0] ? Object.keys(rows[0]) : []);
           if (!rows.length) {
             reject(new Error("CSV has no data rows"));
             return;

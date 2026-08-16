@@ -60,7 +60,11 @@ export function NexafsVerificationFilterDropdown({
               </span>
             </BrowseFilterTrigger>
           )}
-          renderContent={({ contentPositionClassName, contentProps, close }) => (
+          renderContent={({
+            contentPositionClassName,
+            contentProps,
+            close,
+          }) => (
             <PopoverMenuContent
               {...contentProps}
               className={`${contentPositionClassName} w-[min(100vw-2rem,320px)] rounded-xl py-1`}
@@ -87,38 +91,36 @@ export function NexafsVerificationFilterDropdown({
                   ) : null}
                 </button>
                 <div className="border-border-default space-y-1 rounded-md border p-1">
-                  {VERIFICATION_SOURCE_OPTIONS.map(
-                    (option) => {
-                      const selected = verificationSource === option;
-                      return (
-                        <button
-                          key={option}
-                          type="button"
-                          disabled={!verifiedOnly}
-                          onClick={() => {
-                            onVerificationSourceChange(option);
-                            close();
-                          }}
-                          className={cn(
-                            "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2",
-                            !verifiedOnly
-                              ? "text-zinc-500/70"
-                              : selected
-                                ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
-                                : "text-muted hover:bg-default hover:text-foreground",
-                          )}
-                        >
-                          <span>{VERIFICATION_SOURCE_LABELS[option]}</span>
-                          {verifiedOnly && selected ? (
-                            <CheckIcon
-                              className="text-accent h-4 w-4 shrink-0"
-                              aria-hidden
-                            />
-                          ) : null}
-                        </button>
-                      );
-                    },
-                  )}
+                  {VERIFICATION_SOURCE_OPTIONS.map((option) => {
+                    const selected = verificationSource === option;
+                    return (
+                      <button
+                        key={option}
+                        type="button"
+                        disabled={!verifiedOnly}
+                        onClick={() => {
+                          onVerificationSourceChange(option);
+                          close();
+                        }}
+                        className={cn(
+                          "focus-visible:ring-accent flex w-full items-center justify-between rounded-md px-2 py-1.5 text-left text-xs transition-colors focus:outline-none focus-visible:ring-2",
+                          !verifiedOnly
+                            ? "text-zinc-500/70"
+                            : selected
+                              ? "bg-accent-soft text-foreground ring-accent/35 ring-1"
+                              : "text-muted hover:bg-default hover:text-foreground",
+                        )}
+                      >
+                        <span>{VERIFICATION_SOURCE_LABELS[option]}</span>
+                        {verifiedOnly && selected ? (
+                          <CheckIcon
+                            className="text-accent h-4 w-4 shrink-0"
+                            aria-hidden
+                          />
+                        ) : null}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
             </PopoverMenuContent>

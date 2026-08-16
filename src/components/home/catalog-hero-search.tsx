@@ -30,10 +30,13 @@ import { MagnifyingGlassIcon, XMarkIcon } from "@heroicons/react/24/outline";
 import { useRouter } from "next/navigation";
 import { trpc } from "~/trpc/client";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
-import { CatalogDataErrorState } from "@/components/feedback/catalog-data-error-state";
+import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import { buildPopularitySections } from "~/components/browse/unified-search/catalog-search-popularity";
 import { CatalogSearchPopularityPanel } from "~/components/browse/unified-search/catalog-search-popularity-panel";
-import type { FacetField, FacetItem } from "~/components/browse/unified-search/types";
+import type {
+  FacetField,
+  FacetItem,
+} from "~/components/browse/unified-search/types";
 import { PortaledAnchorDropdown } from "~/components/ui/portaled-anchor-dropdown";
 
 type MolCandidate = {
@@ -152,8 +155,13 @@ export function CatalogHeroSearch({
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
     staleTime: 300_000,
   });
-  const { data: facetCounts, isLoading: facetCountsLoading, isError: facetCountsError, error: facetCountsLoadError, refetch: refetchFacetCounts } =
-    facetCountsQuery;
+  const {
+    data: facetCounts,
+    isLoading: facetCountsLoading,
+    isError: facetCountsError,
+    error: facetCountsLoadError,
+    refetch: refetchFacetCounts,
+  } = facetCountsQuery;
 
   const popularitySections = useMemo(
     () => buildPopularitySections(facetCounts),
@@ -164,18 +172,27 @@ export function CatalogHeroSearch({
     { query: debouncedQuery, limit: 4 },
     { enabled: typeaheadEnabled, staleTime: 60_000 },
   );
-  const { data: molData, isLoading: molLoading, isError: molError, error: molLoadError, refetch: refetchMolecules } =
-    moleculesQuery;
+  const {
+    data: molData,
+    isLoading: molLoading,
+    isError: molError,
+    error: molLoadError,
+    refetch: refetchMolecules,
+  } = moleculesQuery;
 
   const entitiesQuery = trpc.experiments.searchEntities.useQuery(
     { query: debouncedQuery, limitPerGroup: 3 },
     { enabled: typeaheadEnabled, staleTime: 60_000 },
   );
-  const { data: entityData, isLoading: entityLoading, isError: entityError, error: entityLoadError, refetch: refetchEntities } =
-    entitiesQuery;
+  const {
+    data: entityData,
+    isLoading: entityLoading,
+    isError: entityError,
+    error: entityLoadError,
+    refetch: refetchEntities,
+  } = entitiesQuery;
 
-  const isTypeaheadLoading =
-    typeaheadEnabled && (molLoading || entityLoading);
+  const isTypeaheadLoading = typeaheadEnabled && (molLoading || entityLoading);
 
   const dropdownLoadError = showPopularityPanel
     ? facetCountsError
@@ -325,9 +342,7 @@ export function CatalogHeroSearch({
         if (c) {
           navigate(c);
         } else if (query.trim()) {
-          router.push(
-            `/browse/nexafs?q=${encodeURIComponent(query.trim())}`,
-          );
+          router.push(`/browse/nexafs?q=${encodeURIComponent(query.trim())}`);
           setIsOpen(false);
         }
         return;
@@ -341,14 +356,7 @@ export function CatalogHeroSearch({
         inputRef.current?.blur();
       }
     },
-    [
-      showTypeaheadPanel,
-      candidates,
-      highlightedIndex,
-      navigate,
-      query,
-      router,
-    ],
+    [showTypeaheadPanel, candidates, highlightedIndex, navigate, query, router],
   );
 
   const clearSearch = useCallback(() => {
@@ -424,11 +432,7 @@ export function CatalogHeroSearch({
         dropdownRef={dropdownRef}
         className={DROPDOWN_SHELL_CLASS}
       >
-        <div
-          id={listboxId}
-          role="listbox"
-          aria-label="Search suggestions"
-        >
+        <div id={listboxId} role="listbox" aria-label="Search suggestions">
           {dropdownLoadError ? (
             <CatalogDataErrorState
               error={dropdownLoadError}
@@ -510,7 +514,7 @@ export function CatalogHeroSearch({
                     )}
 
                     {c.kind !== "mol" ? (
-                      <span className="text-muted shrink-0 tabular-nums text-xs">
+                      <span className="text-muted shrink-0 text-xs tabular-nums">
                         {c.count}
                       </span>
                     ) : null}

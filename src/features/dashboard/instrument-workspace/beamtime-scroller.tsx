@@ -72,7 +72,10 @@ export function BeamtimeScroller({
               )}
             >
               <span className="text-foreground flex items-center gap-2 text-sm font-medium">
-                <FolderOpen className="text-accent h-4 w-4 shrink-0" aria-hidden />
+                <FolderOpen
+                  className="text-accent h-4 w-4 shrink-0"
+                  aria-hidden
+                />
                 <span className="truncate">{beamtime.name}</span>
               </span>
               <span className="text-muted text-xs">

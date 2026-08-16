@@ -41,7 +41,8 @@ export function resolvePlotViewerRegionDescriptor(
 
   const finiteTheta =
     typeof params.theta === "number" && Number.isFinite(params.theta);
-  const finitePhi = typeof params.phi === "number" && Number.isFinite(params.phi);
+  const finitePhi =
+    typeof params.phi === "number" && Number.isFinite(params.phi);
 
   if (finiteTheta && !finitePhi) {
     return formatPlotViewerAngleDegrees(params.theta);

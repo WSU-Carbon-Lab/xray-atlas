@@ -77,7 +77,9 @@ function assertStrictAscendingFinite(
   }
   for (let i = 0; i < n; i++) {
     if (!Number.isFinite(energyEv[i]) || !Number.isFinite(beta[i])) {
-      throw new RangeError("energyEv and beta must contain only finite numbers");
+      throw new RangeError(
+        "energyEv and beta must contain only finite numbers",
+      );
     }
     if (i > 0 && !(energyEv[i]! > energyEv[i - 1]!)) {
       throw new RangeError("energyEv must be strictly ascending");

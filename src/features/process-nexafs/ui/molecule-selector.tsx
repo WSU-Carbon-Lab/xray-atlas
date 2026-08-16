@@ -72,7 +72,13 @@ export function MoleculeSelector({
   const [showSearch, setShowSearch] = useState(!selectedMolecule);
 
   // If molecule is selected and not searching, show compact view
-  if (selectedMolecule && !showSearch && (searchTerm.length === 0 || searchTerm === selectedPreferredName || searchTerm === selectedMolecule.commonName)) {
+  if (
+    selectedMolecule &&
+    !showSearch &&
+    (searchTerm.length === 0 ||
+      searchTerm === selectedPreferredName ||
+      searchTerm === selectedMolecule.commonName)
+  ) {
     return (
       <div className="border-border bg-surface rounded-lg border p-3">
         <div className="flex items-center justify-between">
@@ -160,7 +166,7 @@ export function MoleculeSelector({
       </Label>
       <div className="space-y-2">
         <div className="relative flex items-center gap-2">
-          <div className="text-muted pointer-events-none absolute left-3 top-1/2 -translate-y-1/2">
+          <div className="text-muted pointer-events-none absolute top-1/2 left-3 -translate-y-1/2">
             <MagnifyingGlassIcon className="h-4 w-4" />
           </div>
           <Input
@@ -169,7 +175,7 @@ export function MoleculeSelector({
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder="Search by name, synonym, CAS, or PubChem CID"
             variant="secondary"
-            className="min-w-0 flex-1 pl-10 pr-24"
+            className="min-w-0 flex-1 pr-24 pl-10"
             autoComplete="off"
             aria-label="Search molecule by name, synonym, CAS, or PubChem CID"
           />
@@ -178,7 +184,7 @@ export function MoleculeSelector({
             variant="secondary"
             size="sm"
             onPress={onManualSearch}
-            className="absolute right-2 top-1/2 -translate-y-1/2 shrink-0"
+            className="absolute top-1/2 right-2 shrink-0 -translate-y-1/2"
           >
             Search
           </Button>
@@ -210,7 +216,7 @@ export function MoleculeSelector({
                     }
                   }}
                   disabled={moleculeLocked}
-                  className="hover:border-accent flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-default disabled:cursor-not-allowed disabled:opacity-50"
+                  className="hover:border-accent hover:bg-default flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <span className="text-foreground font-medium">
                     {suggestion.commonName}
@@ -249,30 +255,28 @@ export function MoleculeSelector({
                     }
                   }}
                   disabled={moleculeLocked}
-                  className="hover:border-accent flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition hover:bg-default disabled:cursor-not-allowed disabled:opacity-50"
+                  className="hover:border-accent hover:bg-default flex w-full flex-col rounded-lg border border-transparent px-3 py-2 text-left transition disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   <span className="text-foreground font-medium">
                     {result.commonName}
                   </span>
-                  <span className="text-muted text-xs">
-                    {result.iupacName}
-                  </span>
+                  <span className="text-muted text-xs">{result.iupacName}</span>
                 </button>
               ))}
             </div>
           </div>
         )}
 
-        {manualError && (
-          <p className="text-danger text-sm">{manualError}</p>
-        )}
+        {manualError && <p className="text-danger text-sm">{manualError}</p>}
 
         {suggestions.length === 0 &&
           manualResults.length === 0 &&
           !isSuggesting &&
           searchTerm.length >= 2 && (
             <div className="border-border text-muted rounded-lg border border-dashed p-4 text-center text-sm">
-              <p className="mb-2">No molecules found matching &quot;{searchTerm}&quot;</p>
+              <p className="mb-2">
+                No molecules found matching &quot;{searchTerm}&quot;
+              </p>
               <p className="text-xs">
                 Try a different search term or add a new molecule
               </p>

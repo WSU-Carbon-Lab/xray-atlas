@@ -59,10 +59,8 @@ export function useReferenceData(
       const la = typeof a.lowerAngle === "number" ? a.lowerAngle : 0;
       const lb = typeof b.lowerAngle === "number" ? b.lowerAngle : 0;
       if (la !== lb) return la - lb;
-      const ha =
-        typeof a.higherAngle === "number" ? a.higherAngle : 0;
-      const hb =
-        typeof b.higherAngle === "number" ? b.higherAngle : 0;
+      const ha = typeof a.higherAngle === "number" ? a.higherAngle : 0;
+      const hb = typeof b.higherAngle === "number" ? b.higherAngle : 0;
       return ha - hb;
     });
 
@@ -90,10 +88,7 @@ export function useReferenceData(
     const uniqueTheta = new Set(thetaValues);
     const singleTheta = thetaValues.length > 0 && uniqueTheta.size <= 1;
 
-    const formatLabel = (
-      diffLabel: string,
-      diffMode: "theta" | "phi",
-    ) => {
+    const formatLabel = (diffLabel: string, diffMode: "theta" | "phi") => {
       if (diffMode === "theta" && singlePhi) {
         return diffLabel.replace(/\s*\((φ|phi)=[^)]+\)\s*/u, "").trim();
       }

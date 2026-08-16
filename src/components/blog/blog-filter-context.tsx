@@ -35,7 +35,9 @@ export function BlogFilterProvider({
 }: {
   children: ReactNode;
 }): ReactElement {
-  const [state, setState] = useState<BlogFilterState>(DEFAULT_BLOG_FILTER_STATE);
+  const [state, setState] = useState<BlogFilterState>(
+    DEFAULT_BLOG_FILTER_STATE,
+  );
 
   const applyState = useCallback((next: BlogFilterState) => {
     setState(next);

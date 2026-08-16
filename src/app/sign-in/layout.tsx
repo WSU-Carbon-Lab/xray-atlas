@@ -2,7 +2,8 @@ import type { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Sign in",
-  description: "Sign in to access contribution and account-management features in X-ray Atlas.",
+  description:
+    "Sign in to access contribution and account-management features in X-ray Atlas.",
   alternates: {
     canonical: "/sign-in",
   },

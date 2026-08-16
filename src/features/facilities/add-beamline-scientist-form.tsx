@@ -54,7 +54,9 @@ function badgeColorForStatus(
   return "success";
 }
 
-function toStewardSearchHit(hit: ResearcherSearchHit): InstrumentStewardSearchHit {
+function toStewardSearchHit(
+  hit: ResearcherSearchHit,
+): InstrumentStewardSearchHit {
   return {
     orcid: hit.orcid,
     displayName: hit.displayName,
@@ -140,9 +142,7 @@ export function AddBeamlineScientistForm({
   const searchResults = useMemo(
     () =>
       (searchData?.results ?? []).filter(
-        (hit) =>
-          hit.hasAtlasProfile &&
-          !assignedUserIds.has(hit.orcid),
+        (hit) => hit.hasAtlasProfile && !assignedUserIds.has(hit.orcid),
       ),
     [assignedUserIds, searchData?.results],
   );
@@ -311,12 +311,7 @@ export function AddBeamlineScientistForm({
       return "No ORCID record found for that iD.";
     }
     return "No matching researchers found.";
-  }, [
-    isSearching,
-    searchClassification.mode,
-    searchEnabled,
-    searchFailed,
-  ]);
+  }, [isSearching, searchClassification.mode, searchEnabled, searchFailed]);
 
   const handleListBoxAction = useCallback(
     (key: Key) => {
@@ -334,10 +329,12 @@ export function AddBeamlineScientistForm({
   return (
     <div className="flex flex-col gap-3">
       <div>
-        <p className="text-foreground text-sm font-medium">Add beamline scientist</p>
+        <p className="text-foreground text-sm font-medium">
+          Add beamline scientist
+        </p>
         <p className="text-muted mt-1 text-xs leading-snug">
-          Search Atlas researchers who have signed in, select one or more, then press Add for{" "}
-          {instrumentName}.
+          Search Atlas researchers who have signed in, select one or more, then
+          press Add for {instrumentName}.
         </p>
       </div>
       <div className="flex flex-col gap-1.5">
@@ -458,7 +455,7 @@ export function AddBeamlineScientistForm({
       </div>
       {pendingStewards.length > 0 ? (
         <div className="flex flex-col gap-1.5">
-          <p className="text-muted text-xs font-medium uppercase tracking-wide">
+          <p className="text-muted text-xs font-medium tracking-wide uppercase">
             Selected ({pendingStewards.length})
           </p>
           <ContributorAvatarGroup

@@ -122,9 +122,9 @@ export const PlotViewerTraceStyleRow = memo(function PlotViewerTraceStyleRow({
             !trace.hasColorOverride &&
               !trace.hasLineDashOverride &&
               !trace.hasMarkerOverride &&
-            !trace.hasLineWidthOverride &&
-            !trace.hasMarkerSizeOverride &&
-            !trace.hasMarkerEveryOverride &&
+              !trace.hasLineWidthOverride &&
+              !trace.hasMarkerSizeOverride &&
+              !trace.hasMarkerEveryOverride &&
               "text-muted",
           )}
         >

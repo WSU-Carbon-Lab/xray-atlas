@@ -123,9 +123,9 @@ describe("buildQualityScores", () => {
       doiPresent: false,
     });
     expect(qs.perChannel.od.normalizationTargetDistance != null).toBe(true);
-    expect(qs.perChannel.massabsorption.normalizationTargetDistance != null).toBe(
-      true,
-    );
+    expect(
+      qs.perChannel.massabsorption.normalizationTargetDistance != null,
+    ).toBe(true);
     expect(qs.perChannel.rawabs.normalizationTargetDistance != null).toBe(true);
   });
 

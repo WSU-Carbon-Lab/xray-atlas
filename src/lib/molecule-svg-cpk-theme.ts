@@ -32,7 +32,10 @@ const CPK_COLORS_DARK: Record<string, string> = {
   I: "#d478d4",
 };
 
-export function cpkHexForElementSymbol(symbol: string, isDark: boolean): string {
+export function cpkHexForElementSymbol(
+  symbol: string,
+  isDark: boolean,
+): string {
   const map = isDark ? CPK_COLORS_DARK : CPK_COLORS_LIGHT;
   const fallback = isDark ? "#ffffff" : "#000000";
   return map[symbol] ?? fallback;
@@ -173,7 +176,10 @@ export function applyMoleculeSvgCpkThemeToElement(
  * @param svgText - Raw SVG string (must parse as XML when valid).
  * @param isDark - When true, use dark-mode CPK colors.
  */
-export function applyMoleculeSvgCpkTheme(svgText: string, isDark: boolean): string {
+export function applyMoleculeSvgCpkTheme(
+  svgText: string,
+  isDark: boolean,
+): string {
   const trimmed = svgText.trim();
   if (!trimmed.startsWith("<")) {
     return svgText;

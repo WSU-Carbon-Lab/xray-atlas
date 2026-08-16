@@ -87,16 +87,8 @@ import {
 import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
 
 const polarizationAngleSchema = z.object({
-  theta: z
-    .number()
-    .finite()
-    .min(POLAR_DEG_MIN)
-    .max(POLAR_DEG_MAX),
-  phi: z
-    .number()
-    .finite()
-    .min(AZIMUTH_DEG_MIN)
-    .lt(AZIMUTH_DEG_MAX_EXCLUSIVE),
+  theta: z.number().finite().min(POLAR_DEG_MIN).max(POLAR_DEG_MAX),
+  phi: z.number().finite().min(AZIMUTH_DEG_MIN).lt(AZIMUTH_DEG_MAX_EXCLUSIVE),
 });
 
 const nexafsBrowseSortBySchema = z
@@ -111,8 +103,8 @@ const nexafsBrowseSortBySchema = z
     "newest",
   ])
   .default("quality")
-  .transform(
-    (v): NexafsBrowseSortKey => (v === "comments" ? "publications" : v),
+  .transform((v): NexafsBrowseSortKey =>
+    v === "comments" ? "publications" : v,
   );
 
 const nexafsVerificationSourceSchema = z
@@ -1289,7 +1281,11 @@ export const experimentsRouter = createTRPCRouter({
               z.object({
                 energy: z.number(),
                 absorption: z.number(),
-                theta: z.number().min(POLAR_DEG_MIN).max(POLAR_DEG_MAX).optional(),
+                theta: z
+                  .number()
+                  .min(POLAR_DEG_MIN)
+                  .max(POLAR_DEG_MAX)
+                  .optional(),
                 phi: z
                   .number()
                   .min(AZIMUTH_DEG_MIN)

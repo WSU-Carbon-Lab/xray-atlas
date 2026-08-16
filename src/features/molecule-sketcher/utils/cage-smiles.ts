@@ -76,7 +76,9 @@ export function parseCageCarbonCountFromInput(input: string): number | null {
  * @param carbonCount - Requested number of fullerene carbon atoms.
  * @returns Success with SMILES and label, or failure with an inline error string.
  */
-export function cageSmilesForCarbonCount(carbonCount: number): CageSmilesResult {
+export function cageSmilesForCarbonCount(
+  carbonCount: number,
+): CageSmilesResult {
   if (!Number.isInteger(carbonCount) || carbonCount < 1) {
     return { ok: false, error: "Enter a whole number of carbons." };
   }

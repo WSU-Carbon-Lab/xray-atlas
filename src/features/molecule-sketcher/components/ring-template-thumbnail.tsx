@@ -13,7 +13,9 @@ export interface RingTemplateThumbnailProps {
  * Bond strokes inherit `currentColor` from the parent; heteroatom labels use
  * CPK-aligned fills that switch with the document dark class.
  */
-export function RingTemplateThumbnail({ templateId }: RingTemplateThumbnailProps) {
+export function RingTemplateThumbnail({
+  templateId,
+}: RingTemplateThumbnailProps) {
   const rawMarkup = ringTemplateThumbnailSvg(templateId);
   if (!rawMarkup) {
     return <span className="inline-block h-8 w-8 shrink-0" aria-hidden />;
@@ -23,7 +25,7 @@ export function RingTemplateThumbnail({ templateId }: RingTemplateThumbnailProps
 
   return (
     <span
-      className="ring-template-thumb text-foreground inline-flex h-8 w-8 shrink-0 items-center justify-center [&_svg]:block [&_svg]:h-full [&_svg]:w-full [&_.ring-thumb-hetero-n]:fill-[#2144d9] dark:[&_.ring-thumb-hetero-n]:fill-[#8fa3ff] [&_.ring-thumb-hetero-o]:fill-[#ff0d0d] dark:[&_.ring-thumb-hetero-o]:fill-[#ff6666] [&_.ring-thumb-hetero-s]:fill-[#c4a800] dark:[&_.ring-thumb-hetero-s]:fill-[#ffff00]"
+      className="ring-template-thumb text-foreground inline-flex h-8 w-8 shrink-0 items-center justify-center [&_.ring-thumb-hetero-n]:fill-[#2144d9] dark:[&_.ring-thumb-hetero-n]:fill-[#8fa3ff] [&_.ring-thumb-hetero-o]:fill-[#ff0d0d] dark:[&_.ring-thumb-hetero-o]:fill-[#ff6666] [&_.ring-thumb-hetero-s]:fill-[#c4a800] dark:[&_.ring-thumb-hetero-s]:fill-[#ffff00] [&_svg]:block [&_svg]:h-full [&_svg]:w-full"
       aria-hidden
       dangerouslySetInnerHTML={{ __html: markup }}
     />

@@ -67,7 +67,9 @@ function resolveIconHref(rawHref: string, pageUrl: URL): string | null {
   }
 }
 
-async function probeDisplayableImageUrl(candidate: string): Promise<string | null> {
+async function probeDisplayableImageUrl(
+  candidate: string,
+): Promise<string | null> {
   try {
     const validated = await assertSafeRemoteImageUrl(candidate);
     const bytes = await fetchRemoteImageBytesForSampling(

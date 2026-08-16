@@ -25,8 +25,7 @@ export interface DetectCsvParseChallengesArgs {
   readonly invalidGeometryMessage?: string | null;
 }
 
-const ENERGY_HINT =
-  /energy|e\s*v|photon|hv|wavelength/i;
+const ENERGY_HINT = /energy|e\s*v|photon|hv|wavelength/i;
 const ABSORPTION_HINT =
   /^(mu|μ|od|abs|absorption|intensity|signal|i0|it|rawabs|mass.?abs|beta|δ|delta)$|absorption|intensity|signal|(^|[^a-z])mu([^a-z]|$)|optical.?density/i;
 

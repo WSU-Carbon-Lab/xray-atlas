@@ -71,7 +71,10 @@ export function BlogCategoryNav({
   };
 
   return (
-    <nav aria-label="Blog categories" className="space-y-0.5 md:space-y-1 md:pt-1">
+    <nav
+      aria-label="Blog categories"
+      className="space-y-0.5 md:space-y-1 md:pt-1"
+    >
       {showAll ? (
         mode === "hash" ? (
           <button
@@ -132,9 +135,7 @@ export function BlogCategoryNav({
             href={blogCategoryHref(category.slug)}
             className={cn(
               "font-display group flex items-center justify-between gap-3 py-1 text-3xl leading-none font-normal tracking-tight no-underline transition-colors sm:text-4xl md:text-[2rem] lg:text-5xl xl:text-6xl",
-              isActive
-                ? "text-foreground"
-                : "text-muted hover:text-foreground",
+              isActive ? "text-foreground" : "text-muted hover:text-foreground",
             )}
           >
             <span>{category.label}</span>

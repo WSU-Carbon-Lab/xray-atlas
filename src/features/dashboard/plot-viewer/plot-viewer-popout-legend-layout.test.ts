@@ -51,7 +51,9 @@ describe("plotViewerPopoutLegendAsideClassName", () => {
   it("uses expanded width and full plot height when a side dock tray is open", () => {
     const className = plotViewerPopoutLegendAsideClassName("left", true);
     expect(className).toContain(PLOT_VIEWER_POPOUT_LEGEND_EXPANDED_WIDTH_CLASS);
-    expect(className).toContain(PLOT_VIEWER_POPOUT_LEGEND_SIDE_EXPANDED_HEIGHT_CLASS);
+    expect(className).toContain(
+      PLOT_VIEWER_POPOUT_LEGEND_SIDE_EXPANDED_HEIGHT_CLASS,
+    );
     expect(className).not.toContain(
       PLOT_VIEWER_POPOUT_LEGEND_COLLAPSED_STRIP_WIDTH_CLASS,
     );
@@ -80,9 +82,9 @@ describe("plotViewerPopoutLegendAsideClassName", () => {
 
 describe("plotViewerPopoutLegendPlotAdjacentChromeClassName", () => {
   it("trims the plot-facing border on a right dock panel", () => {
-    expect(plotViewerPopoutLegendPlotAdjacentChromeClassName("right")).toContain(
-      "border-s-0",
-    );
+    expect(
+      plotViewerPopoutLegendPlotAdjacentChromeClassName("right"),
+    ).toContain("border-s-0");
   });
 
   it("trims the plot-facing border on a top dock panel", () => {

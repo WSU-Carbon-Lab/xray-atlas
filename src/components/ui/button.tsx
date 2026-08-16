@@ -39,14 +39,17 @@ export function DefaultButton({
       : "bg-accent text-accent-foreground border-accent hover:opacity-90";
   const baseClassName = `cursor-pointer flex ${buttonHeightClass(size)} items-center gap-2 rounded-lg border px-3 shadow-sm transition-[background-color,box-shadow] hover:shadow-md [touch-action:manipulation] border-border text-foreground ${variantClasses}`;
 
-  const resolvedClassName = typeof className === "string"
-    ? `${baseClassName} ${className}`
-    : typeof className === "function"
-      ? (renderProps: Parameters<typeof className>[0]) => {
-          const custom = className(renderProps);
-          return typeof custom === "string" ? `${baseClassName} ${custom}` : baseClassName;
-        }
-      : baseClassName;
+  const resolvedClassName =
+    typeof className === "string"
+      ? `${baseClassName} ${className}`
+      : typeof className === "function"
+        ? (renderProps: Parameters<typeof className>[0]) => {
+            const custom = className(renderProps);
+            return typeof custom === "string"
+              ? `${baseClassName} ${custom}`
+              : baseClassName;
+          }
+        : baseClassName;
 
   return (
     <HeroButton

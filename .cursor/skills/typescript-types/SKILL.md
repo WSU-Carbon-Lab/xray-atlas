@@ -25,10 +25,10 @@ Use this skill when **`general-typescript`** is not enough: complex **generics**
 
 ## Reference index
 
-| Topic | File |
-|--------|------|
-| Unions, narrowing, exhaustive checks | [reference-unions-exhaustive.md](references/reference-unions-exhaustive.md) |
-| Generics, inference, constraints | [reference-generics-inference.md](references/reference-generics-inference.md) |
+| Topic                                | File                                                                          |
+| ------------------------------------ | ----------------------------------------------------------------------------- |
+| Unions, narrowing, exhaustive checks | [reference-unions-exhaustive.md](references/reference-unions-exhaustive.md)   |
+| Generics, inference, constraints     | [reference-generics-inference.md](references/reference-generics-inference.md) |
 
 ## External anchors
 

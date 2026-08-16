@@ -32,11 +32,7 @@ const describe = bunDescribe as (name: string, fn: () => void) => void;
 const it = bunIt as (name: string, fn: () => void) => void;
 const expect = bunExpect as (value: unknown) => ExpectAssertions;
 
-function spectrum(
-  label: string,
-  startEv: number,
-  endEv: number,
-): LcfSpectrum {
+function spectrum(label: string, startEv: number, endEv: number): LcfSpectrum {
   const energyEv = [startEv, startEv + 5, startEv + 10, endEv];
   return {
     energyEv,
@@ -69,16 +65,16 @@ describe("resolveLcfPreviewWeights", () => {
   });
 
   it("normalizes multi-standard fractions when sum-to-one is enabled", () => {
-    expect(resolveLcfPreviewWeights([0.25, 0.75], 2, true)).toEqual([0.25, 0.75]);
+    expect(resolveLcfPreviewWeights([0.25, 0.75], 2, true)).toEqual([
+      0.25, 0.75,
+    ]);
     expect(resolveLcfPreviewWeights([1, 1], 2, true)).toEqual([0.5, 0.5]);
   });
 });
 
 describe("resolveLcfPlotLegendFractions", () => {
   it("keeps manual slider weights when optimized fractions differ", () => {
-    expect(
-      resolveLcfPlotLegendFractions([0.6], [0.5223]),
-    ).toEqual([0.6]);
+    expect(resolveLcfPlotLegendFractions([0.6], [0.5223])).toEqual([0.6]);
   });
 });
 
@@ -146,9 +142,9 @@ describe("buildLcfPlotSeries", () => {
       fractions: [0.29],
       componentColors: ["var(--chart-2)"],
     });
-    expect(series.companions.some((c) => c.legendId === LCF_RESIDUAL_TRACE_ID)).toBe(
-      false,
-    );
+    expect(
+      series.companions.some((c) => c.legendId === LCF_RESIDUAL_TRACE_ID),
+    ).toBe(false);
     expect(series.residual.legendId).toBe(LCF_RESIDUAL_TRACE_ID);
     expect(series.visibilityRows.map((row) => row.id)).toEqual([
       LCF_TARGET_TRACE_ID,

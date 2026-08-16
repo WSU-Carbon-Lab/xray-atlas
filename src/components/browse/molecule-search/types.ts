@@ -5,11 +5,7 @@
  * on the server. Material type is UI-only until schema support ships.
  */
 
-export type MoleculeFacetField =
-  | "tag"
-  | "hasData"
-  | "hasCas"
-  | "hasPubchem";
+export type MoleculeFacetField = "tag" | "hasData" | "hasCas" | "hasPubchem";
 
 export interface MoleculeFacetToken {
   field: MoleculeFacetField;

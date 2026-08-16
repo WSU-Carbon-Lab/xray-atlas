@@ -26,7 +26,7 @@ export function parseGithubRepoSlug(repo: string): {
 /**
  * Builds GitHub API headers, attaching `GITHUB_API_TOKEN` when configured.
  */
-export function githubApiHeaders(): HeadersInit {
+export function githubApiHeaders(): Record<string, string> {
   const headers: Record<string, string> = {
     Accept: "application/vnd.github+json",
     "X-GitHub-Api-Version": "2022-11-28",

@@ -7,7 +7,8 @@ export const IDENTIFIER_CHIP_CLASS =
 export const CAS_FAVICON_URL =
   "https://cdn.prod.website-files.com/650861f00f97fe8153979335/6585a20f2b9c762a8e082a87_cas-favicon.png";
 
-export const PUBCHEM_FAVICON_URL = "https://pubchem.ncbi.nlm.nih.gov/favicon.ico";
+export const PUBCHEM_FAVICON_URL =
+  "https://pubchem.ncbi.nlm.nih.gov/favicon.ico";
 
 export const COMPACT_MOLECULE_TAG_VISIBLE = 3;
 

@@ -40,9 +40,7 @@ export function InteractivePeak({
 
   if (handlesOnlyWhenSelected && !isSelected) return null;
 
-  const outline = isDark
-    ? "rgba(248,250,252,0.94)"
-    : "rgba(15,23,42,0.88)";
+  const outline = isDark ? "rgba(248,250,252,0.94)" : "rgba(15,23,42,0.88)";
 
   return (
     <PinnedAxisMarker

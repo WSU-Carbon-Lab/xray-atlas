@@ -80,5 +80,11 @@ export async function lineScanThumbnailDataUrl(
   width = 120,
   height = 96,
 ): Promise<string | null> {
-  return scanThumbnailDataUrl(hdrText, ximBuffer, hdrText.length, width, height);
+  return scanThumbnailDataUrl(
+    hdrText,
+    ximBuffer,
+    hdrText.length,
+    width,
+    height,
+  );
 }

@@ -65,10 +65,7 @@ export function useTraceStackSplitLayout(
 
     let energyDomain: [number, number];
     if (extents.energyExtent) {
-      energyDomain = [
-        extents.energyExtent.min,
-        extents.energyExtent.max,
-      ];
+      energyDomain = [extents.energyExtent.min, extents.energyExtent.max];
     } else if (energyStats?.min != null && energyStats?.max != null) {
       energyDomain = [energyStats.min, energyStats.max];
     } else {
@@ -102,9 +99,7 @@ export function useTraceStackSplitLayout(
         );
 
         const plotWidth =
-          dimensions.width -
-          dimensions.margins.left -
-          dimensions.margins.right;
+          dimensions.width - dimensions.margins.left - dimensions.margins.right;
         const plotHeight =
           dimensions.height -
           dimensions.margins.top -

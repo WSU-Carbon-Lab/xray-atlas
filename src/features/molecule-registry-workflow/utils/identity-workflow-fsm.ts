@@ -50,7 +50,11 @@ export type MoleculeIdentityFsmAction =
   | { type: "begin_query"; queryKey: string }
   | { type: "show_results"; queryKey: string }
   | { type: "queue_match"; pending: MoleculePendingLookup }
-  | { type: "apply_match"; identity: MoleculeResolvedIdentity; warnings: string[] }
+  | {
+      type: "apply_match";
+      identity: MoleculeResolvedIdentity;
+      warnings: string[];
+    }
   | { type: "dismiss_match" }
   | { type: "unlink_record" }
   | { type: "mark_dirty" }

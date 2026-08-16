@@ -78,7 +78,10 @@ export const PlotToolbar = memo(function PlotToolbar({
           aria-pressed={currentMode === "pan"}
           aria-label="Pan"
           className="h-9 min-w-9"
-          style={{ color: themeColors.text, opacity: currentMode === "pan" ? 1 : 0.85 }}
+          style={{
+            color: themeColors.text,
+            opacity: currentMode === "pan" ? 1 : 0.85,
+          }}
         >
           <HandRaisedIcon className="h-5 w-5" />
         </Button>
@@ -115,25 +118,34 @@ export const PlotToolbar = memo(function PlotToolbar({
           <MagnifyingGlassMinusIcon className="h-5 w-5" />
         </Button>
       </PlotToolbarRichHint>
-      {MODES.map(({ mode, icon: Icon, ariaLabel, hintTitle, hintDescription }) => {
-        const isActive = currentMode === mode;
-        return (
-          <PlotToolbarRichHint key={mode} title={hintTitle} description={hintDescription}>
-            <Button
-              variant={isActive ? "primary" : "ghost"}
-              isIconOnly
-              size="md"
-              onPress={() => onModeChange(mode)}
-              aria-pressed={isActive}
-              aria-label={ariaLabel}
-              className="h-9 min-w-9"
-              style={{ color: themeColors.text, opacity: isActive ? 1 : 0.85 }}
+      {MODES.map(
+        ({ mode, icon: Icon, ariaLabel, hintTitle, hintDescription }) => {
+          const isActive = currentMode === mode;
+          return (
+            <PlotToolbarRichHint
+              key={mode}
+              title={hintTitle}
+              description={hintDescription}
             >
-              <Icon className="h-5 w-5" />
-            </Button>
-          </PlotToolbarRichHint>
-        );
-      })}
+              <Button
+                variant={isActive ? "primary" : "ghost"}
+                isIconOnly
+                size="md"
+                onPress={() => onModeChange(mode)}
+                aria-pressed={isActive}
+                aria-label={ariaLabel}
+                className="h-9 min-w-9"
+                style={{
+                  color: themeColors.text,
+                  opacity: isActive ? 1 : 0.85,
+                }}
+              >
+                <Icon className="h-5 w-5" />
+              </Button>
+            </PlotToolbarRichHint>
+          );
+        },
+      )}
     </div>
   );
 });

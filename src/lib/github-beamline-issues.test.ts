@@ -28,7 +28,9 @@ describe("buildBeamlineClaimIssueUrl", () => {
     const url = parseIssueUrl(buildBeamlineClaimIssueUrl());
     expect(url.origin).toBe("https://github.com");
     expect(url.pathname).toBe(`/${XRAY_ATLAS_GITHUB_REPO}/issues/new`);
-    expect(url.searchParams.get("template")).toBe(BEAMLINE_CLAIM_ISSUE_TEMPLATE);
+    expect(url.searchParams.get("template")).toBe(
+      BEAMLINE_CLAIM_ISSUE_TEMPLATE,
+    );
   });
 
   it("prefills facility and instrument form fields when provided", () => {

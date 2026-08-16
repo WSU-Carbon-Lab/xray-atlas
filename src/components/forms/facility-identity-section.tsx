@@ -89,7 +89,7 @@ export function FacilityIdentitySection({
           </span>
           <FieldTooltip description="Official facility name" />
         </HeroLabel>
-        <ComboBox.InputGroup className="focus-within:border-accent focus-within:shadow-glow-sm w-full rounded-lg border-2 border-accent/45 bg-accent/[0.07] shadow-sm transition-[border-color,box-shadow]">
+        <ComboBox.InputGroup className="focus-within:border-accent focus-within:shadow-glow-sm border-accent/45 bg-accent/[0.07] w-full rounded-lg border-2 shadow-sm transition-[border-color,box-shadow]">
           <Input
             placeholder="Search or type a new name"
             className="bg-transparent! shadow-none!"
@@ -182,11 +182,7 @@ export function FacilityIdentitySection({
           <Select.Popover>
             <ListBox aria-label="Facility types" className="w-full">
               {FACILITY_TYPE_OPTIONS.map((opt) => (
-                <ListBox.Item
-                  id={opt.id}
-                  key={opt.id}
-                  textValue={opt.label}
-                >
+                <ListBox.Item id={opt.id} key={opt.id} textValue={opt.label}>
                   {opt.label}
                 </ListBox.Item>
               ))}

@@ -96,7 +96,10 @@ function channelValuesByEnergy(
 function bareAtomChannelMaps(
   matrix: BareAtomRepresentationMatrix,
 ): Partial<
-  Record<(typeof BARE_ATOM_OVERLAY_MATRIX_CHANNEL_IDS)[number], Map<number, number>>
+  Record<
+    (typeof BARE_ATOM_OVERLAY_MATRIX_CHANNEL_IDS)[number],
+    Map<number, number>
+  >
 > {
   const out: Partial<
     Record<
@@ -174,17 +177,13 @@ export async function buildNexafsSpectrumExportCsv(
   );
 
   const derivedMaps = formula ? derivedChannelMaps(points, formula) : {};
-  const omittedDerivedColumns = !formula || EXPORT_DERIVED_CHANNEL_IDS.every(
-    (id) => !derivedMaps[id]?.size,
-  );
+  const omittedDerivedColumns =
+    !formula ||
+    EXPORT_DERIVED_CHANNEL_IDS.every((id) => !derivedMaps[id]?.size);
 
   let bareAtomMaps: ReturnType<typeof bareAtomChannelMaps> = {};
   let omittedBareAtomColumns = true;
-  if (
-    options.includeBareAtom !== false &&
-    formula &&
-    points.length >= 2
-  ) {
+  if (options.includeBareAtom !== false && formula && points.length >= 2) {
     const targetEnergyEv = strictlyAscendingUniqueEnergies(points);
     if (targetEnergyEv.length >= 2) {
       try {

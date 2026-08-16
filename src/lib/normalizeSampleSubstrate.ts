@@ -1,4 +1,6 @@
-export function normalizeSampleSubstrate(value: string | null | undefined): string | null {
+export function normalizeSampleSubstrate(
+  value: string | null | undefined,
+): string | null {
   const trimmed = (value ?? "")
     .trim()
     .replace(/\s+/g, " ")

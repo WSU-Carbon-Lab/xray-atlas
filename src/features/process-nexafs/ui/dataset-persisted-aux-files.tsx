@@ -10,7 +10,10 @@ import {
 } from "~/components/forms";
 import { GLOBAL_DROP_ZONE_IDS } from "~/hooks/useGlobalFileDropZone";
 import type { AuxFileKind } from "~/lib/aux-file-client";
-import type { DatasetState, PendingAuxFile } from "~/features/process-nexafs/types";
+import type {
+  DatasetState,
+  PendingAuxFile,
+} from "~/features/process-nexafs/types";
 import { usePersistedAuxUpload } from "~/features/process-nexafs/hooks/usePersistedAuxUpload";
 import { trpc } from "~/trpc/client";
 
@@ -145,13 +148,7 @@ export function DatasetAuxFilesPanel({
       experiment: canUpload,
       sample: canUpload && (isPersisted ? Boolean(sampleId) : true),
     });
-  }, [
-    auxTabActive,
-    canUpload,
-    isPersisted,
-    onDropTargetsChange,
-    sampleId,
-  ]);
+  }, [auxTabActive, canUpload, isPersisted, onDropTargetsChange, sampleId]);
 
   const runExperimentUpload = useCallback(
     async (files: File[]) => {
@@ -328,7 +325,7 @@ export function DatasetAuxFilesPanel({
         <div>
           <h2
             id="dataset-aux-files-heading"
-            className="text-foreground text-sm font-semibold leading-none"
+            className="text-foreground text-sm leading-none font-semibold"
           >
             Auxiliary files
           </h2>
@@ -367,9 +364,7 @@ export function DatasetAuxFilesPanel({
           description="Protocols, raw beamline data (up to 500 MB each)."
           globalDropZoneId={GLOBAL_DROP_ZONE_IDS.NEXAFS_EXPERIMENT_AUX}
           files={experimentDropFiles}
-          persistedFiles={
-            isPersisted ? persistedExperimentFiles : undefined
-          }
+          persistedFiles={isPersisted ? persistedExperimentFiles : undefined}
           onPersistedFileRemove={
             isPersisted && canMutateFiles
               ? (fileId) => {
@@ -417,10 +412,7 @@ export function DatasetAuxFilesPanel({
       </div>
 
       {uploadBusy ? (
-        <p
-          className="text-muted flex items-center gap-2 text-xs"
-          role="status"
-        >
+        <p className="text-muted flex items-center gap-2 text-xs" role="status">
           <Spinner size="sm" color="current" />
           Uploading auxiliary files…
         </p>

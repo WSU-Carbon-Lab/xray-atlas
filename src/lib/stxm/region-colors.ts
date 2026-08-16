@@ -13,7 +13,9 @@ export const STXM_REGION_COLORS = [
  * Returns the stroke color for a sample region at the given zero-based index.
  */
 export function stxmRegionSeriesColor(regionIndex: number): string {
-  return STXM_REGION_COLORS[regionIndex % STXM_REGION_COLORS.length] ?? "#16a34a";
+  return (
+    STXM_REGION_COLORS[regionIndex % STXM_REGION_COLORS.length] ?? "#16a34a"
+  );
 }
 
 /**

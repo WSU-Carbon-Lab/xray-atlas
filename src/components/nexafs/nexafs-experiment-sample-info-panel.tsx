@@ -163,7 +163,11 @@ export function NexafsExperimentSampleInfoPanel({
   );
 
   const extendedRowCount = useMemo(
-    () => extendedSections.reduce((count, section) => count + section.rows.length, 0),
+    () =>
+      extendedSections.reduce(
+        (count, section) => count + section.rows.length,
+        0,
+      ),
     [extendedSections],
   );
 
@@ -232,7 +236,10 @@ export function NexafsExperimentSampleInfoPanel({
       if (sampleAuxFieldsHasData(auxDraft)) {
         await upsertSampleAux.mutateAsync({
           sampleId,
-          data: linkedSampleAuxForProcessMethod(auxDraft, coreDraft.processMethod),
+          data: linkedSampleAuxForProcessMethod(
+            auxDraft,
+            coreDraft.processMethod,
+          ),
         });
       }
 
@@ -242,13 +249,22 @@ export function NexafsExperimentSampleInfoPanel({
       setAuxDraft({});
     } catch (error) {
       showToast(
-        error instanceof Error ? error.message : "Could not save sample information",
+        error instanceof Error
+          ? error.message
+          : "Could not save sample information",
         "error",
       );
     } finally {
       setSaveBusy(false);
     }
-  }, [auxDraft, coreDraft, sampleId, updateSample, upsertSampleAux, vendorOptions]);
+  }, [
+    auxDraft,
+    coreDraft,
+    sampleId,
+    updateSample,
+    upsertSampleAux,
+    vendorOptions,
+  ]);
 
   if (!enabled) {
     return null;
@@ -406,7 +422,13 @@ export function NexafsExperimentSampleInfoPanel({
         <div className="flex flex-col items-center gap-3">
           <SampleMetadataEmptyState />
           {canEdit ? (
-            <Button type="button" variant="secondary" size="sm" className="rounded-full px-4" onPress={beginEditing}>
+            <Button
+              type="button"
+              variant="secondary"
+              size="sm"
+              className="rounded-full px-4"
+              onPress={beginEditing}
+            >
               Add sample details
             </Button>
           ) : null}

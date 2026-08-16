@@ -81,9 +81,7 @@ import type {
 } from "~/components/plots/types";
 import { AddMoleculeModal } from "./add-molecule-modal";
 import { AddFacilityModal } from "./add-facility-modal";
-import {
-  SampleInformationEditStack,
-} from "~/components/forms";
+import { SampleInformationEditStack } from "~/components/forms";
 import type { AuxFileKind } from "~/lib/aux-file-client";
 import {
   applyProcessMethodToSampleFields,
@@ -1685,13 +1683,9 @@ export function DatasetContent({
         case "mass-absorption":
           return absorptionPlotPoints ?? edgeZeroOnePoints;
         case "beta":
-          return (
-            betaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints
-          );
+          return betaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints;
         case "delta":
-          return (
-            deltaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints
-          );
+          return deltaPoints ?? absorptionPlotPoints ?? edgeZeroOnePoints;
         default:
           return fromChannel;
       }
@@ -1711,7 +1705,8 @@ export function DatasetContent({
     [buildUploadPlotPoints, uploadPlotChannel],
   );
 
-  const spectrumYAxisQuantity = spectrumYAxisQuantityForChannel(uploadPlotChannel);
+  const spectrumYAxisQuantity =
+    spectrumYAxisQuantityForChannel(uploadPlotChannel);
 
   useEffect(() => {
     const formula = selectedMolecule?.chemicalFormula?.trim();
@@ -2053,28 +2048,29 @@ export function DatasetContent({
     betaMuLike.length > 0 &&
     (betaPoints?.length ?? 0) > 0;
 
-  const uploadChannelAvailability = useMemo((): NexafsPlotChannelAvailability => {
-    const hasRaw = dataset.spectrumPoints.some(
-      (point) =>
-        typeof point.rawabs === "number" && Number.isFinite(point.rawabs),
-    );
-    const formula = selectedMolecule?.chemicalFormula?.trim();
-    return {
-      raw: hasRaw,
-      normalized: edgeZeroOnePoints.length > 0,
-      massAbsorption: absorptionAvailable,
-      beta: betaAvailable,
-      delta: deltaAvailable,
-      derivedOptical: Boolean(formula) && betaAvailable && deltaAvailable,
-    };
-  }, [
-    dataset.spectrumPoints,
-    edgeZeroOnePoints.length,
-    absorptionAvailable,
-    betaAvailable,
-    deltaAvailable,
-    selectedMolecule?.chemicalFormula,
-  ]);
+  const uploadChannelAvailability =
+    useMemo((): NexafsPlotChannelAvailability => {
+      const hasRaw = dataset.spectrumPoints.some(
+        (point) =>
+          typeof point.rawabs === "number" && Number.isFinite(point.rawabs),
+      );
+      const formula = selectedMolecule?.chemicalFormula?.trim();
+      return {
+        raw: hasRaw,
+        normalized: edgeZeroOnePoints.length > 0,
+        massAbsorption: absorptionAvailable,
+        beta: betaAvailable,
+        delta: deltaAvailable,
+        derivedOptical: Boolean(formula) && betaAvailable && deltaAvailable,
+      };
+    }, [
+      dataset.spectrumPoints,
+      edgeZeroOnePoints.length,
+      absorptionAvailable,
+      betaAvailable,
+      deltaAvailable,
+      selectedMolecule?.chemicalFormula,
+    ]);
 
   useEffect(() => {
     if (isPlotChannelAvailable(uploadPlotChannel, uploadChannelAvailability)) {
@@ -2189,7 +2185,8 @@ export function DatasetContent({
       (!deltaPoints?.length ||
         isCalculatingBareAtomDelta ||
         !bareAtomDeltaPoints?.length)) ||
-    ((uploadPlotChannel === "mass-absorption" || uploadPlotChannel === "beta") &&
+    ((uploadPlotChannel === "mass-absorption" ||
+      uploadPlotChannel === "beta") &&
       (!dataset.bareAtomPoints?.length || isCalculatingBareAtom));
 
   const uploadChannelUnavailableDescription = useCallback(
@@ -2968,11 +2965,9 @@ export function DatasetContent({
                   : " warnings"}
               </p>
               <ul className="text-muted list-disc space-y-1 pl-5">
-                {uploadDiagnostics.validationSummary.warnings.map(
-                  (warning) => (
-                    <li key={warning}>{warning}</li>
-                  ),
-                )}
+                {uploadDiagnostics.validationSummary.warnings.map((warning) => (
+                  <li key={warning}>{warning}</li>
+                ))}
               </ul>
             </div>
           ) : null}

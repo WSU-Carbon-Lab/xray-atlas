@@ -51,9 +51,9 @@ export type UseDashboardPlotSpectraOptions = {
 
 function selectionSignature(
   selections: readonly DashboardPlotCatalogSelection[],
-  geometryKeysByExperimentId: Readonly<
-    Record<string, readonly string[] | undefined>
-  > | undefined,
+  geometryKeysByExperimentId:
+    | Readonly<Record<string, readonly string[] | undefined>>
+    | undefined,
 ): string {
   return selections
     .map((row) => {
@@ -214,15 +214,20 @@ export function useDashboardPlotSpectra(
     return () => {
       cancelled = true;
     };
-  }, [debouncedSignature, enabled, queryClient, retryNonce, utils.spectrumpoints.getByExperimentForPlot]);
+  }, [
+    debouncedSignature,
+    enabled,
+    queryClient,
+    retryNonce,
+    utils.spectrumpoints.getByExperimentForPlot,
+  ]);
 
   const datasets = useMemo((): DashboardPlotDatasetInput[] => {
     return selections.map((selection) => ({
       experimentId: selection.experimentId,
       label: selection.label,
       chemicalFormula: selection.chemicalFormula,
-      spectrumPoints:
-        spectraByExperimentId.get(selection.experimentId) ?? [],
+      spectrumPoints: spectraByExperimentId.get(selection.experimentId) ?? [],
     }));
   }, [selections, spectraByExperimentId]);
 

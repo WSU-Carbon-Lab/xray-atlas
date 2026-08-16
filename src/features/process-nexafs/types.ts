@@ -105,7 +105,10 @@ export type ChannelProvenanceStatus =
   | "derived_with_assumptions"
   | "missing";
 
-export type ChannelProvenance = Record<UploadedChannel, ChannelProvenanceStatus>;
+export type ChannelProvenance = Record<
+  UploadedChannel,
+  ChannelProvenanceStatus
+>;
 
 export interface ValidationOverrideState {
   bypass: boolean;

@@ -74,9 +74,7 @@ import {
 } from "../utils/polymer-export-smiles";
 import { buildDatabasePrepSnapshotSvg } from "../utils/build-database-prep-snapshot-svg";
 import { remapBookendMarksAfterMolEdit } from "../utils/remap-draw-bond-marks";
-import {
-  expandAllAbbreviatedAlkylLabels,
-} from "../utils/alkyl-label-expand";
+import { expandAllAbbreviatedAlkylLabels } from "../utils/alkyl-label-expand";
 import { abbreviateTerminalAlkylChains } from "../utils/carbon-chain-abbr";
 import { abbreviateNitrileGroups } from "../utils/depiction-coalescence";
 import {
@@ -390,7 +388,9 @@ export interface DatabaseSnapshotFailure {
 }
 
 /** Result of {@link MoleculeDrawState.generateDatabaseSnapshot}. */
-export type DatabaseSnapshotResult = DatabaseSnapshotSuccess | DatabaseSnapshotFailure;
+export type DatabaseSnapshotResult =
+  | DatabaseSnapshotSuccess
+  | DatabaseSnapshotFailure;
 
 /**
  * Owns the interactive draw-canvas state: the V2000 molfile source of truth
@@ -421,16 +421,17 @@ export function useMoleculeDrawState(): MoleculeDrawState {
   const [doubleBondOffsetModes, setDoubleBondOffsetModes] = useState<
     Record<string, DoubleBondOffsetMode>
   >({});
-  const [cageBondDepthTierByMark, setCageBondDepthTierByMark] = useState<
-    CageBondDepthTierByMark
-  >({});
-  const [cageDepictionMode, setCageDepictionModeState] = useState<CageDepictionMode>("2d");
+  const [cageBondDepthTierByMark, setCageBondDepthTierByMark] =
+    useState<CageBondDepthTierByMark>({});
+  const [cageDepictionMode, setCageDepictionModeState] =
+    useState<CageDepictionMode>("2d");
   const [cageView3d, setCageView3d] = useState<View3d>(() =>
     applyView3dAxisPreset(defaultView3d(), "face"),
   );
-  const cageSessionRef = useRef<{ molfile: string; session: Molecule3dSession } | null>(
-    null,
-  );
+  const cageSessionRef = useRef<{
+    molfile: string;
+    session: Molecule3dSession;
+  } | null>(null);
   const cagePlaneScaleRef = useRef<number>(1);
   const [polymerError, setPolymerError] = useState<string | null>(null);
   const [selectedRingTemplateId, setSelectedRingTemplateId] = useState(
@@ -440,9 +441,9 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     useState<RingTemplatePreset | null>(null);
   const [selectedAtoms, setSelectedAtomsState] = useState<number[]>([]);
   const [templateFuseAtoms, setTemplateFuseAtoms] = useState<number[]>([]);
-  const [pendingSmilesFragment, setPendingSmilesFragment] = useState<string | null>(
-    null,
-  );
+  const [pendingSmilesFragment, setPendingSmilesFragment] = useState<
+    string | null
+  >(null);
   const [compactSpacingOnPrep, setCompactSpacingOnPrep] = useState(false);
 
   const selectedRingTemplate = useMemo(() => {
@@ -523,18 +524,21 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     [cageBondDepthTierByMark],
   );
 
-  const resolveCageSession = useCallback((mol: Molecule): Molecule3dSession | null => {
-    const molfileKey = serializeDrawMolfile(mol);
-    if (cageSessionRef.current?.molfile === molfileKey) {
-      return cageSessionRef.current.session;
-    }
-    const result = createMolecule3dSession(mol);
-    if (!result.ok) {
-      return null;
-    }
-    cageSessionRef.current = { molfile: molfileKey, session: result.session };
-    return result.session;
-  }, []);
+  const resolveCageSession = useCallback(
+    (mol: Molecule): Molecule3dSession | null => {
+      const molfileKey = serializeDrawMolfile(mol);
+      if (cageSessionRef.current?.molfile === molfileKey) {
+        return cageSessionRef.current.session;
+      }
+      const result = createMolecule3dSession(mol);
+      if (!result.ok) {
+        return null;
+      }
+      cageSessionRef.current = { molfile: molfileKey, session: result.session };
+      return result.session;
+    },
+    [],
+  );
 
   const reprojectCageFragments = useCallback(
     (
@@ -612,7 +616,10 @@ export function useMoleculeDrawState(): MoleculeDrawState {
   );
 
   const applyEdit = useCallback(
-    (edit: (mol: Molecule) => void, options?: { destructive?: boolean; skipHistory?: boolean }) => {
+    (
+      edit: (mol: Molecule) => void,
+      options?: { destructive?: boolean; skipHistory?: boolean },
+    ) => {
       const previous = history.molfileRef.current;
       let next: string;
       try {
@@ -621,7 +628,9 @@ export function useMoleculeDrawState(): MoleculeDrawState {
         next = serializeDrawMolfile(mol);
       } catch (error) {
         setPolymerError(
-          error instanceof Error ? error.message : "Edit failed; structure unchanged.",
+          error instanceof Error
+            ? error.message
+            : "Edit failed; structure unchanged.",
         );
         return;
       }
@@ -728,20 +737,23 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     });
   }, []);
 
-  const setTool = useCallback((next: DrawTool) => {
-    setToolState(next);
-    setPolymerError(null);
-    setLayoutToolState(null);
-    setAlignAtoms([]);
-    setPivotAtoms([]);
-    setLayoutError(null);
-    if (next !== "template") {
-      setTemplateFuseAtoms([]);
-    }
-    if (next !== "select") {
-      clearSelection();
-    }
-  }, [clearSelection]);
+  const setTool = useCallback(
+    (next: DrawTool) => {
+      setToolState(next);
+      setPolymerError(null);
+      setLayoutToolState(null);
+      setAlignAtoms([]);
+      setPivotAtoms([]);
+      setLayoutError(null);
+      if (next !== "template") {
+        setTemplateFuseAtoms([]);
+      }
+      if (next !== "select") {
+        clearSelection();
+      }
+    },
+    [clearSelection],
+  );
 
   const setLayoutTool = useCallback((next: LayoutTool | null) => {
     setLayoutToolState(next);
@@ -934,11 +946,17 @@ export function useMoleculeDrawState(): MoleculeDrawState {
   }, [applyEdit]);
 
   const attachAlkylTail = useCallback(
-    (attachAtom: number, spec: AbbreviatedAlkylTailSpec, toward?: DrawPoint) => {
+    (
+      attachAtom: number,
+      spec: AbbreviatedAlkylTailSpec,
+      toward?: DrawPoint,
+    ) => {
       applyEdit((mol) => {
         attachAbbreviatedAlkylTail(mol, attachAtom, spec, { toward });
       });
-      setLayoutNote(`Attached C${spec.carbonCount}H${2 * spec.carbonCount + 1} alkyl tail.`);
+      setLayoutNote(
+        `Attached C${spec.carbonCount}H${2 * spec.carbonCount + 1} alkyl tail.`,
+      );
     },
     [applyEdit],
   );
@@ -963,7 +981,11 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     (fromAtom: number, toward: DrawPoint, kind: DrawBondKind) => {
       applyEdit((mol) => {
         const from = { x: mol.getAtomX(fromAtom), y: mol.getAtomY(fromAtom) };
-        const snapped = snapSproutPosition(from, toward, DRAW_STANDARD_BOND_LENGTH);
+        const snapped = snapSproutPosition(
+          from,
+          toward,
+          DRAW_STANDARD_BOND_LENGTH,
+        );
         addBondedAtom(mol, fromAtom, snapped.x, snapped.y, 6, kind);
       });
     },
@@ -975,7 +997,11 @@ export function useMoleculeDrawState(): MoleculeDrawState {
       applyEdit((mol) => {
         const fromAtom = addIsolatedAtom(mol, start.x, start.y, 6);
         const from = { x: mol.getAtomX(fromAtom), y: mol.getAtomY(fromAtom) };
-        const snapped = snapSproutPosition(from, toward, DRAW_STANDARD_BOND_LENGTH);
+        const snapped = snapSproutPosition(
+          from,
+          toward,
+          DRAW_STANDARD_BOND_LENGTH,
+        );
         addBondedAtom(mol, fromAtom, snapped.x, snapped.y, 6, kind);
       });
     },
@@ -1088,7 +1114,11 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     const next = history.molfileRef.current;
     if (next !== previous) {
       setBookends((current) =>
-        remapBookendMarksAfterMolEdit(beforeMol, parseDrawMolfile(next), current),
+        remapBookendMarksAfterMolEdit(
+          beforeMol,
+          parseDrawMolfile(next),
+          current,
+        ),
       );
     }
     const notes = ["Prepared for database upload (orientation preserved)."];
@@ -1112,7 +1142,10 @@ export function useMoleculeDrawState(): MoleculeDrawState {
   const generateDatabaseSnapshot = useCallback(
     (isDark: boolean): DatabaseSnapshotResult => {
       if (molecule.getAllAtoms() === 0) {
-        return { ok: false, message: "Draw a structure before generating a snapshot." };
+        return {
+          ok: false,
+          message: "Draw a structure before generating a snapshot.",
+        };
       }
       const previous = history.molfileRef.current;
       let next = previous;
@@ -1161,11 +1194,16 @@ export function useMoleculeDrawState(): MoleculeDrawState {
         return {
           ok: false,
           message:
-            error instanceof Error ? error.message : "Snapshot generation failed.",
+            error instanceof Error
+              ? error.message
+              : "Snapshot generation failed.",
         };
       }
       if (svg === null) {
-        return { ok: false, message: "Could not render database depiction SVG." };
+        return {
+          ok: false,
+          message: "Could not render database depiction SVG.",
+        };
       }
       if (next !== previous) {
         history.commitHistoryPoint(previous);
@@ -1273,13 +1311,7 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     clearSelection();
     setPolymerError(null);
     setLayoutNote("Regenerated layout from canonical SMILES.");
-  }, [
-    smiles,
-    history,
-    compactSpacingOnPrep,
-    bookends,
-    clearSelection,
-  ]);
+  }, [smiles, history, compactSpacingOnPrep, bookends, clearSelection]);
 
   const defaultFragmentCenter = useCallback((): DrawPoint => {
     if (molecule.getAllAtoms() === 0) {
@@ -1464,31 +1496,34 @@ export function useMoleculeDrawState(): MoleculeDrawState {
     );
   }, []);
 
-  const selectCageByCarbonCount = useCallback((carbonCount: number): CageSmilesResult => {
-    const result = cageSmilesForCarbonCount(carbonCount);
-    if (!result.ok) {
+  const selectCageByCarbonCount = useCallback(
+    (carbonCount: number): CageSmilesResult => {
+      const result = cageSmilesForCarbonCount(carbonCount);
+      if (!result.ok) {
+        return result;
+      }
+      const override: RingTemplatePreset = {
+        id: `cage-${result.carbonCount}`,
+        name: result.label,
+        smiles: result.smiles,
+        category: "cage",
+      };
+      setRingTemplateOverride(override);
+      setSelectedRingTemplateId(override.id);
+      setToolState("template");
+      setLayoutToolState(null);
+      setAlignAtoms([]);
+      setPivotAtoms([]);
+      setTemplateFuseAtoms([]);
+      setPolymerError(null);
+      setLayoutError(null);
+      setLayoutNote(
+        `${result.label} (${result.carbonCount} C) selected: click empty canvas to place, or click a bond to fuse.`,
+      );
       return result;
-    }
-    const override: RingTemplatePreset = {
-      id: `cage-${result.carbonCount}`,
-      name: result.label,
-      smiles: result.smiles,
-      category: "cage",
-    };
-    setRingTemplateOverride(override);
-    setSelectedRingTemplateId(override.id);
-    setToolState("template");
-    setLayoutToolState(null);
-    setAlignAtoms([]);
-    setPivotAtoms([]);
-    setTemplateFuseAtoms([]);
-    setPolymerError(null);
-    setLayoutError(null);
-    setLayoutNote(
-      `${result.label} (${result.carbonCount} C) selected: click empty canvas to place, or click a bond to fuse.`,
-    );
-    return result;
-  }, []);
+    },
+    [],
+  );
 
   const placeRingTemplateAt = useCallback(
     (point: DrawPoint) => {
@@ -1539,7 +1574,9 @@ export function useMoleculeDrawState(): MoleculeDrawState {
           ringTemplatePlacementOptions,
         );
         if (result.added === 0) {
-          throw new Error(`Could not fuse ${selectedRingTemplate.name} on that bond.`);
+          throw new Error(
+            `Could not fuse ${selectedRingTemplate.name} on that bond.`,
+          );
         }
         placementDepthMarks = result.cageBondDepthTierByMark;
       });
@@ -1611,7 +1648,9 @@ export function useMoleculeDrawState(): MoleculeDrawState {
           }
         }
         setTemplateFuseAtoms([]);
-        setLayoutNote(`Fused ${selectedRingTemplate.name} on the picked atoms.`);
+        setLayoutNote(
+          `Fused ${selectedRingTemplate.name} on the picked atoms.`,
+        );
         return;
       }
       setTemplateFuseAtoms([atom]);

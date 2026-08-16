@@ -170,7 +170,10 @@ describe("mergeInstrumentStewardIntoFacilityMap", () => {
 
   it("returns the same map reference content when user id already exists", () => {
     const initial = { fac_inst: [sampleSteward] };
-    const merged = mergeInstrumentStewardIntoFacilityMap(initial, sampleSteward);
+    const merged = mergeInstrumentStewardIntoFacilityMap(
+      initial,
+      sampleSteward,
+    );
     expect(merged).toEqual(initial);
     expect(merged.fac_inst?.length).toBe(1);
   });

@@ -43,7 +43,10 @@ function decodePayload<T>(
   }
 }
 
-async function setCeremonyCookie(name: string, payload: unknown): Promise<void> {
+async function setCeremonyCookie(
+  name: string,
+  payload: unknown,
+): Promise<void> {
   const cookieStore = await cookies();
   cookieStore.set(name, encodePayload(payload), ceremonyCookieOptions);
 }

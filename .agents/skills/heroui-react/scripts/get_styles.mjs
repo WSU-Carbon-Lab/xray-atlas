@@ -11,7 +11,8 @@
  */
 
 const API_BASE = process.env.HEROUI_API_BASE || "https://mcp-api.heroui.com";
-const GITHUB_RAW_BASE = "https://raw.githubusercontent.com/heroui-inc/heroui/refs/heads/v3";
+const GITHUB_RAW_BASE =
+  "https://raw.githubusercontent.com/heroui-inc/heroui/refs/heads/v3";
 const APP_PARAM = "app=react-skills";
 
 /**
@@ -66,7 +67,7 @@ async function fetchGithubFallback(component) {
 
     try {
       const response = await fetch(url, {
-        headers: {"User-Agent": "HeroUI-Skill/1.0"},
+        headers: { "User-Agent": "HeroUI-Skill/1.0" },
         signal: AbortSignal.timeout(30000),
       });
 
@@ -86,7 +87,7 @@ async function fetchGithubFallback(component) {
     }
   }
 
-  return {component, error: `Failed to fetch styles for ${component}`};
+  return { component, error: `Failed to fetch styles for ${component}` };
 }
 
 /**
@@ -105,7 +106,7 @@ async function main() {
 
   // Try API first
   console.error(`# Fetching styles for: ${components.join(", ")}...`);
-  const data = await fetchApi("/v1/components/styles", "POST", {components});
+  const data = await fetchApi("/v1/components/styles", "POST", { components });
 
   if (data && data.results) {
     for (const result of data.results) {
@@ -153,7 +154,7 @@ async function main() {
       console.log(JSON.stringify(result, null, 2));
     }
   } else {
-    console.log(JSON.stringify({results}, null, 2));
+    console.log(JSON.stringify({ results }, null, 2));
   }
 }
 

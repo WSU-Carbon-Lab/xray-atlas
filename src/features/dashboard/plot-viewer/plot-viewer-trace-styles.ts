@@ -104,7 +104,8 @@ export const PLOT_VIEWER_LINE_WIDTH_PRESETS = {
   thick: 2.5,
 } as const;
 
-export type PlotViewerLineWidthPreset = keyof typeof PLOT_VIEWER_LINE_WIDTH_PRESETS;
+export type PlotViewerLineWidthPreset =
+  keyof typeof PLOT_VIEWER_LINE_WIDTH_PRESETS;
 
 export const PLOT_VIEWER_LINE_WIDTH_PRESET_OPTIONS: readonly {
   id: PlotViewerLineWidthPreset;
@@ -112,7 +113,11 @@ export const PLOT_VIEWER_LINE_WIDTH_PRESET_OPTIONS: readonly {
   width: number;
 }[] = [
   { id: "thin", label: "Thin", width: PLOT_VIEWER_LINE_WIDTH_PRESETS.thin },
-  { id: "medium", label: "Medium", width: PLOT_VIEWER_LINE_WIDTH_PRESETS.medium },
+  {
+    id: "medium",
+    label: "Medium",
+    width: PLOT_VIEWER_LINE_WIDTH_PRESETS.medium,
+  },
   { id: "thick", label: "Thick", width: PLOT_VIEWER_LINE_WIDTH_PRESETS.thick },
 ];
 
@@ -238,8 +243,7 @@ function resolveEncodedLineDash(params: {
   if (overrideDash) {
     return overrideDash;
   }
-  const lineIndex =
-    params.styleContext.lineValueOrder.get(lineFieldValue) ?? 0;
+  const lineIndex = params.styleContext.lineValueOrder.get(lineFieldValue) ?? 0;
   return (
     PLOT_VIEWER_LINE_DASH_CYCLE[
       lineIndex % PLOT_VIEWER_LINE_DASH_CYCLE.length
@@ -261,14 +265,15 @@ function resolveEncodedMarker(params: {
   const markerIndex =
     params.styleContext.markerValueOrder.get(markerFieldValue) ?? 0;
   return (
-    PLOT_VIEWER_MARKER_CYCLE[
-      markerIndex % PLOT_VIEWER_MARKER_CYCLE.length
-    ] ?? "circle"
+    PLOT_VIEWER_MARKER_CYCLE[markerIndex % PLOT_VIEWER_MARKER_CYCLE.length] ??
+    "circle"
   );
 }
 
 function experimentColorModeFor(
-  experimentColorMode: Readonly<Record<string, PlotViewerExperimentColorMode>> | undefined,
+  experimentColorMode:
+    | Readonly<Record<string, PlotViewerExperimentColorMode>>
+    | undefined,
   experimentId: string,
   legacyColorOverride: string | undefined,
 ): PlotViewerExperimentColorMode {
@@ -308,7 +313,8 @@ export function resolvePlotViewerTraceStyle(params: {
   experimentMarkerEveryOverrides?: Readonly<Record<string, number>>;
   traceOverrides?: Readonly<Record<string, PlotViewerTraceStyleOverride>>;
 }): PlotViewerResolvedTraceStyle {
-  const legacyColorOverride = params.colorOverrides?.[params.experimentId]?.trim();
+  const legacyColorOverride =
+    params.colorOverrides?.[params.experimentId]?.trim();
   const colorMode = experimentColorModeFor(
     params.experimentColorMode,
     params.experimentId,
@@ -319,7 +325,9 @@ export function resolvePlotViewerTraceStyle(params: {
     params.experimentFixedColor?.[params.experimentId]?.trim() ??
     legacyColorOverride;
   const traceOverride =
-    params.traceKey != null ? params.traceOverrides?.[params.traceKey] : undefined;
+    params.traceKey != null
+      ? params.traceOverrides?.[params.traceKey]
+      : undefined;
 
   let color = encodedColor;
   if (colorMode === "fixed" && experimentFixed) {

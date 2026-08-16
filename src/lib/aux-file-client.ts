@@ -230,7 +230,10 @@ export function dropTypeLabelFromFile(file: File): string {
   if (mime === "application/pdf" || name.endsWith(".pdf")) {
     return "PDF";
   }
-  if (mime.startsWith("image/") || /\.(jpe?g|png|webp|tiff?|gif)$/i.test(name)) {
+  if (
+    mime.startsWith("image/") ||
+    /\.(jpe?g|png|webp|tiff?|gif)$/i.test(name)
+  ) {
     return "image";
   }
   if (
@@ -274,9 +277,7 @@ export function formatDropOverlayMessage(
   const trimmed = fileTypeLabel.trim();
   const target = uploadTypeLabel.trim();
   const subject =
-    trimmed === "" || trimmed.toLowerCase() === "file"
-      ? "files"
-      : trimmed;
+    trimmed === "" || trimmed.toLowerCase() === "file" ? "files" : trimmed;
   if (!target) {
     return `Drop ${subject} here to upload`;
   }
@@ -298,13 +299,7 @@ const RAW_DATA_EXTENSIONS = new Set([
   "nc",
 ]);
 
-const SPREADSHEET_EXTENSIONS = new Set([
-  "csv",
-  "xlsx",
-  "xls",
-  "xlsm",
-  "ods",
-]);
+const SPREADSHEET_EXTENSIONS = new Set(["csv", "xlsx", "xls", "xlsm", "ods"]);
 
 const IMAGE_EXTENSIONS = new Set([
   "png",

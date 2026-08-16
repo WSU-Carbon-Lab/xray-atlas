@@ -60,4 +60,6 @@ export type MetricHeroPercentGaugeConfig = {
   readonly ariaLabel?: string;
 };
 
-export type MetricHeroConfig = MetricHeroNumericConfig | MetricHeroPercentGaugeConfig;
+export type MetricHeroConfig =
+  | MetricHeroNumericConfig
+  | MetricHeroPercentGaugeConfig;

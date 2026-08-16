@@ -21,10 +21,6 @@ export { DraggablePlotPopover } from "./DraggablePlotPopover";
 export type { PopoverOffset } from "./DraggablePlotPopover";
 export { InspectPinLayer } from "./InspectPinLayer";
 export type { InspectPinLayerSlot } from "./InspectPinLayer";
-export {
-  getValueAtEnergy,
-  getTraceLabel,
-  getTraceColor,
-} from "./utils";
+export { getValueAtEnergy, getTraceLabel, getTraceColor } from "./utils";
 export { SpectrumPlotInner } from "./SpectrumPlotInner";
 export type { ChartScales } from "./types";

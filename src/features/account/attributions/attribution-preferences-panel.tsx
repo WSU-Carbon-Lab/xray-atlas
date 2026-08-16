@@ -45,7 +45,8 @@ const PENDING_ROLE_SUMMARY =
 const PENDING_ROLE_TOOLTIP =
   "Administrators and maintainers always show name and profile on pending attributions. This preference is set by your role and cannot be changed here.";
 
-export type AttributionDisplayPreferenceKey = keyof AttributionDisplayPreferences;
+export type AttributionDisplayPreferenceKey =
+  keyof AttributionDisplayPreferences;
 
 const DISPLAY_STATE_LABELS: Record<AttributionDisplayPreferenceKey, string> = {
   pending: "Pending",
@@ -286,7 +287,10 @@ function AutoAcceptPreferenceRow({
   return (
     <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
       <div className="min-w-0 flex-1">
-        <Label htmlFor={selectId} className="text-foreground text-sm font-medium">
+        <Label
+          htmlFor={selectId}
+          className="text-foreground text-sm font-medium"
+        >
           Auto-accept new attributions
         </Label>
         <p className="text-muted mt-0.5 text-xs leading-snug">
@@ -334,10 +338,14 @@ function AutoAcceptPreferenceRow({
  */
 export function useAttributionPreferences() {
   const prefsQuery = trpc.datasetAttributions.getPreferences.useQuery();
-  const setPrefsMutation = trpc.datasetAttributions.setPreferences.useMutation();
+  const setPrefsMutation =
+    trpc.datasetAttributions.setPreferences.useMutation();
 
   const savePreferences = async (
-    next: Pick<UserAttributionPreferencesView, "autoAcceptMode" | "displayPreferences">,
+    next: Pick<
+      UserAttributionPreferencesView,
+      "autoAcceptMode" | "displayPreferences"
+    >,
   ) => {
     if (!prefsQuery.data) return;
     try {
@@ -425,7 +433,9 @@ export function AttributionPreferencesForm({
               preferenceKey={key}
               prefs={prefs}
               profile={prefs.profilePreview}
-              roleManaged={key === "pending" && prefs.pendingDisplayManagedByRole}
+              roleManaged={
+                key === "pending" && prefs.pendingDisplayManagedByRole
+              }
               prefsPending={prefsPending}
               onModeChange={onDisplayModeChange}
             />
@@ -451,7 +461,10 @@ export function ProfileAttributionPreferencesSection() {
   const summary = prefs ? buildAttributionPreferencesSummary(prefs) : null;
 
   return (
-    <section aria-labelledby="profile-attribution-preferences-heading" className="mb-10">
+    <section
+      aria-labelledby="profile-attribution-preferences-heading"
+      className="mb-10"
+    >
       <div className="border-border bg-surface rounded-xl border">
         <div className="border-border flex flex-col gap-3 border-b px-5 py-4 sm:flex-row sm:items-start sm:justify-between">
           <div className="min-w-0">
@@ -462,8 +475,9 @@ export function ProfileAttributionPreferencesSection() {
               Attribution preferences
             </h2>
             <p className="text-muted mt-1 text-sm">
-              Control how your name appears on NEXAFS datasets before and after you
-              accept credit, and whether new attributions are accepted automatically.
+              Control how your name appears on NEXAFS datasets before and after
+              you accept credit, and whether new attributions are accepted
+              automatically.
             </p>
             {summary ? (
               <p className="text-muted mt-2 text-xs">{summary}</p>
@@ -471,7 +485,7 @@ export function ProfileAttributionPreferencesSection() {
           </div>
           <Link
             href="/account/attributions/pending"
-            className="border-border bg-surface text-foreground hover:bg-surface-2 inline-flex shrink-0 self-start items-center rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
+            className="border-border bg-surface text-foreground hover:bg-surface-2 inline-flex shrink-0 items-center self-start rounded-lg border px-3 py-1.5 text-sm font-medium transition-colors"
           >
             Review pending
           </Link>

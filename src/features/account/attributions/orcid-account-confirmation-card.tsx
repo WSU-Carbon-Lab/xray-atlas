@@ -1,12 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import {
-  Button,
-  Input,
-  Label,
-  TextField,
-} from "@heroui/react";
+import { Button, Input, Label, TextField } from "@heroui/react";
 import {
   ResearcherAvatar,
   type ResearcherAvatarPlaceholder,
@@ -104,9 +99,9 @@ export function OrcidAccountConfirmationCard({
   const orcidHref = `https://orcid.org/${orcid}`;
   const liveAvatarDisplayName = appearance.isOrcidOnlyDisplay
     ? appearance.avatar.displayName
-    : (trimmedDraft.length > 0
-        ? trimmedDraft
-        : appearance.avatar.displayName);
+    : trimmedDraft.length > 0
+      ? trimmedDraft
+      : appearance.avatar.displayName;
   const liveDisplayLabel = appearance.isOrcidOnlyDisplay
     ? appearance.displayLabel
     : accountPreviewName;

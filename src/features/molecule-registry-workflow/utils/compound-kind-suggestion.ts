@@ -22,7 +22,10 @@ export function applyCompoundKindSuggestionIfDefault(
   if (kind !== "small_molecule") {
     return { kind, suggested: false };
   }
-  const suggested = suggestCompoundKindFromIdentity(displayName, chemicalFormula);
+  const suggested = suggestCompoundKindFromIdentity(
+    displayName,
+    chemicalFormula,
+  );
   if (!suggested) {
     return { kind, suggested: false };
   }

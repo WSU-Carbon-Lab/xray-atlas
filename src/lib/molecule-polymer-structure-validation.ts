@@ -59,17 +59,13 @@ export function hasMoleculeStructureSvgUpload(
  * @param options - Optional sketcher bookends and SVG data URL from the structure card.
  */
 export function validatePolymerStructureRequirement(
-  formData: Pick<
-    MoleculeUploadData,
-    "compoundKind" | "registryStub"
-  >,
+  formData: Pick<MoleculeUploadData, "compoundKind" | "registryStub">,
   options?: {
     sketchState?: PolymerSketchValidationState | null;
     svgDataUrl?: string | null;
   },
 ): PolymerStructureValidationResult {
-  const kind: MoleculeCompoundKind =
-    formData.compoundKind ?? "small_molecule";
+  const kind: MoleculeCompoundKind = formData.compoundKind ?? "small_molecule";
 
   if (!isPolymerLikeCompoundKind(kind)) {
     return { ok: true };

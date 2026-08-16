@@ -85,10 +85,7 @@ export function mergePeaksPreservingManualAndSteps(
   const stepPeaks = existingPeaks.filter((p) => p.isStep);
   const manualPeaks = existingPeaks.filter(
     (p) =>
-      !p.isStep &&
-      !(
-        typeof p.id === "string" && p.id.startsWith("peak-auto-")
-      ),
+      !p.isStep && !(typeof p.id === "string" && p.id.startsWith("peak-auto-")),
   );
   return sortPeaksByEnergy([...stepPeaks, ...manualPeaks, ...newAutoPeaks]);
 }

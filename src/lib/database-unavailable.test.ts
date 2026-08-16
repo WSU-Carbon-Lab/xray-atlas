@@ -62,7 +62,9 @@ describe("isDatabaseUnavailableError", () => {
   it("detects JSON parse failures from non-tRPC HTML responses", () => {
     expect(
       isDatabaseUnavailableError(
-        new SyntaxError("Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON"),
+        new SyntaxError(
+          "Unexpected token '<', \"<!DOCTYPE \"... is not valid JSON",
+        ),
       ),
     ).toBe(true);
   });
@@ -105,8 +107,8 @@ describe("isDatabaseUnavailableError", () => {
 
 describe("resolveDatabaseErrorMessage", () => {
   it("returns catalog outage copy for database failures", () => {
-    expect(
-      resolveDatabaseErrorMessage(new TypeError("Failed to fetch")),
-    ).toBe(databaseUnavailableMessage);
+    expect(resolveDatabaseErrorMessage(new TypeError("Failed to fetch"))).toBe(
+      databaseUnavailableMessage,
+    );
   });
 });

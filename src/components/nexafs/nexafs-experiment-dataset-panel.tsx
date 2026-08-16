@@ -33,7 +33,10 @@ import type {
   SpectrumPoint,
   SpectrumSelection,
 } from "~/components/plots/types";
-import { groupPointsByGeometry, sortedGeometryGroupEntries } from "~/components/plots/utils/trace-utils";
+import {
+  groupPointsByGeometry,
+  sortedGeometryGroupEntries,
+} from "~/components/plots/utils/trace-utils";
 import { filterSpectrumPointsForGroupedPlot } from "~/components/plots/hooks/useSpectrumData";
 import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import { OpticalLinkSplitToggle } from "~/components/plots/spectrum/OpticalLinkSplitToggle";
@@ -108,9 +111,7 @@ import {
   readKkBrowserConsentGranted,
 } from "~/features/kk-calc";
 import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
-import {
-  resolveHenkeKkMergeDomainFromPrePostWindows,
-} from "~/features/kk-calc/resolve-henke-kk-merge-domain";
+import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
 import {
   parseStoredNormalizationRanges,
   unifiedNormalizationWindowsForBasis,
@@ -150,10 +151,7 @@ function uploadedChannelsForMutation(raw: unknown): UploadChan[] {
   for (const x of raw) {
     if (
       typeof x === "string" &&
-      (x === "rawabs" ||
-        x === "od" ||
-        x === "massabsorption" ||
-        x === "beta")
+      (x === "rawabs" || x === "od" || x === "massabsorption" || x === "beta")
     ) {
       out.push(x);
     }
@@ -222,8 +220,12 @@ function toStrictAscendingEnergySpectrumPoints(
   return out;
 }
 
-function strictlyAscendingUniqueEnergies(energies: readonly number[]): number[] {
-  const sorted = energies.filter((e) => Number.isFinite(e)).sort((a, b) => a - b);
+function strictlyAscendingUniqueEnergies(
+  energies: readonly number[],
+): number[] {
+  const sorted = energies
+    .filter((e) => Number.isFinite(e))
+    .sort((a, b) => a - b);
   const out: number[] = [];
   for (const energy of sorted) {
     if (out.length === 0 || energy > out[out.length - 1]!) {
@@ -295,8 +297,9 @@ export function NexafsExperimentDatasetPanel({
       { experimentId },
       { enabled: enabled && Boolean(experimentId) },
     );
-  const moleculeMeta =
-    moleculeFormulaQuery.data as ExperimentFormulaMeta | undefined;
+  const moleculeMeta = moleculeFormulaQuery.data as
+    | ExperimentFormulaMeta
+    | undefined;
   const chemicalFormula = moleculeMeta?.chemicalFormula ?? null;
   const sampleId = moleculeMeta?.sampleId ?? null;
   const normalizationScopeForKk = moleculeMeta?.normalizationScope ?? null;
@@ -316,14 +319,16 @@ export function NexafsExperimentDatasetPanel({
     { enabled: enabled && Boolean(experimentId) && Boolean(session?.user) },
   );
   const kkRecalcAllowed = Boolean(canRecalculateKk.data?.allowed);
-  const updateKkDeltaBatch = trpc.spectrumpoints.updateKkDeltaBatch.useMutation({
-    onSuccess: () => {
-      void utils.spectrumpoints.getByExperiment.invalidate({ experimentId });
-      void utils.experiments.moleculeFormulaForExperiment.invalidate({
-        experimentId,
-      });
+  const updateKkDeltaBatch = trpc.spectrumpoints.updateKkDeltaBatch.useMutation(
+    {
+      onSuccess: () => {
+        void utils.spectrumpoints.getByExperiment.invalidate({ experimentId });
+        void utils.experiments.moleculeFormulaForExperiment.invalidate({
+          experimentId,
+        });
+      },
     },
-  });
+  );
   const updateNormalizationMetadata =
     trpc.experiments.updateNormalizationMetadata.useMutation({
       onSuccess: () => {
@@ -339,9 +344,8 @@ export function NexafsExperimentDatasetPanel({
   const [isPlotNormalizationMode, setIsPlotNormalizationMode] = useState(false);
   const [normalizationSelectionTarget, setNormalizationSelectionTarget] =
     useState<"pre" | "post" | null>(null);
-  const [draftNormRegions, setDraftNormRegions] = useState<NormalizationRegions>(
-    { pre: null, post: null },
-  );
+  const [draftNormRegions, setDraftNormRegions] =
+    useState<NormalizationRegions>({ pre: null, post: null });
   const initialNormDraftRef = useRef<NormalizationRegions | null>(null);
   const [editorNormBaselineRaw, setEditorNormBaselineRaw] =
     useState<unknown>(null);
@@ -352,10 +356,9 @@ export function NexafsExperimentDatasetPanel({
   const [undoNormConfirmOpen, setUndoNormConfirmOpen] = useState(false);
   const [discardNormConfirmOpen, setDiscardNormConfirmOpen] = useState(false);
 
-  const henkeMergeDomainForKkBeta = useMemo((): readonly [
-    number,
-    number,
-  ] | undefined => {
+  const henkeMergeDomainForKkBeta = useMemo(():
+    | readonly [number, number]
+    | undefined => {
     const formula = chemicalFormula?.trim();
     if (!formula) {
       return undefined;
@@ -640,12 +643,7 @@ export function NexafsExperimentDatasetPanel({
       realGlyph,
       companionPoints,
     };
-  }, [
-    linkImaginaryReal,
-    chemicalFormula,
-    model.plotChannel,
-    spectrumPoints,
-  ]);
+  }, [linkImaginaryReal, chemicalFormula, model.plotChannel, spectrumPoints]);
 
   const bareAtomReferences = useMemo((): ReferenceCurve[] => {
     if (!showBareAtomOverlay || !bareAtomMatrix) {
@@ -980,16 +978,11 @@ export function NexafsExperimentDatasetPanel({
         }
       });
     },
-    [
-      isDifferenceEnabled,
-      showBareAtomOverlay,
-      handleToggleDifferenceEnabled,
-    ],
+    [isDifferenceEnabled, showBareAtomOverlay, handleToggleDifferenceEnabled],
   );
 
   const beginDatasetPlotEditor = useCallback(() => {
-    const meta =
-      moleculeFormulaQuery.data as ExperimentFormulaMeta | undefined;
+    const meta = moleculeFormulaQuery.data as ExperimentFormulaMeta | undefined;
     setEditorNormBaselineRaw(meta?.normalizationRanges ?? null);
     const parsed = parseStoredNormalizationRanges(meta?.normalizationRanges);
     const scope = (meta?.normalizationScope ?? "none") as NormalizationScope;
@@ -1016,7 +1009,7 @@ export function NexafsExperimentDatasetPanel({
     setDatasetPlotEditorActive(true);
     setIsPlotNormalizationMode(false);
     setNormalizationSelectionTarget(null);
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Avoid `moleculeFormulaQuery.data` / full `sortedAllPoints` in deps (TS2589); keys, span, and `dataUpdatedAt` track payload changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Avoid `moleculeFormulaQuery.data` / full `sortedAllPoints` in deps (TS2589); keys, span, and `dataUpdatedAt` track payload changes.
   }, [
     normalizationRangesKeyForKk,
     normalizationScopeForKk,
@@ -1114,7 +1107,9 @@ export function NexafsExperimentDatasetPanel({
     ) {
       scopeOut = "unified";
     }
-    const baselineParsed = parseStoredNormalizationRanges(editorNormBaselineRaw);
+    const baselineParsed = parseStoredNormalizationRanges(
+      editorNormBaselineRaw,
+    );
     let rangesOut: PersistedNormalizationRanges | null;
     if (
       scopeOut === "per_channel" &&
@@ -1153,7 +1148,7 @@ export function NexafsExperimentDatasetPanel({
       );
       return false;
     }
-  // eslint-disable-next-line react-hooks/exhaustive-deps -- Avoid `moleculeFormulaQuery.data` in deps (TS2589); `dataUpdatedAt` tracks refetches.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- Avoid `moleculeFormulaQuery.data` in deps (TS2589); `dataUpdatedAt` tracks refetches.
   }, [
     chemicalFormula,
     normalizationScopeForKk,
@@ -1307,8 +1302,7 @@ export function NexafsExperimentDatasetPanel({
   );
 
   const editSaveToolbarSelectedKeys = useMemo(
-    () =>
-      new Set<HeroUiKey>(datasetPlotEditorActive ? ["edit"] : []),
+    () => new Set<HeroUiKey>(datasetPlotEditorActive ? ["edit"] : []),
     [datasetPlotEditorActive],
   );
 
@@ -1384,9 +1378,7 @@ export function NexafsExperimentDatasetPanel({
             onSelectionChange={handleEditSaveToolbarSelectionChange}
           >
             <PlotToolbarRichHint
-              title={
-                datasetPlotEditorActive ? "Close editor" : "Edit dataset"
-              }
+              title={datasetPlotEditorActive ? "Close editor" : "Edit dataset"}
               description={
                 datasetPlotEditorActive
                   ? "Exit edit mode. Unsaved window changes prompt before discarding."
@@ -1597,39 +1589,41 @@ export function NexafsExperimentDatasetPanel({
           <>
             <PlotToolbarGroupSeparator orientation="horizontal" />
             <PlotSpectrumToolsToolbarSection
-            peakToolsEnabled={false}
-            normalizationRegionResetInRail={false}
-            isNormalizationMode={isPlotNormalizationMode}
-            onNormalizationModeChange={handlePlotNormalizationMode}
-            activeEdge={normalizationSelectionTarget ?? "pre"}
-            onActiveEdgeChange={(edge) => setNormalizationSelectionTarget(edge)}
-            onResetToDefaultRegions={() => setUndoNormConfirmOpen(true)}
-            normalizationLocked={false}
-            hasData={sortedAllPoints.length > 0}
-            isPeakSetMode={false}
-            onPeakSetModeChange={() => undefined}
-            peakCount={0}
-            onAutoDetectPeaks={() => undefined}
-            onResetAllPeaks={() => undefined}
-          />
+              peakToolsEnabled={false}
+              normalizationRegionResetInRail={false}
+              isNormalizationMode={isPlotNormalizationMode}
+              onNormalizationModeChange={handlePlotNormalizationMode}
+              activeEdge={normalizationSelectionTarget ?? "pre"}
+              onActiveEdgeChange={(edge) =>
+                setNormalizationSelectionTarget(edge)
+              }
+              onResetToDefaultRegions={() => setUndoNormConfirmOpen(true)}
+              normalizationLocked={false}
+              hasData={sortedAllPoints.length > 0}
+              isPeakSetMode={false}
+              onPeakSetModeChange={() => undefined}
+              peakCount={0}
+              onAutoDetectPeaks={() => undefined}
+              onResetAllPeaks={() => undefined}
+            />
           </>
         ) : null}
       </div>
     );
   }, [
-      datasetPlotEditorActive,
-      isPlotNormalizationMode,
-      normalizationSelectionTarget,
-      handlePlotNormalizationMode,
-      sortedAllPoints.length,
-      diffBareSelectedKeys,
-      handleDiffBareSelectionChange,
-      model,
-      chemicalFormula,
-      moleculeFormulaQuery.isLoading,
-      linkImaginaryReal,
-      handlePlotChannelChange,
-    ]);
+    datasetPlotEditorActive,
+    isPlotNormalizationMode,
+    normalizationSelectionTarget,
+    handlePlotNormalizationMode,
+    sortedAllPoints.length,
+    diffBareSelectedKeys,
+    handleDiffBareSelectionChange,
+    model,
+    chemicalFormula,
+    moleculeFormulaQuery.isLoading,
+    linkImaginaryReal,
+    handlePlotChannelChange,
+  ]);
 
   const opticalLinkSplitToggle =
     opticalLink != null ? (
@@ -1738,66 +1732,66 @@ export function NexafsExperimentDatasetPanel({
           <NexafsExperimentPlotSkeleton />
         ) : (
           <div
-            className={`flex ${NEXAFS_BROWSE_PLOT_VIEWPORT_CLASS} min-w-0 w-full flex-1 flex-col gap-2`}
+            className={`flex ${NEXAFS_BROWSE_PLOT_VIEWPORT_CLASS} w-full min-w-0 flex-1 flex-col gap-2`}
           >
             <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-            <SpectrumPlot
-              points={spectrumPlotPoints}
-              graphStyle={graphStyle}
-              yAxisQuantity={model.spectrumYAxisQuantity}
-              referenceCurves={referenceCurves}
-              normalizationRegions={
-                datasetPlotEditorActive ? draftNormRegions : undefined
-              }
-              showNormalizationShading={
-                datasetPlotEditorActive && isPlotNormalizationMode
-              }
-              normalizationEdgeHandlesEnabled={
-                datasetPlotEditorActive &&
-                isPlotNormalizationMode &&
-                draftNormRegions.pre != null &&
-                draftNormRegions.post != null
-              }
-              onNormalizationEdgeEnergyChange={
-                datasetPlotEditorActive
-                  ? handleBrowseNormalizationEdgeDrag
-                  : undefined
-              }
-              plotContext={
-                datasetPlotEditorActive &&
-                isPlotNormalizationMode &&
-                normalizationSelectionTarget
-                  ? {
-                      kind: "normalize",
-                      target: normalizationSelectionTarget,
-                    }
-                  : { kind: "explore" }
-              }
-              onSelectionChange={
-                datasetPlotEditorActive && isPlotNormalizationMode
-                  ? handleNormalizationDraftSelection
-                  : undefined
-              }
-              peaks={plotPeaks}
-              differenceSpectra={differenceSpectra}
-              companionSpectra={companionSpectra}
-              opticalLink={opticalLink}
-              opticalLinkSplitView={opticalLinkSplitView}
-              opticalLinkSplitToggle={opticalLinkSplitToggle}
-              showThetaData={showThetaData}
-              showPhiData={showPhiData}
-              headerRight={plotLeftRail}
-              headerAnalysis={plotRightRail}
-              suppressAnalysisRailLeadingGrip
-              plotTopRailDataActions={plotTopRailDataActions}
-              plotTopRailTrailingActions={plotTopRailTrailingActions}
-              geometryLegendCorner="bottom-right"
-              plotToolRailsInitialTrayMode
-              cursorMode={cursorMode}
-              onCursorModeChange={setCursorMode}
-              spectrumCsvContextMenu={spectrumCsvContextMenu}
-              emptyStateMessage="No points in this view."
-            />
+              <SpectrumPlot
+                points={spectrumPlotPoints}
+                graphStyle={graphStyle}
+                yAxisQuantity={model.spectrumYAxisQuantity}
+                referenceCurves={referenceCurves}
+                normalizationRegions={
+                  datasetPlotEditorActive ? draftNormRegions : undefined
+                }
+                showNormalizationShading={
+                  datasetPlotEditorActive && isPlotNormalizationMode
+                }
+                normalizationEdgeHandlesEnabled={
+                  datasetPlotEditorActive &&
+                  isPlotNormalizationMode &&
+                  draftNormRegions.pre != null &&
+                  draftNormRegions.post != null
+                }
+                onNormalizationEdgeEnergyChange={
+                  datasetPlotEditorActive
+                    ? handleBrowseNormalizationEdgeDrag
+                    : undefined
+                }
+                plotContext={
+                  datasetPlotEditorActive &&
+                  isPlotNormalizationMode &&
+                  normalizationSelectionTarget
+                    ? {
+                        kind: "normalize",
+                        target: normalizationSelectionTarget,
+                      }
+                    : { kind: "explore" }
+                }
+                onSelectionChange={
+                  datasetPlotEditorActive && isPlotNormalizationMode
+                    ? handleNormalizationDraftSelection
+                    : undefined
+                }
+                peaks={plotPeaks}
+                differenceSpectra={differenceSpectra}
+                companionSpectra={companionSpectra}
+                opticalLink={opticalLink}
+                opticalLinkSplitView={opticalLinkSplitView}
+                opticalLinkSplitToggle={opticalLinkSplitToggle}
+                showThetaData={showThetaData}
+                showPhiData={showPhiData}
+                headerRight={plotLeftRail}
+                headerAnalysis={plotRightRail}
+                suppressAnalysisRailLeadingGrip
+                plotTopRailDataActions={plotTopRailDataActions}
+                plotTopRailTrailingActions={plotTopRailTrailingActions}
+                geometryLegendCorner="bottom-right"
+                plotToolRailsInitialTrayMode
+                cursorMode={cursorMode}
+                onCursorModeChange={setCursorMode}
+                spectrumCsvContextMenu={spectrumCsvContextMenu}
+                emptyStateMessage="No points in this view."
+              />
             </div>
             {datasetPlotEditorActive &&
             isPlotNormalizationMode &&
@@ -1845,8 +1839,8 @@ export function NexafsExperimentDatasetPanel({
       >
         <div className="space-y-4">
           <p className="text-muted text-sm">
-            Write the current pre- and post-edge windows to this experiment in the
-            database. Other contributors will see the updated ranges.
+            Write the current pre- and post-edge windows to this experiment in
+            the database. Other contributors will see the updated ranges.
           </p>
           <div className="flex justify-end gap-2">
             <DialogButton

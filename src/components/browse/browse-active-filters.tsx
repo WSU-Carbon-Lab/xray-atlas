@@ -46,7 +46,7 @@ export function BrowseActiveFilters({
       aria-label="Active catalog filters"
     >
       <div className="flex flex-wrap items-center gap-2">
-        <span className="text-muted text-xs font-semibold uppercase tracking-wide">
+        <span className="text-muted text-xs font-semibold tracking-wide uppercase">
           Active filters
         </span>
         {items.map((item) => (

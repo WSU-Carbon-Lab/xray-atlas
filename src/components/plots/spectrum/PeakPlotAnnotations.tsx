@@ -91,10 +91,7 @@ export function PeakPlotAnnotations({
 
   const topByPeakId = useMemo(() => {
     if (!visible || peaks.length === 0) return new Map<string, number>();
-    const maxTop = Math.max(
-      mt + RAIL_CLEARANCE,
-      mt + plotInnerH - ROW_H - 4,
-    );
+    const maxTop = Math.max(mt + RAIL_CLEARANCE, mt + plotInnerH - ROW_H - 4);
     type L = {
       peakId: string;
       peakIndex: number;
@@ -136,7 +133,7 @@ export function PeakPlotAnnotations({
 
   return (
     <div
-      className="pointer-events-none absolute left-0 top-0 z-[19]"
+      className="pointer-events-none absolute top-0 left-0 z-[19]"
       style={{ width: overlayWidth, height: overlayHeight }}
     >
       {peaks.map((peak, peakIndex) => {

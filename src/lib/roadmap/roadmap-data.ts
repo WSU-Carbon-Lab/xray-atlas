@@ -175,7 +175,10 @@ export const prePublicationStages: RoadmapStage[] = [
     detail:
       "Upload, contributor attribution, and source-publication linking are live. Atlas now deposits each NEXAFS dataset to the X-ray Atlas Zenodo Community (https://zenodo.org/communities/xrayatlas) through a repository depositor personal access token, with researcher credit in Zenodo creators metadata. Minting is automatic after contribute aux uploads, non-blocking on Zenodo failure, and tracked in experiment_zenodo_deposits plus experiment_metrics.dataset_doi. Remaining ops: production depositor PAT on Vercel, sandbox community+token for Preview, and community submission policy (open/auto-accept recommended for v1). Longer term, direct DataCite membership for X-ray Atlas still requires non-profit incorporation (Consortium/Direct membership expect participating organizations to be non-profit), with annual base fees and volume-scaled DOI fees; Zenodo remains the lower-friction interim registrar until that path is funded.",
     relatedLinks: [
-      { href: "https://zenodo.org/communities/xrayatlas", label: "X-ray Atlas Zenodo Community" },
+      {
+        href: "https://zenodo.org/communities/xrayatlas",
+        label: "X-ray Atlas Zenodo Community",
+      },
       { href: "https://zenodo.org/", label: "Zenodo" },
       {
         href: "https://datacite.org/become-a-member/",

@@ -216,9 +216,7 @@ export function CategoryTagsMultiSelect({
     if (!trimmed) return;
     if (exactExisting) {
       if (!selectedTagIds.has(exactExisting.id)) {
-        onSelectedTagIdsChange(
-          new Set([...selectedTagIds, exactExisting.id]),
-        );
+        onSelectedTagIdsChange(new Set([...selectedTagIds, exactExisting.id]));
       }
       setSearch("");
       return;
@@ -279,7 +277,7 @@ export function CategoryTagsMultiSelect({
         }}
         placeholder="Filter tags…"
         aria-label="Filter tag list"
-        className="border-border bg-field-background text-field-foreground placeholder:text-muted h-9 w-full rounded-lg border px-2 text-sm focus-visible:border-accent focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/20"
+        className="border-border bg-field-background text-field-foreground placeholder:text-muted focus-visible:border-accent focus-visible:ring-accent/20 h-9 w-full rounded-lg border px-2 text-sm focus-visible:ring-2 focus-visible:outline-none"
       />
       {exactExisting && !selectedTagIds.has(exactExisting.id) ? (
         <button
@@ -317,7 +315,7 @@ export function CategoryTagsMultiSelect({
     totalCount > 0 ? (
       <div
         className={`border-border bg-surface flex min-h-10 min-w-0 items-center rounded-xl border ${
-          layout === "stacked" ? "w-full" : "bg-surface-2 shadow-sm flex-1"
+          layout === "stacked" ? "w-full" : "bg-surface-2 flex-1 shadow-sm"
         }`}
       >
         <div
@@ -333,10 +331,10 @@ export function CategoryTagsMultiSelect({
             return (
               <span
                 key={tag.id}
-                className="border-border bg-surface inline-flex max-w-[11rem] shrink-0 items-center gap-1 rounded-md border py-0.5 pl-1 pr-0.5"
+                className="border-border bg-surface inline-flex max-w-[11rem] shrink-0 items-center gap-1 rounded-md border py-0.5 pr-0.5 pl-1"
               >
                 <span
-                  className={`inline-flex min-w-0 max-w-[9rem] items-center rounded-md px-1.5 py-0.5 text-xs font-medium ${chipClass}`}
+                  className={`inline-flex max-w-[9rem] min-w-0 items-center rounded-md px-1.5 py-0.5 text-xs font-medium ${chipClass}`}
                   style={inlineStyle}
                 >
                   <span className="truncate">{tag.name}</span>
@@ -355,7 +353,7 @@ export function CategoryTagsMultiSelect({
           {pendingTagsProp.map((p) => (
             <span
               key={p.clientKey}
-              className="border-border bg-surface inline-flex max-w-[11rem] shrink-0 items-center gap-1 rounded-md border border-dashed py-0.5 pl-0.5 pr-0.5"
+              className="border-border bg-surface inline-flex max-w-[11rem] shrink-0 items-center gap-1 rounded-md border border-dashed py-0.5 pr-0.5 pl-0.5"
             >
               <PendingTagColorPicker
                 name={p.name}
@@ -387,7 +385,7 @@ export function CategoryTagsMultiSelect({
         <button
           {...triggerProps}
           aria-label={ariaLabel}
-          className={`border-border bg-surface text-foreground focus-visible:ring-accent flex h-10 w-full cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors hover:bg-default focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
+          className={`border-border bg-surface text-foreground focus-visible:ring-accent hover:bg-default flex h-10 w-full cursor-pointer items-center gap-2 rounded-xl border px-3 text-left transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 ${
             layout === "inline" ? "min-w-[10rem]" : ""
           } ${totalCount > 0 ? "border-accent/30 bg-accent/5" : ""}`}
         >
@@ -474,7 +472,9 @@ export function CategoryTagsMultiSelect({
 
   if (layout === "stacked") {
     return (
-      <div className={`border-border bg-surface space-y-3 rounded-xl border p-3 ${className}`}>
+      <div
+        className={`border-border bg-surface space-y-3 rounded-xl border p-3 ${className}`}
+      >
         {tagStrip ?? (
           <p className="text-muted min-h-10 text-sm">
             Selected tags appear here. Use Browse tags to add filters.

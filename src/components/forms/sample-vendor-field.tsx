@@ -2,7 +2,14 @@
 
 import { useCallback } from "react";
 import type { Key } from "@heroui/react";
-import { ComboBox, Input, InputGroup, Label, ListBox, TextField } from "@heroui/react";
+import {
+  ComboBox,
+  Input,
+  InputGroup,
+  Label,
+  ListBox,
+  TextField,
+} from "@heroui/react";
 import { FieldTooltip } from "~/components/ui/field-tooltip";
 import { SampleFormInsetTextRow } from "./sample-form-inset-field";
 import {
@@ -65,7 +72,9 @@ export function SampleVendorField({
   layout = "stacked",
   allowCreate = true,
 }: SampleVendorFieldProps) {
-  const selectedVendor = vendors.find((vendor) => vendor.id === selectedVendorId);
+  const selectedVendor = vendors.find(
+    (vendor) => vendor.id === selectedVendorId,
+  );
   const inputValue = selectedVendor?.name ?? newVendorName;
   const selectedKey = selectedVendorId.length > 0 ? selectedVendorId : null;
 
@@ -108,7 +117,8 @@ export function SampleVendorField({
       onInputChange={(value) => {
         if (!allowCreate) {
           const matched = vendors.find(
-            (vendor) => vendor.name.toLowerCase() === value.trim().toLowerCase(),
+            (vendor) =>
+              vendor.name.toLowerCase() === value.trim().toLowerCase(),
           );
           if (matched) {
             applyVendorFields({
@@ -143,7 +153,9 @@ export function SampleVendorField({
         });
       }}
       items={[...vendors]}
-      className={layout === "inset" ? sampleFormInsetControlClass : "min-w-0 w-full"}
+      className={
+        layout === "inset" ? sampleFormInsetControlClass : "w-full min-w-0"
+      }
     >
       {layout === "stacked" ? (
         <Label className={sampleFormLabelClass}>

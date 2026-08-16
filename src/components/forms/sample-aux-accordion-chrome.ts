@@ -3,8 +3,7 @@ import type { SampleFormLayout } from "./sample-form-layout";
 const accordionItemClass = "rounded-lg [&+&]:mt-1";
 const accordionTriggerClass =
   "flex min-h-11 w-full items-center gap-2 rounded-lg px-4 py-3 text-start";
-const accordionBodyGridClass =
-  "grid min-w-0 gap-4 px-4 py-3 sm:grid-cols-2";
+const accordionBodyGridClass = "grid min-w-0 gap-4 px-4 py-3 sm:grid-cols-2";
 const accordionBodySpinGridClass =
   "grid min-w-0 gap-4 px-4 py-3 sm:grid-cols-2 lg:grid-cols-3";
 const accordionBodyStackClass = "grid min-w-0 gap-4 px-4 py-3";
@@ -43,7 +42,9 @@ export function sampleAuxAccordionChrome(
     bodySpinGridClass: isInset
       ? insetAccordionBodySpinClass
       : accordionBodySpinGridClass,
-    bodyStackGridClass: isInset ? insetAccordionBodyClass : accordionBodyStackClass,
+    bodyStackGridClass: isInset
+      ? insetAccordionBodyClass
+      : accordionBodyStackClass,
     rootClass: isInset
       ? "flex w-full flex-col gap-3 bg-transparent p-0 shadow-none"
       : "w-full rounded-lg",

@@ -58,8 +58,7 @@ function createMockDb(config: {
         where: { moleculeid: string; userid: string };
       }) =>
         views.find(
-          (v) =>
-            v.moleculeid === where.moleculeid && v.userid === where.userid,
+          (v) => v.moleculeid === where.moleculeid && v.userid === where.userid,
         ) ?? null,
       create: async ({
         data,

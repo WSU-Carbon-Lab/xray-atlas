@@ -118,8 +118,7 @@ export function buildSingleSpectrumGeometryLegendRows(args: {
     }
     const theta = resolveFiniteAngle(primary, group, "theta");
     const phi = resolveFiniteAngle(primary, group, "phi");
-    const color =
-      primary.line?.color ?? primary.marker?.color ?? "#6b7280";
+    const color = primary.line?.color ?? primary.marker?.color ?? "#6b7280";
     const angleDisplay = angleDisplayForSpectrumGeometryGroup(
       { theta, phi, label: group.label },
       showThetaData,

@@ -271,23 +271,18 @@ export function EdgeEnergyDensityChart({
   const tailMaskId = `edge-density-tail-mask-${uid}`;
 
   const { bucketMinEv, bucketMaxEv, buckets } = energyHistogram;
-  const selectedSet = useMemo(() => new Set(selectedEdgeIds), [selectedEdgeIds]);
+  const selectedSet = useMemo(
+    () => new Set(selectedEdgeIds),
+    [selectedEdgeIds],
+  );
 
   const smoothed = useMemo(() => smoothBuckets(buckets), [buckets]);
   const maxCount = useMemo(() => Math.max(...smoothed, 1), [smoothed]);
-  const displaySmoothed = useMemo(
-    () => smoothBuckets(smoothed),
-    [smoothed],
-  );
+  const displaySmoothed = useMemo(() => smoothBuckets(smoothed), [smoothed]);
 
   const curvePts = useMemo(
     () =>
-      densityCurvePoints(
-        displaySmoothed,
-        maxCount,
-        bucketMinEv,
-        bucketMaxEv,
-      ),
+      densityCurvePoints(displaySmoothed, maxCount, bucketMinEv, bucketMaxEv),
     [displaySmoothed, maxCount, bucketMinEv, bucketMaxEv],
   );
 
@@ -299,14 +294,7 @@ export function EdgeEnergyDensityChart({
   const strokePath = useMemo(() => densityStrokePath(curvePts), [curvePts]);
 
   const tailFadeEv = useMemo(
-    () =>
-      tailFadeStartEv(
-        smoothed,
-        maxCount,
-        bucketMinEv,
-        bucketMaxEv,
-        0.06,
-      ),
+    () => tailFadeStartEv(smoothed, maxCount, bucketMinEv, bucketMaxEv, 0.06),
     [smoothed, maxCount, bucketMinEv, bucketMaxEv],
   );
 
@@ -395,16 +383,8 @@ export function EdgeEnergyDensityChart({
           y2={yBase}
           gradientUnits="userSpaceOnUse"
         >
-          <stop
-            offset="0%"
-            stopColor="var(--accent)"
-            stopOpacity="0.14"
-          />
-          <stop
-            offset="100%"
-            stopColor="var(--accent)"
-            stopOpacity="0.04"
-          />
+          <stop offset="0%" stopColor="var(--accent)" stopOpacity="0.14" />
+          <stop offset="100%" stopColor="var(--accent)" stopOpacity="0.04" />
         </linearGradient>
         <linearGradient
           id={fillXId}

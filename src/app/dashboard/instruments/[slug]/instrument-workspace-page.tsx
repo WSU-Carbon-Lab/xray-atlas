@@ -11,7 +11,9 @@ type InstrumentWorkspacePageProps = {
 /**
  * Client boundary that lazy-loads the registered workspace component for `slug`.
  */
-export function InstrumentWorkspacePage({ slug }: InstrumentWorkspacePageProps) {
+export function InstrumentWorkspacePage({
+  slug,
+}: InstrumentWorkspacePageProps) {
   const [Workspace, setWorkspace] = useState<ComponentType | null>(null);
 
   useEffect(() => {

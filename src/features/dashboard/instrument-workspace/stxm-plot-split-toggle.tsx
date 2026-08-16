@@ -35,7 +35,9 @@ export function StxmPlotSplitToggle({
       <ToggleButton
         isIconOnly
         aria-label={
-          splitView ? "Unsplit stacked spectroscopy plot" : "Split spectroscopy plot"
+          splitView
+            ? "Unsplit stacked spectroscopy plot"
+            : "Split spectroscopy plot"
         }
         isSelected={splitView}
         isDisabled={disabled}

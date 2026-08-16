@@ -7,7 +7,10 @@ import { useMemo } from "react";
 import type { TraceData, SpectrumPoint, Peak } from "../types";
 import { generateGaussianPeak } from "../utils/generateGaussianPeak";
 import { PEAK_COLORS } from "../constants";
-import { filterPointsByGeometry, buildGeometryLabel } from "../utils/trace-utils";
+import {
+  filterPointsByGeometry,
+  buildGeometryLabel,
+} from "../utils/trace-utils";
 import { peakStableId } from "../utils/peakStableId";
 
 export type PeakVisualizationResult = {
@@ -45,14 +48,18 @@ export function usePeakVisualization(
 
     if (selectedGeometryPoints.length === 0) return [];
 
-    const energies = selectedGeometryPoints.map((p) => p.energy).sort((a, b) => a - b);
+    const energies = selectedGeometryPoints
+      .map((p) => p.energy)
+      .sort((a, b) => a - b);
     const minEnergy = energies[0] ?? 0;
     const maxEnergy = energies[energies.length - 1] ?? 0;
 
     const numPoints = Math.max(200, selectedGeometryPoints.length);
     const energyRange: number[] = [];
     for (let i = 0; i < numPoints; i++) {
-      energyRange.push(minEnergy + (maxEnergy - minEnergy) * (i / (numPoints - 1)));
+      energyRange.push(
+        minEnergy + (maxEnergy - minEnergy) * (i / (numPoints - 1)),
+      );
     }
 
     const out: TraceData[] = [];
@@ -99,14 +106,20 @@ export function usePeakVisualization(
 
   // Generate trace for selected geometry spectrum
   const selectedGeometryTrace = useMemo<TraceData | null>(() => {
-    if (!selectedGeometry || !selectedGeometryPoints || selectedGeometryPoints.length === 0) {
+    if (
+      !selectedGeometry ||
+      !selectedGeometryPoints ||
+      selectedGeometryPoints.length === 0
+    ) {
       return null;
     }
 
     const energies = selectedGeometryPoints.map((p) => p.energy);
     const absorptions = selectedGeometryPoints.map((p) => p.absorption);
 
-    const label = buildGeometryLabel(selectedGeometry.theta, selectedGeometry.phi) || "Selected Spectrum";
+    const label =
+      buildGeometryLabel(selectedGeometry.theta, selectedGeometry.phi) ||
+      "Selected Spectrum";
 
     return {
       type: "scattergl",

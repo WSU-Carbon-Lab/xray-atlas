@@ -8,7 +8,10 @@
 
 import type { Molecule } from "openchemlib";
 
-import type { CageBondDepthTierByMark, CageOrbitWireframeFrame } from "./cage-template-placement";
+import type {
+  CageBondDepthTierByMark,
+  CageOrbitWireframeFrame,
+} from "./cage-template-placement";
 import {
   buildCageOrbitWireframeFrame,
   measureCageFacePlaneScale,
@@ -47,7 +50,11 @@ export function clampCageOrbitPitch(pitch: number): number {
  * @param dPitch - Pitch delta in radians.
  * @returns Updated view with clamped pitch.
  */
-export function advanceCageOrbitView(view: View3d, dYaw: number, dPitch: number): View3d {
+export function advanceCageOrbitView(
+  view: View3d,
+  dYaw: number,
+  dPitch: number,
+): View3d {
   return {
     ...view,
     yaw: view.yaw + dYaw,
@@ -132,7 +139,9 @@ export interface CageOrbitFastFrameInput {
   planeScale: number;
 }
 
-export function projectCageOrbitFastFrame(input: CageOrbitFastFrameInput): CageOrbitWireframeFrame {
+export function projectCageOrbitFastFrame(
+  input: CageOrbitFastFrameInput,
+): CageOrbitWireframeFrame {
   return buildCageOrbitWireframeFrame(
     input.mol,
     input.session,

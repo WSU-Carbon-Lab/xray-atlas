@@ -26,7 +26,9 @@ export async function GET(
   try {
     const params = paramsSchema.parse(await context.params);
     const requestUrl = new URL(request.url);
-    const query = querySchema.parse(Object.fromEntries(requestUrl.searchParams));
+    const query = querySchema.parse(
+      Object.fromEntries(requestUrl.searchParams),
+    );
     const doi = normalizeDoi(query.doi);
 
     const molecule = await db.molecules.findUnique({
@@ -89,11 +91,17 @@ export async function GET(
           };
         })
         .filter((value): value is NonNullable<typeof value> => value !== null)
-        .sort((a, b) => b.datasetCount - a.datasetCount || a.label.localeCompare(b.label)),
+        .sort(
+          (a, b) =>
+            b.datasetCount - a.datasetCount || a.label.localeCompare(b.label),
+        ),
     });
   } catch (error) {
     if (error instanceof ZodError) {
-      return jsonError(error.issues[0]?.message ?? "Invalid request parameters.", 400);
+      return jsonError(
+        error.issues[0]?.message ?? "Invalid request parameters.",
+        400,
+      );
     }
     return jsonError("Failed to load edge summary.", 500);
   }

@@ -1,4 +1,8 @@
-import type { TraceData, TraceMarkerSymbol, SpectrumYAxisQuantity } from "../types";
+import type {
+  TraceData,
+  TraceMarkerSymbol,
+  SpectrumYAxisQuantity,
+} from "../types";
 import {
   getPlotChannelDefinition,
   isImaginaryChannel,

@@ -26,9 +26,8 @@ export async function fetchWithConcurrency<TItem, TResult>(
     }
   }
 
-  const runners = Array.from(
-    { length: Math.min(limit, items.length) },
-    () => runWorker(),
+  const runners = Array.from({ length: Math.min(limit, items.length) }, () =>
+    runWorker(),
   );
   await Promise.all(runners);
   return items.map((_, index) => results.get(index)!);

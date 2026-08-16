@@ -20,17 +20,18 @@ export type StxmIngestionPlotModel =
       model: null;
     };
 
-export type BuildStxmIngestionPlotModelParams = BuildStxmSpectrumPlotModelParams & {
-  /** Monotonic epoch from raw/enrichment recomputation; stabilizes memoization across preview/full transitions. */
-  regionSpectraEpoch?: number;
-  /** Monotonic epoch from full ingestion pipeline completion. */
-  pipelineEpoch?: number;
-  /**
-   * When true, the line-scan editor has at least one sample region; aggregated legacy traces are forbidden
-   * even if per-region spectra are momentarily empty during async recompute.
-   */
-  hasSampleRegions?: boolean;
-};
+export type BuildStxmIngestionPlotModelParams =
+  BuildStxmSpectrumPlotModelParams & {
+    /** Monotonic epoch from raw/enrichment recomputation; stabilizes memoization across preview/full transitions. */
+    regionSpectraEpoch?: number;
+    /** Monotonic epoch from full ingestion pipeline completion. */
+    pipelineEpoch?: number;
+    /**
+     * When true, the line-scan editor has at least one sample region; aggregated legacy traces are forbidden
+     * even if per-region spectra are momentarily empty during async recompute.
+     */
+    hasSampleRegions?: boolean;
+  };
 
 /**
  * Resolves which STXM ingestion plot builder mode applies for the current region and channel inputs.

@@ -79,7 +79,11 @@ export function enforceSampleRegionOutsideIzero(
   const izeroSpan = izero.izeroHi - izero.izeroLo;
   const regionSpan = sampleHi - sampleLo;
 
-  if (regionSpan >= izeroSpan && sampleLo <= izero.izeroLo && sampleHi >= izero.izeroHi) {
+  if (
+    regionSpan >= izeroSpan &&
+    sampleLo <= izero.izeroLo &&
+    sampleHi >= izero.izeroHi
+  ) {
     const spaceBelow = izero.izeroLo - sampleMin;
     const spaceAbove = sampleMax - izero.izeroHi;
     if (spaceBelow >= spaceAbove && spaceBelow >= minGap) {
@@ -143,7 +147,13 @@ export function enforceAllSampleRegionsOutsideIzero(
   sampleMax: number,
 ): StxmSampleRegion[] {
   return regions.map((region) =>
-    enforceSampleRegionOutsideIzero(region, izero, minGap, sampleMin, sampleMax),
+    enforceSampleRegionOutsideIzero(
+      region,
+      izero,
+      minGap,
+      sampleMin,
+      sampleMax,
+    ),
   );
 }
 

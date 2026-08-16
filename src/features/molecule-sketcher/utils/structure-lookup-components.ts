@@ -32,10 +32,10 @@ export interface StructureLookupComponent {
  */
 export function normalizeComponentSmilesForPubchem(smiles: string): string {
   return smiles
-    .replace(/\[\<\]/g, "")
-    .replace(/\[\>\]/g, "")
+    .replace(/\[<\]/g, "")
+    .replace(/\[>\]/g, "")
     .replace(/\[\*\]/g, "")
-    .replace(/\[\?\:\d+\]/g, "")
+    .replace(/\[\?:\d+\]/g, "")
     .trim();
 }
 
@@ -91,7 +91,11 @@ export function buildStructureLookupComponents(
     bookends?.close !== null &&
     bookends?.close !== undefined
   ) {
-    const extraction = extractBookendRegion(copy, bookends.open, bookends.close);
+    const extraction = extractBookendRegion(
+      copy,
+      bookends.open,
+      bookends.close,
+    );
     if (extraction.ok) {
       addComponent(
         components,
@@ -163,9 +167,15 @@ export function structureLookupComponentsFromSmiles(
   const seen = new Set<string>();
   addComponent(components, seen, "full", trimmed, "Full structure");
 
-  const repeatMatch = /\[<\](.*)\[\>\]/.exec(trimmed);
+  const repeatMatch = /\[<\](.*)\[>\]/.exec(trimmed);
   if (repeatMatch?.[1]) {
-    addComponent(components, seen, "repeat_unit", repeatMatch[1], "Repeat unit");
+    addComponent(
+      components,
+      seen,
+      "repeat_unit",
+      repeatMatch[1],
+      "Repeat unit",
+    );
   }
 
   return components;

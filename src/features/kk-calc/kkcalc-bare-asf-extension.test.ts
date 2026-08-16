@@ -51,7 +51,10 @@ describe("extendImaginaryAsfWithHenkeTails", () => {
 
   it("does not produce non-finite f2 when merge lo lies below the first measurement knot", () => {
     const composition = parseChemicalFormula("C72H14O2");
-    const measuredEnergyEv = Array.from({ length: 24 }, (_, i) => 270.4 + i * 2);
+    const measuredEnergyEv = Array.from(
+      { length: 24 },
+      (_, i) => 270.4 + i * 2,
+    );
     const measuredImaginaryAsf = measuredEnergyEv.map(() => 1e-6);
     const out = extendImaginaryAsfWithHenkeTails({
       measuredEnergyEv,

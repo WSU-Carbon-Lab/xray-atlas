@@ -18,7 +18,8 @@ export async function OpticalConstantsExample(): Promise<ReactElement> {
           {caption.moleculeDisplayName}
           {caption.moleculeSynonym
             ? ` (${caption.moleculeSynonym})`
-            : null}, {caption.edgeLabel}, {caption.experimentTypeLabel}
+            : null},{" "}
+          {caption.edgeLabel}, {caption.experimentTypeLabel}
           {caption.facilityLabel ? ` at ${caption.facilityLabel}` : null} (
           {caption.instrumentLabel}
           {caption.geometrySummary ? `; ${caption.geometrySummary}` : null}).

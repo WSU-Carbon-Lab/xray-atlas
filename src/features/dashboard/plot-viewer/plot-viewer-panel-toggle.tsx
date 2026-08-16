@@ -32,9 +32,7 @@ export function PlotViewerPanelToggle({
       <ToggleButton
         isIconOnly
         aria-label={
-          panelOpen
-            ? "Hide dataset picker panel"
-            : "Show dataset picker panel"
+          panelOpen ? "Hide dataset picker panel" : "Show dataset picker panel"
         }
         isSelected={panelOpen}
         onChange={onPanelOpenChange}

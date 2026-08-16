@@ -48,7 +48,10 @@ export const OverviewStrip = memo(function OverviewStrip({
       const xV = t.x;
       const yV = t.y;
       if (!Array.isArray(xV) || !Array.isArray(yV) || xV.length !== yV.length)
-        return { points: [] as Array<{ x: number; y: number }>, color: themeColors.text };
+        return {
+          points: [] as Array<{ x: number; y: number }>,
+          color: themeColors.text,
+        };
       const points = xV
         .map((x, i) => ({ x, y: yV[i]! }))
         .filter(

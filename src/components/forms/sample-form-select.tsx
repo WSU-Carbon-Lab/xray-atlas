@@ -63,7 +63,9 @@ export function SampleFormSelect<T extends string>({
   const selectControl = (
     <Select
       aria-label={ariaLabel}
-      className={layout === "inset" ? sampleFormInsetControlClass : "min-w-0 w-full"}
+      className={
+        layout === "inset" ? sampleFormInsetControlClass : "w-full min-w-0"
+      }
       fullWidth
       placeholder={placeholder}
       selectedKey={selectedKey ?? null}
@@ -95,7 +97,10 @@ export function SampleFormSelect<T extends string>({
         <Select.Indicator />
       </Select.Trigger>
       <Select.Popover className={sampleFormSelectPopoverClass}>
-        <ListBox aria-label={ariaLabel} className={sampleFormSelectListBoxClass}>
+        <ListBox
+          aria-label={ariaLabel}
+          className={sampleFormSelectListBoxClass}
+        >
           {items.map((item) => (
             <ListBox.Item
               id={item}

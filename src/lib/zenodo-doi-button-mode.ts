@@ -93,11 +93,7 @@ export function coerceZenodoDepositUiState(input: {
   }
 
   const attemptCount = input.attemptCount ?? 0;
-  if (
-    raw === "pending" &&
-    attemptCount <= 0 &&
-    input.lastAttemptAt == null
-  ) {
+  if (raw === "pending" && attemptCount <= 0 && input.lastAttemptAt == null) {
     return null;
   }
 

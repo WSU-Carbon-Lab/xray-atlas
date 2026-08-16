@@ -1,13 +1,13 @@
 import "~/styles/globals.css";
 
 import { Geist } from "next/font/google";
-import { HeaderWhatsNewSuspense } from "@/components/layout/header-whats-new";
-import { FooterGithubStarsSuspense } from "@/components/layout/footer-github-stars";
+import { HeaderWhatsNewSuspense } from "~/components/layout/header-whats-new";
+import { FooterGithubStarsSuspense } from "~/components/layout/footer-github-stars";
 import { siteMetadata } from "./metadata";
-import { SessionProvider } from "@/components/auth/session-provider";
-import { ThemeProviderWrapper } from "@/components/theme/theme-provider";
-import { TRPCReactProvider } from "@/trpc/client";
-import { DeferredVercelTelemetry } from "@/components/layout/deferred-vercel-telemetry";
+import { SessionProvider } from "~/components/auth/session-provider";
+import { ThemeProviderWrapper } from "~/components/theme/theme-provider";
+import { TRPCReactProvider } from "~/trpc/client";
+import { DeferredVercelTelemetry } from "~/components/layout/deferred-vercel-telemetry";
 /**
  * Root Layout - Main application layout with HeroUI theming integration.
  *
