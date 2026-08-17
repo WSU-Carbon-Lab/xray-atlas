@@ -6,7 +6,10 @@ import {
   type SessionWriteAssuranceEvaluation,
 } from "~/server/auth/mfa-access";
 import { consumePendingPasskeyAssurance } from "~/server/auth/passkey-ceremony-bridge";
-import { getSessionTokenFromRequest } from "~/server/auth/session-token";
+import {
+  getSessionTokenFromCookies,
+  getSessionTokenFromRequest,
+} from "~/server/auth/session-token";
 import { upsertWebAuthnSessionAssurance } from "~/server/auth/session-assurance";
 
 export interface ApplyPasskeySessionStepUpResult {
@@ -27,7 +30,8 @@ export async function applyPasskeySessionStepUpForRequest(
   userId: string,
   req: Request | undefined,
 ): Promise<ApplyPasskeySessionStepUpResult> {
-  const sessionToken = getSessionTokenFromRequest(req);
+  const sessionToken =
+    getSessionTokenFromRequest(req) ?? (await getSessionTokenFromCookies());
   if (!sessionToken) {
     throw new TRPCError({
       code: "UNAUTHORIZED",

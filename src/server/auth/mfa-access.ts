@@ -9,7 +9,6 @@ import {
 } from "~/server/auth/aal";
 import {
   getPasskeyEnrollmentStatus,
-  requiresAal3ForUser,
   type PasskeyEnrollmentStatus,
 } from "~/server/auth/passkey-policy";
 import {
@@ -35,8 +34,9 @@ export class SessionAalRequiredError extends Error {
 /**
  * Session assurance relative to destructive self-service writes and admin writes.
  *
- * Destructive contribution actions (delete/transfer) always require AAL2. Admin console
- * writes require AAL3 when the user holds Labs or user-administration capabilities.
+ * Destructive contribution actions (delete/transfer) and administrator console
+ * writes both require a passkey-established AAL2 session. Hardware-key AAL3 is
+ * not required to open or use `/admin`.
  */
 export interface SessionWriteAssuranceEvaluation {
   requiredAal: AssertedAal;
@@ -62,14 +62,11 @@ export function requiredAalForDestructiveWrites(): AssertedAal {
 }
 
 /**
- * Returns the minimum session AAL for administrator / Labs write surfaces for this user.
+ * Returns the minimum session AAL for administrator write surfaces.
+ * Matches destructive writes: any enrolled passkey session (AAL2).
  */
-export async function requiredAalForAdminWrites(
-  db: Pick<PrismaClient, "userAppRole">,
-  userId: string,
-): Promise<AssertedAal> {
-  const requiresAal3 = await requiresAal3ForUser(db, userId);
-  return requiresAal3 ? AAL3 : AAL2;
+export function requiredAalForAdminWrites(): AssertedAal {
+  return AAL2;
 }
 
 function isPasskeyEstablishedSession(
@@ -125,12 +122,12 @@ export async function evaluateSessionWriteAssurance(
   userId: string,
   req: Request | undefined,
 ): Promise<SessionWriteAssuranceEvaluation> {
-  const [status, adminRequiredAal, assurance] = await Promise.all([
+  const [status, assurance] = await Promise.all([
     getPasskeyEnrollmentStatus(db, userId),
-    requiredAalForAdminWrites(db, userId),
     getSessionAssuranceForRequest(db, req),
   ]);
   const requiredAal = requiredAalForDestructiveWrites();
+  const adminRequiredAal = requiredAalForAdminWrites();
 
   return {
     requiredAal,
@@ -228,17 +225,13 @@ async function assertSessionAalForWrites(
   req: Request | undefined,
   kind: "destructive" | "admin" | "contribute",
 ): Promise<void> {
-  const statusPromise = getPasskeyEnrollmentStatus(db, userId);
-  const assurancePromise = getSessionAssuranceForRequest(db, req);
-  const requiredAalPromise =
+  const requiredAal =
     kind === "admin"
-      ? requiredAalForAdminWrites(db, userId)
-      : Promise.resolve(requiredAalForDestructiveWrites());
-
-  const [status, assurance, requiredAal] = await Promise.all([
-    statusPromise,
-    assurancePromise,
-    requiredAalPromise,
+      ? requiredAalForAdminWrites()
+      : requiredAalForDestructiveWrites();
+  const [status, assurance] = await Promise.all([
+    getPasskeyEnrollmentStatus(db, userId),
+    getSessionAssuranceForRequest(db, req),
   ]);
 
   if (writeAssuranceSatisfied(status, requiredAal, assurance)) {
@@ -281,7 +274,7 @@ export async function assertSessionAalForContributeSubmit(
 }
 
 /**
- * Throws FORBIDDEN when the active session does not meet admin write AAL policy (AAL3 when required).
+ * Throws FORBIDDEN when the active session does not meet admin write AAL policy (AAL2 passkey).
  */
 export async function assertSessionAalForAdminWrites(
   db: MfaAccessDb,

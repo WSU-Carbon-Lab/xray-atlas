@@ -199,6 +199,10 @@ export const privilegedWriteProcedure = protectedProcedure.use(
  */
 export const manageUsersProcedure = protectedProcedure.use(enforceManageUsers);
 
+/**
+ * Administrator console mutations require user-administration permission and a
+ * passkey-established AAL2 session. Hardware-key AAL3 is not required.
+ */
 export const adminProcedure = protectedProcedure
   .use(enforceManageUsers)
   .use(enforceAdminSessionAal);

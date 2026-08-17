@@ -663,7 +663,7 @@ const DESTRUCTIVE_SESSION_STEP_UP_DESCRIPTION =
   "Deleting or transferring your data requires a passkey-confirmed session. Sign in with a passkey once to unlock those actions for this browser session.";
 
 const ADMIN_SESSION_STEP_UP_DESCRIPTION =
-  "Administrator and Labs actions require signing in with your hardware security key passkey on this device.";
+  "Administrator actions require a passkey-confirmed session. Sign in with a passkey once to unlock those actions for this browser session.";
 
 export function ProfilePasskeysSection({
   passkeys,
@@ -716,9 +716,8 @@ export function ProfilePasskeysSection({
 
   const needsAdminStepUp =
     passkeyEnrollment?.enrolled === true &&
-    (passkeyRequiredRedirect ||
-      (sessionWriteAssurance?.adminRequiredAal === "aal3" &&
-        sessionWriteAssurance.adminSatisfied === false));
+    sessionWriteAssurance !== undefined &&
+    !sessionWriteAssurance.adminSatisfied;
 
   const showAal3Callout =
     passkeyEnrollment?.requiresAal3Hardware &&
