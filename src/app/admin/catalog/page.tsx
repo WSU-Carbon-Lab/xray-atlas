@@ -110,9 +110,6 @@ export default function AdminCatalogPage() {
         utils.molecules.invalidate(),
       ]);
     },
-    onError: (error) => {
-      showToast(error.message, "error");
-    },
   });
   const deleteExperiment = trpc.admin.catalog.deleteExperiment.useMutation({
     onSuccess: async (result) => {
@@ -123,9 +120,6 @@ export default function AdminCatalogPage() {
         utils.experiments.browseList.invalidate(),
         utils.experiments.browseSearch.invalidate(),
       ]);
-    },
-    onError: (error) => {
-      showToast(error.message, "error");
     },
   });
 
