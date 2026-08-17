@@ -597,7 +597,10 @@ export function DatasetMergeModal({
     }
     stepUpInFlightRef.current = true;
     try {
-      const assurance = await utils.users.getSessionWriteAssurance.fetch();
+      const assurance = await utils.users.getSessionWriteAssurance.fetch(
+        undefined,
+        { staleTime: 60 * 1000 },
+      );
       if (assurance.satisfied) {
         return true;
       }

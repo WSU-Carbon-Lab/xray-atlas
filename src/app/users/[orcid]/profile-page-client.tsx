@@ -79,11 +79,17 @@ export function ProfilePageClient({
   const { data: passkeyEnrollment } =
     trpc.users.getPasskeyEnrollmentStatus.useQuery(undefined, {
       enabled: isOwnProfile,
+      // Avoid refetching on every window focus; enrollment changes already
+      // invalidate this query directly.
+      staleTime: 5 * 60 * 1000,
     });
 
   const { data: sessionWriteAssurance } =
     trpc.users.getSessionWriteAssurance.useQuery(undefined, {
       enabled: isOwnProfile,
+      // Same rationale as AdminSessionGate: avoid the AAL2 assurance flipping
+      // content on an incidental window-focus refetch mid-session.
+      staleTime: 60 * 1000,
     });
 
   const { data: passkeys } = trpc.users.getPasskeys.useQuery(undefined, {

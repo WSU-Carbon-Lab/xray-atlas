@@ -102,7 +102,10 @@ export function useDestructiveSessionStepUp(): UseDestructiveSessionStepUpResult
 
   const runWithStepUp = useCallback(
     async (action: () => Promise<void>): Promise<void> => {
-      const assurance = await utils.users.getSessionWriteAssurance.fetch();
+      const assurance = await utils.users.getSessionWriteAssurance.fetch(
+        undefined,
+        { staleTime: 60 * 1000 },
+      );
 
       if (!assurance.enrolled) {
         showToast(PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE, "error", 0);

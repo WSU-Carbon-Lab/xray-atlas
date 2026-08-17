@@ -131,7 +131,10 @@ export function useNexafsSubmit(
   const sampleAuxUpsertMutation = trpc.sampleAux.upsert.useMutation();
 
   const ensureSubmitPasskey = useCallback(async (): Promise<boolean> => {
-    const assurance = await utils.users.getSessionWriteAssurance.fetch();
+    const assurance = await utils.users.getSessionWriteAssurance.fetch(
+      undefined,
+      { staleTime: 60 * 1000 },
+    );
     if (assurance.enrolled) {
       return true;
     }

@@ -30,7 +30,16 @@ export function usePasskeyEnrollmentGate(
 
   const enrollmentQuery = trpc.users.getPasskeyEnrollmentStatus.useQuery(
     undefined,
-    { enabled: isSignedIn },
+    {
+      enabled: isSignedIn,
+      // This hook is now mounted globally (banner in the root layout) in
+      // addition to per-page contribute-flow usage, so without a staleTime
+      // it refetches on every window focus across the whole app. Enrollment
+      // status changes only on an explicit register/unregister action, which
+      // already invalidates this query directly, so a few minutes of
+      // staleness here is safe.
+      staleTime: 5 * 60 * 1000,
+    },
   );
 
   const isChecking =

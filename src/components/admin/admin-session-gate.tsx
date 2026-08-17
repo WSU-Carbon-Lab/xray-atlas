@@ -34,9 +34,16 @@ export function AdminSessionGate({ children }: { children: ReactNode }) {
 
   const enrollment = trpc.users.getPasskeyEnrollmentStatus.useQuery(undefined, {
     enabled: Boolean(userId),
+    // Avoid refetching on every window focus; enrollment changes already
+    // invalidate this query directly.
+    staleTime: 5 * 60 * 1000,
   });
   const assurance = trpc.users.getSessionWriteAssurance.useQuery(undefined, {
     enabled: Boolean(userId),
+    // Without this, the admin console's AAL2 gate can flip content mid-session
+    // on an incidental window-focus refetch. A short staleTime still reflects
+    // a real step-up/expiry promptly while stopping every-focus refetching.
+    staleTime: 60 * 1000,
   });
 
   const confirmSession = useCallback(async () => {
