@@ -45,6 +45,13 @@ export interface MoleculeView {
   id: string;
   favoriteCount: number;
   userHasFavorited: boolean;
+  /**
+   * The `molecules.createdby` owner id — the same value the server's
+   * `molecules.remove` mutation gates on. Distinct from `createdBy` below,
+   * which is a display credit derived from the "linked" contributor and can
+   * diverge from the actual owner (e.g. via `addContributor`).
+   */
+  createdById?: string | null;
   createdBy?: MoleculeViewCreatedBy | null;
   contributors?: MoleculeViewContributor[];
   moleculeTags?: MoleculeViewTag[];

@@ -24,6 +24,7 @@ interface BaseMoleculeRow {
   viewcount?: number;
   createdat?: Date;
   updatedat?: Date;
+  createdby: string | null;
   moleculesynonyms: SynonymRow[];
 }
 
@@ -75,6 +76,7 @@ export function toMoleculeView(
     id: row.id,
     favoriteCount: row.favoritecount,
     userHasFavorited: options.userHasFavorited,
+    createdById: row.createdby,
     createdBy: createdBy ?? undefined,
     contributors: row.moleculecontributors
       ?.map((c) => {

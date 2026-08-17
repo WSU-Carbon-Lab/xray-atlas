@@ -37,6 +37,14 @@ export function MoleculeDetailLayoutClient({
   const canEditSettled = !isSignedIn || canEditQuery.isFetched;
   const canEdit =
     isSignedIn && canEditSettled && canEditQuery.data?.canEdit === true;
+  // Delete is creator-only server-side (`molecules.remove`), unlike `canEdit`
+  // above which also allows contributors. Gate the danger-rail's visibility
+  // directly on ownership so contributors never see a delete button that
+  // would dead-end in a FORBIDDEN error — mirrors the NEXAFS browse-row gate
+  // in `nexafs-browse-experiment-section.tsx`.
+  const currentUserId = session?.user?.id ?? null;
+  const canDelete =
+    currentUserId != null && currentUserId === molecule.createdById;
 
   const router = useRouter();
   const utils = trpc.useUtils();
@@ -124,7 +132,7 @@ export function MoleculeDetailLayoutClient({
               isSignedIn={isSignedIn}
             />
           </div>
-          {canEdit ? (
+          {canDelete ? (
             <ProfileDangerZoneRail
               subjectLabel={molecule.name}
               onDelete={handleDeleteMolecule}
