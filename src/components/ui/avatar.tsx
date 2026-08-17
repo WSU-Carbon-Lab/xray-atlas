@@ -14,6 +14,7 @@ import {
   UserCog,
   FlaskConical,
   Bell,
+  Library,
 } from "lucide-react";
 import { SparklesIcon } from "@heroicons/react/24/outline";
 import type { User as NextAuthUser } from "next-auth";
@@ -564,14 +565,24 @@ export function AvatarButton({
           {showManageUsers || showSandbox ? (
             <div className="border-border border-t py-1">
               {showManageUsers ? (
-                <button
-                  type="button"
-                  onClick={() => handleAction("admin-users")}
-                  className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
-                >
-                  <UserCog className="h-4 w-4" />
-                  Manage users
-                </button>
+                <>
+                  <button
+                    type="button"
+                    onClick={() => handleAction("admin-users")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                  >
+                    <UserCog className="h-4 w-4" />
+                    Manage users
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleAction("admin-catalog")}
+                    className="text-foreground hover:bg-default flex w-full items-center gap-3 px-4 py-2 text-left text-sm transition-colors"
+                  >
+                    <Library className="h-4 w-4" />
+                    Catalog
+                  </button>
+                </>
               ) : null}
               {showSandbox ? (
                 <button
@@ -633,6 +644,9 @@ export function CustomUserButton({ whatsNew }: { whatsNew?: WhatsNewSummary }) {
         break;
       case "admin-users":
         router.push("/admin/users");
+        break;
+      case "admin-catalog":
+        router.push("/admin/catalog");
         break;
       case "sandbox":
         router.push("/sandbox");
@@ -736,7 +750,8 @@ const avatarStackSizePx = {
 } as const;
 
 /** Knockout ring so overlapping faces read as separate circles on zinc card shells. */
-const AVATAR_STACK_KNOCKOUT_RING_CLASS = "ring-2 ring-zinc-50 dark:ring-zinc-800";
+const AVATAR_STACK_KNOCKOUT_RING_CLASS =
+  "ring-2 ring-zinc-50 dark:ring-zinc-800";
 
 /** Horizontal overlap between stacked avatars (`-space-x-2`). */
 const AVATAR_STACK_OVERLAP_PX = 8;
