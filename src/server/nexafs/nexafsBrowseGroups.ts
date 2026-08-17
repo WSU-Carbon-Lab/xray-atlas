@@ -282,6 +282,7 @@ export type NexafsBrowseGroupDto = {
   favoriteCount: number;
   userHasFavorited: boolean;
   createdat: Date;
+  createdBy: string | null;
   experimenttype: ExperimentType | null;
   polarizationCount: number;
   linkedPublications: NexafsBrowseLinkedPublication[];
@@ -402,6 +403,7 @@ export function mapNexafsBrowseGroupRow(
     favoriteCount: Number(row.experiment_favorite_count),
     userHasFavorited: row.user_has_favorited,
     createdat: row.createdat,
+    createdBy: row.createdby,
     experimenttype: row.experimenttype,
     polarizationCount: Number(row.polarization_geometry_count),
     linkedPublications: parsePublicationsJson(row.linked_publications_json),

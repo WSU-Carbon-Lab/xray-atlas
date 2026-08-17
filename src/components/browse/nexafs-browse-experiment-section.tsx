@@ -1,7 +1,9 @@
 "use client";
 
-import { useState, useMemo, useEffect, useRef } from "react";
+import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
+import { useDestructiveSessionStepUp } from "~/hooks/useDestructiveSessionStepUp";
 import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import {
   CalendarDaysIcon,
@@ -117,6 +119,30 @@ export function NexafsBrowseExperimentSection({
   const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("quality");
   const [itemsPerPage, setItemsPerPage] = useState(12);
   const searchParams = useSearchParams();
+  const { data: session } = useSession();
+  const currentUserId = session?.user?.id ?? null;
+  const { runWithStepUp, isSteppingUp } = useDestructiveSessionStepUp();
+  const utils = trpc.useUtils();
+  const removeExperiment = trpc.experiments.remove.useMutation();
+  const handleDeleteExperiment = useCallback(
+    (experimentId: string, displayName: string) => {
+      if (
+        !window.confirm(
+          `Delete this ${displayName} dataset? This cannot be undone.`,
+        )
+      ) {
+        return;
+      }
+      void runWithStepUp(async () => {
+        await removeExperiment.mutateAsync({ experimentId });
+        await Promise.all([
+          utils.experiments.browseList.invalidate(),
+          utils.experiments.browseSearch.invalidate(),
+        ]);
+      });
+    },
+    [runWithStepUp, removeExperiment, utils],
+  );
   const deepLinkExperimentId = parseNexafsExperimentSearchParam(
     searchParams.get(NEXAFS_EXPERIMENT_SEARCH_PARAM),
   );
@@ -382,7 +408,26 @@ export function NexafsBrowseExperimentSection({
                 />
                 {data.groups.map((group) => {
                   const { key, props } = mapNexafsBrowseGroupToCard(group);
-                  return <NexafsExperimentCompactCard key={key} {...props} />;
+                  const isOwner =
+                    currentUserId != null && currentUserId === props.createdBy;
+                  return (
+                    <NexafsExperimentCompactCard
+                      key={key}
+                      {...props}
+                      onDelete={
+                        isOwner
+                          ? () =>
+                              handleDeleteExperiment(
+                                props.experimentId,
+                                props.displayName,
+                              )
+                          : undefined
+                      }
+                      deleteDisabled={
+                        isSteppingUp || removeExperiment.isPending
+                      }
+                    />
+                  );
                 })}
               </div>
             )}

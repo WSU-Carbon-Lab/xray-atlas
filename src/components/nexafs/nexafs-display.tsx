@@ -36,6 +36,7 @@ import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/e
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
 import { NexafsDatasetCitationHead } from "~/components/nexafs/nexafs-dataset-citation-head";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
+import { ProfileDangerZoneRail } from "~/components/profile/profile-danger-zone-rail";
 import {
   NEXAFS_COMPACT_CARD_ACTIONS_CLASS,
   NEXAFS_COMPACT_CARD_META_CLASS,
@@ -246,6 +247,16 @@ export type NexafsExperimentCompactCardProps = {
    * and collapsing clears the query param from the address bar.
    */
   defaultExpanded?: boolean;
+  /**
+   * Deletes this dataset; only passed by the container when the viewer owns it.
+   * Rendering the danger-zone rail is gated on this prop being provided, not on
+   * any ownership check inside this presentational component.
+   */
+  onDelete?: () => void;
+  /** Transfers dataset ownership; omitted for now (no recipient picker yet). */
+  onTransfer?: () => void;
+  /** Disables the delete action while a step-up confirmation or delete mutation is in flight. */
+  deleteDisabled?: boolean;
 };
 
 export function NexafsExperimentCompactCard({
@@ -277,6 +288,9 @@ export function NexafsExperimentCompactCard({
   citationSample = null,
   citationYear,
   defaultExpanded = false,
+  onDelete,
+  onTransfer,
+  deleteDisabled = false,
 }: NexafsExperimentCompactCardProps) {
   const { data: session } = useSession();
   const user = session?.user;
@@ -736,6 +750,21 @@ export function NexafsExperimentCompactCard({
               title="Geometries"
             />
           </CompactCardMetricsColumn>
+          {onDelete || onTransfer ? (
+            <div
+              className="flex shrink-0 items-center self-center"
+              onClick={(e) => e.stopPropagation()}
+              onKeyDown={(e) => e.stopPropagation()}
+            >
+              <ProfileDangerZoneRail
+                subjectLabel={displayName}
+                onDelete={onDelete}
+                onTransfer={onTransfer}
+                deleteDisabled={deleteDisabled}
+                showTransfer={Boolean(onTransfer)}
+              />
+            </div>
+          ) : null}
         </div>
       </div>
       <div
