@@ -64,6 +64,7 @@ import {
 } from "~/features/process-nexafs/utils";
 import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils/normalizationDefaults";
 import { applyNormalizationRegionEdgeChange } from "~/lib/nexafs/normalization-region-edge-clamp";
+import { SPECTRUMPOINTS_BROWSE_FETCH_CAP } from "~/lib/nexafs/spectrum-point-limits";
 import type {
   BareAtomPoint,
   NormalizationRanges as PersistedNormalizationRanges,
@@ -303,7 +304,7 @@ export function NexafsExperimentDatasetPanel({
   } | null>(null);
 
   const pointsQuery = trpc.spectrumpoints.getByExperiment.useQuery(
-    { experimentId, limit: 10000, offset: 0 },
+    { experimentId, limit: SPECTRUMPOINTS_BROWSE_FETCH_CAP, offset: 0 },
     { enabled: enabled && Boolean(experimentId) },
   );
   const moleculeFormulaQuery =
