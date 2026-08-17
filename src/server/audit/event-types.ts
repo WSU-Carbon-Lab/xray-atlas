@@ -17,6 +17,7 @@ export const AUDIT_EVENT_TYPES = [
   "takedown.execute",
   "account.link.complete",
   "account.unlink",
+  "experiment.merge",
 ] as const;
 
 /** Identifies a row in `next_auth.audit_event`. */

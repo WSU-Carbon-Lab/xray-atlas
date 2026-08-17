@@ -293,6 +293,11 @@ export type SpectrumPlotProps = {
    */
   suppressAnalysisRailLeadingGrip?: boolean;
   /**
+   * When true, omits the entire plot tool rail deck (home, download, cursor modes, zoom/pan).
+   * Use for compact dialogs such as similarity compare where chrome competes with the traces.
+   */
+  hidePlotToolRails?: boolean;
+  /**
    * Optional controls for the bottom plot tool rail (`PlotToolRailsDeck`), for example
    * Kramers–Kronig recalculate actions that should not sit on the right analysis stack.
    */
