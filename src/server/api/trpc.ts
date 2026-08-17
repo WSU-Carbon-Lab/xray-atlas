@@ -184,12 +184,10 @@ const enforceAdminSessionAal = t.middleware(async ({ ctx, next }) => {
 
 /**
  * Destructive or ownership-changing self-service writes require passkey enrollment and AAL2
- * (passkey-established session). Role-based AAL3 is not applied here; use {@link adminProcedure}
- * for administrator console mutations.
- *
- * The export name is historical (`privilegedWriteProcedure`); behavior is destructive-write AAL2 only.
+ * (passkey-established session) established within the step-up window. Role-based AAL3 is not
+ * applied here; use {@link adminProcedure} for administrator console mutations.
  */
-export const privilegedWriteProcedure = protectedProcedure.use(
+export const destructiveWriteProcedure = protectedProcedure.use(
   enforceDestructiveSessionAal,
 );
 

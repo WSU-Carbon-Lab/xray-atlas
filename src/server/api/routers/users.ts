@@ -2,7 +2,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import {
   createTRPCRouter,
-  privilegedWriteProcedure,
+  destructiveWriteProcedure,
   protectedProcedure,
   publicProcedure,
 } from "~/server/api/trpc";
@@ -808,7 +808,7 @@ export const usersRouter = createTRPCRouter({
     }));
   }),
 
-  deletePasskey: privilegedWriteProcedure
+  deletePasskey: destructiveWriteProcedure
     .input(
       z.object({
         passkeyId: z.string().min(1).max(1024),
@@ -962,7 +962,7 @@ export const usersRouter = createTRPCRouter({
       };
     }),
 
-  deleteAccount: privilegedWriteProcedure.mutation(async ({ ctx }) => {
+  deleteAccount: destructiveWriteProcedure.mutation(async ({ ctx }) => {
     if (!ctx.userId) {
       throw new Error("User not authenticated");
     }

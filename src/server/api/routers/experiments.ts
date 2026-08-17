@@ -4,7 +4,7 @@ import {
   contributeSubmitProcedure,
   contributeWriteProcedure,
   createTRPCRouter,
-  privilegedWriteProcedure,
+  destructiveWriteProcedure,
   publicProcedure,
   protectedProcedure,
 } from "~/server/api/trpc";
@@ -2640,7 +2640,7 @@ export const experimentsRouter = createTRPCRouter({
    * Absorbs a redundant experiment into a keep experiment (geometry + metadata),
    * then hard-deletes the absorb row. Requires edit rights on both and AAL2.
    */
-  mergeRedundant: privilegedWriteProcedure
+  mergeRedundant: destructiveWriteProcedure
     .input(
       z.object({
         keepExperimentId: z.string().uuid(),
@@ -3250,7 +3250,7 @@ export const experimentsRouter = createTRPCRouter({
       return experiment;
     }),
 
-  remove: privilegedWriteProcedure
+  remove: destructiveWriteProcedure
     .input(z.object({ experimentId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const experiment = await ctx.db.experiments.findUnique({
@@ -3282,7 +3282,7 @@ export const experimentsRouter = createTRPCRouter({
       return { success: true };
     }),
 
-  transferOwnership: privilegedWriteProcedure
+  transferOwnership: destructiveWriteProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
@@ -3379,7 +3379,7 @@ export const experimentsRouter = createTRPCRouter({
       return { dataPointsRemoved };
     }),
 
-  removeCollector: privilegedWriteProcedure
+  removeCollector: destructiveWriteProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
