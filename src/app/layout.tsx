@@ -9,6 +9,7 @@ import { ThemeProviderWrapper } from "~/components/theme/theme-provider";
 import { TRPCReactProvider } from "~/trpc/client";
 import { DeferredVercelTelemetry } from "~/components/layout/deferred-vercel-telemetry";
 import { GlobalPasskeyEnrollmentBanner } from "~/components/auth/global-passkey-enrollment-banner";
+import { GlobalToastContainer } from "~/components/ui/global-toast-container";
 /**
  * Root Layout - Main application layout with HeroUI theming integration.
  *
@@ -54,6 +55,7 @@ export default async function RootLayout({
               {modal}
               <DeferredVercelTelemetry />
               <FooterGithubStarsSuspense />
+              <GlobalToastContainer />
             </ThemeProviderWrapper>
           </TRPCReactProvider>
         </SessionProvider>

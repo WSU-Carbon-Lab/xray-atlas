@@ -3,6 +3,7 @@
 import { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
+import { showToast } from "~/components/ui/toast";
 import { useDestructiveSessionStepUp } from "~/hooks/useDestructiveSessionStepUp";
 import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
 import {
@@ -135,6 +136,7 @@ export function NexafsBrowseExperimentSection({
       }
       void runWithStepUp(async () => {
         await removeExperiment.mutateAsync({ experimentId });
+        showToast(`Deleted ${displayName} dataset`, "success");
         await Promise.all([
           utils.experiments.browseList.invalidate(),
           utils.experiments.browseSearch.invalidate(),
