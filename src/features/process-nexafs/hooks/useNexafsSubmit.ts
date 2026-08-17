@@ -46,10 +46,7 @@ import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
 } from "~/features/kk-calc";
-import {
-  isSessionAalRequiredError,
-  PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
-} from "~/lib/passkey-client-auth";
+import { PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE } from "~/lib/passkey-client-auth";
 
 export type SubmitStatus = { type: "error"; message: string } | undefined;
 
@@ -363,7 +360,6 @@ export function useNexafsSubmit(
           return;
         }
 
-        let didRetryPasskey = false;
         for (const dataset of datasetsForSubmit) {
           if (!dataset.moleculeId) return;
 
@@ -581,21 +577,8 @@ export function useNexafsSubmit(
             ),
           };
 
-          let createResult;
-          try {
-            createResult =
-              await createNexafsMutation.mutateAsync(createPayload);
-          } catch (createError) {
-            if (!isSessionAalRequiredError(createError) || didRetryPasskey) {
-              throw createError;
-            }
-            didRetryPasskey = true;
-            if (!(await ensureSubmitPasskey())) {
-              return;
-            }
-            createResult =
-              await createNexafsMutation.mutateAsync(createPayload);
-          }
+          const createResult =
+            await createNexafsMutation.mutateAsync(createPayload);
 
           const sampleId = createResult.sample.id;
           const experimentId = createResult.experiments[0]?.experiment.id;
