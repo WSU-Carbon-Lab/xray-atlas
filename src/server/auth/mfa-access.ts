@@ -17,6 +17,13 @@ import {
   type SessionAssuranceSnapshot,
 } from "~/server/auth/session-assurance";
 
+/** Elevated-window duration after a fresh AAL2 passkey assertion (GitHub "sudo mode"-style). */
+export const STEP_UP_WINDOW_MS = 2 * 60 * 60 * 1000;
+
+function isWithinStepUpWindow(lastVerifiedAt: Date): boolean {
+  return Date.now() - lastVerifiedAt.getTime() < STEP_UP_WINDOW_MS;
+}
+
 export type SessionWriteAssuranceAppCode =
   | "SESSION_AAL_REQUIRED"
   | "SESSION_AAL3_REQUIRED";
@@ -95,7 +102,10 @@ export function sessionMeetsRequiredAal(
     return false;
   }
   if (requiredAal === AAL2) {
-    return isPasskeyEstablishedSession(assurance);
+    return (
+      isPasskeyEstablishedSession(assurance) &&
+      isWithinStepUpWindow(assurance.lastVerifiedAt)
+    );
   }
   return true;
 }
