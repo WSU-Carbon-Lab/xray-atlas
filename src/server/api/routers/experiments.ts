@@ -38,11 +38,15 @@ import {
 import { sampleAuxFieldsFromPrismaRow } from "~/lib/sample-aux-from-prisma";
 import {
   energySpanJaccard,
-  datasetSimilarityPercent,
   DATASET_SIMILARITY_WARN_THRESHOLD,
+  enumerateDatasetSimilarPairs,
+  evaluateMergeCandidacy,
+  NEXAFS_MERGE_EXPERIMENT_TYPES,
+  parseNexafsMergeExperimentType,
   type DatasetSimilarityMatch,
   type DatasetSimilarPair,
 } from "~/lib/nexafs/dataset-similarity";
+import { geometryKeysByExperimentId } from "~/server/nexafs/similar-experiment-pairs";
 import { plotPeakToPeaksetWrite } from "~/lib/nexafs/peakset-kind";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
@@ -2437,7 +2441,8 @@ export const experimentsRouter = createTRPCRouter({
 
   /**
    * Finds experiments on the same molecule that the signed-in contributor is
-   * already associated with and that overlap the uploaded energy span.
+   * already associated with, overlap the uploaded energy span, share detection
+   * mode when both are set, and have overlapping polarization geometries.
    */
   findSimilarForContributor: protectedProcedure
     .input(
@@ -2446,12 +2451,16 @@ export const experimentsRouter = createTRPCRouter({
         minEv: z.number().finite(),
         maxEv: z.number().finite(),
         limit: z.number().int().min(1).max(20).default(5),
+        geometryKeys: z.array(z.string().min(1)).max(64).optional(),
+        experimentType: z.enum(NEXAFS_MERGE_EXPERIMENT_TYPES).optional(),
       }),
     )
     .query(async ({ ctx, input }) => {
       const spanMin = Math.min(input.minEv, input.maxEv);
       const spanMax = Math.max(input.minEv, input.maxEv);
       const orcid = ctx.userId;
+      const uploadType = parseNexafsMergeExperimentType(input.experimentType);
+      const uploadGeometryKeys = input.geometryKeys ?? [];
       const candidates = await ctx.db.experiments.findMany({
         where: {
           samples: { moleculeid: input.moleculeId },
@@ -2469,6 +2478,7 @@ export const experimentsRouter = createTRPCRouter({
         select: {
           id: true,
           canonicalslug: true,
+          experimenttype: true,
         },
         take: 80,
         orderBy: { createdat: "desc" },
@@ -2492,6 +2502,7 @@ export const experimentsRouter = createTRPCRouter({
           },
         ]),
       );
+      const geometryById = await geometryKeysByExperimentId(ctx.db, ids);
       const matches: DatasetSimilarityMatch[] = [];
       for (const candidate of candidates) {
         const energy = energyById.get(candidate.id);
@@ -2512,6 +2523,21 @@ export const experimentsRouter = createTRPCRouter({
         if (score <= 0) {
           continue;
         }
+        if (uploadGeometryKeys.length > 0 || uploadType != null) {
+          const candidacy = evaluateMergeCandidacy({
+            energyScore: score,
+            energyThreshold: DATASET_SIMILARITY_WARN_THRESHOLD,
+            geometryKeysA: uploadGeometryKeys,
+            geometryKeysB: geometryById.get(candidate.id) ?? [],
+            experimentTypeA: uploadType,
+            experimentTypeB: parseNexafsMergeExperimentType(
+              candidate.experimenttype,
+            ),
+          });
+          if (!candidacy.ok) {
+            continue;
+          }
+        }
         matches.push({
           experimentId: candidate.id,
           canonicalSlug: candidate.canonicalslug,
@@ -2526,7 +2552,8 @@ export const experimentsRouter = createTRPCRouter({
 
   /**
    * Lists pairwise similar experiments on a molecule that the session user may
-   * edit on both sides (energy-span Jaccard at or above threshold).
+   * edit on both sides (energy Jaccard, same detection mode, overlapping
+   * geometries).
    */
   listSimilarPairsForMolecule: protectedProcedure
     .input(
@@ -2562,6 +2589,7 @@ export const experimentsRouter = createTRPCRouter({
           id: true,
           canonicalslug: true,
           createdat: true,
+          experimenttype: true,
         },
         take: input.candidateCap,
         orderBy: { createdat: "desc" },
@@ -2593,57 +2621,18 @@ export const experimentsRouter = createTRPCRouter({
           },
         ]),
       );
-
-      const pairs: DatasetSimilarPair[] = [];
-      for (let i = 0; i < editable.length; i++) {
-        const a = editable[i]!;
-        const energyA = energyById.get(a.id);
-        if (
-          energyA?.minEv == null ||
-          energyA.maxEv == null ||
-          !Number.isFinite(energyA.minEv) ||
-          !Number.isFinite(energyA.maxEv)
-        ) {
-          continue;
-        }
-        for (let j = i + 1; j < editable.length; j++) {
-          const b = editable[j]!;
-          const energyB = energyById.get(b.id);
-          if (
-            energyB?.minEv == null ||
-            energyB.maxEv == null ||
-            !Number.isFinite(energyB.minEv) ||
-            !Number.isFinite(energyB.maxEv)
-          ) {
-            continue;
-          }
-          const score = energySpanJaccard(
-            energyA.minEv,
-            energyA.maxEv,
-            energyB.minEv,
-            energyB.maxEv,
-          );
-          if (score < input.threshold) {
-            continue;
-          }
-          const aIsNewer = a.createdat >= b.createdat;
-          pairs.push({
-            aId: a.id,
-            bId: b.id,
-            aSlug: a.canonicalslug,
-            bSlug: b.canonicalslug,
-            score,
-            percent: datasetSimilarityPercent(score),
-            minEvA: energyA.minEv,
-            maxEvA: energyA.maxEv,
-            minEvB: energyB.minEv,
-            maxEvB: energyB.maxEv,
-            suggestedKeepId: aIsNewer ? a.id : b.id,
-            suggestedAbsorbId: aIsNewer ? b.id : a.id,
-          });
-        }
-      }
-      pairs.sort((left, right) => right.score - left.score);
+      const geometryKeysById = await geometryKeysByExperimentId(ctx.db, ids);
+      const pairs = enumerateDatasetSimilarPairs({
+        rows: editable.map((row) => ({
+          id: row.id,
+          canonicalslug: row.canonicalslug,
+          createdat: row.createdat,
+          experimenttype: parseNexafsMergeExperimentType(row.experimenttype),
+        })),
+        energyById,
+        geometryKeysById,
+        threshold: input.threshold,
+      });
       return { pairs: pairs.slice(0, input.limit) };
     }),
 
@@ -2705,7 +2694,8 @@ export const experimentsRouter = createTRPCRouter({
 
   /**
    * Summarizes similar editable experiment pairs across molecules the session
-   * user can edit (for account attributions entry points).
+   * user can edit (for account attributions entry points). Uses the same
+   * merge-candidacy gates as molecule similar-pair listing.
    */
   listMySimilarPairsSummary: protectedProcedure
     .input(
@@ -2739,6 +2729,7 @@ export const experimentsRouter = createTRPCRouter({
           id: true,
           canonicalslug: true,
           createdat: true,
+          experimenttype: true,
           samples: {
             select: {
               moleculeid: true,
@@ -2769,6 +2760,7 @@ export const experimentsRouter = createTRPCRouter({
             id: string;
             canonicalslug: string | null;
             createdat: Date;
+            experimenttype: ReturnType<typeof parseNexafsMergeExperimentType>;
           }>;
         }
       >();
@@ -2789,6 +2781,7 @@ export const experimentsRouter = createTRPCRouter({
           id: row.id,
           canonicalslug: row.canonicalslug,
           createdat: row.createdat,
+          experimenttype: parseNexafsMergeExperimentType(row.experimenttype),
         });
         byMolecule.set(moleculeId, bucket);
       }
@@ -2825,62 +2818,24 @@ export const experimentsRouter = createTRPCRouter({
             },
           ]),
         );
-        for (let i = 0; i < molecule.rows.length; i++) {
-          const a = molecule.rows[i]!;
-          const energyA = energyById.get(a.id);
-          if (
-            energyA?.minEv == null ||
-            energyA.maxEv == null ||
-            !Number.isFinite(energyA.minEv) ||
-            !Number.isFinite(energyA.maxEv)
-          ) {
-            continue;
+        const geometryKeysById = await geometryKeysByExperimentId(ctx.db, ids);
+        const moleculePairs = enumerateDatasetSimilarPairs({
+          rows: molecule.rows,
+          energyById,
+          geometryKeysById,
+          threshold: input.threshold,
+        });
+        totalPairs += moleculePairs.length;
+        for (const pair of moleculePairs) {
+          if (samples.length >= input.sampleLimit) {
+            break;
           }
-          for (let j = i + 1; j < molecule.rows.length; j++) {
-            const b = molecule.rows[j]!;
-            const energyB = energyById.get(b.id);
-            if (
-              energyB?.minEv == null ||
-              energyB.maxEv == null ||
-              !Number.isFinite(energyB.minEv) ||
-              !Number.isFinite(energyB.maxEv)
-            ) {
-              continue;
-            }
-            const score = energySpanJaccard(
-              energyA.minEv,
-              energyA.maxEv,
-              energyB.minEv,
-              energyB.maxEv,
-            );
-            if (score < input.threshold) {
-              continue;
-            }
-            totalPairs += 1;
-            if (samples.length >= input.sampleLimit) {
-              continue;
-            }
-            const aIsNewer = a.createdat >= b.createdat;
-            samples.push({
-              moleculeId: molecule.moleculeId,
-              moleculeSlug: molecule.moleculeSlug,
-              moleculeName: molecule.moleculeName,
-              pair: {
-                aId: a.id,
-                bId: b.id,
-                aSlug: a.canonicalslug,
-                bSlug: b.canonicalslug,
-                score,
-                percent: datasetSimilarityPercent(score),
-                minEvA: energyA.minEv,
-                maxEvA: energyA.maxEv,
-                minEvB: energyB.minEv,
-                maxEvB: energyB.maxEv,
-                suggestedKeepId: aIsNewer ? a.id : b.id,
-                suggestedAbsorbId: aIsNewer ? b.id : a.id,
-              },
-            });
-          }
+          samples.push({
+            moleculeId: molecule.moleculeId,
+            moleculeSlug: molecule.moleculeSlug,
+            moleculeName: molecule.moleculeName,
+            pair,
+          });
         }
       }
 

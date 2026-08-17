@@ -1,6 +1,6 @@
 /**
- * Pre-upload quality checklist for the contribute similarity confirmation panel.
- * Reuses upload diagnostics / metrics models and adds normalization-band continuity.
+ * Quality checklist for contribute similarity confirm and persist-merge.
+ * Contribute reuses upload diagnostics; persist-merge adds waveform and delete acks.
  */
 
 import type { SpectrumPoint } from "~/components/plots/types";
@@ -19,6 +19,10 @@ import {
   evaluateEdgeEnergyConsistency,
   spectrumEnergyExtent,
 } from "~/lib/nexafs/edge-energy-bands";
+import {
+  formatNrmsePercent,
+  SIMILARITY_WAVEFORM_POOR_NRMSE,
+} from "~/lib/nexafs/dataset-similarity-compare";
 import { countUnresolvedMergeConflicts } from "~/lib/nexafs/similarity-merge-conflicts";
 import type { SimilarityMergeConflictRow } from "~/lib/nexafs/similarity-merge-conflicts";
 
@@ -28,11 +32,14 @@ export type SimilarityConfirmCheckSeverity = "info" | "warn" | "blocker";
 /** Stable checklist ids that may require acknowledgement. */
 export type SimilarityConfirmCheckId =
   | "merge_conflicts"
+  | "merge_candidacy"
   | "attribution_curator"
   | "edge_energy"
   | "validation_warnings"
   | "norm_band_continuity"
-  | "metrics_preview";
+  | "metrics_preview"
+  | "absorb_delete"
+  | "waveform_nrmse";
 
 /** One quality / confirmation checklist item. */
 export interface SimilarityConfirmQualityCheck {
@@ -255,7 +262,7 @@ export function buildSimilarityConfirmQualityBundle(args: {
     checks.push({
       id: "merge_conflicts",
       title: "Unresolved merge conflicts",
-      detail: `${unresolved} field${unresolved === 1 ? "" : "s"} still need Upload or Existing.`,
+      detail: `${unresolved} field${unresolved === 1 ? "" : "s"} still need Keep or Absorb.`,
       severity: "blocker",
       requiresAck: false,
     });
@@ -365,15 +372,173 @@ export function buildSimilarityConfirmQualityBundle(args: {
     checks.push({
       id: "metrics_preview",
       title: "Dataset quality metrics",
-      detail: metrics.aggregatePercent != null
-        ? `Headline quality score ${Math.round(metrics.aggregatePercent)}%. Review the metrics rail before submit.`
-        : "Review spacing and SNR metrics before submit.",
+      detail:
+        metrics.aggregatePercent != null
+          ? `Headline quality score ${Math.round(metrics.aggregatePercent)}%. Review the metrics rail before submit.`
+          : "Review spacing and SNR metrics before submit.",
       severity: "info",
       requiresAck: false,
     });
   }
 
   return { checks, metrics, diagnostics };
+}
+
+/**
+ * Builds the persist-merge quality checklist for two already-uploaded experiments.
+ *
+ * @param args.mergeRows - Keep vs Absorb metadata conflict table.
+ * @param args.keepAttributions - Researchers that will remain on Keep after the current resolution.
+ * @param args.keepEdgeLabel - Edge label that will remain on Keep.
+ * @param args.keepPoints - Keep spectrum points for edge-vs-span checks.
+ * @param args.absorbLabel - Human label for the experiment that will be deleted.
+ * @param args.medianNrmse - Median matched-geometry NRMSE, or null when incomparable.
+ * @param args.hasSharedChannel - False when overlay cannot compare the same physical channel.
+ * @param args.mergeCandidacyDetail - When set, merge is blocked and Absorb is not deleted.
+ * @returns Checklist without upload diagnostics or metrics rail.
+ */
+export function buildPersistMergeQualityBundle(args: {
+  mergeRows: readonly SimilarityMergeConflictRow[];
+  keepAttributions: readonly DatasetAttributionEntry[];
+  keepEdgeLabel: string;
+  keepPoints: readonly SpectrumPoint[];
+  absorbLabel: string;
+  medianNrmse: number | null;
+  hasSharedChannel: boolean;
+  mergeCandidacyDetail?: string | null;
+}): SimilarityConfirmQualityBundle {
+  const checks: SimilarityConfirmQualityCheck[] = [];
+
+  if (args.mergeCandidacyDetail) {
+    checks.push({
+      id: "merge_candidacy",
+      title: "Not a merge candidate",
+      detail: args.mergeCandidacyDetail,
+      severity: "blocker",
+      requiresAck: false,
+    });
+  }
+
+  const unresolved = countUnresolvedMergeConflicts(args.mergeRows);
+  if (!args.mergeCandidacyDetail) {
+    if (unresolved > 0) {
+      checks.push({
+        id: "merge_conflicts",
+        title: "Unresolved merge conflicts",
+        detail: `${unresolved} field${unresolved === 1 ? "" : "s"} still need Keep or Absorb.`,
+        severity: "blocker",
+        requiresAck: false,
+      });
+    } else {
+      checks.push({
+        id: "merge_conflicts",
+        title: "Merge conflicts",
+        detail: "All disagreements are resolved.",
+        severity: "info",
+        requiresAck: false,
+      });
+    }
+  }
+
+  if (!args.hasSharedChannel) {
+    checks.push({
+      id: "waveform_nrmse",
+      title: "Waveform overlay",
+      detail:
+        "Keep and Absorb do not share a comparable channel. Review the overlay before deleting Absorb.",
+      severity: "warn",
+      requiresAck: true,
+    });
+  } else if (
+    args.medianNrmse != null &&
+    args.medianNrmse >= SIMILARITY_WAVEFORM_POOR_NRMSE
+  ) {
+    checks.push({
+      id: "waveform_nrmse",
+      title: "Waveform overlay",
+      detail: `Median endpoint NRMSE ${formatNrmsePercent(args.medianNrmse)} is a poor match. Confirm these are redundant before deleting Absorb.`,
+      severity: "warn",
+      requiresAck: true,
+    });
+  } else if (args.medianNrmse != null) {
+    checks.push({
+      id: "waveform_nrmse",
+      title: "Waveform overlay",
+      detail: `Median endpoint NRMSE ${formatNrmsePercent(args.medianNrmse)}.`,
+      severity: "info",
+      requiresAck: false,
+    });
+  }
+
+  const attributions = args.keepAttributions;
+  const curatorCount = attributions.filter((row) =>
+    isUploaderContributorRole(row.role),
+  ).length;
+  if (attributions.length === 0) {
+    checks.push({
+      id: "attribution_curator",
+      title: "Researchers",
+      detail: "Keep must retain at least one researcher after merge.",
+      severity: "blocker",
+      requiresAck: false,
+    });
+  } else if (curatorCount !== 1) {
+    checks.push({
+      id: "attribution_curator",
+      title: "Data curator",
+      detail: `Keep should have exactly one data curator; found ${curatorCount} after this resolution.`,
+      severity: "warn",
+      requiresAck: true,
+    });
+  } else {
+    checks.push({
+      id: "attribution_curator",
+      title: "Researchers",
+      detail: `${attributions.length} researcher${attributions.length === 1 ? "" : "s"} with one data curator on Keep.`,
+      severity: "info",
+      requiresAck: false,
+    });
+  }
+
+  const extent = spectrumEnergyExtent(args.keepPoints);
+  if (extent && args.keepEdgeLabel.trim().length > 0) {
+    const edgeCheck = evaluateEdgeEnergyConsistency({
+      edgeLabel: args.keepEdgeLabel,
+      minEv: extent.minEv,
+      maxEv: extent.maxEv,
+    });
+    if (!edgeCheck.ok) {
+      checks.push({
+        id: "edge_energy",
+        title: "Edge vs energy span",
+        detail: edgeCheck.message,
+        severity: "blocker",
+        requiresAck: true,
+      });
+    } else {
+      checks.push({
+        id: "edge_energy",
+        title: "Edge vs energy span",
+        detail: edgeCheck.expectedBand
+          ? `Keep sits in the typical ${edgeCheck.expectedBand.label} window.`
+          : "No typical band for this edge (exotic edges skip hard validation).",
+        severity: "info",
+        requiresAck: false,
+      });
+    }
+  }
+
+  if (!args.mergeCandidacyDetail) {
+    checks.push({
+      id: "absorb_delete",
+      title: "Permanent delete",
+      detail: `Absorb (${args.absorbLabel}) will be hard-deleted, including any Zenodo DOI or Atlas citation tag on that row. Keep remains the citation target.`,
+      severity: "blocker",
+      requiresAck: true,
+    });
+  }
+
+  return { checks, metrics: null, diagnostics: null };
 }
 
 /**

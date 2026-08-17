@@ -4,10 +4,15 @@
  * Molecule-scoped list of similar editable experiment pairs with merge entry.
  */
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button, Chip } from "@heroui/react";
 import { useSession } from "next-auth/react";
 import type { DatasetSimilarPair } from "~/lib/nexafs/dataset-similarity";
+import {
+  loadDismissedSimilarPairKeys,
+  persistDismissedSimilarPair,
+  similarPairDismissalKey,
+} from "~/lib/nexafs/similar-pair-dismissal";
 import { DatasetMergeModal } from "~/features/process-nexafs/ui/dataset-merge-modal";
 import { pathnameWithoutMergePairDeepLink } from "~/lib/nexafs-experiment-deep-link";
 import { trpc } from "~/trpc/client";
@@ -43,8 +48,23 @@ export function MoleculeSimilarDatasetsPanel({
 
   const [activePair, setActivePair] = useState<DatasetSimilarPair | null>(null);
   const [openedInitial, setOpenedInitial] = useState(false);
+  const [dismissedKeys, setDismissedKeys] = useState<Set<string>>(
+    () => new Set(),
+  );
 
   const pairs = pairsQuery.data?.pairs ?? EMPTY_SIMILAR_PAIRS;
+  const visiblePairs = useMemo(
+    () =>
+      pairs.filter(
+        (pair) =>
+          !dismissedKeys.has(similarPairDismissalKey(pair.aId, pair.bId)),
+      ),
+    [dismissedKeys, pairs],
+  );
+
+  useEffect(() => {
+    setDismissedKeys(loadDismissedSimilarPairKeys());
+  }, []);
 
   const clearMergePairFromUrl = () => {
     if (typeof window === "undefined") {
@@ -60,10 +80,10 @@ export function MoleculeSimilarDatasetsPanel({
   };
 
   useEffect(() => {
-    if (openedInitial || !initialMergePair || pairs.length === 0) {
+    if (openedInitial || !initialMergePair || visiblePairs.length === 0) {
       return;
     }
-    const match = pairs.find(
+    const match = visiblePairs.find(
       (pair) =>
         (pair.aId === initialMergePair.aId &&
           pair.bId === initialMergePair.bId) ||
@@ -74,12 +94,12 @@ export function MoleculeSimilarDatasetsPanel({
       setActivePair(match);
       setOpenedInitial(true);
     }
-  }, [initialMergePair, openedInitial, pairs]);
+  }, [initialMergePair, openedInitial, visiblePairs]);
 
   if (!enabled || pairsQuery.isLoading) {
     return null;
   }
-  if (pairs.length === 0) {
+  if (visiblePairs.length === 0) {
     return null;
   }
 
@@ -93,11 +113,12 @@ export function MoleculeSimilarDatasetsPanel({
           Similar datasets
         </h2>
         <p className="text-muted text-sm">
-          Overlapping energy spans you can edit on both sides
+          Same detection mode and overlapping geometries you can edit on both
+          sides
         </p>
       </div>
       <ul className="space-y-2">
-        {pairs.map((pair) => {
+        {visiblePairs.map((pair) => {
           const labelA = pair.aSlug ?? pair.aId.slice(0, 8);
           const labelB = pair.bSlug ?? pair.bId.slice(0, 8);
           return (
@@ -140,6 +161,13 @@ export function MoleculeSimilarDatasetsPanel({
           moleculeId={moleculeId}
           moleculeSlug={moleculeSlug ?? null}
           onClose={() => {
+            clearMergePairFromUrl();
+            setActivePair(null);
+          }}
+          onDismissAsUnique={() => {
+            setDismissedKeys(
+              persistDismissedSimilarPair(activePair.aId, activePair.bId),
+            );
             clearMergePairFromUrl();
             setActivePair(null);
           }}

@@ -33,6 +33,7 @@ import {
   datasetSimilarityPercent,
   DATASET_SIMILARITY_WARN_THRESHOLD,
   similaritiesAboveThreshold,
+  uniqueGeometryKeysFromPoints,
   type DatasetSimilarityMatch,
 } from "~/lib/nexafs/dataset-similarity";
 import {
@@ -120,16 +121,17 @@ export function useNexafsSubmit(
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
   const [isConfirmingPasskey, setIsConfirmingPasskey] = useState(false);
   const { data: session } = useSession();
-  const sessionUploader = useMemo((): SessionUploaderAttributionIdentity | null => {
-    if (!session?.user?.id) {
-      return null;
-    }
-    return {
-      orcid: session.user.id,
-      displayName: session.user.name ?? null,
-      imageUrl: session.user.image,
-    };
-  }, [session?.user?.id, session?.user?.image, session?.user?.name]);
+  const sessionUploader =
+    useMemo((): SessionUploaderAttributionIdentity | null => {
+      if (!session?.user?.id) {
+        return null;
+      }
+      return {
+        orcid: session.user.id,
+        displayName: session.user.name ?? null,
+        imageUrl: session.user.image,
+      };
+    }, [session?.user?.id, session?.user?.image, session?.user?.name]);
   const utils = trpc.useUtils();
   const createNexafsMutation =
     trpc.experiments.createWithSpectrum.useMutation();
@@ -161,7 +163,8 @@ export function useNexafsSubmit(
 
       if (!result.ok) {
         const message =
-          result.errorMessage ?? "Passkey confirmation failed. Please try again.";
+          result.errorMessage ??
+          "Passkey confirmation failed. Please try again.";
         if (
           isPasskeyClientCancelled(new Error(message)) ||
           message.toLowerCase().includes("interrupted") ||
@@ -352,14 +355,17 @@ export function useNexafsSubmit(
           continue;
         }
         try {
-          const similar = await utils.experiments.findSimilarForContributor.fetch(
-            {
+          const similar =
+            await utils.experiments.findSimilarForContributor.fetch({
               moleculeId: dataset.moleculeId,
               minEv: extent.minEv,
               maxEv: extent.maxEv,
               limit: 8,
-            },
-          );
+              geometryKeys: uniqueGeometryKeysFromPoints(
+                dataset.spectrumPoints,
+              ),
+              experimentType: dataset.experimentType || undefined,
+            });
           const ranked = similaritiesAboveThreshold(
             similar.matches,
             DATASET_SIMILARITY_WARN_THRESHOLD,
@@ -644,7 +650,8 @@ export function useNexafsSubmit(
 
           let createResult;
           try {
-            createResult = await createNexafsMutation.mutateAsync(createPayload);
+            createResult =
+              await createNexafsMutation.mutateAsync(createPayload);
           } catch (createError) {
             if (!isSessionAalRequiredError(createError) || didRetryPasskey) {
               throw createError;

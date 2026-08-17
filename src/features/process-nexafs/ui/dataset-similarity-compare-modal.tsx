@@ -1,30 +1,13 @@
 "use client";
 
 import { useEffect, useMemo, useState, type ReactNode } from "react";
-import {
-  Checkbox,
-  Chip,
-  Description,
-  Label,
-  Link,
-  ToggleButton,
-  ToggleButtonGroup,
-} from "@heroui/react";
-import { CheckIcon } from "~/components/icons";
-import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
+import { Chip, Description, Link } from "@heroui/react";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
-import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
-import { SpectrumPlot } from "~/components/plots/spectrum-plot";
 import type {
   DifferenceSpectrum,
   SpectrumPoint,
 } from "~/components/plots/types";
 import { SimpleDialog } from "~/components/ui/dialog";
-import {
-  normalizeProfileImageUrl,
-  type UserWithOrcid,
-} from "~/components/ui/avatar";
-import { contributorRoleLabelsForDisplay } from "~/lib/contributor-avatar-display";
 import type {
   DatasetState,
   ExperimentTypeOption,
@@ -32,13 +15,28 @@ import type {
 import { mapDbSpectrumRowsToPoints } from "~/features/process-nexafs/utils/mapDbSpectrumRowsToPoints";
 import type { SimilarityContinuePatch } from "~/features/process-nexafs/utils/similarity-continue-patch";
 import {
-  datasetAttributionsForAvatarDisplay,
+  SimilarityAttributionCell,
+  SimilarityBulkResolutionGroup,
+  SimilarityColumnHeader,
+  SimilarityConflictRow,
+  SimilarityMetaGroup,
+  SimilarityQualityChecklist,
+  SimilarityReadOnlyRow,
+  SimilarityReviewFooter,
+  SimilarityReviewModeGroup,
+  SimilaritySpectrumSection,
+  attributionsDisplayLabel,
+  attributionsToAvatarUsers,
+  bulkActionToResolution,
+  type SimilarityBulkAction,
+  type SimilarityPlotSource,
+  type SimilarityReviewViewMode,
+} from "~/features/process-nexafs/ui/similarity-review-shared";
+import {
   datasetAttributionsFromContributorDtos,
   dedupeDatasetAttributions,
-  researcherAttributionBadgeStatus,
   type DatasetAttributionEntry,
 } from "~/lib/nexafs-attribution";
-import { attributionResearcherAvatarProps } from "~/lib/dataset-attribution-claim";
 import type { DatasetSimilarityMatch } from "~/lib/nexafs/dataset-similarity";
 import { datasetSimilarityPercent } from "~/lib/nexafs/dataset-similarity";
 import {
@@ -92,12 +90,6 @@ type EdgeOptionRef = {
   targetatom: string;
   corestate: string;
 };
-
-type PlotSource = "existing" | "upload" | "overlay";
-
-type ReviewViewMode = "conflicts" | "full";
-
-type BulkAction = "upload" | "existing" | "smart";
 
 /** Payload passed when contribute submit needs a similarity confirmation. */
 export interface DatasetSimilarityConfirmRequest {
@@ -160,60 +152,6 @@ function parseExperimentTypeOption(
   }
 }
 
-function attributionsToAvatarUsers(
-  rows: readonly DatasetAttributionEntry[],
-): UserWithOrcid[] {
-  return datasetAttributionsForAvatarDisplay([...rows]).map((display) => {
-    const orcid = display.orcid.trim();
-    const avatarProps = attributionResearcherAvatarProps({
-      orcid,
-      resolved: {
-        displayLabel: display.displayName,
-        displayName: display.isOrcidOnlyDisplay ? null : display.displayName,
-        imageUrl: display.image,
-        showProfileImage: Boolean(display.image?.trim()),
-        isOrcidOnlyLabel: display.isOrcidOnlyDisplay,
-        avatarPlaceholder: display.avatarPlaceholder,
-      },
-    });
-    return {
-      id: display.isClaimed
-        ? display.profileUserId.trim() || orcid
-        : orcid,
-      orcid,
-      name: avatarProps.displayName,
-      image: normalizeProfileImageUrl(avatarProps.imageUrl),
-      isAtlasProfile: avatarProps.isAtlasProfile,
-      avatarPlaceholder: avatarProps.placeholder,
-      attributionBadgeStatus: researcherAttributionBadgeStatus({
-        isClaimed: display.isClaimed,
-        hasContributionAgreement: display.hasContributionAgreement,
-      }),
-      hoverRoleLabel: contributorRoleLabelsForDisplay(display.roles),
-      tooltipSubtitle: contributorRoleLabelsForDisplay(display.roles),
-      avatarStackKey: display.stackKey,
-    };
-  });
-}
-
-function attributionsDisplayLabel(
-  rows: readonly DatasetAttributionEntry[],
-): string {
-  if (rows.length === 0) {
-    return "—";
-  }
-  const names = datasetAttributionsForAvatarDisplay([...rows])
-    .map((row) => row.displayName.trim())
-    .filter((name) => name.length > 0);
-  if (names.length === 0) {
-    return `${rows.length} researcher${rows.length === 1 ? "" : "s"}`;
-  }
-  if (names.length <= 3) {
-    return names.join(", ");
-  }
-  return `${names.slice(0, 2).join(", ")} +${names.length - 2}`;
-}
-
 function displayOrDash(value: string | null | undefined): string {
   const trimmed = value?.trim();
   return trimmed && trimmed.length > 0 ? trimmed : "—";
@@ -253,158 +191,6 @@ function formatSourcePublications(
         </li>
       ))}
     </ul>
-  );
-}
-
-function MetaGroup({
-  title,
-  children,
-}: {
-  title: string;
-  children: ReactNode;
-}) {
-  return (
-    <section className="border-border bg-surface-secondary overflow-hidden rounded-xl border">
-      <header className="text-muted px-3 py-2 text-xs font-semibold tracking-wide uppercase">
-        {title}
-      </header>
-      <div className="border-border bg-surface divide-border divide-y border-t">
-        {children}
-      </div>
-    </section>
-  );
-}
-
-function ColumnHeader() {
-  return (
-    <div className="text-muted grid grid-cols-[7rem_1fr_1fr] gap-2 px-3 py-1.5 text-xs font-semibold tracking-wide uppercase">
-      <span>Field</span>
-      <span>Upload</span>
-      <span>Existing</span>
-    </div>
-  );
-}
-
-function SelectableCell({
-  selected,
-  onSelect,
-  children,
-  disabled,
-}: {
-  selected: boolean;
-  onSelect: () => void;
-  children: ReactNode;
-  disabled?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      disabled={disabled}
-      onClick={onSelect}
-      className={cn(
-        "flex min-w-0 w-full items-start gap-2 rounded-lg px-2 py-1.5 text-left text-sm transition-colors",
-        selected
-          ? "bg-accent/15 ring-accent/40 ring-1"
-          : "hover:bg-default/70",
-        disabled && "cursor-default opacity-80 hover:bg-transparent",
-      )}
-    >
-      <span
-        className={cn(
-          "mt-0.5 flex size-4 shrink-0 items-center justify-center rounded-full border",
-          selected
-            ? "border-accent bg-accent text-accent-foreground"
-            : "border-border bg-transparent",
-        )}
-        aria-hidden
-      >
-        {selected ? <CheckIcon className="size-2.5" /> : null}
-      </span>
-      <span className="min-w-0 flex-1 break-words">{children}</span>
-    </button>
-  );
-}
-
-function ReadOnlyRow({
-  label,
-  upload,
-  existing,
-  differs,
-}: {
-  label: string;
-  upload: ReactNode;
-  existing: ReactNode;
-  differs?: boolean;
-}) {
-  return (
-    <div
-      className={cn(
-        "grid grid-cols-[7rem_1fr_1fr] gap-2 px-3 py-2 text-sm",
-        differs && "bg-warning/10",
-      )}
-    >
-      <div className="text-muted font-medium">{label}</div>
-      <div className="text-foreground min-w-0 break-words">{upload}</div>
-      <div className="text-foreground min-w-0 break-words">{existing}</div>
-    </div>
-  );
-}
-
-function ConflictRow({
-  row,
-  onResolve,
-  uploadExtra,
-  existingExtra,
-}: {
-  row: SimilarityMergeConflictRow;
-  onResolve: (resolution: SimilarityMergeResolution) => void;
-  uploadExtra?: ReactNode;
-  existingExtra?: ReactNode;
-}) {
-  if (row.status === "agreed") {
-    return (
-      <ReadOnlyRow
-        label={row.label}
-        upload={uploadExtra ?? row.uploadDisplay}
-        existing={existingExtra ?? row.existingDisplay}
-      />
-    );
-  }
-
-  const selected = row.resolution;
-  return (
-    <div className="bg-warning/5 grid grid-cols-[7rem_1fr_1fr] gap-2 px-3 py-2 text-sm">
-      <div className="text-muted flex flex-col gap-1 font-medium">
-        <span>{row.label}</span>
-        <span className="text-warning text-[10px] font-semibold tracking-wide uppercase">
-          Conflict
-        </span>
-        {row.allowsBoth ? (
-          <button
-            type="button"
-            onClick={() => onResolve("both")}
-            className={cn(
-              "text-accent w-fit text-left text-xs underline",
-              selected === "both" && "font-semibold",
-            )}
-          >
-            Use both
-          </button>
-        ) : null}
-      </div>
-      <SelectableCell
-        selected={selected === "upload"}
-        onSelect={() => onResolve("upload")}
-      >
-        {uploadExtra ?? row.uploadDisplay}
-      </SelectableCell>
-      <SelectableCell
-        selected={selected === "existing"}
-        onSelect={() => onResolve("existing")}
-      >
-        {existingExtra ?? row.existingDisplay}
-      </SelectableCell>
-    </div>
   );
 }
 
@@ -461,9 +247,12 @@ export function DatasetSimilarityCompareModal({
   const moleculeId = request?.dataset.moleculeId ?? "";
   const [geometrySelection, setGeometrySelection] =
     useState<SimilarityGeometrySelection>("all");
-  const [plotSource, setPlotSource] = useState<PlotSource>("overlay");
-  const [reviewMode, setReviewMode] = useState<ReviewViewMode>("conflicts");
-  const [bulkAction, setBulkAction] = useState<BulkAction | null>(null);
+  const [plotSource, setPlotSource] = useState<SimilarityPlotSource>("overlay");
+  const [reviewMode, setReviewMode] =
+    useState<SimilarityReviewViewMode>("conflicts");
+  const [bulkAction, setBulkAction] = useState<SimilarityBulkAction | null>(
+    null,
+  );
   const [mergeRows, setMergeRows] = useState<SimilarityMergeConflictRow[]>([]);
   const [ackedChecks, setAckedChecks] = useState<Set<string>>(() => new Set());
 
@@ -644,9 +433,7 @@ export function DatasetSimilarityCompareModal({
   const uploadEnergyLabel = uploadExtent
     ? formatEnergySpanEv(uploadExtent.minEv, uploadExtent.maxEv)
     : "—";
-  const uploadTypeShort = experimentTypeShort(
-    request?.dataset.experimentType,
-  );
+  const uploadTypeShort = experimentTypeShort(request?.dataset.experimentType);
 
   const mergeSides = useMemo((): SimilarityMergeCompareSides | null => {
     if (!request || !descriptorsQuery.data) {
@@ -747,10 +534,7 @@ export function DatasetSimilarityCompareModal({
 
   const resolvedEdgeLabel = useMemo(() => {
     const edgeRow = mergeRows.find((row) => row.id === "edge");
-    if (
-      edgeRow?.status === "resolved" &&
-      edgeRow.resolution === "existing"
-    ) {
+    if (edgeRow?.status === "resolved" && edgeRow.resolution === "existing") {
       return existingEdgeLabel;
     }
     return uploadEdgeLabel === "—" ? "" : uploadEdgeLabel;
@@ -802,25 +586,25 @@ export function DatasetSimilarityCompareModal({
     let primaryDash: "solid" | "dash" = "solid";
 
     switch (plotSource) {
-      case "existing":
+      case "keep":
         points = existing;
-        primaryLabel = "Existing";
+        primaryLabel = "Keep";
         primaryDash = "solid";
         break;
-      case "upload":
+      case "absorb":
         points = upload;
-        primaryLabel = "Upload";
+        primaryLabel = "Absorb";
         primaryDash = "dash";
         break;
       case "overlay":
         if (existing.length > 0) {
           points = existing;
-          primaryLabel = "Existing";
+          primaryLabel = "Keep";
           primaryDash = "solid";
           if (upload.length > 0) {
             companions = [
               {
-                label: "Upload",
+                label: "Absorb",
                 points: upload,
                 color: "var(--foreground)",
                 lineDash: "dash",
@@ -831,7 +615,7 @@ export function DatasetSimilarityCompareModal({
           }
         } else {
           points = upload;
-          primaryLabel = "Upload";
+          primaryLabel = "Absorb";
           primaryDash = "dash";
         }
         break;
@@ -878,10 +662,7 @@ export function DatasetSimilarityCompareModal({
 
   const unresolvedCount = countUnresolvedMergeConflicts(mergeRows);
   const qualityOk = qualityBundle
-    ? similarityConfirmQualityAllowsSubmit(
-        qualityBundle.checks,
-        ackedChecks,
-      )
+    ? similarityConfirmQualityAllowsSubmit(qualityBundle.checks, ackedChecks)
     : false;
   const canSubmit = unresolvedCount === 0 && qualityOk && Boolean(mergeSides);
 
@@ -900,16 +681,17 @@ export function DatasetSimilarityCompareModal({
     (row) => row.category === "attribution",
   );
 
-  const applyBulk = (action: BulkAction) => {
+  const applyBulk = (action: SimilarityBulkAction) => {
     setBulkAction(action);
     setMergeRows((prev) => {
       if (action === "smart") {
         return applySmartMergeResolution(prev);
       }
-      return applyBulkMergeResolution(
-        prev,
-        action === "upload" ? "upload" : "existing",
-      );
+      const resolution = bulkActionToResolution(action);
+      if (!resolution) {
+        return prev;
+      }
+      return applyBulkMergeResolution(prev, resolution);
     });
   };
 
@@ -927,10 +709,7 @@ export function DatasetSimilarityCompareModal({
     if (!request || !mergeSides || !canSubmit) {
       return;
     }
-    const patch = buildSimilarityContinuePatchFromMerges(
-      mergeRows,
-      mergeSides,
-    );
+    const patch = buildSimilarityContinuePatchFromMerges(mergeRows, mergeSides);
     onContinue(patch);
   };
 
@@ -978,70 +757,24 @@ export function DatasetSimilarityCompareModal({
           </div>
 
           <Description className="text-muted text-sm">
-            Similar Atlas data was found. Resolve merge conflicts, review
-            quality checks, then confirm the spectrum before submit.
+            Keep is the Atlas experiment already on this molecule. Absorb is
+            this upload. Check the value you want on each conflict; Prefer keep
+            copies catalog fields onto the submit.
           </Description>
 
-          <div className="flex flex-col gap-2">
-            <Label className="text-foreground text-sm font-medium">
-              Resolve disagreements
-            </Label>
-            <ToggleButtonGroup
-              aria-label="Bulk merge resolution"
-              selectionMode="single"
-              selectedKeys={bulkAction ? new Set([bulkAction]) : new Set()}
-              onSelectionChange={(keys) => {
-                const next = keys.values().next().value;
-                if (next === "upload" || next === "existing" || next === "smart") {
-                  applyBulk(next);
-                }
-              }}
-              className="flex flex-wrap gap-1"
-            >
-              <ToggleButton id="upload" size="sm" className="rounded-lg px-3">
-                Keep upload
-              </ToggleButton>
-              <ToggleButton id="existing" size="sm" className="rounded-lg px-3">
-                Keep existing
-              </ToggleButton>
-              <ToggleButton id="smart" size="sm" className="rounded-lg px-3">
-                Smart merge
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </div>
+          <SimilarityBulkResolutionGroup
+            bulkAction={bulkAction}
+            onBulk={applyBulk}
+          />
 
-          <div className="flex flex-col gap-2">
-            <Label className="text-foreground text-sm font-medium">
-              Review
-            </Label>
-            <ToggleButtonGroup
-              aria-label="Review mode"
-              selectionMode="single"
-              selectedKeys={new Set([reviewMode])}
-              onSelectionChange={(keys) => {
-                const next = keys.values().next().value;
-                if (next === "conflicts" || next === "full") {
-                  setReviewMode(next);
-                }
-              }}
-              className="flex flex-wrap gap-1"
-            >
-              <ToggleButton
-                id="conflicts"
-                size="sm"
-                className="rounded-lg px-3"
-              >
-                Conflicts
-                {unresolvedCount > 0 ? ` (${unresolvedCount})` : ""}
-              </ToggleButton>
-              <ToggleButton id="full" size="sm" className="rounded-lg px-3">
-                Full review
-              </ToggleButton>
-            </ToggleButtonGroup>
-          </div>
+          <SimilarityReviewModeGroup
+            reviewMode={reviewMode}
+            unresolvedCount={unresolvedCount}
+            onReviewModeChange={setReviewMode}
+          />
 
           {request.batchTotal > 1 ? (
-            <MetaGroup title="Upload batch">
+            <SimilarityMetaGroup title="Upload batch">
               <ul className="flex list-none flex-col gap-1 px-3 py-2 text-sm">
                 {request.batchFileNames.map((name, i) => (
                   <li
@@ -1059,11 +792,11 @@ export function DatasetSimilarityCompareModal({
                   </li>
                 ))}
               </ul>
-            </MetaGroup>
+            </SimilarityMetaGroup>
           ) : null}
 
           {(request.siblingMatches?.length ?? 0) > 0 ? (
-            <MetaGroup title="Other similar experiments">
+            <SimilarityMetaGroup title="Other similar experiments">
               <ul className="flex list-none flex-col gap-1 px-3 py-2 text-sm">
                 {request.siblingMatches!.map((row) => (
                   <li
@@ -1082,135 +815,51 @@ export function DatasetSimilarityCompareModal({
                   </li>
                 ))}
               </ul>
-            </MetaGroup>
+            </SimilarityMetaGroup>
           ) : null}
 
-          <MetaGroup title="Spectrum">
-            <div className="flex flex-col gap-3 px-3 py-3">
-              <div className="flex flex-col gap-2">
-                <Label className="text-foreground text-sm font-medium">
-                  Show spectrum
-                </Label>
-                <ToggleButtonGroup
-                  aria-label="Plot source"
-                  selectionMode="single"
-                  selectedKeys={new Set([plotSource])}
-                  onSelectionChange={(keys) => {
-                    const next = keys.values().next().value;
-                    if (
-                      next === "existing" ||
-                      next === "upload" ||
-                      next === "overlay"
-                    ) {
-                      setPlotSource(next);
-                    }
-                  }}
-                  className="flex flex-wrap gap-1"
-                >
-                  <ToggleButton
-                    id="existing"
-                    size="sm"
-                    className="rounded-lg px-3"
-                  >
-                    Existing
-                  </ToggleButton>
-                  <ToggleButton
-                    id="upload"
-                    size="sm"
-                    className="rounded-lg px-3"
-                  >
-                    Upload
-                  </ToggleButton>
-                  <ToggleButton
-                    id="overlay"
-                    size="sm"
-                    className="rounded-lg px-3"
-                  >
-                    Overlay
-                  </ToggleButton>
-                </ToggleButtonGroup>
-              </div>
-
-              {plotModel && matchedPairings.length > 0 ? (
-                <div className="flex flex-col gap-2">
-                  <Label className="text-foreground text-sm font-medium">
-                    Angle
-                  </Label>
-                  <ToggleButtonGroup
-                    aria-label="Geometry pair selection"
-                    selectionMode="single"
-                    selectedKeys={new Set([geometrySelection])}
-                    onSelectionChange={(keys) => {
-                      const next = keys.values().next().value;
-                      if (typeof next === "string" && next.length > 0) {
-                        setGeometrySelection(
-                          next as SimilarityGeometrySelection,
-                        );
-                      }
-                    }}
-                    className="flex flex-wrap gap-1"
-                  >
-                    <ToggleButton
-                      id="all"
-                      size="sm"
-                      className="rounded-lg px-3"
-                    >
-                      All angles
-                    </ToggleButton>
-                    {matchedPairings.map((pairing) => (
-                      <ToggleButton
-                        key={pairing.key}
-                        id={pairing.key}
-                        size="sm"
-                        className="rounded-lg px-3"
-                      >
-                        {pairing.label}
-                      </ToggleButton>
-                    ))}
-                  </ToggleButtonGroup>
-                </div>
-              ) : null}
-
-              <Description className="text-muted text-xs">
-                {selectedPairingLabel
-                  ? `${plotSource} · ${selectedPairingLabel}. `
-                  : `${plotSource}. `}
-                {hasSharedChannel
-                  ? `Comparing ${channelLabel}. `
-                  : "No shared channel for residuals. "}
-                {activeResidual
-                  ? `Residual NRMSE ${formatNrmsePercent(activeResidual.nrmse)}.`
-                  : plotSource === "overlay"
-                    ? "Pick one matched angle for residuals."
-                    : ""}
-              </Description>
-
-              {isLoadingCompare ? (
-                <LoadingSkeleton className="h-80 w-full rounded-xl" />
-              ) : spectrumPlotProps.points.length > 0 ? (
-                <SpectrumPlot {...spectrumPlotProps} />
-              ) : (
-                <div className="border-border text-muted rounded-xl border border-dashed p-6 text-sm">
-                  Could not load spectrum points for comparison.
-                </div>
-              )}
-            </div>
-          </MetaGroup>
+          <SimilaritySpectrumSection
+            plotSource={plotSource}
+            onPlotSourceChange={setPlotSource}
+            geometrySelection={geometrySelection}
+            onGeometrySelectionChange={setGeometrySelection}
+            matchedPairings={matchedPairings}
+            description={`${
+              selectedPairingLabel
+                ? `${plotSource} · ${selectedPairingLabel}. `
+                : `${plotSource}. `
+            }${
+              hasSharedChannel
+                ? `Comparing ${channelLabel}. `
+                : "No shared channel for residuals. "
+            }${
+              activeResidual
+                ? `Residual NRMSE ${formatNrmsePercent(activeResidual.nrmse)}.`
+                : plotSource === "overlay"
+                  ? "Pick one matched angle for residuals."
+                  : ""
+            }`}
+            loading={isLoadingCompare}
+            plotProps={
+              spectrumPlotProps.points.length > 0 ? spectrumPlotProps : null
+            }
+            emptyMessage="Could not load spectrum points for comparison."
+          />
 
           {descriptorsQuery.isLoading ? (
             <LoadingSkeleton className="h-40 w-full rounded-xl" />
           ) : (
             <>
               {reviewMode === "full" || experimentRows.length > 0 ? (
-                <MetaGroup title="Experiment">
-                  <ColumnHeader />
+                <SimilarityMetaGroup title="Experiment">
+                  <SimilarityColumnHeader />
                   {experimentRows.length === 0 ? (
                     <p className="text-muted px-3 py-2 text-sm">
                       No experiment conflicts.
                     </p>
                   ) : (
                     experimentRows.map((row) => (
-                      <ConflictRow
+                      <SimilarityConflictRow
                         key={row.id}
                         row={row}
                         onResolve={(resolution) =>
@@ -1221,39 +870,31 @@ export function DatasetSimilarityCompareModal({
                   )}
                   {reviewMode === "full" ? (
                     <>
-                      <ReadOnlyRow
+                      <SimilarityReadOnlyRow
                         label="Energy"
-                        upload={uploadEnergyLabel}
-                        existing={existingEnergySpan}
+                        keep={existingEnergySpan}
+                        absorb={uploadEnergyLabel}
                         differs={
                           uploadEnergyLabel !== "—" &&
                           existingEnergySpan !== "—" &&
                           uploadEnergyLabel !== existingEnergySpan
                         }
                       />
-                      <ReadOnlyRow
+                      <SimilarityReadOnlyRow
                         label="Calibration"
-                        upload={
+                        keep={displayOrDash(
+                          descriptorsQuery.data?.calibration?.name,
+                        )}
+                        absorb={
                           request.dataset.referenceStandard.trim() ||
                           (request.dataset.calibrationId
                             ? request.dataset.calibrationId.slice(0, 8)
                             : "—")
                         }
-                        existing={displayOrDash(
-                          descriptorsQuery.data?.calibration?.name,
-                        )}
                       />
-                      <ReadOnlyRow
+                      <SimilarityReadOnlyRow
                         label="Identity"
-                        upload={
-                          <span
-                            className="text-muted truncate"
-                            title={request.dataset.fileName}
-                          >
-                            {request.dataset.fileName}
-                          </span>
-                        }
-                        existing={
+                        keep={
                           <span className="inline-flex flex-wrap items-center gap-2">
                             <code className="text-xs">{shortId}</code>
                             {request.match.canonicalSlug ? (
@@ -1273,46 +914,47 @@ export function DatasetSimilarityCompareModal({
                             ) : null}
                           </span>
                         }
+                        absorb={
+                          <span
+                            className="text-muted truncate"
+                            title={request.dataset.fileName}
+                          >
+                            {request.dataset.fileName}
+                          </span>
+                        }
                       />
                     </>
                   ) : null}
-                </MetaGroup>
+                </SimilarityMetaGroup>
               ) : null}
 
               {reviewMode === "full" ? (
-                <MetaGroup title="Molecule">
-                  <ColumnHeader />
-                  <ReadOnlyRow
+                <SimilarityMetaGroup title="Molecule">
+                  <SimilarityColumnHeader />
+                  <SimilarityReadOnlyRow
                     label="Name"
-                    upload={moleculeName}
-                    existing={displayOrDash(
+                    keep={displayOrDash(
                       descriptorsQuery.data?.molecule.iupacName,
                     )}
+                    absorb={moleculeName}
                   />
-                  <ReadOnlyRow
+                  <SimilarityReadOnlyRow
                     label="Formula"
-                    upload={displayOrDash(moleculeQuery.data?.chemicalFormula)}
-                    existing={displayOrDash(
+                    keep={displayOrDash(
                       descriptorsQuery.data?.molecule.chemicalFormula,
                     )}
+                    absorb={displayOrDash(moleculeQuery.data?.chemicalFormula)}
                   />
-                  <ReadOnlyRow
+                  <SimilarityReadOnlyRow
                     label="CAS"
-                    upload={displayOrDash(moleculeQuery.data?.casNumber)}
-                    existing={displayOrDash(
+                    keep={displayOrDash(
                       descriptorsQuery.data?.molecule.casNumber,
                     )}
+                    absorb={displayOrDash(moleculeQuery.data?.casNumber)}
                   />
-                  <ReadOnlyRow
+                  <SimilarityReadOnlyRow
                     label="InChI"
-                    upload={
-                      <span title={displayOrDash(moleculeQuery.data?.InChI)}>
-                        {truncateMiddle(
-                          displayOrDash(moleculeQuery.data?.InChI),
-                        )}
-                      </span>
-                    }
-                    existing={
+                    keep={
                       <span
                         title={displayOrDash(
                           descriptorsQuery.data?.molecule.inchi,
@@ -1323,20 +965,27 @@ export function DatasetSimilarityCompareModal({
                         )}
                       </span>
                     }
+                    absorb={
+                      <span title={displayOrDash(moleculeQuery.data?.InChI)}>
+                        {truncateMiddle(
+                          displayOrDash(moleculeQuery.data?.InChI),
+                        )}
+                      </span>
+                    }
                   />
-                </MetaGroup>
+                </SimilarityMetaGroup>
               ) : null}
 
               {reviewMode === "full" || sampleRows.length > 0 ? (
-                <MetaGroup title="Sample">
-                  <ColumnHeader />
+                <SimilarityMetaGroup title="Sample">
+                  <SimilarityColumnHeader />
                   {sampleRows.length === 0 ? (
                     <p className="text-muted px-3 py-2 text-sm">
                       No sample conflicts.
                     </p>
                   ) : (
                     sampleRows.map((row) => (
-                      <ConflictRow
+                      <SimilarityConflictRow
                         key={row.id}
                         row={row}
                         onResolve={(resolution) =>
@@ -1345,143 +994,75 @@ export function DatasetSimilarityCompareModal({
                       />
                     ))
                   )}
-                </MetaGroup>
+                </SimilarityMetaGroup>
               ) : null}
 
               {reviewMode === "full" || attributionRows.length > 0 ? (
-                <MetaGroup title="Attribution">
-                  <ColumnHeader />
+                <SimilarityMetaGroup title="Attribution">
+                  <SimilarityColumnHeader />
                   {attributionRows.map((row) => (
-                    <ConflictRow
+                    <SimilarityConflictRow
                       key={row.id}
                       row={row}
                       onResolve={(resolution) =>
                         handleResolve(row.id, resolution)
                       }
-                      uploadExtra={
-                        <div className="pointer-events-none flex flex-col gap-2">
-                          <span>{row.uploadDisplay}</span>
-                          {uploadAvatars.length > 0 ? (
-                            <ContributorAvatarGroup
-                              users={uploadAvatars}
-                              size="sm"
-                              max={4}
-                              expandOnHover={false}
-                            />
-                          ) : null}
-                        </div>
+                      keepExtra={
+                        <SimilarityAttributionCell
+                          display={row.existingDisplay}
+                          users={existingAvatars}
+                        />
                       }
-                      existingExtra={
-                        <div className="pointer-events-none flex flex-col gap-2">
-                          <span>{row.existingDisplay}</span>
-                          {existingAvatars.length > 0 ? (
-                            <ContributorAvatarGroup
-                              users={existingAvatars}
-                              size="sm"
-                              max={4}
-                              expandOnHover={false}
-                            />
-                          ) : null}
-                        </div>
+                      absorbExtra={
+                        <SimilarityAttributionCell
+                          display={row.uploadDisplay}
+                          users={uploadAvatars}
+                        />
                       }
                     />
                   ))}
-                </MetaGroup>
+                </SimilarityMetaGroup>
               ) : null}
 
               {reviewMode === "full" ? (
-                <MetaGroup title="Sources">
-                  <ColumnHeader />
-                  <ReadOnlyRow
+                <SimilarityMetaGroup title="Sources">
+                  <SimilarityColumnHeader />
+                  <SimilarityReadOnlyRow
                     label="Publications"
-                    upload={formatSourcePublications(
-                      request.dataset.sourcePaperPublications,
-                    )}
-                    existing={formatSourcePublications(
+                    keep={formatSourcePublications(
                       descriptorsQuery.data?.sourcePublications ?? [],
                     )}
+                    absorb={formatSourcePublications(
+                      request.dataset.sourcePaperPublications,
+                    )}
                   />
-                </MetaGroup>
+                </SimilarityMetaGroup>
               ) : null}
             </>
           )}
 
-          <MetaGroup title="Quality checklist">
-            <div className="flex flex-col gap-3 px-3 py-3">
-              {qualityBundle?.metrics && !qualityBundle.metrics.missing ? (
-                <NexafsDatasetMetricsRail metrics={qualityBundle.metrics} />
-              ) : null}
-              <ul className="flex list-none flex-col gap-2 p-0">
-                {(qualityBundle?.checks ?? []).map((check) => (
-                  <li
-                    key={check.id}
-                    className={cn(
-                      "border-border rounded-lg border px-3 py-2 text-sm",
-                      check.severity === "blocker" && "border-danger/40 bg-danger/5",
-                      check.severity === "warn" && "border-warning/40 bg-warning/5",
-                    )}
-                  >
-                    <div className="flex flex-wrap items-start justify-between gap-2">
-                      <div className="min-w-0">
-                        <p className="text-foreground font-medium">
-                          {check.title}
-                        </p>
-                        <p className="text-muted text-xs leading-snug">
-                          {check.detail}
-                        </p>
-                      </div>
-                      {check.requiresAck ? (
-                        <Checkbox
-                          isSelected={ackedChecks.has(check.id)}
-                          onChange={(next) => toggleAck(check.id, next)}
-                          className="items-start gap-1.5"
-                        >
-                          <Checkbox.Control className="mt-0.5 size-3.5">
-                            <Checkbox.Indicator />
-                          </Checkbox.Control>
-                          <Checkbox.Content>
-                            <span className="text-xs">Reviewed</span>
-                          </Checkbox.Content>
-                        </Checkbox>
-                      ) : null}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          </MetaGroup>
+          <SimilarityQualityChecklist
+            checks={qualityBundle?.checks ?? []}
+            ackedChecks={ackedChecks}
+            onToggleAck={toggleAck}
+            metrics={qualityBundle?.metrics}
+          />
 
-          <div className="border-border flex flex-col gap-3 rounded-xl border p-3 sm:flex-row sm:items-stretch sm:justify-between">
-            <button
-              type="button"
-              onClick={onCancel}
-              className="border-border bg-surface hover:bg-surface-secondary focus-visible:ring-accent flex flex-1 flex-col items-start gap-1 rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2"
-            >
-              <span className="text-foreground text-sm font-semibold">
-                Keep existing
-              </span>
-              <span className="text-muted text-xs leading-snug">
-                Do not submit this upload. The Atlas experiment stays as-is.
-              </span>
-            </button>
-            <button
-              type="button"
-              onClick={handleContinue}
-              disabled={!canSubmit}
-              className="border-accent/40 bg-accent/15 hover:bg-accent/25 focus-visible:ring-accent flex flex-1 flex-col items-start gap-1 rounded-xl border px-4 py-3 text-left transition-colors focus:outline-none focus-visible:ring-2 disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <span className="text-foreground text-sm font-semibold">
-                Submit upload
-              </span>
-              <span className="text-muted text-xs leading-snug">
-                {canSubmit
-                  ? "Add this spectrum as a new experiment with your merge choices."
-                  : unresolvedCount > 0
-                    ? `Resolve ${unresolvedCount} conflict${unresolvedCount === 1 ? "" : "s"} and review quality flags.`
-                    : "Review required quality flags before submit."}
-              </span>
-            </button>
-          </div>
+          <SimilarityReviewFooter
+            secondaryTitle="Don't submit"
+            secondaryDetail="Leave the Atlas experiment unchanged. This upload is not created."
+            onSecondary={onCancel}
+            primaryTitle="These are unique — submit as new"
+            primaryDetail={
+              canSubmit
+                ? "Create a new experiment. Do not merge into the catalog match."
+                : unresolvedCount > 0
+                  ? `Resolve ${unresolvedCount} conflict${unresolvedCount === 1 ? "" : "s"} and review quality flags.`
+                  : "Review required quality flags before submit."
+            }
+            onPrimary={handleContinue}
+            primaryDisabled={!canSubmit}
+          />
         </div>
       ) : null}
     </SimpleDialog>

@@ -1,7 +1,8 @@
 /**
- * Builds Upload vs Existing merge conflicts for the contribute similarity
- * confirmation panel. Bulk Keep upload / Keep existing / Smart merge resolve
- * rows; unresolved conflicts block submit.
+ * Builds Keep vs Absorb field conflicts for contribute similarity confirm and
+ * persist-merge. Internal `existing` is Keep; `upload` is Absorb. Bulk Prefer
+ * keep / Prefer absorb / Smart merge resolve rows; unresolved conflicts block
+ * continue.
  */
 
 import type { ProcessMethod } from "~/prisma/browser";
@@ -14,12 +15,9 @@ import {
 import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";
 
 /** Category for grouped confirmation cards. */
-export type SimilarityMergeCategory =
-  | "experiment"
-  | "sample"
-  | "attribution";
+export type SimilarityMergeCategory = "experiment" | "sample" | "attribution";
 
-/** How a conflict row can be resolved into the upload draft. */
+/** How a conflict row is resolved (`existing` = Keep, `upload` = Absorb). */
 export type SimilarityMergeResolution = "upload" | "existing" | "both";
 
 /** Lifecycle of one mergeable field. */
@@ -37,7 +35,7 @@ export type SimilarityMergeFieldId =
   | "solvent"
   | "patterningLayer";
 
-/** One Upload vs Existing field for the confirmation panel. */
+/** One Keep vs Absorb field for the confirmation panel. */
 export interface SimilarityMergeConflictRow {
   /** Stable field id used as resolution map key. */
   id: SimilarityMergeFieldId;
@@ -59,7 +57,12 @@ export interface SimilarityMergeConflictRow {
 
 /** Inputs required to compare upload draft fields to an Atlas experiment. */
 export interface SimilarityMergeCompareSides {
-  edge: { upload: string; existing: string; uploadId: string; existingId: string };
+  edge: {
+    upload: string;
+    existing: string;
+    uploadId: string;
+    existingId: string;
+  };
   instrument: {
     upload: string;
     existing: string;
@@ -127,7 +130,9 @@ export function formatProcessMethodDisplay(
  * @param value - Thickness in nm, or null.
  * @returns Display string or em dash.
  */
-export function formatThicknessDisplay(value: number | null | undefined): string {
+export function formatThicknessDisplay(
+  value: number | null | undefined,
+): string {
   if (value == null || !Number.isFinite(value)) {
     return "—";
   }
@@ -403,10 +408,7 @@ export function buildSimilarityContinuePatchFromMerges(
   }
 
   const substrate = byId.get("substrate");
-  if (
-    substrate?.status === "resolved" &&
-    substrate.resolution === "existing"
-  ) {
+  if (substrate?.status === "resolved" && substrate.resolution === "existing") {
     patch.substrate = sides.substrate.existing;
   }
 
@@ -419,10 +421,7 @@ export function buildSimilarityContinuePatchFromMerges(
   }
 
   const thickness = byId.get("thickness");
-  if (
-    thickness?.status === "resolved" &&
-    thickness.resolution === "existing"
-  ) {
+  if (thickness?.status === "resolved" && thickness.resolution === "existing") {
     patch.thickness = sides.thickness.existing;
   }
 
