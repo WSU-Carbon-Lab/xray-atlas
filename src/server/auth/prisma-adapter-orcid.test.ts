@@ -11,7 +11,7 @@ type ExpectAssertions = {
 };
 
 const describe = bunDescribe as (name: string, fn: () => void) => void;
-const it = bunIt as (name: string, fn: () => void) => void;
+const it = bunIt as (name: string, fn: () => void | Promise<void>) => void;
 const expect = bunExpect as (actual: unknown) => ExpectAssertions;
 
 describe("PrismaAdapterOrcid.listAuthenticatorsByUserId", () => {
