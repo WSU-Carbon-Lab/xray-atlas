@@ -15,7 +15,8 @@ import {
   setPendingPasskeyAssurance,
   setPendingPasskeyEnrollmentMeta,
 } from "~/server/auth/passkey-ceremony-bridge";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import { deriveDefaultPasskeyNickname } from "~/lib/passkey-nickname";
 import {
   getUserSessionCapabilities,
   type UserSessionCapabilities,
@@ -167,11 +168,16 @@ providers.push(
           const credentialId = Buffer.from(
             registrationInfo.credentialID,
           ).toString("base64");
+          const userAgent = (await headers()).get("user-agent");
           await setPendingPasskeyEnrollmentMeta({
             credentialId,
             aaguid: registrationInfo.aaguid ?? null,
             attestationFormat: registrationInfo.fmt ?? null,
             credentialDeviceType: registrationInfo.credentialDeviceType,
+            suggestedNickname: deriveDefaultPasskeyNickname(
+              userAgent,
+              registrationInfo.credentialDeviceType,
+            ),
           });
         }
         return verification;

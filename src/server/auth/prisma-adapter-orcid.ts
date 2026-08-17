@@ -13,6 +13,7 @@ import {
   setPendingPasskeyAssurance,
 } from "~/server/auth/passkey-ceremony-bridge";
 import { markPasskeyEnrollmentComplete } from "~/server/auth/passkey-enrollment";
+import { deriveDefaultPasskeyNickname } from "~/lib/passkey-nickname";
 import { resolveOrcidIdForCreateUser } from "~/server/auth/resolve-orcid-id-for-create-user";
 import { setPendingAttributionReviewCookie } from "~/server/auth/pending-attribution-review-bridge";
 import {
@@ -296,18 +297,22 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
       authenticator: AdapterAuthenticator,
     ): Promise<AdapterAuthenticator> => {
       const enrollmentMeta = await consumePendingPasskeyEnrollmentMeta();
-      const aaguid =
+      // The cookie only applies to the credential it was staged for; a
+      // mismatch (or absent cookie) means this authenticator was created
+      // without ceremony metadata, so every derived field below falls back.
+      const matchedEnrollmentMeta =
         enrollmentMeta?.credentialId === authenticator.credentialID
-          ? enrollmentMeta.aaguid
+          ? enrollmentMeta
           : null;
+      const aaguid = matchedEnrollmentMeta?.aaguid ?? null;
       const attestationFormat =
-        enrollmentMeta?.credentialId === authenticator.credentialID
-          ? enrollmentMeta.attestationFormat
-          : null;
+        matchedEnrollmentMeta?.attestationFormat ?? null;
       const credentialDeviceType =
-        enrollmentMeta?.credentialId === authenticator.credentialID
-          ? enrollmentMeta.credentialDeviceType
-          : authenticator.credentialDeviceType;
+        matchedEnrollmentMeta?.credentialDeviceType ??
+        authenticator.credentialDeviceType;
+      const nickname =
+        matchedEnrollmentMeta?.suggestedNickname ??
+        deriveDefaultPasskeyNickname(null, credentialDeviceType);
 
       const aalFields = {
         aaguid,
@@ -333,6 +338,7 @@ export function PrismaAdapterOrcid(db: PrismaClient) {
           userId: authenticator.userId,
           aaguid,
           attestationFormat,
+          nickname,
         },
       });
 
