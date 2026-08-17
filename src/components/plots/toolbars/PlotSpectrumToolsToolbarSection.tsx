@@ -4,12 +4,18 @@ import { ToggleButton, ToggleButtonGroup, Toolbar } from "@heroui/react";
 import {
   ArrowLeftToLine,
   ArrowRightFromLine,
+  Columns2,
+  Eye,
+  EyeOff,
   MousePointer2,
   Mountain,
+  PanelLeft,
+  PanelRight,
   RotateCcw,
   Scaling,
   Sparkles,
 } from "lucide-react";
+import type { NormalizationBandMode } from "~/lib/nexafs/normalization-band-mode";
 import {
   plotToolbarAttachedToolbarVerticalClass,
   plotToolbarAttachedToggleGroupVerticalClass,
@@ -37,6 +43,18 @@ export type PlotSpectrumToolsToolbarSectionProps = {
    * Defaults to true for contribute flows that keep reset beside pre/post edge pickers.
    */
   normalizationRegionResetInRail?: boolean;
+  /**
+   * Which edge windows participate in the live fit. When omitted with no change handler, band-mode
+   * controls are hidden (callers that only need region brush tools).
+   */
+  bandMode?: NormalizationBandMode;
+  onBandModeChange?: (mode: NormalizationBandMode) => void;
+  /**
+   * Hatched pre/post preview visibility. When omitted with no change handler, the preview toggle is
+   * hidden.
+   */
+  showBandPreview?: boolean;
+  onShowBandPreviewChange?: (show: boolean) => void;
   /** When false, hides peak-set controls so only normalization tools render (browse dataset editor). */
   peakToolsEnabled?: boolean;
   isPeakSetMode: boolean;
@@ -56,6 +74,10 @@ export function PlotSpectrumToolsToolbarSection({
   normalizationLocked,
   hasData,
   normalizationRegionResetInRail = true,
+  bandMode,
+  onBandModeChange,
+  showBandPreview,
+  onShowBandPreviewChange,
   peakToolsEnabled = true,
   isPeakSetMode,
   onPeakSetModeChange,
@@ -69,6 +91,10 @@ export function PlotSpectrumToolsToolbarSection({
   const peakSubtoolsDisabled = peakMasterDisabled || !isPeakSetMode;
   const autoDetectDisabled = peakSubtoolsDisabled;
   const resetPeaksDisabled = peakSubtoolsDisabled || peakCount === 0;
+  const bandModeControls =
+    bandMode != null && typeof onBandModeChange === "function";
+  const previewControls =
+    showBandPreview != null && typeof onShowBandPreviewChange === "function";
 
   const handleRegionToolChange = (keys: Set<string | number>) => {
     if (normalizationRegionResetInRail && keys.has("reset")) {
@@ -82,6 +108,21 @@ export function PlotSpectrumToolsToolbarSection({
       onActiveEdgeChange(next);
     }
   };
+
+  const handleBandModeChange = (keys: Set<string | number>) => {
+    const next = keys.values().next().value;
+    if (next === "both" || next === "pre" || next === "post") {
+      onBandModeChange?.(next);
+      if (next === "pre" || next === "post") {
+        onActiveEdgeChange(next);
+      }
+    }
+  };
+
+  const preEdgeToolDisabled =
+    normalizationLocked || (bandModeControls && bandMode === "post");
+  const postEdgeToolDisabled =
+    normalizationLocked || (bandModeControls && bandMode === "pre");
 
   const handlePeakSubtoolChange = (keys: Set<string | number>) => {
     if (keys.has("auto-detect")) {
@@ -116,7 +157,7 @@ export function PlotSpectrumToolsToolbarSection({
         <>
           <PlotToolbarRichHint
             title="Normalization"
-            description="Turn on pre-edge and post-edge bands for OD scaling."
+            description="Turn on normalization windows for OD and bare-atom mu fits."
             whenDisabledDescription="Upload or select a spectrum with measured points first."
             placement="left"
           >
@@ -135,9 +176,109 @@ export function PlotSpectrumToolsToolbarSection({
               <Scaling className="h-5 w-5" aria-hidden />
             </ToggleButton>
           </PlotToolbarRichHint>
+          {previewControls ? (
+            <PlotToolbarRichHint
+              title={
+                showBandPreview
+                  ? "Hide edge previews"
+                  : "Show edge previews"
+              }
+              description="Toggle hatched pre-edge and post-edge preview bands on the plot. Does not change which windows are used for the fit."
+              whenDisabledDescription="Upload or select a spectrum with measured points first."
+              placement="left"
+            >
+              <ToggleButton
+                isIconOnly
+                aria-label={
+                  showBandPreview
+                    ? "Hide normalization edge previews"
+                    : "Show normalization edge previews"
+                }
+                isSelected={showBandPreview}
+                onChange={(next) => {
+                  if (next !== showBandPreview) {
+                    onShowBandPreviewChange?.(next);
+                  }
+                }}
+                isDisabled={scalingDisabled}
+                className={plotToolbarGlyphToggleStandaloneClass}
+              >
+                {showBandPreview ? (
+                  <Eye className="h-5 w-5" aria-hidden />
+                ) : (
+                  <EyeOff className="h-5 w-5" aria-hidden />
+                )}
+              </ToggleButton>
+            </PlotToolbarRichHint>
+          ) : null}
           {isNormalizationMode ? (
             <>
               <PlotToolbarGroupSeparator orientation="horizontal" />
+              {bandModeControls ? (
+                <>
+                  <ToggleButtonGroup
+                    aria-label="Normalization band mode"
+                    selectionMode="single"
+                    orientation="vertical"
+                    selectedKeys={new Set([bandMode])}
+                    onSelectionChange={handleBandModeChange}
+                    isDisabled={normalizationLocked}
+                    className={plotToolbarAttachedToggleGroupVerticalClass}
+                  >
+                    <PlotToolbarRichHint
+                      title="Both edges"
+                      description="Fit using both pre-edge and post-edge windows."
+                      whenDisabledDescription="Normalization regions are locked for this dataset."
+                      disabled={normalizationLocked}
+                      placement="left"
+                    >
+                      <ToggleButton
+                        id="both"
+                        isIconOnly
+                        aria-label="Normalize with both pre and post edge"
+                        className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                      >
+                        <Columns2 className="h-4 w-4" aria-hidden />
+                      </ToggleButton>
+                    </PlotToolbarRichHint>
+                    <PlotToolbarRichHint
+                      title="Only pre-edge"
+                      description="Match intensity using only the pre-edge window (OD subtracts the pre mean; bare-atom mu uses a positive mean match). Use when the post-edge continuum is unreliable."
+                      whenDisabledDescription="Normalization regions are locked for this dataset."
+                      disabled={normalizationLocked}
+                      placement="left"
+                    >
+                      <ToggleButton
+                        id="pre"
+                        isIconOnly
+                        aria-label="Normalize with only the pre-edge window"
+                        className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                      >
+                        <ToggleButtonGroup.Separator />
+                        <PanelLeft className="h-4 w-4" aria-hidden />
+                      </ToggleButton>
+                    </PlotToolbarRichHint>
+                    <PlotToolbarRichHint
+                      title="Only post-edge"
+                      description="Match intensity using only the post-edge window (OD uses a positive |post| scale; bare-atom mu uses a positive mean match). Use when the pre-edge continuum is unreliable."
+                      whenDisabledDescription="Normalization regions are locked for this dataset."
+                      disabled={normalizationLocked}
+                      placement="left"
+                    >
+                      <ToggleButton
+                        id="post"
+                        isIconOnly
+                        aria-label="Normalize with only the post-edge window"
+                        className={plotToolbarGlyphToggleGroupItemVerticalClass}
+                      >
+                        <ToggleButtonGroup.Separator />
+                        <PanelRight className="h-4 w-4" aria-hidden />
+                      </ToggleButton>
+                    </PlotToolbarRichHint>
+                  </ToggleButtonGroup>
+                  <PlotToolbarGroupSeparator orientation="horizontal" />
+                </>
+              ) : null}
               <ToggleButtonGroup
                 aria-label="Normalization region tools"
                 selectionMode="single"
@@ -150,14 +291,19 @@ export function PlotSpectrumToolsToolbarSection({
                 <PlotToolbarRichHint
                   title="Pre-edge"
                   description="Choose the low-energy window used for normalization."
-                  whenDisabledDescription="Normalization regions are locked for this dataset."
-                  disabled={normalizationLocked}
+                  whenDisabledDescription={
+                    bandMode === "post"
+                      ? "Post-only band mode is active; switch to both or pre-only to edit the pre-edge."
+                      : "Normalization regions are locked for this dataset."
+                  }
+                  disabled={preEdgeToolDisabled}
                   placement="left"
                 >
                   <ToggleButton
                     id="pre"
                     isIconOnly
                     aria-label="Pre-edge range"
+                    isDisabled={preEdgeToolDisabled}
                     className={plotToolbarGlyphToggleGroupItemVerticalClass}
                   >
                     <ArrowLeftToLine className="h-4 w-4" aria-hidden />
@@ -166,14 +312,19 @@ export function PlotSpectrumToolsToolbarSection({
                 <PlotToolbarRichHint
                   title="Post-edge"
                   description="Choose the high-energy window used for normalization."
-                  whenDisabledDescription="Normalization regions are locked for this dataset."
-                  disabled={normalizationLocked}
+                  whenDisabledDescription={
+                    bandMode === "pre"
+                      ? "Pre-only band mode is active; switch to both or post-only to edit the post-edge."
+                      : "Normalization regions are locked for this dataset."
+                  }
+                  disabled={postEdgeToolDisabled}
                   placement="left"
                 >
                   <ToggleButton
                     id="post"
                     isIconOnly
                     aria-label="Post-edge range"
+                    isDisabled={postEdgeToolDisabled}
                     className={plotToolbarGlyphToggleGroupItemVerticalClass}
                   >
                     <ToggleButtonGroup.Separator />

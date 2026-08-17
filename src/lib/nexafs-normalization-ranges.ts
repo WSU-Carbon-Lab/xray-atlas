@@ -3,6 +3,7 @@ import type {
   PerChannelNormalizationRanges,
   UnifiedNormalizationRanges,
 } from "~/features/process-nexafs/types";
+import { parseNormalizationBandMode } from "~/lib/nexafs/normalization-band-mode";
 
 export type NormalizationBasisForKk =
   | "optical-density"
@@ -25,10 +26,21 @@ export function nexafsBrowseDataViewToKkNormalizationBasis(
   return "mass-absorption";
 }
 
+function withParsedBandMode(
+  unified: UnifiedNormalizationRanges,
+): UnifiedNormalizationRanges {
+  return {
+    pre: unified.pre ?? null,
+    post: unified.post ?? null,
+    bandMode: parseNormalizationBandMode(unified.bandMode),
+  };
+}
+
 /**
  * Parses persisted `experiments.normalizationranges` JSON into a typed shape, accepting unified
  * `{ pre, post }` objects or per-channel `{ od, massabsorption, beta }` maps; returns `null` when
- * the payload is missing or not object-shaped.
+ * the payload is missing or not object-shaped. Optional `bandMode` is normalized via
+ * {@link parseNormalizationBandMode}.
  *
  * @param raw JSON value from Prisma `Json` / tRPC (unknown at the boundary).
  */
@@ -50,10 +62,15 @@ export function parseStoredNormalizationRanges(
     typeof o.beta === "object" &&
     o.beta != null
   ) {
-    return o as unknown as PerChannelNormalizationRanges;
+    const per = o as unknown as PerChannelNormalizationRanges;
+    return {
+      od: withParsedBandMode(per.od),
+      massabsorption: withParsedBandMode(per.massabsorption),
+      beta: withParsedBandMode(per.beta),
+    };
   }
   if ("pre" in o || "post" in o) {
-    return o as unknown as UnifiedNormalizationRanges;
+    return withParsedBandMode(o as unknown as UnifiedNormalizationRanges);
   }
   return null;
 }
@@ -61,7 +78,8 @@ export function parseStoredNormalizationRanges(
 /**
  * Resolves contributor pre/post plateau windows for KK Henke merge-domain selection: under
  * `per_channel` scope, uses the channel matching `basis`; otherwise treats `ranges` as unified
- * `{ pre, post }`. Returns `null` when either window is missing on the resolved channel.
+ * `{ pre, post }`. Returns `null` when neither window is present on the resolved channel.
+ * Callers that require both windows (classic Henke merge) must still check `pre` and `post`.
  *
  * @param scope Experiment `normalizationscope` (`none`, `unified`, or `per_channel`).
  * @param ranges Parsed {@link parseStoredNormalizationRanges} output (may be `null`).
@@ -91,8 +109,8 @@ export function unifiedNormalizationWindowsForBasis(
   if (!unified) {
     return null;
   }
-  if (unified.pre == null || unified.post == null) {
+  if (unified.pre == null && unified.post == null) {
     return null;
   }
-  return unified;
+  return withParsedBandMode(unified);
 }

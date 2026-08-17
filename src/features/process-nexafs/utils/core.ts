@@ -7,6 +7,9 @@ import type {
 } from "../types";
 import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
 
+/** Degenerate jump / mean threshold shared by OD and bare-atom fits. */
+const NORM_EPS = 1e-10;
+
 export const toNumber = (value: unknown): number => {
   if (typeof value === "number") return value;
   if (typeof value === "string") {
@@ -162,187 +165,28 @@ export const interpolateBareMu = (
   );
 };
 
-/**
- * Computes a single affine transform that maps the average pre-edge absorption to `0` and the
- * average post-edge absorption to `1` using the contributor-selected energy windows.
- *
- * Both windows are treated as **inclusive** energy intervals and may be supplied in any order;
- * the function uses `min(window[0], window[1])` and `max(window[0], window[1])` when filtering.
- * This is the stable-monitor (zero-one) normalization path used for `od`; for the bare-atom
- * (mass-absorption / beta) path, use {@link computeNormalizationForExperiment}.
- *
- * Returns `null` when `points` is empty, either window is `null`, either window contains zero
- * spectrum points, or the pre/post averages are equal to within `1e-10` (degenerate transform).
- *
- * @param points Spectrum samples; the same `(scale, offset)` is applied to every input row.
- * @param preRange Inclusive `[energyMin, energyMax]` pre-edge window.
- * @param postRange Inclusive `[energyMin, energyMax]` post-edge window.
- */
-export const computeZeroOneNormalization = (
-  points: SpectrumPoint[],
-  preRange: [number, number] | null,
-  postRange: [number, number] | null,
-): NormalizationComputation | null => {
-  if (points.length === 0 || !preRange || !postRange) {
+/** Inclusive `[lo, hi]` energy window, or `null` when unset. */
+function normalizeInclusiveRange(
+  range: [number, number] | null,
+): [number, number] | null {
+  if (!range) {
     return null;
   }
+  return [Math.min(range[0], range[1]), Math.max(range[0], range[1])];
+}
 
-  const normalizedPreRange: [number, number] = [
-    Math.min(preRange[0], preRange[1]),
-    Math.max(preRange[0], preRange[1]),
-  ];
-  const normalizedPostRange: [number, number] = [
-    Math.min(postRange[0], postRange[1]),
-    Math.max(postRange[0], postRange[1]),
-  ];
+type GeometryKey = string;
 
-  const preEdgePoints = points.filter(
-    (p) =>
-      p.energy >= normalizedPreRange[0] && p.energy <= normalizedPreRange[1],
-  );
-  const postEdgePoints = points.filter(
-    (p) =>
-      p.energy >= normalizedPostRange[0] && p.energy <= normalizedPostRange[1],
-  );
-
-  if (preEdgePoints.length === 0 || postEdgePoints.length === 0) {
-    return null;
-  }
-
-  const preAvg =
-    preEdgePoints.reduce((sum, p) => sum + p.absorption, 0) /
-    preEdgePoints.length;
-  const postAvg =
-    postEdgePoints.reduce((sum, p) => sum + p.absorption, 0) /
-    postEdgePoints.length;
-
-  if (Math.abs(postAvg - preAvg) < 1e-10) {
-    return null;
-  }
-
-  const scale = 1 / (postAvg - preAvg);
-  const offset = -preAvg / (postAvg - preAvg);
-
-  const normalizedPoints: SpectrumPoint[] = points.map((point) => ({
-    ...point,
-    absorption: scale * point.absorption + offset,
-  }));
-
-  return {
-    normalizedPoints,
-    scale,
-    offset,
-    preRange: normalizedPreRange,
-    postRange: normalizedPostRange,
-  };
+type GeometryGrouping = {
+  geometryGroups: Map<GeometryKey, SpectrumPoint[]>;
+  pointToGeometryKey: Map<number, GeometryKey>;
 };
 
 /**
- * Fits a per-geometry affine transform (scale, offset) that maps experimental absorption onto
- * tabulated bare-atom absorption within the contributor-selected pre-edge and post-edge energy
- * windows.
- *
- * Both windows are treated as **inclusive** energy intervals and may be supplied in any order;
- * the function uses `min(window[0], window[1])` and `max(window[0], window[1])` when filtering.
- * Points are grouped by `(theta, phi)` so each polarization geometry receives its own linear
- * fit; the returned aggregate `scale` and `offset` are point-count-weighted averages across
- * geometries and are intended for telemetry / display, not for re-applying the transform.
- *
- * Returns `null` when:
- *   - `points` is empty;
- *   - either window is `null`;
- *   - any geometry group has zero points inside one of the windows; or
- *   - the per-group linear regression has fewer than two distinct samples.
- *
- * @param points Spectrum samples; mutated copy is sorted internally — caller order is preserved.
- * @param barePoints Bare-atom (or analogous reference) absorption curve, sorted by energy.
- * @param preRange Inclusive `[energyMin, energyMax]` pre-edge window selected by the contributor.
- * @param postRange Inclusive `[energyMin, energyMax]` post-edge window selected by the contributor.
+ * Groups spectrum rows by ordered `(theta, phi)`, or `"no-geometry"` when either
+ * angle is missing / non-finite.
  */
-export const computeNormalizationForExperiment = (
-  points: SpectrumPoint[],
-  barePoints: BareAtomPoint[],
-  preRange: [number, number] | null,
-  postRange: [number, number] | null,
-): NormalizationComputation | null => {
-  if (points.length === 0 || !preRange || !postRange) {
-    return null;
-  }
-
-  const normalizedPreRange: [number, number] = [
-    Math.min(preRange[0], preRange[1]),
-    Math.max(preRange[0], preRange[1]),
-  ];
-  const normalizedPostRange: [number, number] = [
-    Math.min(postRange[0], postRange[1]),
-    Math.max(postRange[0], postRange[1]),
-  ];
-
-  type GeometryKey = string;
-  const computeNormalizationForGroup = (
-    groupPoints: SpectrumPoint[],
-    preEnergyRange: [number, number],
-    postEnergyRange: [number, number],
-  ): { scale: number; offset: number } | null => {
-    if (groupPoints.length === 0) {
-      return null;
-    }
-
-    const preEdgePoints = groupPoints.filter(
-      (p) => p.energy >= preEnergyRange[0] && p.energy <= preEnergyRange[1],
-    );
-    const postEdgePoints = groupPoints.filter(
-      (p) => p.energy >= postEnergyRange[0] && p.energy <= postEnergyRange[1],
-    );
-
-    if (preEdgePoints.length === 0 || postEdgePoints.length === 0) {
-      return null;
-    }
-
-    const selectedPoints = [...preEdgePoints, ...postEdgePoints];
-
-    if (selectedPoints.length < 2) {
-      return null;
-    }
-
-    const muValues = selectedPoints.map((point) =>
-      interpolateBareMu(barePoints, point.energy),
-    );
-
-    let n = 0;
-    let sumX = 0;
-    let sumY = 0;
-    let sumXX = 0;
-    let sumXY = 0;
-
-    selectedPoints.forEach((point, index) => {
-      const intensity = point.absorption ?? 0;
-      const mu = muValues[index] ?? 0;
-      n += 1;
-      sumX += intensity;
-      sumY += mu;
-      sumXX += intensity * intensity;
-      sumXY += intensity * mu;
-    });
-
-    if (n < 2) {
-      return null;
-    }
-
-    const denominator = n * sumXX - sumX * sumX;
-    const scale =
-      Math.abs(denominator) > 1e-12
-        ? (n * sumXY - sumX * sumY) / denominator
-        : 1;
-    const offset = (sumY - scale * sumX) / n;
-
-    if (!Number.isFinite(scale) || !Number.isFinite(offset)) {
-      return null;
-    }
-
-    return { scale, offset };
-  };
-
+function groupPointsByGeometry(points: SpectrumPoint[]): GeometryGrouping {
   const geometryGroups = new Map<GeometryKey, SpectrumPoint[]>();
   const pointToGeometryKey = new Map<number, GeometryKey>();
 
@@ -366,6 +210,350 @@ export const computeNormalizationForExperiment = (
     pointToGeometryKey.set(index, geometryKey);
   });
 
+  return { geometryGroups, pointToGeometryKey };
+}
+
+/**
+ * Filters points that participate in a normalization window fit. Requires
+ * finite positive energy and finite absorption so OD and bare-atom membership match.
+ */
+function windowPoints(
+  groupPoints: SpectrumPoint[],
+  range: [number, number],
+): SpectrumPoint[] {
+  return groupPoints.filter(
+    (p) =>
+      Number.isFinite(p.energy) &&
+      p.energy > 0 &&
+      p.energy >= range[0] &&
+      p.energy <= range[1] &&
+      Number.isFinite(p.absorption),
+  );
+}
+
+function meanAbsorption(groupPoints: SpectrumPoint[]): number | null {
+  if (groupPoints.length === 0) {
+    return null;
+  }
+  return (
+    groupPoints.reduce((sum, p) => sum + p.absorption, 0) / groupPoints.length
+  );
+}
+
+function medianAbs(values: number[]): number | null {
+  if (values.length === 0) {
+    return null;
+  }
+  const sorted = [...values].sort((a, b) => a - b);
+  const mid = Math.floor(sorted.length / 2);
+  if (sorted.length % 2 === 0) {
+    return (sorted[mid - 1]! + sorted[mid]!) / 2;
+  }
+  return sorted[mid]!;
+}
+
+function applyAffineNormalization(
+  points: SpectrumPoint[],
+  pointToGeometryKey: Map<number, GeometryKey>,
+  geometryNormalizations: Map<GeometryKey, { scale: number; offset: number }>,
+): SpectrumPoint[] {
+  return points.map((point, index) => {
+    const geometryKey = pointToGeometryKey.get(index);
+    if (!geometryKey) {
+      return { ...point };
+    }
+    const normalization = geometryNormalizations.get(geometryKey);
+    if (!normalization) {
+      return { ...point };
+    }
+    return {
+      ...point,
+      absorption: normalization.scale * point.absorption + normalization.offset,
+    };
+  });
+}
+
+function weightedAggregateTelemetry(
+  geometryGroups: Map<GeometryKey, SpectrumPoint[]>,
+  geometryNormalizations: Map<GeometryKey, { scale: number; offset: number }>,
+): { scale: number; offset: number } {
+  let totalPoints = 0;
+  let weightedScale = 0;
+  let weightedOffset = 0;
+  for (const [geometryKey, groupPoints] of geometryGroups.entries()) {
+    const normalization = geometryNormalizations.get(geometryKey);
+    if (!normalization) {
+      continue;
+    }
+    const groupSize = groupPoints.length;
+    totalPoints += groupSize;
+    weightedScale += normalization.scale * groupSize;
+    weightedOffset += normalization.offset * groupSize;
+  }
+  return {
+    scale: totalPoints > 0 ? weightedScale / totalPoints : 1,
+    offset: totalPoints > 0 ? weightedOffset / totalPoints : 0,
+  };
+}
+
+/**
+ * Computes stable-monitor (zero-one) normalization without inverting spectra.
+ *
+ * - **Both windows:** shared positive `scale` from the median |post − pre| jump across
+ *   geometries, with a **per-geometry** offset that maps each pre-edge average to `0`.
+ *   Using one scale for all angles preserves relative dichroism; a negative
+ *   `(post − pre)` never flips the trace (scale stays positive).
+ * - **Pre only:** subtracts each geometry’s pre-edge average (`scale = 1`).
+ * - **Post only:** shared positive `scale = 1 / median(|post|)` with `offset = 0`
+ *   (telemetry aggregate; not an independent per-geometry map-to-1).
+ *
+ * Windows are **inclusive** and may be supplied in either order. Points are grouped by
+ * `(theta, phi)`. Aggregate `scale`/`offset` are for telemetry (shared scale and
+ * point-count-weighted mean offset).
+ *
+ * Returns `null` when `points` is empty, both windows are missing, or every geometry
+ * fails to fit (empty window samples or a degenerate jump).
+ *
+ * @param points Spectrum samples; shared scale and per-geometry offsets are applied.
+ * @param preRange Inclusive `[energyMin, energyMax]` pre-edge window, or `null` for post-only.
+ * @param postRange Inclusive `[energyMin, energyMax]` post-edge window, or `null` for pre-only.
+ */
+export const computeZeroOneNormalization = (
+  points: SpectrumPoint[],
+  preRange: [number, number] | null,
+  postRange: [number, number] | null,
+): NormalizationComputation | null => {
+  if (points.length === 0) {
+    return null;
+  }
+  if (!preRange && !postRange) {
+    return null;
+  }
+
+  const normalizedPreRange = normalizeInclusiveRange(preRange);
+  const normalizedPostRange = normalizeInclusiveRange(postRange);
+  const { geometryGroups, pointToGeometryKey } = groupPointsByGeometry(points);
+
+  const geometryNormalizations = new Map<
+    GeometryKey,
+    { scale: number; offset: number }
+  >();
+
+  if (normalizedPreRange && normalizedPostRange) {
+    const preAvgs = new Map<GeometryKey, number>();
+    const jumps: number[] = [];
+
+    for (const [geometryKey, groupPoints] of geometryGroups.entries()) {
+      const preAvg = meanAbsorption(
+        windowPoints(groupPoints, normalizedPreRange),
+      );
+      const postAvg = meanAbsorption(
+        windowPoints(groupPoints, normalizedPostRange),
+      );
+      if (preAvg == null || postAvg == null) {
+        continue;
+      }
+      const jump = postAvg - preAvg;
+      if (Math.abs(jump) < NORM_EPS) {
+        continue;
+      }
+      preAvgs.set(geometryKey, preAvg);
+      jumps.push(jump);
+    }
+
+    const medianJumpAbs = medianAbs(jumps.map((j) => Math.abs(j)));
+    if (medianJumpAbs == null || medianJumpAbs < NORM_EPS) {
+      return null;
+    }
+
+    const scale = 1 / medianJumpAbs;
+    if (!Number.isFinite(scale)) {
+      return null;
+    }
+
+    for (const [geometryKey, preAvg] of preAvgs.entries()) {
+      const offset = -preAvg * scale;
+      if (!Number.isFinite(offset)) {
+        continue;
+      }
+      geometryNormalizations.set(geometryKey, { scale, offset });
+    }
+  } else if (normalizedPreRange) {
+    for (const [geometryKey, groupPoints] of geometryGroups.entries()) {
+      const preAvg = meanAbsorption(
+        windowPoints(groupPoints, normalizedPreRange),
+      );
+      if (preAvg == null) {
+        continue;
+      }
+      geometryNormalizations.set(geometryKey, { scale: 1, offset: -preAvg });
+    }
+  } else if (normalizedPostRange) {
+    const postAvgs = new Map<GeometryKey, number>();
+    const absPosts: number[] = [];
+    for (const [geometryKey, groupPoints] of geometryGroups.entries()) {
+      const postAvg = meanAbsorption(
+        windowPoints(groupPoints, normalizedPostRange),
+      );
+      if (postAvg == null || Math.abs(postAvg) < NORM_EPS) {
+        continue;
+      }
+      postAvgs.set(geometryKey, postAvg);
+      absPosts.push(Math.abs(postAvg));
+    }
+    const medianPostAbs = medianAbs(absPosts);
+    if (medianPostAbs == null || medianPostAbs < NORM_EPS) {
+      return null;
+    }
+    const scale = 1 / medianPostAbs;
+    for (const geometryKey of postAvgs.keys()) {
+      geometryNormalizations.set(geometryKey, { scale, offset: 0 });
+    }
+  }
+
+  if (geometryNormalizations.size === 0) {
+    return null;
+  }
+
+  const telemetry = weightedAggregateTelemetry(
+    geometryGroups,
+    geometryNormalizations,
+  );
+
+  return {
+    normalizedPoints: applyAffineNormalization(
+      points,
+      pointToGeometryKey,
+      geometryNormalizations,
+    ),
+    scale: telemetry.scale,
+    offset: telemetry.offset,
+    preRange: normalizedPreRange,
+    postRange: normalizedPostRange,
+  };
+};
+
+/**
+ * Fits a per-geometry affine transform (scale, offset) that maps experimental absorption onto
+ * tabulated bare-atom absorption within the contributor-selected energy windows.
+ *
+ * Scale is always **positive** so NEXAFS fine structure never flips relative to the continuum
+ * (same policy as {@link computeZeroOneNormalization}).
+ *
+ * - **Both windows:** two-point mean match: `|postBare − preBare| / |postExp − preExp|`, with
+ *   offset from the pre-edge means.
+ * - **Pre or post only:** match the window mean intensity onto the mean bare-atom μ with
+ *   `scale = |mean(μ) / mean(I)|` and `offset = mean(μ) − scale · mean(I)`. A free least-squares
+ *   slope on a narrow continuum band often anti-correlates with the Henke slope and would flip
+ *   the whole spectrum.
+ *
+ * Windows are **inclusive** and may be ordered either way. Points are grouped by `(theta, phi)`
+ * so each polarization geometry receives its own transform; aggregate `scale`/`offset` are
+ * point-count-weighted averages for telemetry / display only.
+ *
+ * Returns `null` when:
+ *   - `points` is empty;
+ *   - both windows are `null`; or
+ *   - every geometry group fails to fit (empty window samples or degenerate jump / mean).
+ *
+ * Geometries that cannot be fit are left unscaled; successful groups still receive
+ * their own `(scale, offset)`.
+ *
+ * @param points Spectrum samples; caller order is preserved on the returned points.
+ * @param barePoints Bare-atom (or analogous reference) absorption curve, sorted by energy.
+ * @param preRange Inclusive pre-edge window, or `null` for post-only.
+ * @param postRange Inclusive post-edge window, or `null` for pre-only.
+ */
+export const computeNormalizationForExperiment = (
+  points: SpectrumPoint[],
+  barePoints: BareAtomPoint[],
+  preRange: [number, number] | null,
+  postRange: [number, number] | null,
+): NormalizationComputation | null => {
+  if (points.length === 0 || (!preRange && !postRange)) {
+    return null;
+  }
+
+  const normalizedPreRange = normalizeInclusiveRange(preRange);
+  const normalizedPostRange = normalizeInclusiveRange(postRange);
+
+  const computeNormalizationForGroup = (
+    groupPoints: SpectrumPoint[],
+    preEnergyRange: [number, number] | null,
+    postEnergyRange: [number, number] | null,
+  ): { scale: number; offset: number } | null => {
+    if (groupPoints.length === 0) {
+      return null;
+    }
+
+    const preEdgePoints =
+      preEnergyRange == null ? [] : windowPoints(groupPoints, preEnergyRange);
+    const postEdgePoints =
+      postEnergyRange == null ? [] : windowPoints(groupPoints, postEnergyRange);
+
+    if (preEnergyRange != null && preEdgePoints.length === 0) {
+      return null;
+    }
+    if (postEnergyRange != null && postEdgePoints.length === 0) {
+      return null;
+    }
+
+    if (preEnergyRange != null && postEnergyRange != null) {
+      const preExp = meanAbsorption(preEdgePoints);
+      const postExp = meanAbsorption(postEdgePoints);
+      if (preExp == null || postExp == null) {
+        return null;
+      }
+      const preBare =
+        preEdgePoints.reduce(
+          (sum, p) => sum + interpolateBareMu(barePoints, p.energy),
+          0,
+        ) / preEdgePoints.length;
+      const postBare =
+        postEdgePoints.reduce(
+          (sum, p) => sum + interpolateBareMu(barePoints, p.energy),
+          0,
+        ) / postEdgePoints.length;
+      const expJump = postExp - preExp;
+      const bareJump = postBare - preBare;
+      if (Math.abs(expJump) < NORM_EPS || Math.abs(bareJump) < NORM_EPS) {
+        return null;
+      }
+      const scale = Math.abs(bareJump) / Math.abs(expJump);
+      const offset = preBare - scale * preExp;
+      if (!Number.isFinite(scale) || !Number.isFinite(offset) || !(scale > 0)) {
+        return null;
+      }
+      return { scale, offset };
+    }
+
+    const selectedPoints = [...preEdgePoints, ...postEdgePoints];
+    if (selectedPoints.length < 1) {
+      return null;
+    }
+
+    const meanIntensity = meanAbsorption(selectedPoints);
+    if (meanIntensity == null || Math.abs(meanIntensity) < 1e-12) {
+      return null;
+    }
+    const meanBare =
+      selectedPoints.reduce(
+        (sum, point) => sum + interpolateBareMu(barePoints, point.energy),
+        0,
+      ) / selectedPoints.length;
+
+    const scale = Math.abs(meanBare / meanIntensity);
+    const offset = meanBare - scale * meanIntensity;
+
+    if (!Number.isFinite(scale) || !Number.isFinite(offset) || !(scale > 0)) {
+      return null;
+    }
+
+    return { scale, offset };
+  };
+
+  const { geometryGroups, pointToGeometryKey } = groupPointsByGeometry(points);
+
   const geometryNormalizations = new Map<
     GeometryKey,
     { scale: number; offset: number }
@@ -378,49 +566,26 @@ export const computeNormalizationForExperiment = (
     );
     if (normalization) {
       geometryNormalizations.set(geometryKey, normalization);
-    } else {
-      return null;
     }
   }
 
-  const normalizedPoints: SpectrumPoint[] = points.map((point, index) => {
-    const geometryKey = pointToGeometryKey.get(index);
-    if (!geometryKey) {
-      return { ...point };
-    }
-
-    const normalization = geometryNormalizations.get(geometryKey);
-    if (!normalization) {
-      return { ...point };
-    }
-
-    return {
-      ...point,
-      absorption: normalization.scale * point.absorption + normalization.offset,
-    };
-  });
-
-  let totalPoints = 0;
-  let weightedScale = 0;
-  let weightedOffset = 0;
-
-  for (const [geometryKey, groupPoints] of geometryGroups.entries()) {
-    const normalization = geometryNormalizations.get(geometryKey);
-    if (normalization) {
-      const groupSize = groupPoints.length;
-      totalPoints += groupSize;
-      weightedScale += normalization.scale * groupSize;
-      weightedOffset += normalization.offset * groupSize;
-    }
+  if (geometryNormalizations.size === 0) {
+    return null;
   }
 
-  const aggregateScale = totalPoints > 0 ? weightedScale / totalPoints : 1;
-  const aggregateOffset = totalPoints > 0 ? weightedOffset / totalPoints : 0;
+  const telemetry = weightedAggregateTelemetry(
+    geometryGroups,
+    geometryNormalizations,
+  );
 
   return {
-    normalizedPoints,
-    scale: aggregateScale,
-    offset: aggregateOffset,
+    normalizedPoints: applyAffineNormalization(
+      points,
+      pointToGeometryKey,
+      geometryNormalizations,
+    ),
+    scale: telemetry.scale,
+    offset: telemetry.offset,
     preRange: normalizedPreRange,
     postRange: normalizedPostRange,
   };

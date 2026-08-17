@@ -9,11 +9,13 @@ import type {
   SampleWetMethod,
 } from "~/lib/sample-aux-preparation";
 import type { DatasetAttributionEntry } from "~/lib/nexafs-attribution";
+import type { NormalizationBandMode } from "~/lib/nexafs/normalization-band-mode";
 import type { PublicationCitation } from "~/lib/publication-citation";
 import type { ProcessMethod } from "~/prisma/browser";
 import { type EXPERIMENT_TYPE_OPTIONS } from "./constants";
 
 export type { DatasetAttributionEntry };
+export type { NormalizationBandMode };
 
 export { EXPERIMENT_TYPE_OPTIONS, PROCESS_METHOD_OPTIONS } from "./constants";
 
@@ -84,6 +86,8 @@ export type NormalizationRange = [number, number] | null;
 export interface UnifiedNormalizationRanges {
   pre: NormalizationRange;
   post: NormalizationRange;
+  /** Which windows participate in the fit; omitted means both. */
+  bandMode?: NormalizationBandMode;
 }
 
 export interface PerChannelNormalizationRanges {
@@ -305,6 +309,10 @@ export type DatasetState = {
     pre: [number, number] | null;
     post: [number, number] | null;
   };
+  /** Which edge windows drive the live normalization fit (`both` by default). */
+  normalizationBandMode: NormalizationBandMode;
+  /** When false, hatched pre/post preview bands are hidden on the plot. */
+  showNormalizationBandPreview: boolean;
   validationOverride: ValidationOverrideState;
   normalizationLocked: boolean;
   normalizationTypes: DatasetViewNormalizationTypes;
@@ -352,6 +360,8 @@ export function createEmptyDatasetState(file: File): DatasetState {
     normalization: null,
     normalizationScope: "unified",
     normalizationRegions: { pre: null, post: null },
+    normalizationBandMode: "both",
+    showNormalizationBandPreview: true,
     validationOverride: { bypass: false, reason: "" },
     normalizationLocked: false,
     normalizationTypes: defaultDatasetViewNormalizationTypes(),
