@@ -6,6 +6,7 @@ import {
   parseRolePermissions,
   permissionsGrantLabsAccess,
   permissionsGrantManageUsers,
+  type AppPermissionKey,
 } from "~/lib/app-role-permissions";
 import { Prisma, type PrismaClient } from "~/prisma/client";
 
@@ -82,6 +83,30 @@ export async function hasManageUsersCapability(
   });
   return links.some((l) =>
     permissionsGrantManageUsers(parseRolePermissions(l.role.permissions)),
+  );
+}
+
+/**
+ * Reports whether any assigned role includes `key` in its `permissions` JSON.
+ *
+ * @param db - Prisma client (pooled app DB).
+ * @param userId - Authenticated user id, or `null` when unauthenticated.
+ * @param key - Granular permission from {@link AppPermissionKey}.
+ */
+export async function userHasAppPermission(
+  db: PrismaClient,
+  userId: string | null,
+  key: AppPermissionKey,
+): Promise<boolean> {
+  if (!userId) {
+    return false;
+  }
+  const links = await db.userAppRole.findMany({
+    where: { userId },
+    select: { role: { select: { permissions: true } } },
+  });
+  return links.some((link) =>
+    parseRolePermissions(link.role.permissions).includes(key),
   );
 }
 

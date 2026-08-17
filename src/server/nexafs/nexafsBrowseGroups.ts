@@ -174,6 +174,8 @@ export function buildNexafsBrowseWhereSql(
       OR ed.targetatom ILIKE ${pattern}
       OR ed.corestate ILIKE ${pattern}
       OR e.id::text ILIKE ${pattern}
+      OR COALESCE(e.atlas_dataset_id, '') ILIKE ${pattern}
+      OR COALESCE(e.canonical_slug, '') ILIKE ${pattern}
       OR EXISTS (
         SELECT 1 FROM moleculesynonyms msq
         WHERE msq.moleculeid = m.id AND msq.synonym ILIKE ${pattern}

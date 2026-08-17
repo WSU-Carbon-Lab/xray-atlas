@@ -1,8 +1,10 @@
 /**
- * tRPC procedures for user and role administration. Every procedure is gated by
+ * tRPC procedures for user and role administration, plus nested
+ * {@link adminCatalogRouter} catalog takedown (`admin.catalog`). Every procedure is gated by
  * {@link adminProcedure}, which requires an authenticated user with at least one
  * role whose `permissions` grant user administration. Authorization is enforced again inside
- * mutations that could remove the last management-capable account.
+ * mutations that could remove the last management-capable account. Catalog deletes
+ * additionally require `molecule_delete` or `data_delete`.
  *
  * **Last admin:** Role-stripping checks are not run under a serializable transaction; concurrent
  * admins could theoretically both pass counts in a narrow race. Recovery is operational: core
@@ -16,6 +18,7 @@ import { z } from "zod";
 import { TRPCError } from "@trpc/server";
 import sharp from "sharp";
 import { createTRPCRouter, adminProcedure } from "~/server/api/trpc";
+import { adminCatalogRouter } from "~/server/api/routers/admin-catalog";
 import {
   auditRequestMetaFromTrpcContext,
   emitAuditEvent,
@@ -659,4 +662,6 @@ export const adminRouter = createTRPCRouter({
       });
       return { success: true as const };
     }),
+
+  catalog: adminCatalogRouter,
 });

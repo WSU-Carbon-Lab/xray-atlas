@@ -201,3 +201,32 @@ export async function headAuxStorageObject(args: {
   }
   return { sizeBytes: size };
 }
+
+/**
+ * Best-effort deletion of auxiliary objects. Missing keys are ignored; storage
+ * errors are logged and do not throw so catalog row deletion can complete.
+ *
+ * @param args.bucket - Sample or experiment aux bucket.
+ * @param args.paths - Object keys previously stored on aux file rows.
+ */
+export async function removeAuxStorageObjects(args: {
+  bucket: AuxStorageBucket;
+  paths: readonly string[];
+}): Promise<void> {
+  if (args.paths.length === 0) {
+    return;
+  }
+  const chunkSize = 100;
+  for (let i = 0; i < args.paths.length; i += chunkSize) {
+    const chunk = args.paths.slice(i, i + chunkSize);
+    const { error } = await supabase.storage
+      .from(args.bucket)
+      .remove([...chunk]);
+    if (error) {
+      console.error(
+        `[aux-storage] Failed to remove objects from ${args.bucket}:`,
+        error.message,
+      );
+    }
+  }
+}
