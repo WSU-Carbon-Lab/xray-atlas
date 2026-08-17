@@ -1,6 +1,7 @@
 import { z } from "zod";
 import {
   adminProcedure,
+  contributeSubmitProcedure,
   contributeWriteProcedure,
   createTRPCRouter,
   privilegedWriteProcedure,
@@ -30,6 +31,23 @@ import { coerceZenodoDepositUiState } from "~/lib/zenodo-doi-button-mode";
 import type { PublicationCitation } from "~/lib/publication-citation";
 import { dataCiteContributorTypeSchema } from "~/lib/datacite-contributor-types";
 import { orcidUserIdSchema } from "~/lib/orcid";
+import {
+  edgeLabelFromAtomCore,
+  evaluateEdgeEnergyConsistency,
+} from "~/lib/nexafs/edge-energy-bands";
+import { sampleAuxFieldsFromPrismaRow } from "~/lib/sample-aux-from-prisma";
+import {
+  energySpanJaccard,
+  DATASET_SIMILARITY_WARN_THRESHOLD,
+  enumerateDatasetSimilarPairs,
+  evaluateMergeCandidacy,
+  NEXAFS_MERGE_EXPERIMENT_TYPES,
+  parseNexafsMergeExperimentType,
+  type DatasetSimilarityMatch,
+  type DatasetSimilarPair,
+} from "~/lib/nexafs/dataset-similarity";
+import { geometryKeysByExperimentId } from "~/server/nexafs/similar-experiment-pairs";
+import { plotPeakToPeaksetWrite } from "~/lib/nexafs/peakset-kind";
 import { TRPCError } from "@trpc/server";
 import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
@@ -85,6 +103,8 @@ import {
   POLAR_DEG_MIN,
 } from "~/features/process-nexafs/utils/polarizationAngle";
 import { spectrumGeometryKey } from "~/lib/nexafs/spectrum-geometry-key";
+import { mergeRedundantExperiments } from "~/server/nexafs/merge-redundant-experiments";
+import { auditRequestMetaFromTrpcContext } from "~/server/audit/request-meta";
 
 const polarizationAngleSchema = z.object({
   theta: z.number().finite().min(POLAR_DEG_MIN).max(POLAR_DEG_MAX),
@@ -185,6 +205,7 @@ const contributionBatchExperimentIdsSchema = z
 const unifiedNormalizationRangesSchema = z.object({
   pre: z.tuple([z.number(), z.number()]).nullable(),
   post: z.tuple([z.number(), z.number()]).nullable(),
+  bandMode: z.enum(["both", "pre", "post"]).optional(),
 });
 
 const perChannelNormalizationRangesSchema = z.object({
@@ -1214,7 +1235,7 @@ export const experimentsRouter = createTRPCRouter({
       return experiment;
     }),
 
-  createWithSpectrum: contributeWriteProcedure
+  createWithSpectrum: contributeSubmitProcedure
     .input(
       z.object({
         sample: z.object({
@@ -1312,6 +1333,7 @@ export const experimentsRouter = createTRPCRouter({
               intensity: z.number().optional(),
               bond: z.string().optional(),
               transition: z.string().optional(),
+              peakKind: z.string().nullable().optional(),
             }),
           )
           .optional(),
@@ -1910,13 +1932,16 @@ export const experimentsRouter = createTRPCRouter({
           }
 
           if (input.peaksets && input.peaksets.length > 0) {
-            const peaksetsData = input.peaksets.map((peak) => ({
-              experimentid: experiment.id,
-              energyev: peak.energy,
-              intensity: peak.intensity ?? null,
-              bond: peak.bond ?? null,
-              transition: peak.transition ?? null,
-            }));
+            const peaksetsData = input.peaksets.map((peak) => {
+              const mapped = plotPeakToPeaksetWrite(peak);
+              return {
+                experimentid: experiment.id,
+                energyev: mapped.energyev,
+                intensity: mapped.intensity,
+                bond: mapped.bond,
+                transition: mapped.transition,
+              };
+            });
             await tx.peaksets.createMany({ data: peaksetsData });
           }
 
@@ -1979,6 +2004,7 @@ export const experimentsRouter = createTRPCRouter({
           edgeid: true,
           instrumentid: true,
           nexafsexperimentkindid: true,
+          calibrationid: true,
           edges: {
             select: { id: true, targetatom: true, corestate: true },
           },
@@ -1992,6 +2018,49 @@ export const experimentsRouter = createTRPCRouter({
           nexafsexperimentkind: {
             select: { id: true, token: true, label: true },
           },
+          calibrationmethods: {
+            select: { id: true, name: true },
+          },
+          samples: {
+            select: {
+              id: true,
+              processmethod: true,
+              substrate: true,
+              patterninglayer: true,
+              solvent: true,
+              thickness: true,
+              molecularweight: true,
+              vendors: { select: { name: true, url: true } },
+              sampleaux: true,
+              molecules: {
+                select: {
+                  id: true,
+                  iupacname: true,
+                  chemicalformula: true,
+                  casnumber: true,
+                  inchi: true,
+                  moleculesynonyms: {
+                    select: { synonym: true },
+                    orderBy: [{ order: "asc" }, { synonym: "asc" }],
+                    take: 6,
+                  },
+                },
+              },
+            },
+          },
+          experimentpublications: {
+            where: { role: "source" },
+            select: {
+              publications: {
+                select: {
+                  doi: true,
+                  title: true,
+                  journal: true,
+                  year: true,
+                },
+              },
+            },
+          },
         },
       });
       if (!experiment) {
@@ -2000,12 +2069,21 @@ export const experimentsRouter = createTRPCRouter({
           message: "Experiment not found",
         });
       }
+      const energyAgg = await ctx.db.spectrumpoints.aggregate({
+        where: { experimentid: input.experimentId },
+        _min: { energyev: true },
+        _max: { energyev: true },
+      });
+      const sample = experiment.samples;
+      const molecule = sample.molecules;
       return {
         experimentId: experiment.id,
         edgeId: experiment.edgeid,
         instrumentId: experiment.instrumentid,
         experimentType: experiment.experimenttype,
         nexafsExperimentKindId: experiment.nexafsexperimentkindid,
+        spectrumEnergyMin: energyAgg._min.energyev ?? null,
+        spectrumEnergyMax: energyAgg._max.energyev ?? null,
         edge: {
           id: experiment.edges.id,
           targetatom: experiment.edges.targetatom,
@@ -2023,6 +2101,40 @@ export const experimentsRouter = createTRPCRouter({
               label: experiment.nexafsexperimentkind.label,
             }
           : null,
+        calibration: experiment.calibrationmethods
+          ? {
+              id: experiment.calibrationmethods.id,
+              name: experiment.calibrationmethods.name,
+            }
+          : null,
+        molecule: {
+          id: molecule.id,
+          iupacName: molecule.iupacname,
+          chemicalFormula: molecule.chemicalformula,
+          casNumber: molecule.casnumber,
+          inchi: molecule.inchi,
+          synonyms: molecule.moleculesynonyms.map((row) => row.synonym),
+        },
+        sample: {
+          id: sample.id,
+          processMethod: sample.processmethod,
+          substrate: sample.substrate,
+          patterningLayer: sample.patterninglayer,
+          solvent: sample.solvent,
+          thickness: sample.thickness,
+          molecularWeight: sample.molecularweight,
+          vendorName: sample.vendors?.name ?? null,
+          vendorUrl: sample.vendors?.url ?? null,
+          aux: sample.sampleaux
+            ? sampleAuxFieldsFromPrismaRow(sample.sampleaux)
+            : null,
+        },
+        sourcePublications: experiment.experimentpublications.map((row) => ({
+          doi: row.publications.doi,
+          title: row.publications.title,
+          journal: row.publications.journal,
+          year: row.publications.year,
+        })),
       };
     }),
 
@@ -2068,13 +2180,39 @@ export const experimentsRouter = createTRPCRouter({
       if (input.edgeId !== undefined) {
         const edge = await ctx.db.edges.findUnique({
           where: { id: input.edgeId },
-          select: { id: true },
+          select: { id: true, targetatom: true, corestate: true },
         });
         if (!edge) {
           throw new TRPCError({
             code: "BAD_REQUEST",
             message: "Edge not found",
           });
+        }
+
+        const energyAgg = await ctx.db.spectrumpoints.aggregate({
+          where: { experimentid: input.experimentId },
+          _min: { energyev: true },
+          _max: { energyev: true },
+        });
+        const minEv = energyAgg._min.energyev;
+        const maxEv = energyAgg._max.energyev;
+        if (
+          minEv != null &&
+          maxEv != null &&
+          Number.isFinite(minEv) &&
+          Number.isFinite(maxEv)
+        ) {
+          const consistency = evaluateEdgeEnergyConsistency({
+            edgeLabel: edgeLabelFromAtomCore(edge.targetatom, edge.corestate),
+            minEv,
+            maxEv,
+          });
+          if (!consistency.ok) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: consistency.message,
+            });
+          }
         }
       }
 
@@ -2173,6 +2311,63 @@ export const experimentsRouter = createTRPCRouter({
       };
     }),
 
+  /**
+   * Replaces all `peaksets` rows for an experiment the caller may edit.
+   * Empty `peaks` clears assignments. Requires contribute-write enrollment and
+   * {@link assertUserMayEditExperiment}.
+   */
+  replacePeaksets: contributeWriteProcedure
+    .input(
+      z.object({
+        experimentId: z.string().uuid(),
+        peaks: z.array(
+          z.object({
+            energy: z.number().finite(),
+            intensity: z.number().finite().optional(),
+            peakKind: z.string().nullable().optional(),
+            bond: z.string().optional(),
+            transition: z.string().optional(),
+          }),
+        ),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+
+      const existing = await ctx.db.experiments.findUnique({
+        where: { id: input.experimentId },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Experiment not found",
+        });
+      }
+
+      const rows = input.peaks.map((peak) => {
+        const mapped = plotPeakToPeaksetWrite(peak);
+        return {
+          experimentid: input.experimentId,
+          energyev: mapped.energyev,
+          intensity: mapped.intensity,
+          bond: mapped.bond,
+          transition: mapped.transition,
+        };
+      });
+
+      await ctx.db.$transaction(async (tx) => {
+        await tx.peaksets.deleteMany({
+          where: { experimentid: input.experimentId },
+        });
+        if (rows.length > 0) {
+          await tx.peaksets.createMany({ data: rows });
+        }
+      });
+
+      return { count: rows.length };
+    }),
+
   setAtlasTeamVerification: contributeWriteProcedure
     .input(
       z.object({
@@ -2242,6 +2437,409 @@ export const experimentsRouter = createTRPCRouter({
         },
       });
       return mapContributorRowsToDto(ctx.db, rows);
+    }),
+
+  /**
+   * Finds experiments on the same molecule that the signed-in contributor is
+   * already associated with, overlap the uploaded energy span, share detection
+   * mode when both are set, and have overlapping polarization geometries.
+   */
+  findSimilarForContributor: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        minEv: z.number().finite(),
+        maxEv: z.number().finite(),
+        limit: z.number().int().min(1).max(20).default(5),
+        geometryKeys: z.array(z.string().min(1)).max(64).optional(),
+        experimentType: z.enum(NEXAFS_MERGE_EXPERIMENT_TYPES).optional(),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const spanMin = Math.min(input.minEv, input.maxEv);
+      const spanMax = Math.max(input.minEv, input.maxEv);
+      const orcid = ctx.userId;
+      const uploadType = parseNexafsMergeExperimentType(input.experimentType);
+      const uploadGeometryKeys = input.geometryKeys ?? [];
+      const candidates = await ctx.db.experiments.findMany({
+        where: {
+          samples: { moleculeid: input.moleculeId },
+          OR: [
+            { createdby: orcid },
+            {
+              experimentcontributors: {
+                some: {
+                  OR: [{ orcidid: orcid }, { userid: orcid }],
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          canonicalslug: true,
+          experimenttype: true,
+        },
+        take: 80,
+        orderBy: { createdat: "desc" },
+      });
+      if (candidates.length === 0) {
+        return { matches: [] as DatasetSimilarityMatch[] };
+      }
+      const ids = candidates.map((row) => row.id);
+      const energyRows = await ctx.db.spectrumpoints.groupBy({
+        by: ["experimentid"],
+        where: { experimentid: { in: ids } },
+        _min: { energyev: true },
+        _max: { energyev: true },
+      });
+      const energyById = new Map(
+        energyRows.map((row) => [
+          row.experimentid,
+          {
+            minEv: row._min.energyev,
+            maxEv: row._max.energyev,
+          },
+        ]),
+      );
+      const geometryById = await geometryKeysByExperimentId(ctx.db, ids);
+      const matches: DatasetSimilarityMatch[] = [];
+      for (const candidate of candidates) {
+        const energy = energyById.get(candidate.id);
+        if (
+          energy?.minEv == null ||
+          energy.maxEv == null ||
+          !Number.isFinite(energy.minEv) ||
+          !Number.isFinite(energy.maxEv)
+        ) {
+          continue;
+        }
+        const score = energySpanJaccard(
+          spanMin,
+          spanMax,
+          energy.minEv,
+          energy.maxEv,
+        );
+        if (score <= 0) {
+          continue;
+        }
+        if (uploadGeometryKeys.length > 0 || uploadType != null) {
+          const candidacy = evaluateMergeCandidacy({
+            energyScore: score,
+            energyThreshold: DATASET_SIMILARITY_WARN_THRESHOLD,
+            geometryKeysA: uploadGeometryKeys,
+            geometryKeysB: geometryById.get(candidate.id) ?? [],
+            experimentTypeA: uploadType,
+            experimentTypeB: parseNexafsMergeExperimentType(
+              candidate.experimenttype,
+            ),
+          });
+          if (!candidacy.ok) {
+            continue;
+          }
+        }
+        matches.push({
+          experimentId: candidate.id,
+          canonicalSlug: candidate.canonicalslug,
+          score,
+          minEv: energy.minEv,
+          maxEv: energy.maxEv,
+        });
+      }
+      matches.sort((left, right) => right.score - left.score);
+      return { matches: matches.slice(0, input.limit) };
+    }),
+
+  /**
+   * Lists pairwise similar experiments on a molecule that the session user may
+   * edit on both sides (energy Jaccard, same detection mode, overlapping
+   * geometries).
+   */
+  listSimilarPairsForMolecule: protectedProcedure
+    .input(
+      z.object({
+        moleculeId: z.string().uuid(),
+        threshold: z
+          .number()
+          .finite()
+          .min(0)
+          .max(1)
+          .default(DATASET_SIMILARITY_WARN_THRESHOLD),
+        limit: z.number().int().min(1).max(20).default(12),
+        candidateCap: z.number().int().min(2).max(40).default(40),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const orcid = ctx.userId;
+      const candidates = await ctx.db.experiments.findMany({
+        where: {
+          samples: { moleculeid: input.moleculeId },
+          OR: [
+            { createdby: orcid },
+            {
+              experimentcontributors: {
+                some: {
+                  OR: [{ orcidid: orcid }, { userid: orcid }],
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          canonicalslug: true,
+          createdat: true,
+          experimenttype: true,
+        },
+        take: input.candidateCap,
+        orderBy: { createdat: "desc" },
+      });
+
+      const editable: typeof candidates = [];
+      for (const row of candidates) {
+        if (await userMayEditExperiment(ctx.db, orcid, row.id)) {
+          editable.push(row);
+        }
+      }
+      if (editable.length < 2) {
+        return { pairs: [] as DatasetSimilarPair[] };
+      }
+
+      const ids = editable.map((row) => row.id);
+      const energyRows = await ctx.db.spectrumpoints.groupBy({
+        by: ["experimentid"],
+        where: { experimentid: { in: ids } },
+        _min: { energyev: true },
+        _max: { energyev: true },
+      });
+      const energyById = new Map(
+        energyRows.map((row) => [
+          row.experimentid,
+          {
+            minEv: row._min.energyev,
+            maxEv: row._max.energyev,
+          },
+        ]),
+      );
+      const geometryKeysById = await geometryKeysByExperimentId(ctx.db, ids);
+      const pairs = enumerateDatasetSimilarPairs({
+        rows: editable.map((row) => ({
+          id: row.id,
+          canonicalslug: row.canonicalslug,
+          createdat: row.createdat,
+          experimenttype: parseNexafsMergeExperimentType(row.experimenttype),
+        })),
+        energyById,
+        geometryKeysById,
+        threshold: input.threshold,
+      });
+      return { pairs: pairs.slice(0, input.limit) };
+    }),
+
+  /**
+   * Absorbs a redundant experiment into a keep experiment (geometry + metadata),
+   * then hard-deletes the absorb row. Requires edit rights on both and AAL2.
+   */
+  mergeRedundant: privilegedWriteProcedure
+    .input(
+      z.object({
+        keepExperimentId: z.string().uuid(),
+        absorbExperimentId: z.string().uuid(),
+        geometryResolutions: z.array(
+          z.object({
+            key: z.string().min(1),
+            source: z.enum(["keep", "absorb"]),
+          }),
+        ),
+        metadataResolutions: z.array(
+          z.object({
+            field: z.enum([
+              "edge",
+              "instrument",
+              "type",
+              "researchers",
+              "substrate",
+              "processMethod",
+              "thickness",
+              "solvent",
+              "patterningLayer",
+            ]),
+            source: z.enum(["keep", "absorb", "both"]),
+          }),
+        ),
+        attributionsWhenBoth: z
+          .array(
+            z.object({
+              orcid: orcidUserIdSchema,
+              role: experimentAttributionRoleSchema,
+            }),
+          )
+          .optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      return mergeRedundantExperiments(ctx.db, {
+        keepExperimentId: input.keepExperimentId,
+        absorbExperimentId: input.absorbExperimentId,
+        geometryResolutions: input.geometryResolutions,
+        metadataResolutions: input.metadataResolutions,
+        attributionsWhenBoth: input.attributionsWhenBoth,
+        actorUserId: ctx.userId,
+        requestMeta: auditRequestMetaFromTrpcContext({
+          clientIp: ctx.clientIp,
+          userAgent: ctx.userAgent,
+        }),
+      });
+    }),
+
+  /**
+   * Summarizes similar editable experiment pairs across molecules the session
+   * user can edit (for account attributions entry points). Uses the same
+   * merge-candidacy gates as molecule similar-pair listing.
+   */
+  listMySimilarPairsSummary: protectedProcedure
+    .input(
+      z.object({
+        threshold: z
+          .number()
+          .finite()
+          .min(0)
+          .max(1)
+          .default(DATASET_SIMILARITY_WARN_THRESHOLD),
+        sampleLimit: z.number().int().min(1).max(10).default(5),
+        moleculeCap: z.number().int().min(1).max(40).default(24),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const orcid = ctx.userId;
+      const experiments = await ctx.db.experiments.findMany({
+        where: {
+          OR: [
+            { createdby: orcid },
+            {
+              experimentcontributors: {
+                some: {
+                  OR: [{ orcidid: orcid }, { userid: orcid }],
+                },
+              },
+            },
+          ],
+        },
+        select: {
+          id: true,
+          canonicalslug: true,
+          createdat: true,
+          experimenttype: true,
+          samples: {
+            select: {
+              moleculeid: true,
+              molecules: {
+                select: {
+                  id: true,
+                  moleculesynonyms: {
+                    orderBy: { order: "asc" },
+                    take: 1,
+                    select: { slug: true, synonym: true },
+                  },
+                },
+              },
+            },
+          },
+        },
+        take: 200,
+        orderBy: { createdat: "desc" },
+      });
+
+      const byMolecule = new Map<
+        string,
+        {
+          moleculeId: string;
+          moleculeSlug: string | null;
+          moleculeName: string | null;
+          rows: Array<{
+            id: string;
+            canonicalslug: string | null;
+            createdat: Date;
+            experimenttype: ReturnType<typeof parseNexafsMergeExperimentType>;
+          }>;
+        }
+      >();
+
+      for (const row of experiments) {
+        const moleculeId = row.samples.moleculeid;
+        if (!(await userMayEditExperiment(ctx.db, orcid, row.id))) {
+          continue;
+        }
+        const synonym = row.samples.molecules.moleculesynonyms[0];
+        const bucket = byMolecule.get(moleculeId) ?? {
+          moleculeId,
+          moleculeSlug: synonym?.slug ?? null,
+          moleculeName: synonym?.synonym ?? null,
+          rows: [],
+        };
+        bucket.rows.push({
+          id: row.id,
+          canonicalslug: row.canonicalslug,
+          createdat: row.createdat,
+          experimenttype: parseNexafsMergeExperimentType(row.experimenttype),
+        });
+        byMolecule.set(moleculeId, bucket);
+      }
+
+      const moleculeEntries = [...byMolecule.values()].slice(
+        0,
+        input.moleculeCap,
+      );
+      const samples: Array<{
+        moleculeId: string;
+        moleculeSlug: string | null;
+        moleculeName: string | null;
+        pair: DatasetSimilarPair;
+      }> = [];
+      let totalPairs = 0;
+
+      for (const molecule of moleculeEntries) {
+        if (molecule.rows.length < 2) {
+          continue;
+        }
+        const ids = molecule.rows.map((r) => r.id);
+        const energyRows = await ctx.db.spectrumpoints.groupBy({
+          by: ["experimentid"],
+          where: { experimentid: { in: ids } },
+          _min: { energyev: true },
+          _max: { energyev: true },
+        });
+        const energyById = new Map(
+          energyRows.map((row) => [
+            row.experimentid,
+            {
+              minEv: row._min.energyev,
+              maxEv: row._max.energyev,
+            },
+          ]),
+        );
+        const geometryKeysById = await geometryKeysByExperimentId(ctx.db, ids);
+        const moleculePairs = enumerateDatasetSimilarPairs({
+          rows: molecule.rows,
+          energyById,
+          geometryKeysById,
+          threshold: input.threshold,
+        });
+        totalPairs += moleculePairs.length;
+        for (const pair of moleculePairs) {
+          if (samples.length >= input.sampleLimit) {
+            break;
+          }
+          samples.push({
+            moleculeId: molecule.moleculeId,
+            moleculeSlug: molecule.moleculeSlug,
+            moleculeName: molecule.moleculeName,
+            pair,
+          });
+        }
+      }
+
+      return { totalPairs, samples };
     }),
 
   setAttributions: protectedProcedure

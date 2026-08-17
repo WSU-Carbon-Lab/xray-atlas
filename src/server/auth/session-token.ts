@@ -2,6 +2,7 @@ import { cookies } from "next/headers";
 import type { PrismaClient } from "~/prisma/client";
 
 export const SESSION_COOKIE_NAMES = [
+  "__Host-authjs.session-token",
   "__Secure-authjs.session-token",
   "authjs.session-token",
   "__Secure-next-auth.session-token",
@@ -11,6 +12,25 @@ export const SESSION_COOKIE_NAMES = [
 type SessionLookupDb = Pick<PrismaClient, "session">;
 
 /**
+ * Reads the Auth.js database session token from the Next.js cookie store.
+ * Returns `null` when no session cookie is present or `cookies()` is unavailable.
+ */
+export async function getSessionTokenFromCookies(): Promise<string | null> {
+  try {
+    const cookieStore = await cookies();
+    for (const name of SESSION_COOKIE_NAMES) {
+      const value = cookieStore.get(name)?.value;
+      if (value) {
+        return value;
+      }
+    }
+    return null;
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Resolves the signed-in Atlas user id from Auth.js session cookies without invoking the full
  * Auth.js `auth()` pipeline. Returns `null` when no valid session exists or when the database
  * lookup fails so callers fail closed on account-linking gates.
@@ -18,14 +38,7 @@ type SessionLookupDb = Pick<PrismaClient, "session">;
 export async function getSessionUserIdFromCookies(
   db: SessionLookupDb,
 ): Promise<string | null> {
-  const cookieStore = await cookies();
-  let sessionToken: string | undefined;
-  for (const name of SESSION_COOKIE_NAMES) {
-    sessionToken = cookieStore.get(name)?.value;
-    if (sessionToken) {
-      break;
-    }
-  }
+  const sessionToken = await getSessionTokenFromCookies();
   if (!sessionToken) {
     return null;
   }

@@ -7,10 +7,10 @@ import {
   AddNexafsCard,
   AddMoleculeCard,
   AddFacilityCard,
+  ContributeAccessGate,
+  ContributionAgreementModal,
 } from "~/components/contribute";
-import { ContributionAgreementModal } from "~/components/contribute";
 import { CheckCircleIcon } from "@heroicons/react/24/outline";
-import { PasskeyEnrollmentPrompt } from "~/components/auth/passkey-enrollment-prompt";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";
 
@@ -34,6 +34,8 @@ export default function ContributePage() {
     needsPasskeyEnrollment,
     requiresAal3Hardware,
     canAccessContributeWrites,
+    registerPasskey,
+    isRegisteringPasskey,
   } = usePasskeyEnrollmentGate();
 
   const { data: session } = useSession();
@@ -98,73 +100,68 @@ export default function ContributePage() {
             </p>
           </div>
 
-          {isCheckingAgreement || isCheckingPasskey ? (
-            <p className="text-muted text-center text-sm">
-              Checking account requirements...
-            </p>
-          ) : needsPasskeyEnrollment ? (
-            <div className="mb-8">
-              <PasskeyEnrollmentPrompt
-                profileHref={profileHref}
-                requiresAal3Hardware={requiresAal3Hardware}
+          <ContributeAccessGate
+            isChecking={isCheckingAgreement || isCheckingPasskey}
+            needsPasskeyEnrollment={needsPasskeyEnrollment}
+            canContribute={canContribute}
+            requiresAal3Hardware={requiresAal3Hardware}
+            profileHref={profileHref}
+            onRegisterPasskey={registerPasskey}
+            isRegisteringPasskey={isRegisteringPasskey}
+          >
+            <div className="border-border bg-background-secondary text-foreground mb-8 rounded-xl border p-6">
+              <h2 className="text-foreground mb-3 text-xl font-semibold">
+                Contribution Guidelines
+              </h2>
+              <ul className="text-muted space-y-2 text-sm">
+                <li className="flex items-start">
+                  <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                  <span>
+                    All contributions must be accurate and properly documented
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                  <span>
+                    Data will be made available under an open data license
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                  <span>
+                    Please verify that your data does not already exist in the
+                    database
+                  </span>
+                </li>
+                <li className="flex items-start">
+                  <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
+                  <span>
+                    You must have the legal rights to contribute the data
+                  </span>
+                </li>
+              </ul>
+            </div>
+
+            <div
+              className={
+                canSubmitContributions
+                  ? "grid gap-6 md:grid-cols-2"
+                  : "pointer-events-none opacity-50"
+              }
+              aria-hidden={!canSubmitContributions}
+            >
+              <AddNexafsCard
+                onClick={() => handleContributionTypeSelect("nexafs")}
+                fullWidth
+              />
+              <AddMoleculeCard
+                onClick={() => handleContributionTypeSelect("molecule")}
+              />
+              <AddFacilityCard
+                onClick={() => handleContributionTypeSelect("facility")}
               />
             </div>
-          ) : (
-            <>
-              <div className="border-border bg-background-secondary text-foreground mb-8 rounded-xl border p-6">
-                <h2 className="text-foreground mb-3 text-xl font-semibold">
-                  Contribution Guidelines
-                </h2>
-                <ul className="text-muted space-y-2 text-sm">
-                  <li className="flex items-start">
-                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                    <span>
-                      All contributions must be accurate and properly documented
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                    <span>
-                      Data will be made available under an open data license
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                    <span>
-                      Please verify that your data does not already exist in the
-                      database
-                    </span>
-                  </li>
-                  <li className="flex items-start">
-                    <CheckCircleIcon className="text-accent mt-0.5 mr-2 h-5 w-5 shrink-0" />
-                    <span>
-                      You must have the legal rights to contribute the data
-                    </span>
-                  </li>
-                </ul>
-              </div>
-
-              <div
-                className={
-                  canSubmitContributions
-                    ? "grid gap-6 md:grid-cols-2"
-                    : "pointer-events-none opacity-50"
-                }
-                aria-hidden={!canSubmitContributions}
-              >
-                <AddNexafsCard
-                  onClick={() => handleContributionTypeSelect("nexafs")}
-                  fullWidth
-                />
-                <AddMoleculeCard
-                  onClick={() => handleContributionTypeSelect("molecule")}
-                />
-                <AddFacilityCard
-                  onClick={() => handleContributionTypeSelect("facility")}
-                />
-              </div>
-            </>
-          )}
+          </ContributeAccessGate>
         </div>
       </div>
     </>

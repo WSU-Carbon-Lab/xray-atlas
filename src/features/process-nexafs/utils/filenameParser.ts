@@ -36,11 +36,82 @@ function emptyParsedFilename(): ParsedFilename {
 }
 
 /**
- * Returns true when `fileName` is a spectrum upload candidate (CSV or JSON only).
+ * File-input `accept` list for contribute spectrum uploads (CSV, JSON, XLSX).
+ */
+export const SPECTRUM_UPLOAD_FILE_ACCEPT =
+  ".csv,.json,.xlsx,text/csv,application/json,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+export const SPECTRUM_UPLOAD_XLSX_MIME =
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+
+export type SpectrumUploadKind = "csv" | "json" | "xlsx";
+
+export type SpectrumDropOverlayKind = SpectrumUploadKind | "mixed";
+
+/**
+ * Classifies a spectrum upload candidate from its filename extension.
+ */
+export function spectrumUploadKindFromFileName(
+  fileName: string,
+): SpectrumUploadKind | null {
+  const lower = fileName.toLowerCase();
+  if (lower.endsWith(".json")) {
+    return "json";
+  }
+  if (lower.endsWith(".csv")) {
+    return "csv";
+  }
+  if (lower.endsWith(".xlsx")) {
+    return "xlsx";
+  }
+  return null;
+}
+
+/**
+ * Classifies a dragged file from MIME type when `DataTransferItem.getAsFile()` is null.
+ */
+export function spectrumUploadKindFromMime(
+  mime: string,
+): SpectrumUploadKind | null {
+  const normalized = mime.trim().toLowerCase();
+  if (normalized === "application/json" || normalized === "text/json") {
+    return "json";
+  }
+  if (normalized === "text/csv" || normalized === "application/csv") {
+    return "csv";
+  }
+  if (
+    normalized === SPECTRUM_UPLOAD_XLSX_MIME ||
+    normalized === "application/vnd.ms-excel" ||
+    normalized.includes("spreadsheet")
+  ) {
+    return "xlsx";
+  }
+  return null;
+}
+
+/**
+ * Collapses classified spectrum kinds into a drop-overlay label. Empty input yields
+ * `null` so callers can fall back to a generic mixed overlay.
+ */
+export function overlayKindFromSpectrumKinds(
+  kinds: readonly (SpectrumUploadKind | null)[],
+): SpectrumDropOverlayKind | null {
+  const present = kinds.filter(
+    (kind): kind is SpectrumUploadKind => kind !== null,
+  );
+  if (present.length === 0) {
+    return null;
+  }
+  const unique = Array.from(new Set(present));
+  return unique.length === 1 ? unique[0]! : "mixed";
+}
+
+/**
+ * Returns true when `fileName` is a spectrum upload candidate (CSV, JSON, or XLSX).
  */
 export function isSpectrumUploadFileName(fileName: string): boolean {
-  const lower = fileName.toLowerCase();
-  return lower.endsWith(".csv") || lower.endsWith(".json");
+  return spectrumUploadKindFromFileName(fileName) !== null;
 }
 
 /**

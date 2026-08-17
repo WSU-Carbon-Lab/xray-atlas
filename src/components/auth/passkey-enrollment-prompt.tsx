@@ -9,20 +9,25 @@ export interface PasskeyEnrollmentPromptProps {
   title?: string;
   description?: string;
   requiresAal3Hardware?: boolean;
+  onRegister?: () => void | Promise<void>;
+  isRegistering?: boolean;
 }
 
 /**
- * Blocks contribute or admin write UI until the user enrolls a passkey from their profile.
+ * Blocks contribute or admin write UI until the user enrolls a passkey.
+ * Prefer in-browser registration via `onRegister`; profile remains a secondary path.
  */
 export function PasskeyEnrollmentPrompt({
   profileHref,
   title = "Passkey required",
   description,
   requiresAal3Hardware = false,
+  onRegister,
+  isRegistering = false,
 }: PasskeyEnrollmentPromptProps) {
   const defaultDescription = requiresAal3Hardware
-    ? "Your role requires a hardware security key passkey. Register one from your profile, then sign in with it for administrator access."
-    : "Register a passkey from your profile before submitting data. Browse and read-only access remain available with ORCID sign-in.";
+    ? "Your role requires a hardware security key passkey. Register one with your browser or from your profile, then sign in with it for administrator access."
+    : "Register a passkey with your browser before filling in contribution forms. Browse and read-only access remain available with ORCID sign-in.";
 
   return (
     <Card className="border-border-default bg-surface-2 border p-6">
@@ -37,9 +42,22 @@ export function PasskeyEnrollmentPrompt({
               {description ?? defaultDescription}
             </p>
           </div>
-          <Link href={profileHref} className="w-fit">
-            <Button variant="primary">Open profile to register passkey</Button>
-          </Link>
+          <div className="flex flex-wrap items-center gap-2">
+            {onRegister ? (
+              <Button
+                variant="primary"
+                onPress={() => void onRegister()}
+                isPending={isRegistering}
+              >
+                Register passkey
+              </Button>
+            ) : null}
+            <Link href={profileHref} className="w-fit">
+              <Button variant={onRegister ? "secondary" : "primary"}>
+                {onRegister ? "Open profile" : "Open profile to register passkey"}
+              </Button>
+            </Link>
+          </div>
         </div>
       </div>
     </Card>

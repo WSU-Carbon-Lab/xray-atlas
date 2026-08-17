@@ -1,0 +1,11 @@
+title = "infisical scan config"
+
+[extend]
+useDefault = true
+
+[allowlist]
+description = "NEXAFS dataset base-token fixtures, not credentials (molecule/edge/beamline naming from ANSTO/ALS test data)"
+regexes = [
+  '''N2200_C_K_edge_TEY_ANSTO_SXR''',
+  '''ZnPc_C_K_edge_TEY_ALS_5322''',
+]

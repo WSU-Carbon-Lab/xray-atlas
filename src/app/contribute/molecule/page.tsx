@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@heroui/react";
 import { BeakerIcon } from "@heroicons/react/24/outline";
 import { site } from "~/app/brand";
-import { ContributionAgreementModal } from "~/components/contribute";
+import { ContributionAgreementModal, ContributeAccessGate } from "~/components/contribute";
 import {
   ContributeClearFormButton,
   MoleculeContributionForm,
@@ -17,6 +17,7 @@ import type {
   MoleculeContributionFormHandle,
 } from "~/components/forms";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
+import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";
 
 export type { MoleculeContributePageProps };
 
@@ -47,6 +48,18 @@ export default function MoleculeContributePage({
       }
     },
   });
+
+  const {
+    isChecking: isCheckingPasskey,
+    needsPasskeyEnrollment,
+    requiresAal3Hardware,
+    registerPasskey,
+    isRegisteringPasskey,
+  } = usePasskeyEnrollmentGate();
+
+  const profileHref = session?.user?.id
+    ? `/users/${encodeURIComponent(session.user.id)}`
+    : "/sign-in";
 
   if (!isSignedIn) {
     return (
@@ -79,7 +92,7 @@ export default function MoleculeContributePage({
                 </Breadcrumbs.Item>
                 <Breadcrumbs.Item>Molecule registry</Breadcrumbs.Item>
               </Breadcrumbs>
-              {canContribute ? (
+              {canContribute && !needsPasskeyEnrollment ? (
                 <ContributeClearFormButton
                   onPress={() => formRef.current?.clearForm()}
                   tooltipDescription="Reset registry identity and form fields"
@@ -112,18 +125,22 @@ export default function MoleculeContributePage({
               </p>
             </div>
           </div>
-          {isCheckingAgreement ? (
-            <p className="text-muted text-sm">
-              Checking contribution agreement status…
-            </p>
-          ) : canContribute ? (
+          <ContributeAccessGate
+            isChecking={isCheckingAgreement || isCheckingPasskey}
+            needsPasskeyEnrollment={needsPasskeyEnrollment}
+            canContribute={canContribute}
+            requiresAal3Hardware={requiresAal3Hardware}
+            profileHref={profileHref}
+            onRegisterPasskey={registerPasskey}
+            isRegisteringPasskey={isRegisteringPasskey}
+          >
             <MoleculeContributionForm
               ref={formRef}
               variant={variant}
               onCompleted={onCompleted}
               onClose={onClose}
             />
-          ) : null}
+          </ContributeAccessGate>
         </div>
       </div>
     </>

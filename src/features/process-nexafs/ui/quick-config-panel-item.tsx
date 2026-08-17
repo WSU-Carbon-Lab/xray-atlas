@@ -13,6 +13,7 @@ interface QuickConfigPanelItemProps {
   isSelected: boolean;
   onSelect: () => void;
   onToggleSelection: () => void;
+  edgeOptions?: Array<{ id: string; targetatom: string; corestate: string }>;
 }
 
 export function QuickConfigPanelItem({
@@ -21,8 +22,9 @@ export function QuickConfigPanelItem({
   isSelected,
   onSelect,
   onToggleSelection,
+  edgeOptions = [],
 }: QuickConfigPanelItemProps) {
-  const statusInfo = useDatasetStatus(dataset);
+  const statusInfo = useDatasetStatus(dataset, edgeOptions);
 
   const getStatusIcon = () => {
     if (statusInfo.status === "complete") {

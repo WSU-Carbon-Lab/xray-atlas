@@ -12,6 +12,9 @@ import {
 
 export const NEXAFS_EXPERIMENT_SEARCH_PARAM = "nexafsExperiment" as const;
 
+/** Query key that opens the similar-dataset merge modal on molecule detail. */
+export const MERGE_PAIR_SEARCH_PARAM = "mergePair" as const;
+
 const EXPERIMENT_UUID_RE =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
@@ -28,6 +31,69 @@ export function parseNexafsExperimentSearchParam(
   const trimmed = raw.trim();
   if (!EXPERIMENT_UUID_RE.test(trimmed)) return null;
   return trimmed;
+}
+
+/**
+ * Parses `mergePair=uuid,uuid` from the molecule detail query string.
+ *
+ * @param raw - Raw `mergePair` search-param value.
+ * @returns Two experiment UUIDs, or `null` when invalid.
+ */
+export function parseMergePairSearchParam(
+  raw: string | null | undefined,
+): { aId: string; bId: string } | null {
+  if (!raw) {
+    return null;
+  }
+  const parts = raw.split(",").map((part) => part.trim());
+  if (parts.length !== 2) {
+    return null;
+  }
+  const aId = parseNexafsExperimentSearchParam(parts[0]);
+  const bId = parseNexafsExperimentSearchParam(parts[1]);
+  if (!aId || !bId || aId === bId) {
+    return null;
+  }
+  return { aId, bId };
+}
+
+/**
+ * Builds a molecule detail URL that opens the merge modal for a pair.
+ *
+ * @param moleculeSlug - Canonical molecule slug.
+ * @param aId - First experiment UUID.
+ * @param bId - Second experiment UUID.
+ */
+export function moleculeMergePairHref(
+  moleculeSlug: string,
+  aId: string,
+  bId: string,
+): string {
+  const slug = moleculeSlug.trim().replace(/^\/+|\/+$/g, "");
+  const safeSlug = slug.length > 0 ? slug : "molecule";
+  return `/molecules/${safeSlug}?${MERGE_PAIR_SEARCH_PARAM}=${aId},${bId}`;
+}
+
+/**
+ * Builds a path that drops `mergePair` from the current molecule URL.
+ *
+ * @param pathname - Current path without query.
+ * @param search - Current search string, with or without a leading `?`.
+ * @returns Updated path when the param was removed; `null` when unchanged.
+ */
+export function pathnameWithoutMergePairDeepLink(
+  pathname: string,
+  search: string,
+): string | null {
+  const params = new URLSearchParams(
+    search.startsWith("?") ? search.slice(1) : search,
+  );
+  if (!params.has(MERGE_PAIR_SEARCH_PARAM)) {
+    return null;
+  }
+  params.delete(MERGE_PAIR_SEARCH_PARAM);
+  const qs = params.toString();
+  return qs.length > 0 ? `${pathname}?${qs}` : pathname;
 }
 
 /**

@@ -14,7 +14,10 @@ const WEB_AUTHN_SIGN_IN_ERROR_MESSAGES: Record<string, string> = {
   CallbackRouteError: "Passkey sign-in was interrupted. Try again.",
   CredentialsSignin:
     "Passkey sign-in failed. Check your passkey and try again.",
-  SessionRequired: "Sign in with ORCID or a passkey to continue.",
+  "Invalid request":
+    "Passkey request was incomplete. Try again in Chrome, Safari, or Firefox on localhost or https.",
+  "Invalid action":
+    "Passkey request used an unsupported action. Refresh the page and try again.",
 };
 
 const KNOWN_PASSKEY_ADAPTER_MESSAGES: Record<string, string> = {

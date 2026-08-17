@@ -30,6 +30,7 @@ import { CustomAvatar } from "~/components/ui/avatar";
 import { ORCIDIcon } from "~/components/icons";
 import { SimpleDialog } from "~/components/ui/dialog";
 import { HexColorSelector } from "~/components/ui/hex-color-selector";
+import { AdminConsoleNav } from "~/components/admin/admin-console-nav";
 import { showToast } from "~/components/ui/toast";
 import {
   APP_LINEAGE_ROLE_SLUGS,
@@ -686,6 +687,7 @@ export default function AdminUsersPage() {
 
   return (
     <div className="mx-auto w-full max-w-7xl px-4 pb-12">
+      <AdminConsoleNav active="users" />
       <header className="border-border bg-surface-1 mb-8 rounded-2xl border px-6 py-6 shadow-sm sm:px-8">
         <h1 className="text-foreground text-2xl font-semibold tracking-tight">
           User administration

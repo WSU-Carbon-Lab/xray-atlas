@@ -7,7 +7,11 @@ export type { SessionWriteAssuranceAppCode };
 
 export interface RunPasskeyClientAuthOptions {
   callbackUrl?: string;
-  action?: "sign-in" | "register";
+  /**
+   * Client intent. `"sign-in"` maps to Auth.js WebAuthn `authenticate` (required for
+   * already-logged-in step-up). `"register"` maps to `register`.
+   */
+  action?: "sign-in" | "register" | "authenticate";
   errorFallback: string;
   incompleteFallback?: string;
 }
@@ -21,6 +25,9 @@ export interface RunPasskeyClientAuthResult {
 /**
  * Runs Auth.js WebAuthn `signIn` for passkey authentication or registration with shared
  * error mapping and redirect handling for client surfaces.
+ *
+ * Logged-in sessions must send an explicit Auth.js action (`authenticate` or `register`);
+ * omitting it yields `{ error: "Invalid request" }` and no browser WebAuthn prompt.
  */
 export async function runPasskeyClientAuth(
   options: RunPasskeyClientAuthOptions,
@@ -28,10 +35,31 @@ export async function runPasskeyClientAuth(
   const incompleteFallback =
     options.incompleteFallback ?? options.errorFallback;
 
+  if (
+    typeof window !== "undefined" &&
+    (window.isSecureContext === false ||
+      typeof window.PublicKeyCredential === "undefined")
+  ) {
+    return {
+      ok: false,
+      errorMessage:
+        "This browser cannot prompt for a passkey. Use Chrome, Safari, or Firefox on https or localhost.",
+    };
+  }
+
+  const authJsAction =
+    options.action === "register"
+      ? "register"
+      : options.action === "authenticate" ||
+          options.action === "sign-in" ||
+          options.action == null
+        ? "authenticate"
+        : "authenticate";
+
   const result = await webauthnSignIn("passkey", {
     callbackUrl: options.callbackUrl,
     redirect: false,
-    ...(options.action === "register" ? { action: "register" } : {}),
+    action: authJsAction,
   });
 
   if (result?.error) {
@@ -52,7 +80,13 @@ export async function runPasskeyClientAuth(
     };
   }
 
-  return { ok: false, errorMessage: incompleteFallback };
+  return {
+    ok: false,
+    errorMessage:
+      incompleteFallback === options.errorFallback
+        ? `${incompleteFallback} If no passkey prompt appeared, use a system browser on localhost (not an embedded preview).`
+        : incompleteFallback,
+  };
 }
 
 /**
@@ -130,7 +164,19 @@ export const PASSKEY_STEP_UP_CANCELLED_MESSAGE =
   "Passkey confirmation was cancelled. Confirm again when you are ready to delete or transfer.";
 
 /**
+ * User-facing copy when the browser WebAuthn prompt is cancelled during contribute submit.
+ */
+export const PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE =
+  "Passkey confirmation was cancelled. Confirm again when you are ready to submit.";
+
+/**
  * User-facing copy when destructive writes are blocked because no passkey is enrolled.
  */
 export const PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE =
   "Register a passkey from your Security tab before deleting or transferring data.";
+
+/**
+ * User-facing copy when contribute submit is blocked because no passkey is enrolled.
+ */
+export const PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE =
+  "Register a passkey before contributing data.";

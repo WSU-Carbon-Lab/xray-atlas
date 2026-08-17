@@ -1,4 +1,9 @@
 import type { SpectrumPoint } from "~/components/plots/types";
+import {
+  activeNormalizationRegions,
+  normalizationBandModeIsReady,
+  parseNormalizationBandMode,
+} from "~/lib/nexafs/normalization-band-mode";
 import type { DatasetState } from "../types";
 import { computeBetaIndex } from "./betaIndex";
 import {
@@ -14,19 +19,35 @@ export function buildSpectrumPointsWithDerivedForUpload(
   const points = dataset.spectrumPoints;
   if (points.length === 0) return [];
 
-  let pre = dataset.normalizationRegions.pre;
-  let post = dataset.normalizationRegions.post;
-  if (!pre || !post) {
+  const bandMode = parseNormalizationBandMode(dataset.normalizationBandMode);
+  let storedPre = dataset.normalizationRegions.pre;
+  let storedPost = dataset.normalizationRegions.post;
+  if (
+    !normalizationBandModeIsReady(
+      { pre: storedPre, post: storedPost },
+      bandMode,
+    )
+  ) {
     const fallback = defaultNormalizationRangesFromSpectrum(points);
     if (fallback) {
-      pre = pre ?? fallback.pre;
-      post = post ?? fallback.post;
+      if (bandMode === "pre" || bandMode === "both") {
+        storedPre = storedPre ?? fallback.pre;
+      }
+      if (bandMode === "post" || bandMode === "both") {
+        storedPost = storedPost ?? fallback.post;
+      }
     }
   }
+  const active = activeNormalizationRegions(
+    { pre: storedPre, post: storedPost },
+    bandMode,
+  );
+  const pre = active.pre;
+  const post = active.post;
 
   const next: SpectrumPoint[] = points.map((p) => ({ ...p }));
 
-  if (pre && post) {
+  if (pre || post) {
     const z = computeZeroOneNormalization(points, pre, post);
     if (z) {
       for (let i = 0; i < next.length; i++) {
@@ -40,7 +61,7 @@ export function buildSpectrumPointsWithDerivedForUpload(
   }
 
   const barePts = dataset.bareAtomPoints;
-  if (pre && post && barePts && barePts.length > 0) {
+  if ((pre || post) && barePts && barePts.length > 0) {
     const massComp = computeNormalizationForExperiment(
       points,
       barePts,

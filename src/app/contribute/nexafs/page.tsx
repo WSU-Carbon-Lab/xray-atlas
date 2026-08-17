@@ -3,7 +3,10 @@
 import { useSession } from "next-auth/react";
 import dynamic from "next/dynamic";
 import { SignInButton } from "~/components/auth/sign-in-button";
-import { ContributionAgreementModal } from "~/components/contribute";
+import {
+  ContributeAccessGate,
+  ContributionAgreementModal,
+} from "~/components/contribute";
 import { trpc } from "~/trpc/client";
 import { Breadcrumbs } from "@heroui/react";
 import { ContributeClearFormButton } from "~/components/forms";
@@ -14,6 +17,12 @@ import {
   useNexafsSubmit,
 } from "~/features/process-nexafs";
 import type { NexafsContributeFlowProps } from "~/features/process-nexafs";
+import type {
+  SimilarityConfirmOutcome,
+  SimilarityConfirmRequest,
+} from "~/features/process-nexafs/hooks/useNexafsSubmit";
+import { DatasetSimilarityCompareModal } from "~/features/process-nexafs/ui/dataset-similarity-compare-modal";
+import type { SimilarityContinuePatch } from "~/features/process-nexafs/utils/similarity-continue-patch";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -26,6 +35,7 @@ import {
   NexafsCreateEdgeDialog,
 } from "~/components/forms";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
+import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";
 
 const NexafsContributeFlow = dynamic<NexafsContributeFlowProps>(
   () =>
@@ -62,8 +72,25 @@ export default function NEXAFSContributePage() {
     },
   });
 
+  const {
+    isChecking: isCheckingPasskey,
+    needsPasskeyEnrollment,
+    requiresAal3Hardware,
+    registerPasskey,
+    isRegisteringPasskey,
+  } = usePasskeyEnrollmentGate();
+
+  const profileHref = session?.user?.id
+    ? `/users/${encodeURIComponent(session.user.id)}`
+    : "/sign-in";
+
   const kkConsentResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [kkConsentOpen, setKkConsentOpen] = useState(false);
+  const similarityResolverRef = useRef<
+    ((value: SimilarityConfirmOutcome) => void) | null
+  >(null);
+  const [similarityRequest, setSimilarityRequest] =
+    useState<SimilarityConfirmRequest | null>(null);
 
   const dismissKkConsent = useCallback(() => {
     kkConsentResolverRef.current?.(false);
@@ -87,6 +114,31 @@ export default function NEXAFSContributePage() {
       setKkConsentOpen(true);
     });
   }, []);
+
+  const dismissSimilarityConfirm = useCallback(() => {
+    similarityResolverRef.current?.({ confirmed: false });
+    similarityResolverRef.current = null;
+    setSimilarityRequest(null);
+  }, []);
+
+  const acceptSimilarityConfirm = useCallback(
+    (patch: SimilarityContinuePatch) => {
+      similarityResolverRef.current?.({ confirmed: true, patch });
+      similarityResolverRef.current = null;
+      setSimilarityRequest(null);
+    },
+    [],
+  );
+
+  const requestSimilarityConfirm = useCallback(
+    async (request: SimilarityConfirmRequest) => {
+      return await new Promise<SimilarityConfirmOutcome>((resolve) => {
+        similarityResolverRef.current = resolve;
+        setSimilarityRequest(request);
+      });
+    },
+    [],
+  );
 
   const {
     instrumentOptions,
@@ -164,8 +216,11 @@ export default function NEXAFSContributePage() {
         );
       },
       requestKkConsent,
+      requestSimilarityConfirm,
       showToast,
       onEnergyConflicts: requestEnergyConflictResolution,
+      edgeOptions,
+      instrumentOptions,
     },
   );
 
@@ -290,13 +345,15 @@ export default function NEXAFSContributePage() {
             can upload multiple datasets and process them through tabs.
           </p>
 
-          {isCheckingAgreement ? (
-            <p className="text-muted text-sm">
-              Checking contribution agreement status...
-            </p>
-          ) : null}
-
-          {canContribute ? (
+          <ContributeAccessGate
+            isChecking={isCheckingAgreement || isCheckingPasskey}
+            needsPasskeyEnrollment={needsPasskeyEnrollment}
+            canContribute={canContribute}
+            requiresAal3Hardware={requiresAal3Hardware}
+            profileHref={profileHref}
+            onRegisterPasskey={registerPasskey}
+            isRegisteringPasskey={isRegisteringPasskey}
+          >
             <div
               className={
                 datasets.length > 0
@@ -340,7 +397,7 @@ export default function NEXAFSContributePage() {
                 onAuxValidationError={(message) => showToast(message, "error")}
               />
             </div>
-          ) : null}
+          </ContributeAccessGate>
         </div>
       </div>
 
@@ -370,6 +427,12 @@ export default function NEXAFSContributePage() {
         isOpen={kkConsentOpen}
         onDismiss={dismissKkConsent}
         onAccept={acceptKkConsent}
+      />
+
+      <DatasetSimilarityCompareModal
+        request={similarityRequest}
+        onCancel={dismissSimilarityConfirm}
+        onContinue={acceptSimilarityConfirm}
       />
     </>
   );

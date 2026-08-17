@@ -2,6 +2,11 @@ import { useMemo } from "react";
 import type { DatasetState } from "../types";
 import { uploadGeometryIsComplete } from "../utils/default-upload-phi";
 import { hasSpectrumEnergyConflicts } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
+import {
+  edgeLabelFromAtomCore,
+  evaluateEdgeEnergyConsistency,
+  spectrumEnergyExtent,
+} from "~/lib/nexafs/edge-energy-bands";
 
 export type DatasetStatus = "complete" | "incomplete" | "error" | "processing";
 
@@ -11,7 +16,24 @@ export interface DatasetStatusInfo {
   errors: string[];
 }
 
-export function useDatasetStatus(dataset: DatasetState): DatasetStatusInfo {
+type EdgeOptionRef = {
+  id: string;
+  targetatom: string;
+  corestate: string;
+};
+
+/**
+ * Derives contribute dataset completeness and blocking errors, including
+ * absorption-edge vs spectrum energy-band mismatches when `edgeOptions` resolve
+ * the selected edge id.
+ *
+ * @param dataset - Active upload dataset state.
+ * @param edgeOptions - Catalog edges used to resolve `dataset.edgeId` to a label.
+ */
+export function useDatasetStatus(
+  dataset: DatasetState,
+  edgeOptions: readonly EdgeOptionRef[] = [],
+): DatasetStatusInfo {
   return useMemo(() => {
     const missingFields: string[] = [];
     const errors: string[] = [];
@@ -40,6 +62,26 @@ export function useDatasetStatus(dataset: DatasetState): DatasetStatusInfo {
       errors.push(
         "Duplicate photon energies with conflicting values. Resolve before submit.",
       );
+    }
+
+    if (dataset.edgeId && dataset.spectrumPoints.length > 0) {
+      const selectedEdge = edgeOptions.find((edge) => edge.id === dataset.edgeId);
+      if (selectedEdge) {
+        const extent = spectrumEnergyExtent(dataset.spectrumPoints);
+        if (extent) {
+          const consistency = evaluateEdgeEnergyConsistency({
+            edgeLabel: edgeLabelFromAtomCore(
+              selectedEdge.targetatom,
+              selectedEdge.corestate,
+            ),
+            minEv: extent.minEv,
+            maxEv: extent.maxEv,
+          });
+          if (!consistency.ok) {
+            errors.push(consistency.message);
+          }
+        }
+      }
     }
 
     const hasThetaMapping = Boolean(dataset.columnMappings.theta);
@@ -72,5 +114,5 @@ export function useDatasetStatus(dataset: DatasetState): DatasetStatusInfo {
       missingFields,
       errors,
     };
-  }, [dataset]);
+  }, [dataset, edgeOptions]);
 }

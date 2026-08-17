@@ -8,6 +8,7 @@ import {
   FolderIcon,
   BeakerIcon,
   DocumentTextIcon,
+  SparklesIcon,
 } from "@heroicons/react/24/outline";
 import { ChartLine, ChartArea, ChartScatter } from "lucide-react";
 import { Tooltip } from "@heroui/react";
@@ -16,6 +17,7 @@ import { plotToolbarTooltipContentClass } from "~/components/plots/toolbars";
 export type VisualizationMode =
   | "graph"
   | "table"
+  | "peaks"
   | "sample"
   | "experiment"
   | "aux";
@@ -29,6 +31,7 @@ const activeButtonClass =
 const DEFAULT_VISUALIZATION_MODES: VisualizationMode[] = [
   "graph",
   "table",
+  "peaks",
   "sample",
   "experiment",
   "aux",
@@ -82,6 +85,7 @@ export function VisualizationToggle({
 
   const showGraph = modes.includes("graph");
   const showTable = modes.includes("table");
+  const showPeaks = modes.includes("peaks");
   const showSample = modes.includes("sample");
   const showExperiment = modes.includes("experiment");
   const showAux = modes.includes("aux");
@@ -120,6 +124,23 @@ export function VisualizationToggle({
             </button>
             <Tooltip.Content className={plotToolbarTooltipContentClass}>
               Show table: View every point in a sortable grid.
+            </Tooltip.Content>
+          </Tooltip>
+        ) : null}
+        {showPeaks ? (
+          <Tooltip delay={0}>
+            <button
+              type="button"
+              onClick={() => onModeChange("peaks")}
+              className={
+                mode === "peaks" ? activeButtonClass : inactiveButtonClass
+              }
+            >
+              <SparklesIcon className="h-4 w-4" />
+              <span>Peaks</span>
+            </button>
+            <Tooltip.Content className={plotToolbarTooltipContentClass}>
+              Peaks: View and edit resonance peak assignments for this dataset.
             </Tooltip.Content>
           </Tooltip>
         ) : null}

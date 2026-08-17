@@ -9,7 +9,7 @@ import {
   useId,
 } from "react";
 import { useTheme } from "next-themes";
-import { useTooltip, useTooltipInPortal } from "@visx/tooltip";
+import { useTooltip } from "@visx/tooltip";
 import type { TraceData } from "../types";
 import type {
   SpectrumPlotProps,
@@ -155,6 +155,7 @@ export function SpectrumPlotInner({
   plotTopRailDataActions,
   plotTopRailTrailingActions,
   suppressAnalysisRailLeadingGrip = false,
+  hidePlotToolRails = false,
   showNormalizationShading = false,
   normalizationEdgeHandlesEnabled = false,
   onNormalizationEdgeEnergyChange,
@@ -921,20 +922,23 @@ export function SpectrumPlotInner({
     setPlotCsvContextMenu(null);
   }, []);
 
-  const tooltip = useTooltip<{
+  const {
+    showTooltip,
+    hideTooltip,
+    tooltipData,
+  } = useTooltip<{
     energy: number;
     rows: Array<{ label: string; value: number | null; color: string }>;
   }>();
-  const { containerRef } = useTooltipInPortal({
-    detectBounds: true,
-    scroll: true,
-  });
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const lastInspectTooltipKeyRef = useRef<string | null>(null);
 
   const thresholdFraction = PLOT_CONFIG.tooltipSnapThresholdFraction;
   const handleMouseMove = useCallback(
     (e: React.MouseEvent<SVGSVGElement>) => {
       if (selectionTarget != null || effectiveCursorMode === "zoom") {
-        tooltip.hideTooltip();
+        lastInspectTooltipKeyRef.current = null;
+        hideTooltip();
         return;
       }
       if (effectiveCursorMode !== "inspect") return;
@@ -946,7 +950,8 @@ export function SpectrumPlotInner({
         interactionPlot.dimensions.margins.left -
         interactionPlot.dimensions.margins.right;
       if (x < 0 || x > plotWidth) {
-        tooltip.hideTooltip();
+        lastInspectTooltipKeyRef.current = null;
+        hideTooltip();
         return;
       }
       const energy = zoomedXScale.invert(x);
@@ -960,7 +965,14 @@ export function SpectrumPlotInner({
           const color = getTraceColor(trace, themeColors.text);
           return { label, value, color };
         });
-        tooltip.showTooltip({
+        const key = `peak:${energy.toFixed(4)}:${rows
+          .map((row) => `${row.label}:${row.value ?? "n"}`)
+          .join("|")}`;
+        if (lastInspectTooltipKeyRef.current === key) {
+          return;
+        }
+        lastInspectTooltipKeyRef.current = key;
+        showTooltip({
           tooltipData: { energy, rows },
           tooltipLeft: e.clientX,
           tooltipTop: e.clientY,
@@ -994,7 +1006,14 @@ export function SpectrumPlotInner({
         const color = getTraceColor(trace, themeColors.text);
         return { label, value, color };
       });
-      tooltip.showTooltip({
+      const key = `inspect:${snapEnergy.toFixed(4)}:${rows
+        .map((row) => `${row.label}:${row.value ?? "n"}`)
+        .join("|")}`;
+      if (lastInspectTooltipKeyRef.current === key) {
+        return;
+      }
+      lastInspectTooltipKeyRef.current = key;
+      showTooltip({
         tooltipData: { energy: snapEnergy, rows },
         tooltipLeft: e.clientX,
         tooltipTop: e.clientY,
@@ -1008,7 +1027,8 @@ export function SpectrumPlotInner({
       zoomedXScale,
       thresholdFraction,
       themeColors.text,
-      tooltip,
+      showTooltip,
+      hideTooltip,
       interactionPlot.dimensions.margins.left,
       interactionPlot.dimensions.width,
       interactionPlot.dimensions.margins.right,
@@ -1016,9 +1036,10 @@ export function SpectrumPlotInner({
   );
 
   const handleMouseLeave = useCallback(() => {
-    tooltip.hideTooltip();
+    lastInspectTooltipKeyRef.current = null;
+    hideTooltip();
     hoveredTraceIndexRef.current = null;
-  }, [tooltip]);
+  }, [hideTooltip]);
 
   const spectrumCsvCopyListenerActive =
     spectrumCsvContextMenu != null &&
@@ -1183,7 +1204,8 @@ export function SpectrumPlotInner({
       const rawEnergy = zoomedXScale.invert(localX);
       const rounded = Math.round(rawEnergy * 1000) / 1000;
       addInspectPin(rounded);
-      tooltip.hideTooltip();
+      lastInspectTooltipKeyRef.current = null;
+      hideTooltip();
     },
     [
       effectiveCursorMode,
@@ -1192,7 +1214,7 @@ export function SpectrumPlotInner({
       interactionPlot.dimensions,
       zoomedXScale,
       addInspectPin,
-      tooltip,
+      hideTooltip,
     ],
   );
 
@@ -1569,7 +1591,6 @@ export function SpectrumPlotInner({
     ],
   );
 
-  const tooltipData = tooltip.tooltipData;
   const crosshairDots = useMemo(() => {
     if (!tooltipData || effectiveCursorMode !== "inspect") return [];
     return tooltipData.rows
@@ -2204,28 +2225,30 @@ export function SpectrumPlotInner({
               {opticalLinkSplitToggle}
             </div>
           ) : null}
-          <PlotToolRail
-            plotWidth={plotCanvasWidth}
-            plotHeight={plotCanvasHeight}
-            railInsets={railInsets}
-            currentMode={effectiveCursorMode}
-            isCursorDisabled={plotContext?.kind === "normalize"}
-            isPanDisabled={false}
-            onCursorModeChange={handleCursorModeChange}
-            onResetZoom={handleResetZoom}
-            onExportClick={
-              plotTopRailDataActions
-                ? undefined
-                : () => setExportModalOpen(true)
-            }
-            topRailLeadingExtras={plotTopRailDataActions}
-            topRailTrailingExtras={plotTopRailTrailingActions}
-            dataViewTabs={headerRight}
-            analysisTools={headerAnalysis}
-            bottomTools={plotBottomTools}
-            suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
-            initialTrayMode={plotToolRailsInitialTrayMode}
-          />
+          {hidePlotToolRails ? null : (
+            <PlotToolRail
+              plotWidth={plotCanvasWidth}
+              plotHeight={plotCanvasHeight}
+              railInsets={railInsets}
+              currentMode={effectiveCursorMode}
+              isCursorDisabled={plotContext?.kind === "normalize"}
+              isPanDisabled={false}
+              onCursorModeChange={handleCursorModeChange}
+              onResetZoom={handleResetZoom}
+              onExportClick={
+                plotTopRailDataActions
+                  ? undefined
+                  : () => setExportModalOpen(true)
+              }
+              topRailLeadingExtras={plotTopRailDataActions}
+              topRailTrailingExtras={plotTopRailTrailingActions}
+              dataViewTabs={headerRight}
+              analysisTools={headerAnalysis}
+              bottomTools={plotBottomTools}
+              suppressAnalysisRailLeadingGrip={suppressAnalysisRailLeadingGrip}
+              initialTrayMode={plotToolRailsInitialTrayMode}
+            />
+          )}
         </div>
       </div>
 

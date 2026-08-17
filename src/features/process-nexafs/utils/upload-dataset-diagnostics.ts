@@ -17,11 +17,14 @@ export type UploadDatasetDiagnostics = {
 /**
  * Maps contribute-upload normalization scope and region handles to persisted normalization range JSON.
  *
- * @param dataset Upload draft carrying `normalizationScope` and unified pre/post windows.
+ * @param dataset Upload draft carrying `normalizationScope`, unified pre/post windows, and band mode.
  * @returns `null` when scope is `none`; otherwise unified pre/post pairs matching submit payloads.
  */
 export function uploadNormalizationRangesForDataset(
-  dataset: Pick<DatasetState, "normalizationScope" | "normalizationRegions">,
+  dataset: Pick<
+    DatasetState,
+    "normalizationScope" | "normalizationRegions" | "normalizationBandMode"
+  >,
 ): NormalizationRanges {
   if (dataset.normalizationScope === "none") {
     return null;
@@ -29,6 +32,7 @@ export function uploadNormalizationRangesForDataset(
   return {
     pre: dataset.normalizationRegions.pre,
     post: dataset.normalizationRegions.post,
+    bandMode: dataset.normalizationBandMode,
   };
 }
 

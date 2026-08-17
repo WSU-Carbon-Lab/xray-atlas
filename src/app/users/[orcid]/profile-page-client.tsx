@@ -25,7 +25,6 @@ import {
   type ProfileGitHubPresentation,
   ProfilePasskeysSection,
   ProfileSectionCard,
-  ProfileSecuritySectionSkeleton,
 } from "./profile-sections";
 
 type ProfileUser = inferRouterOutputs<AppRouter>["users"]["getById"];
@@ -64,7 +63,10 @@ export function ProfilePageClient({
   const { toasts, removeToast, showToast } = useToast();
 
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
-  const [selectedTab, setSelectedTab] = useState<ProfileTabId>("contributions");
+  const [selectedTab, setSelectedTab] = useState<ProfileTabId>(() =>
+    passkeyRequiredRedirect ? "security" : "contributions",
+  );
+  const tabChangeReadyRef = useRef(false);
   const stepUpInFlightRef = useRef(false);
 
   const isOwnProfile =
@@ -101,15 +103,15 @@ export function ProfilePageClient({
   }, [isOwnProfile]);
 
   useEffect(() => {
-    if (passkeyRequiredRedirect && isOwnProfile) {
-      setSelectedTab("security");
-    }
-  }, [isOwnProfile, passkeyRequiredRedirect]);
+    const frame = window.requestAnimationFrame(() => {
+      tabChangeReadyRef.current = true;
+    });
+    return () => window.cancelAnimationFrame(frame);
+  }, []);
 
   const confirmSessionStepUpQuiet = useCallback(async (): Promise<{
     satisfied: boolean;
     adminSatisfied: boolean;
-    adminRequiredAal: string;
   }> => {
     const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
     await Promise.all([
@@ -119,7 +121,6 @@ export function ProfilePageClient({
     return {
       satisfied: stepUp.evaluation.satisfied,
       adminSatisfied: stepUp.evaluation.adminSatisfied,
-      adminRequiredAal: stepUp.evaluation.adminRequiredAal,
     };
   }, [
     confirmPasskeySessionStepUp,
@@ -163,17 +164,7 @@ export function ProfilePageClient({
         if (sessionStatus === "authenticated") {
           const evaluation = await confirmSessionStepUpQuiet();
           if (!options?.quietSuccess) {
-            if (
-              evaluation.adminRequiredAal === "aal3" &&
-              !evaluation.adminSatisfied
-            ) {
-              showToast(
-                "Passkey confirmed for deleting and transferring data. Administrator and Labs tools still need a hardware security key.",
-                "success",
-              );
-            } else {
-              showToast("Passkey confirmed for this session", "success");
-            }
+            showToast("Passkey confirmed for this session", "success");
           }
           return evaluation.satisfied ? "satisfied" : "failed";
         }
@@ -401,6 +392,9 @@ export function ProfilePageClient({
         <Tabs
           selectedKey={effectiveTab}
           onSelectionChange={(key) => {
+            if (!tabChangeReadyRef.current) {
+              return;
+            }
             const next = String(key);
             if (
               next === "contributions" ||
@@ -442,11 +436,13 @@ export function ProfilePageClient({
           </Tabs.ListContainer>
 
           <Tabs.Panel id="contributions" className="pt-6">
-            <ProfileContributionsSection
-              userId={user.id}
-              isOwnProfile={isOwnProfile}
-              onRunWithDestructiveSessionAal={runWithDestructiveSessionAal}
-            />
+            {effectiveTab === "contributions" ? (
+              <ProfileContributionsSection
+                userId={user.id}
+                isOwnProfile={isOwnProfile}
+                onRunWithDestructiveSessionAal={runWithDestructiveSessionAal}
+              />
+            ) : null}
           </Tabs.Panel>
 
           <Tabs.Panel id="preferences" className="pt-6">
@@ -480,9 +476,7 @@ export function ProfilePageClient({
                 />
                 <ProfileApiKeysSection />
               </ProfileSectionCard>
-            ) : (
-              <ProfileSecuritySectionSkeleton />
-            )}
+            ) : null}
           </Tabs.Panel>
         </Tabs>
       ) : (

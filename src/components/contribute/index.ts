@@ -1,4 +1,6 @@
 export { ContributionAgreementModal } from "./contribution-agreement-modal";
+export { ContributeAccessGate } from "./contribute-access-gate";
+export type { ContributeAccessGateProps } from "./contribute-access-gate";
 export {
   ContributionFileDropOverlay,
   type ContributionFileDropOverlayFileKind,

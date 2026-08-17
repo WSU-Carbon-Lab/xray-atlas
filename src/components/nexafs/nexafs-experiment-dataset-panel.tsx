@@ -63,6 +63,8 @@ import {
   warmBareAtomCacheForFormula,
 } from "~/features/process-nexafs/utils";
 import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils/normalizationDefaults";
+import { applyNormalizationRegionEdgeChange } from "~/lib/nexafs/normalization-region-edge-clamp";
+import { SPECTRUMPOINTS_BROWSE_FETCH_CAP } from "~/lib/nexafs/spectrum-point-limits";
 import type {
   BareAtomPoint,
   NormalizationRanges as PersistedNormalizationRanges,
@@ -116,6 +118,11 @@ import {
   parseStoredNormalizationRanges,
   unifiedNormalizationWindowsForBasis,
 } from "~/lib/nexafs-normalization-ranges";
+import {
+  activeNormalizationRegions,
+  parseNormalizationBandMode,
+  type NormalizationBandMode,
+} from "~/lib/nexafs/normalization-band-mode";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
 import { NexafsBrowseGroupedSpectrumTable } from "~/components/nexafs/nexafs-browse-grouped-spectrum-table";
 import { NexafsPlotKkVerticalToolbar } from "~/components/nexafs/nexafs-plot-kk-vertical-toolbar";
@@ -124,6 +131,14 @@ import { DefaultButton as DialogButton } from "~/components/ui/button";
 import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectrum-rail-csv-dropdown";
 import { NexafsExperimentSampleInfoPanel } from "~/components/nexafs/nexafs-experiment-sample-info-panel";
 import { NexafsExperimentDescriptorsPanel } from "~/components/nexafs/nexafs-experiment-descriptors-panel";
+import { NexafsExperimentPeaksPanel } from "~/components/nexafs/nexafs-experiment-peaks-panel";
+import type { Peak } from "~/components/plots/types";
+import {
+  buildAutoDetectedPeakList,
+  filterSpectrumPointsByGeometry,
+  mergePeaksPreservingManualAndSteps,
+} from "~/features/process-nexafs/utils/autoDetectPeaksFromSpectrum";
+import type { PeakData } from "~/features/process-nexafs/types";
 
 interface ExperimentFormulaMeta {
   sampleId?: string | null;
@@ -289,7 +304,7 @@ export function NexafsExperimentDatasetPanel({
   } | null>(null);
 
   const pointsQuery = trpc.spectrumpoints.getByExperiment.useQuery(
-    { experimentId, limit: 10000, offset: 0 },
+    { experimentId, limit: SPECTRUMPOINTS_BROWSE_FETCH_CAP, offset: 0 },
     { enabled: enabled && Boolean(experimentId) },
   );
   const moleculeFormulaQuery =
@@ -314,6 +329,21 @@ export function NexafsExperimentDatasetPanel({
 
   const { data: session } = useSession();
   const utils = trpc.useUtils();
+
+  const canEditExperimentQuery = trpc.experiments.canEditExperiment.useQuery(
+    { experimentId },
+    { enabled: enabled && Boolean(experimentId) && Boolean(session?.user) },
+  );
+  const canEditPeaks = canEditExperimentQuery.data?.canEdit === true;
+
+  const replacePeaksets = trpc.experiments.replacePeaksets.useMutation({
+    onSuccess: async () => {
+      await utils.spectrumpoints.peaksForExperiment.invalidate({
+        experimentId,
+      });
+    },
+  });
+
   const canRecalculateKk = trpc.spectrumpoints.canRecalculateKkDelta.useQuery(
     { experimentId },
     { enabled: enabled && Boolean(experimentId) && Boolean(session?.user) },
@@ -346,7 +376,11 @@ export function NexafsExperimentDatasetPanel({
     useState<"pre" | "post" | null>(null);
   const [draftNormRegions, setDraftNormRegions] =
     useState<NormalizationRegions>({ pre: null, post: null });
+  const [draftBandMode, setDraftBandMode] =
+    useState<NormalizationBandMode>("both");
+  const [showNormBandPreview, setShowNormBandPreview] = useState(true);
   const initialNormDraftRef = useRef<NormalizationRegions | null>(null);
+  const initialBandModeRef = useRef<NormalizationBandMode>("both");
   const [editorNormBaselineRaw, setEditorNormBaselineRaw] =
     useState<unknown>(null);
   const [editorNormBareMuPoints, setEditorNormBareMuPoints] = useState<
@@ -355,6 +389,10 @@ export function NexafsExperimentDatasetPanel({
   const [saveNormConfirmOpen, setSaveNormConfirmOpen] = useState(false);
   const [undoNormConfirmOpen, setUndoNormConfirmOpen] = useState(false);
   const [discardNormConfirmOpen, setDiscardNormConfirmOpen] = useState(false);
+  const [isManualPeakMode, setIsManualPeakMode] = useState(false);
+  const [selectedPeakId, setSelectedPeakId] = useState<string | null>(null);
+  const [draftPeaks, setDraftPeaks] = useState<Peak[]>([]);
+  const [peaksDirty, setPeaksDirty] = useState(false);
 
   const henkeMergeDomainForKkBeta = useMemo(():
     | readonly [number, number]
@@ -578,10 +616,97 @@ export function NexafsExperimentDatasetPanel({
     pointsQuery.isFetching,
   ]);
 
-  const plotPeaks = useMemo(
+  const serverPlotPeaks = useMemo(
     () => mapPeaksetsToPlotPeaks(peaksQuery.data ?? []),
     [peaksQuery.data],
   );
+
+  useEffect(() => {
+    if (!peaksDirty) {
+      setDraftPeaks(serverPlotPeaks);
+    }
+  }, [peaksDirty, serverPlotPeaks]);
+
+  const plotPeaks = canEditPeaks ? draftPeaks : serverPlotPeaks;
+  const editablePeaks = canEditPeaks ? draftPeaks : serverPlotPeaks;
+
+  const markPeaksDraft = useCallback((next: Peak[]) => {
+    setDraftPeaks(next);
+    setPeaksDirty(true);
+  }, []);
+
+  const handlePeakSetModeChange = useCallback((enabled: boolean) => {
+    setIsManualPeakMode(enabled);
+    if (enabled) {
+      setIsPlotNormalizationMode(false);
+      setNormalizationSelectionTarget(null);
+    }
+  }, []);
+
+  const handleResetAllPeaks = useCallback(() => {
+    markPeaksDraft([]);
+    setSelectedPeakId(null);
+    showToast("All peaks removed (unsaved)", "success");
+  }, [markPeaksDraft]);
+
+  const handleAutoDetectPeaks = useCallback(() => {
+    const filtered = filterSpectrumPointsByGeometry(model.plotPoints, null);
+    if (filtered.length === 0) {
+      showToast("No spectrum points for peak detection", "warning");
+      return;
+    }
+    const asPeakData: PeakData[] = editablePeaks.map((peak) => ({
+      energy: peak.energy,
+      amplitude: peak.amplitude,
+      id: peak.id,
+      isStep: peak.isStep,
+      peakKind: peak.peakKind,
+    }));
+    const newAuto = buildAutoDetectedPeakList(filtered, {
+      minProminence: 0.05,
+    });
+    const merged = mergePeaksPreservingManualAndSteps(asPeakData, newAuto);
+    markPeaksDraft(
+      merged.map((peak) => ({
+        id: peak.id,
+        energy: peak.energy,
+        amplitude: peak.amplitude,
+        isStep: peak.isStep,
+        peakKind: peak.peakKind ?? null,
+      })),
+    );
+    setSelectedPeakId(null);
+    showToast("Auto-detected peaks updated (unsaved)", "success");
+  }, [editablePeaks, markPeaksDraft, model.plotPoints]);
+
+  const handleSavePeaks = useCallback(async () => {
+    try {
+      await replacePeaksets.mutateAsync({
+        experimentId,
+        peaks: draftPeaks.map((peak) => ({
+          energy: peak.energy,
+          intensity: peak.amplitude,
+          peakKind: peak.peakKind ?? null,
+        })),
+      });
+      setPeaksDirty(false);
+      showToast("Saved peak assignments", "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Could not save peak assignments",
+        "error",
+      );
+    }
+  }, [draftPeaks, experimentId, replacePeaksets]);
+
+  const handleDiscardPeaks = useCallback(() => {
+    setDraftPeaks(serverPlotPeaks);
+    setPeaksDirty(false);
+    setSelectedPeakId(null);
+    showToast("Reverted peak assignments", "success");
+  }, [serverPlotPeaks]);
 
   const differenceRootPoints = useMemo(
     (): SpectrumPoint[] => model.plotPoints,
@@ -821,12 +946,12 @@ export function NexafsExperimentDatasetPanel({
   const showI0Col = sortedAllPoints.some((p) => typeof p.i0 === "number");
 
   useEffect(() => {
+    const active = activeNormalizationRegions(draftNormRegions, draftBandMode);
     if (
       !datasetPlotEditorActive ||
       !showMassCol ||
       !chemicalFormula?.trim() ||
-      !draftNormRegions.pre ||
-      !draftNormRegions.post
+      (active.pre == null && active.post == null)
     ) {
       setEditorNormBareMuPoints(null);
       return;
@@ -877,8 +1002,8 @@ export function NexafsExperimentDatasetPanel({
     datasetPlotEditorActive,
     showMassCol,
     chemicalFormula,
-    draftNormRegions.pre,
-    draftNormRegions.post,
+    draftNormRegions,
+    draftBandMode,
     bareAtomOverlaySourcePoints,
   ]);
 
@@ -888,15 +1013,15 @@ export function NexafsExperimentDatasetPanel({
   const referenceCurves = bareAtomReferences;
 
   const clientPreviewMuPoints = useMemo(() => {
+    const active = activeNormalizationRegions(draftNormRegions, draftBandMode);
     if (
       !datasetPlotEditorActive ||
-      !draftNormRegions.pre ||
-      !draftNormRegions.post
+      (active.pre == null && active.post == null)
     ) {
       return null;
     }
-    const pre = draftNormRegions.pre;
-    const post = draftNormRegions.post;
+    const pre = active.pre;
+    const post = active.post;
     if (showMassCol) {
       if (!editorNormBareMuPoints?.length) {
         return null;
@@ -919,8 +1044,8 @@ export function NexafsExperimentDatasetPanel({
     return comp.normalizedPoints;
   }, [
     datasetPlotEditorActive,
-    draftNormRegions.pre,
-    draftNormRegions.post,
+    draftNormRegions,
+    draftBandMode,
     editorNormBareMuPoints,
     showMassCol,
     sortedAllPoints,
@@ -1006,6 +1131,10 @@ export function NexafsExperimentDatasetPanel({
       pre: nextDraft.pre,
       post: nextDraft.post,
     };
+    const nextMode = parseNormalizationBandMode(win?.bandMode);
+    setDraftBandMode(nextMode);
+    initialBandModeRef.current = nextMode;
+    setShowNormBandPreview(true);
     setDatasetPlotEditorActive(true);
     setIsPlotNormalizationMode(false);
     setNormalizationSelectionTarget(null);
@@ -1027,7 +1156,63 @@ export function NexafsExperimentDatasetPanel({
     setEditorNormBaselineRaw(null);
     setEditorNormBareMuPoints(null);
     initialNormDraftRef.current = null;
+    setIsManualPeakMode(false);
   }, []);
+
+  const storedNormRegionsForDisplay = useMemo(():
+    | NormalizationRegions
+    | undefined => {
+    let rangesRaw: unknown = null;
+    try {
+      rangesRaw =
+        normalizationRangesKeyForKk === "null"
+          ? null
+          : (JSON.parse(normalizationRangesKeyForKk) as unknown);
+    } catch {
+      return undefined;
+    }
+    const parsed = parseStoredNormalizationRanges(rangesRaw);
+    const scope = (normalizationScopeForKk ?? "none") as NormalizationScope;
+    const win = unifiedNormalizationWindowsForBasis(scope, parsed, "beta");
+    if (!win) {
+      return undefined;
+    }
+    const mode = parseNormalizationBandMode(win.bandMode);
+    const active = activeNormalizationRegions(
+      {
+        pre: win.pre
+          ? ([
+              Math.min(win.pre[0], win.pre[1]),
+              Math.max(win.pre[0], win.pre[1]),
+            ] as [number, number])
+          : null,
+        post: win.post
+          ? ([
+              Math.min(win.post[0], win.post[1]),
+              Math.max(win.post[0], win.post[1]),
+            ] as [number, number])
+          : null,
+      },
+      mode,
+    );
+    if (active.pre == null && active.post == null) {
+      return undefined;
+    }
+    return active;
+  }, [normalizationRangesKeyForKk, normalizationScopeForKk]);
+
+  const draftActiveNormRegions = useMemo(
+    () => activeNormalizationRegions(draftNormRegions, draftBandMode),
+    [draftNormRegions, draftBandMode],
+  );
+
+  const requestPlotPeakEdit = useCallback(() => {
+    setVisualizationMode("graph");
+    beginDatasetPlotEditor();
+    setIsManualPeakMode(true);
+    setIsPlotNormalizationMode(false);
+    setNormalizationSelectionTarget(null);
+  }, [beginDatasetPlotEditor]);
 
   const handlePlotNormalizationMode = useCallback((enabled: boolean) => {
     setIsPlotNormalizationMode(enabled);
@@ -1035,6 +1220,7 @@ export function NexafsExperimentDatasetPanel({
       setNormalizationSelectionTarget(null);
       setCursorMode("inspect");
     } else {
+      setIsManualPeakMode(false);
       setNormalizationSelectionTarget("pre");
     }
   }, []);
@@ -1063,36 +1249,25 @@ export function NexafsExperimentDatasetPanel({
       return;
     }
     setDraftNormRegions({ pre: init.pre, post: init.post });
+    setDraftBandMode(initialBandModeRef.current);
   }, []);
 
   const handleBrowseNormalizationEdgeDrag = useCallback(
     (edge: NormalizationRegionEdgeId, energy: number) => {
-      const sortPair = (a: number, b: number): [number, number] =>
-        a <= b ? [a, b] : [b, a];
       setDraftNormRegions((regions) => {
-        if (edge === "preMin" || edge === "preMax") {
-          const cur = regions.pre;
-          if (!cur) {
-            return { ...regions, pre: sortPair(energy, energy) };
-          }
-          const lo = Math.min(cur[0], cur[1]);
-          const hi = Math.max(cur[0], cur[1]);
-          const next =
-            edge === "preMin" ? sortPair(energy, hi) : sortPair(lo, energy);
-          return { ...regions, pre: next };
-        }
-        const cur = regions.post;
-        if (!cur) {
-          return { ...regions, post: sortPair(energy, energy) };
-        }
-        const lo = Math.min(cur[0], cur[1]);
-        const hi = Math.max(cur[0], cur[1]);
-        const next =
-          edge === "postMin" ? sortPair(energy, hi) : sortPair(lo, energy);
-        return { ...regions, post: next };
+        const active = activeNormalizationRegions(regions, draftBandMode);
+        const nextActive = applyNormalizationRegionEdgeChange(
+          active,
+          edge,
+          energy,
+        );
+        return {
+          pre: draftBandMode === "post" ? regions.pre : nextActive.pre,
+          post: draftBandMode === "pre" ? regions.post : nextActive.post,
+        };
       });
     },
-    [],
+    [draftBandMode],
   );
 
   const persistDraftNormalization = useCallback(async (): Promise<boolean> => {
@@ -1122,12 +1297,14 @@ export function NexafsExperimentDatasetPanel({
         beta: {
           pre: draftNormRegions.pre,
           post: draftNormRegions.post,
+          bandMode: draftBandMode,
         },
       };
     } else {
       rangesOut = {
         pre: draftNormRegions.pre,
         post: draftNormRegions.post,
+        bandMode: draftBandMode,
       };
     }
     try {
@@ -1140,6 +1317,7 @@ export function NexafsExperimentDatasetPanel({
         pre: draftNormRegions.pre,
         post: draftNormRegions.post,
       };
+      initialBandModeRef.current = draftBandMode;
       return true;
     } catch (e) {
       showToast(
@@ -1154,6 +1332,7 @@ export function NexafsExperimentDatasetPanel({
     normalizationScopeForKk,
     normalizationRangesKeyForKk,
     draftNormRegions,
+    draftBandMode,
     editorNormBaselineRaw,
     experimentId,
     updateNormalizationMetadata,
@@ -1177,9 +1356,10 @@ export function NexafsExperimentDatasetPanel({
     }
     return (
       JSON.stringify(draftNormRegions.pre) !== JSON.stringify(init.pre) ||
-      JSON.stringify(draftNormRegions.post) !== JSON.stringify(init.post)
+      JSON.stringify(draftNormRegions.post) !== JSON.stringify(init.post) ||
+      draftBandMode !== initialBandModeRef.current
     );
-  }, [datasetPlotEditorActive, draftNormRegions]);
+  }, [datasetPlotEditorActive, draftNormRegions, draftBandMode]);
 
   const datasetPlotEditorAvailable =
     Boolean(moleculeMeta?.canEditNormalizationMetadata) &&
@@ -1590,6 +1770,7 @@ export function NexafsExperimentDatasetPanel({
             <PlotToolbarGroupSeparator orientation="horizontal" />
             <PlotSpectrumToolsToolbarSection
               peakToolsEnabled={false}
+              normalizationToolsEnabled
               normalizationRegionResetInRail={false}
               isNormalizationMode={isPlotNormalizationMode}
               onNormalizationModeChange={handlePlotNormalizationMode}
@@ -1600,11 +1781,15 @@ export function NexafsExperimentDatasetPanel({
               onResetToDefaultRegions={() => setUndoNormConfirmOpen(true)}
               normalizationLocked={false}
               hasData={sortedAllPoints.length > 0}
-              isPeakSetMode={false}
-              onPeakSetModeChange={() => undefined}
-              peakCount={0}
-              onAutoDetectPeaks={() => undefined}
-              onResetAllPeaks={() => undefined}
+              bandMode={draftBandMode}
+              onBandModeChange={setDraftBandMode}
+              showBandPreview={showNormBandPreview}
+              onShowBandPreviewChange={setShowNormBandPreview}
+              isPeakSetMode={isManualPeakMode}
+              onPeakSetModeChange={handlePeakSetModeChange}
+              peakCount={editablePeaks.length}
+              onAutoDetectPeaks={handleAutoDetectPeaks}
+              onResetAllPeaks={handleResetAllPeaks}
             />
           </>
         ) : null}
@@ -1612,10 +1797,17 @@ export function NexafsExperimentDatasetPanel({
     );
   }, [
     datasetPlotEditorActive,
+    isManualPeakMode,
+    editablePeaks.length,
+    handlePeakSetModeChange,
+    handleAutoDetectPeaks,
+    handleResetAllPeaks,
     isPlotNormalizationMode,
     normalizationSelectionTarget,
     handlePlotNormalizationMode,
     sortedAllPoints.length,
+    draftBandMode,
+    showNormBandPreview,
     diffBareSelectedKeys,
     handleDiffBareSelectionChange,
     model,
@@ -1634,24 +1826,60 @@ export function NexafsExperimentDatasetPanel({
     ) : null;
 
   const plotRightRail = useMemo(() => {
-    if (
-      !datasetPlotEditorActive ||
-      !kkRecalcAllowed ||
-      !showBetaCol ||
-      pointsQuery.isLoading
-    ) {
+    const peaksTools =
+      datasetPlotEditorActive && canEditPeaks ? (
+        <PlotSpectrumToolsToolbarSection
+          normalizationToolsEnabled={false}
+          isNormalizationMode={isPlotNormalizationMode}
+          onNormalizationModeChange={handlePlotNormalizationMode}
+          activeEdge={normalizationSelectionTarget ?? "pre"}
+          onActiveEdgeChange={(edge) => setNormalizationSelectionTarget(edge)}
+          onResetToDefaultRegions={() => setUndoNormConfirmOpen(true)}
+          normalizationLocked={false}
+          hasData={sortedAllPoints.length > 0}
+          isPeakSetMode={isManualPeakMode}
+          onPeakSetModeChange={handlePeakSetModeChange}
+          peakCount={editablePeaks.length}
+          onAutoDetectPeaks={handleAutoDetectPeaks}
+          onResetAllPeaks={handleResetAllPeaks}
+        />
+      ) : null;
+    const kkTools =
+      datasetPlotEditorActive &&
+      kkRecalcAllowed &&
+      showBetaCol &&
+      !pointsQuery.isLoading ? (
+        <NexafsPlotKkVerticalToolbar
+          visible
+          orientation="vertical"
+          busy={kkRecalcBusy || updateKkDeltaBatch.isPending}
+          onPressKk={onPressRecalculateKk}
+        />
+      ) : null;
+    if (!peaksTools && !kkTools) {
       return null;
     }
     return (
-      <NexafsPlotKkVerticalToolbar
-        visible
-        orientation="vertical"
-        busy={kkRecalcBusy || updateKkDeltaBatch.isPending}
-        onPressKk={onPressRecalculateKk}
-      />
+      <div className="pointer-events-auto flex flex-col items-stretch gap-1">
+        {peaksTools}
+        {peaksTools && kkTools ? (
+          <PlotToolbarGroupSeparator orientation="horizontal" />
+        ) : null}
+        {kkTools}
+      </div>
     );
   }, [
     datasetPlotEditorActive,
+    canEditPeaks,
+    isPlotNormalizationMode,
+    handlePlotNormalizationMode,
+    normalizationSelectionTarget,
+    sortedAllPoints.length,
+    isManualPeakMode,
+    handlePeakSetModeChange,
+    editablePeaks.length,
+    handleAutoDetectPeaks,
+    handleResetAllPeaks,
     kkRecalcAllowed,
     showBetaCol,
     pointsQuery.isLoading,
@@ -1706,6 +1934,16 @@ export function NexafsExperimentDatasetPanel({
           sampleId={sampleId}
           enabled={enabled}
         />
+      ) : visualizationMode === "peaks" ? (
+        <NexafsExperimentPeaksPanel
+          experimentId={experimentId}
+          enabled={enabled}
+          onRequestPlotPeakEdit={canEditPeaks ? requestPlotPeakEdit : undefined}
+          onPeaksSaved={() => {
+            setPeaksDirty(false);
+            setSelectedPeakId(null);
+          }}
+        />
       ) : visualizationMode === "experiment" ? (
         <NexafsExperimentDescriptorsPanel
           experimentId={experimentId}
@@ -1741,16 +1979,22 @@ export function NexafsExperimentDatasetPanel({
                 yAxisQuantity={model.spectrumYAxisQuantity}
                 referenceCurves={referenceCurves}
                 normalizationRegions={
-                  datasetPlotEditorActive ? draftNormRegions : undefined
+                  datasetPlotEditorActive
+                    ? draftActiveNormRegions
+                    : storedNormRegionsForDisplay
                 }
                 showNormalizationShading={
-                  datasetPlotEditorActive && isPlotNormalizationMode
+                  showNormBandPreview &&
+                  (datasetPlotEditorActive
+                    ? draftActiveNormRegions.pre != null ||
+                      draftActiveNormRegions.post != null
+                    : storedNormRegionsForDisplay != null)
                 }
                 normalizationEdgeHandlesEnabled={
                   datasetPlotEditorActive &&
                   isPlotNormalizationMode &&
-                  draftNormRegions.pre != null &&
-                  draftNormRegions.post != null
+                  (draftActiveNormRegions.pre != null ||
+                    draftActiveNormRegions.post != null)
                 }
                 onNormalizationEdgeEnergyChange={
                   datasetPlotEditorActive
@@ -1758,14 +2002,16 @@ export function NexafsExperimentDatasetPanel({
                     : undefined
                 }
                 plotContext={
-                  datasetPlotEditorActive &&
-                  isPlotNormalizationMode &&
-                  normalizationSelectionTarget
-                    ? {
-                        kind: "normalize",
-                        target: normalizationSelectionTarget,
-                      }
-                    : { kind: "explore" }
+                  isManualPeakMode
+                    ? { kind: "peak-edit" }
+                    : datasetPlotEditorActive &&
+                        isPlotNormalizationMode &&
+                        normalizationSelectionTarget
+                      ? {
+                          kind: "normalize",
+                          target: normalizationSelectionTarget,
+                        }
+                      : { kind: "explore" }
                 }
                 onSelectionChange={
                   datasetPlotEditorActive && isPlotNormalizationMode
@@ -1773,6 +2019,91 @@ export function NexafsExperimentDatasetPanel({
                     : undefined
                 }
                 peaks={plotPeaks}
+                selectedPeakId={selectedPeakId}
+                onPeakSelect={
+                  canEditPeaks
+                    ? (peakId) => setSelectedPeakId(peakId)
+                    : undefined
+                }
+                onPeakUpdate={
+                  canEditPeaks
+                    ? (peakId, energy) => {
+                        const rounded = Math.round(energy * 100) / 100;
+                        markPeaksDraft(
+                          editablePeaks.map((peak) =>
+                            (peak.id ?? "") === peakId
+                              ? { ...peak, energy: rounded }
+                              : peak,
+                          ),
+                        );
+                      }
+                    : undefined
+                }
+                onPeakPatch={
+                  canEditPeaks
+                    ? (peakId, patch) => {
+                        markPeaksDraft(
+                          editablePeaks.map((peak) => {
+                            if ((peak.id ?? "") !== peakId) return peak;
+                            const next = { ...peak };
+                            if (patch.energy !== undefined) {
+                              next.energy =
+                                Math.round(patch.energy * 100) / 100;
+                            }
+                            if (patch.peakKind !== undefined) {
+                              next.peakKind = patch.peakKind;
+                            }
+                            return next;
+                          }),
+                        );
+                      }
+                    : undefined
+                }
+                onPeakDelete={
+                  canEditPeaks
+                    ? (peakId) => {
+                        markPeaksDraft(
+                          editablePeaks.filter(
+                            (peak) => (peak.id ?? "") !== peakId,
+                          ),
+                        );
+                        setSelectedPeakId((current) =>
+                          current === peakId ? null : current,
+                        );
+                      }
+                    : undefined
+                }
+                onPeakAdd={
+                  canEditPeaks
+                    ? (energy) => {
+                        const rounded = Math.round(energy * 100) / 100;
+                        let amplitude: number | undefined;
+                        if (model.plotPoints.length > 0) {
+                          let closest = model.plotPoints[0]!;
+                          let minDistance = Math.abs(closest.energy - rounded);
+                          for (const point of model.plotPoints) {
+                            const distance = Math.abs(point.energy - rounded);
+                            if (distance < minDistance) {
+                              minDistance = distance;
+                              closest = point;
+                            }
+                          }
+                          amplitude = closest.absorption;
+                        }
+                        const id = `peak-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+                        markPeaksDraft([
+                          ...editablePeaks,
+                          {
+                            id,
+                            energy: rounded,
+                            amplitude,
+                            peakKind: "pi-star",
+                          },
+                        ]);
+                        setSelectedPeakId(id);
+                      }
+                    : undefined
+                }
                 differenceSpectra={differenceSpectra}
                 companionSpectra={companionSpectra}
                 opticalLink={opticalLink}
@@ -1793,6 +2124,41 @@ export function NexafsExperimentDatasetPanel({
                 emptyStateMessage="No points in this view."
               />
             </div>
+            {isManualPeakMode && canEditPeaks ? (
+              <div className="rounded-md border border-blue-500/35 bg-blue-500/10 px-3 py-2 text-xs text-blue-900 dark:text-blue-100">
+                <div className="flex flex-wrap items-center gap-2">
+                  <PencilIcon className="h-4 w-4 shrink-0" aria-hidden />
+                  <span>
+                    Click the plot to add peaks, select markers to assign kinds,
+                    or drag peaks to adjust energy.
+                  </span>
+                  {peaksDirty ? (
+                    <>
+                      <DialogButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onPress={handleDiscardPeaks}
+                        isDisabled={replacePeaksets.isPending}
+                      >
+                        Discard
+                      </DialogButton>
+                      <DialogButton
+                        type="button"
+                        variant="primary"
+                        size="sm"
+                        onPress={() => {
+                          void handleSavePeaks();
+                        }}
+                        isDisabled={replacePeaksets.isPending}
+                      >
+                        {replacePeaksets.isPending ? "Saving..." : "Save peaks"}
+                      </DialogButton>
+                    </>
+                  ) : null}
+                </div>
+              </div>
+            ) : null}
             {datasetPlotEditorActive &&
             isPlotNormalizationMode &&
             normalizationSelectionTarget ? (

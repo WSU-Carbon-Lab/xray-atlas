@@ -30,6 +30,7 @@ import type {
   SpectrumEnergyConflictResolutionChoice,
 } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 import type { SubmitStatus } from "../hooks/useNexafsSubmit";
+import type { VisualizationMode } from "../ui/visualization-toggle";
 import {
   GlobalFileDropZoneProvider,
   useGlobalFileDropZoneContext,
@@ -101,9 +102,15 @@ export type NexafsContributeFlowProps = {
   onAuxValidationError?: (message: string) => void;
 };
 
-function DatasetMissingFieldsMessage({ dataset }: { dataset: DatasetState }) {
-  const statusInfo = useDatasetStatus(dataset);
-  if (statusInfo.missingFields.length === 0) {
+function DatasetMissingFieldsMessage({
+  dataset,
+  edgeOptions,
+}: {
+  dataset: DatasetState;
+  edgeOptions: EdgeOption[];
+}) {
+  const statusInfo = useDatasetStatus(dataset, edgeOptions);
+  if (statusInfo.missingFields.length === 0 && statusInfo.errors.length === 0) {
     return null;
   }
 
@@ -111,29 +118,59 @@ function DatasetMissingFieldsMessage({ dataset }: { dataset: DatasetState }) {
     ["Molecule", "Instrument", "Edge"].includes(field),
   );
   const missingList = statusInfo.missingFields.join(", ");
+  const edgeEnergyError = statusInfo.errors.find((error) =>
+    error.startsWith("Selected edge "),
+  );
 
   return (
-    <div
-      role="alert"
-      aria-live="polite"
-      className="border-danger mb-3 flex items-start gap-3 border-l-2 px-2 py-1.5"
-    >
-      <span className="bg-danger-soft-hover text-danger mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
-        <ExclamationTriangleIcon className="h-3.5 w-3.5" />
-      </span>
-      <div className="min-w-0">
-        <Label className="text-danger block text-xs font-bold tracking-wide uppercase">
-          Missing required dataset fields
-        </Label>
-        <Description className="mt-0.5 block text-xs text-red-300">
-          {tabSelectableFields.length > 0
-            ? "Set missing tab fields by clicking Molecule, Instrument, or Edge in the active dataset tab."
-            : "Complete the remaining required fields in the form below."}
-        </Description>
-        <ErrorMessage className="mt-1 block text-sm font-semibold text-red-400">
-          Missing: {missingList}
-        </ErrorMessage>
-      </div>
+    <div className="mb-3 space-y-2">
+      {statusInfo.missingFields.length > 0 ? (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="border-danger flex items-start gap-3 border-l-2 px-2 py-1.5"
+        >
+          <span className="bg-danger-soft-hover text-danger mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
+            <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0">
+            <Label className="text-danger block text-xs font-bold tracking-wide uppercase">
+              Missing required dataset fields
+            </Label>
+            <Description className="mt-0.5 block text-xs text-red-300">
+              {tabSelectableFields.length > 0
+                ? "Set missing tab fields by clicking Molecule, Instrument, or Edge in the active dataset tab."
+                : "Complete the remaining required fields in the form below."}
+            </Description>
+            <ErrorMessage className="mt-1 block text-sm font-semibold text-red-400">
+              Missing: {missingList}
+            </ErrorMessage>
+          </div>
+        </div>
+      ) : null}
+      {edgeEnergyError ? (
+        <div
+          role="alert"
+          aria-live="polite"
+          className="border-danger flex items-start gap-3 border-l-2 px-2 py-1.5"
+        >
+          <span className="bg-danger-soft-hover text-danger mt-0.5 inline-flex h-5 w-5 shrink-0 items-center justify-center rounded-full">
+            <ExclamationTriangleIcon className="h-3.5 w-3.5" />
+          </span>
+          <div className="min-w-0">
+            <Label className="text-danger block text-xs font-bold tracking-wide uppercase">
+              Edge energy mismatch
+            </Label>
+            <ErrorMessage className="mt-1 block text-sm font-semibold text-red-400">
+              {edgeEnergyError}
+            </ErrorMessage>
+            <Description className="mt-0.5 block text-xs text-red-300">
+              Open the Edge tab and choose an edge whose typical band overlaps
+              the spectrum energies.
+            </Description>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -184,6 +221,22 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
       experiment: false,
       sample: false,
     });
+  const [visualizationModeRequest, setVisualizationModeRequest] = useState<{
+    mode: VisualizationMode;
+    nonce: number;
+    startDescriptorEditing?: boolean;
+  } | null>(null);
+
+  const requestPersistedDescriptorEdit = useCallback((datasetId: string) => {
+    if (datasetId !== activeDatasetId) {
+      handleDatasetSelect(datasetId);
+    }
+    setVisualizationModeRequest({
+      mode: "experiment",
+      nonce: Date.now(),
+      startDescriptorEditing: true,
+    });
+  }, [activeDatasetId, handleDatasetSelect]);
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId);
   const persistedExperimentId = activeDataset?.persistedExperimentId ?? null;
@@ -356,10 +409,16 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
                 instrumentOptions={instrumentOptions}
                 edgeOptions={edgeOptions}
                 updateDataset={updateDataset}
+                onRequestPersistedDescriptorEdit={
+                  requestPersistedDescriptorEdit
+                }
               />
 
               {activeDataset && (
-                <DatasetMissingFieldsMessage dataset={activeDataset} />
+                <DatasetMissingFieldsMessage
+                  dataset={activeDataset}
+                  edgeOptions={edgeOptions}
+                />
               )}
 
               {activeDataset && !energyConflictModal ? (
@@ -393,6 +452,11 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
                   isLoadingEdges={isLoadingEdges}
                   isLoadingCalibrations={isLoadingCalibrations}
                   isLoadingVendors={isLoadingVendors}
+                  visualizationModeRequest={
+                    activeDataset.id === activeDatasetId
+                      ? visualizationModeRequest
+                      : null
+                  }
                 />
               )}
             </div>

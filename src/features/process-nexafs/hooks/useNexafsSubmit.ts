@@ -1,12 +1,21 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { useSession } from "next-auth/react";
 import { trpc } from "~/trpc/client";
 import type { ToastType } from "~/components/ui/toast";
 import { uploadQueuedAuxFiles } from "~/hooks/useAuxFileUpload";
 import { sampleAuxFieldsHasData } from "~/components/forms/SampleAuxAccordion";
 import type { DatasetState, PendingAuxFile } from "../types";
-import { filterValidOrcidAttributions } from "~/lib/nexafs-attribution";
+import {
+  applySimilarityContinuePatch,
+  type SimilarityContinuePatch,
+} from "../utils/similarity-continue-patch";
+import {
+  ensureSessionDataCuratorAttribution,
+  isUploaderContributorRole,
+  type SessionUploaderAttributionIdentity,
+} from "~/lib/nexafs-attribution";
 import {
   buildSpectrumPointsWithDerivedForUpload,
   extractGeometryPairs,
@@ -21,9 +30,29 @@ import {
 import { describeInvalidPolarizationGeometry } from "../utils/polarizationAngle";
 import { hasSpectrumEnergyConflicts } from "~/lib/nexafs/spectrumPointEnergyUniqueness";
 import {
+  datasetSimilarityPercent,
+  DATASET_SIMILARITY_WARN_THRESHOLD,
+  similaritiesAboveThreshold,
+  uniqueGeometryKeysFromPoints,
+  type DatasetSimilarityMatch,
+} from "~/lib/nexafs/dataset-similarity";
+import {
+  edgeLabelFromAtomCore,
+  evaluateEdgeEnergyConsistency,
+  spectrumEnergyExtent,
+} from "~/lib/nexafs/edge-energy-bands";
+import { plotPeakToPeaksetWrite } from "~/lib/nexafs/peakset-kind";
+import {
   applyKkDeltaToSpectrumPoints,
   DEFAULT_KK_MASS_DENSITY_G_CM3,
 } from "~/features/kk-calc";
+import {
+  isPasskeyClientCancelled,
+  isSessionAalRequiredError,
+  PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
+  PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
+  runPasskeyClientAuth,
+} from "~/lib/passkey-client-auth";
 
 export type SubmitStatus = { type: "error"; message: string } | undefined;
 
@@ -34,21 +63,154 @@ export type DatasetPersistedIds = {
   remainingSampleAuxFiles: PendingAuxFile[];
 };
 
+type EdgeOptionRef = {
+  id: string;
+  targetatom: string;
+  corestate: string;
+};
+
+type InstrumentOptionRef = {
+  id: string;
+  name: string;
+  facilityName?: string;
+};
+
+/**
+ * Arguments for the advisory similarity confirmation gate before contribute submit.
+ */
+export type SimilarityConfirmRequest = {
+  dataset: DatasetState;
+  match: DatasetSimilarityMatch;
+  /** Other Atlas matches at or above the warn threshold (same molecule). */
+  siblingMatches?: readonly DatasetSimilarityMatch[];
+  /** 0-based index of this upload within the submit batch. */
+  batchIndex: number;
+  /** Total datasets in the submit batch (including those without a match). */
+  batchTotal: number;
+  /** File names for every dataset in the submit batch, same order as submit. */
+  batchFileNames: readonly string[];
+  edgeOptions?: readonly EdgeOptionRef[];
+  instrumentOptions?: readonly InstrumentOptionRef[];
+};
+
+/** Result of the similarity compare dialog (continue with optional field patch, or cancel). */
+export type SimilarityConfirmOutcome =
+  | { confirmed: false }
+  | { confirmed: true; patch: SimilarityContinuePatch };
+
 export function useNexafsSubmit(
   datasets: DatasetState[],
   options?: {
     onSuccess?: () => void;
     onDatasetPersisted?: (datasetId: string, ids: DatasetPersistedIds) => void;
     requestKkConsent?: () => Promise<boolean>;
+    /**
+     * Opens the rich similarity comparison UI; resolve `confirmed: true` with an
+     * optional field patch to continue submit, or `confirmed: false` to abort.
+     * When omitted, similarity matches are skipped (advisory).
+     */
+    requestSimilarityConfirm?: (
+      request: SimilarityConfirmRequest,
+    ) => Promise<SimilarityConfirmOutcome>;
     showToast?: (message: string, type?: ToastType) => void;
     onEnergyConflicts?: (datasetId: string) => void;
+    edgeOptions?: readonly EdgeOptionRef[];
+    instrumentOptions?: readonly InstrumentOptionRef[];
   },
 ) {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
+  const [isConfirmingPasskey, setIsConfirmingPasskey] = useState(false);
+  const { data: session } = useSession();
+  const sessionUploader =
+    useMemo((): SessionUploaderAttributionIdentity | null => {
+      if (!session?.user?.id) {
+        return null;
+      }
+      return {
+        orcid: session.user.id,
+        displayName: session.user.name ?? null,
+        imageUrl: session.user.image,
+      };
+    }, [session?.user?.id, session?.user?.image, session?.user?.name]);
   const utils = trpc.useUtils();
   const createNexafsMutation =
     trpc.experiments.createWithSpectrum.useMutation();
   const sampleAuxUpsertMutation = trpc.sampleAux.upsert.useMutation();
+  const confirmPasskeySessionStepUp =
+    trpc.users.confirmPasskeySessionStepUp.useMutation();
+
+  const ensureSubmitPasskey = useCallback(async (): Promise<boolean> => {
+    const assurance = await utils.users.getSessionWriteAssurance.fetch();
+    if (assurance.satisfied) {
+      return true;
+    }
+    if (!assurance.enrolled) {
+      setSubmitStatus({
+        type: "error",
+        message: PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
+      });
+      return false;
+    }
+
+    setIsConfirmingPasskey(true);
+    try {
+      const result = await runPasskeyClientAuth({
+        action: "sign-in",
+        callbackUrl: window.location.href,
+        errorFallback: "Passkey confirmation failed. Please try again.",
+        incompleteFallback: "Passkey confirmation did not complete",
+      });
+
+      if (!result.ok) {
+        const message =
+          result.errorMessage ??
+          "Passkey confirmation failed. Please try again.";
+        if (
+          isPasskeyClientCancelled(new Error(message)) ||
+          message.toLowerCase().includes("interrupted") ||
+          message.toLowerCase().includes("denied")
+        ) {
+          setSubmitStatus({
+            type: "error",
+            message: PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
+          });
+          return false;
+        }
+        setSubmitStatus({ type: "error", message });
+        return false;
+      }
+
+      const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
+      await utils.users.getSessionWriteAssurance.invalidate();
+      if (!stepUp.evaluation.satisfied) {
+        setSubmitStatus({
+          type: "error",
+          message:
+            "Passkey confirmation did not elevate this session. Try again, or register a passkey first.",
+        });
+        return false;
+      }
+      return true;
+    } catch (error) {
+      if (isPasskeyClientCancelled(error)) {
+        setSubmitStatus({
+          type: "error",
+          message: PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
+        });
+        return false;
+      }
+      setSubmitStatus({
+        type: "error",
+        message:
+          error instanceof Error
+            ? error.message
+            : "Passkey confirmation failed. Please try again.",
+      });
+      return false;
+    } finally {
+      setIsConfirmingPasskey(false);
+    }
+  }, [confirmPasskeySessionStepUp, utils.users.getSessionWriteAssurance]);
 
   const submit = useCallback(
     async (event?: React.FormEvent<HTMLFormElement>) => {
@@ -97,6 +259,34 @@ export function useNexafsSubmit(
           });
           return;
         }
+        const selectedEdge = options?.edgeOptions?.find(
+          (edge) => edge.id === dataset.edgeId,
+        );
+        if (selectedEdge && dataset.spectrumPoints.length > 0) {
+          const extent = spectrumEnergyExtent(dataset.spectrumPoints);
+          if (extent) {
+            const consistency = evaluateEdgeEnergyConsistency({
+              edgeLabel: edgeLabelFromAtomCore(
+                selectedEdge.targetatom,
+                selectedEdge.corestate,
+              ),
+              minEv: extent.minEv,
+              maxEv: extent.maxEv,
+            });
+            if (!consistency.ok) {
+              const confirmed = window.confirm(
+                `${consistency.message} Submit with this edge anyway?`,
+              );
+              if (!confirmed) {
+                setSubmitStatus({
+                  type: "error",
+                  message: `Dataset "${dataset.fileName}": ${consistency.message}`,
+                });
+                return;
+              }
+            }
+          }
+        }
         if (dataset.spectrumPoints.length === 0) {
           setSubmitStatus({
             type: "error",
@@ -112,11 +302,12 @@ export function useNexafsSubmit(
           });
           return;
         }
-        const attributionRows = filterValidOrcidAttributions(
+        const attributionRows = ensureSessionDataCuratorAttribution(
           dataset.attributions,
+          sessionUploader,
         );
-        const uploaderCount = attributionRows.filter(
-          (row) => row.role === "DataCurator",
+        const uploaderCount = attributionRows.filter((row) =>
+          isUploaderContributorRole(row.role),
         ).length;
         if (uploaderCount !== 1) {
           setSubmitStatus({
@@ -150,7 +341,70 @@ export function useNexafsSubmit(
         }
       }
 
-      const needsKk = datasetsToSubmit.some((d) => d.computeKkDeltaOnSubmit);
+      let datasetsForSubmit = [...datasetsToSubmit];
+      const batchTotal = datasetsForSubmit.length;
+      const batchFileNames = datasetsForSubmit.map((row) => row.fileName);
+
+      for (let index = 0; index < datasetsForSubmit.length; index++) {
+        const dataset = datasetsForSubmit[index]!;
+        if (!dataset.moleculeId || dataset.spectrumPoints.length === 0) {
+          continue;
+        }
+        const extent = spectrumEnergyExtent(dataset.spectrumPoints);
+        if (!extent) {
+          continue;
+        }
+        try {
+          const similar =
+            await utils.experiments.findSimilarForContributor.fetch({
+              moleculeId: dataset.moleculeId,
+              minEv: extent.minEv,
+              maxEv: extent.maxEv,
+              limit: 8,
+              geometryKeys: uniqueGeometryKeysFromPoints(
+                dataset.spectrumPoints,
+              ),
+              experimentType: dataset.experimentType || undefined,
+            });
+          const ranked = similaritiesAboveThreshold(
+            similar.matches,
+            DATASET_SIMILARITY_WARN_THRESHOLD,
+          );
+          const best = ranked[0] ?? null;
+          if (best && options?.requestSimilarityConfirm) {
+            const percent = datasetSimilarityPercent(best.score);
+            options.showToast?.(
+              `Similarity check ${index + 1} of ${batchTotal}: ${dataset.fileName}`,
+              "info",
+            );
+            const outcome = await options.requestSimilarityConfirm({
+              dataset,
+              match: best,
+              siblingMatches: ranked.slice(1),
+              batchIndex: index,
+              batchTotal,
+              batchFileNames,
+              edgeOptions: options.edgeOptions,
+              instrumentOptions: options.instrumentOptions,
+            });
+            if (!outcome.confirmed) {
+              setSubmitStatus({
+                type: "error",
+                message: `Dataset "${dataset.fileName}" (${index + 1} of ${batchTotal}): Submit cancelled — similar existing dataset (score ${percent}).`,
+              });
+              return;
+            }
+            datasetsForSubmit[index] = applySimilarityContinuePatch(
+              dataset,
+              outcome.patch,
+            );
+          }
+        } catch {
+          // Similarity is advisory; do not block submit when the lookup fails.
+        }
+      }
+
+      const needsKk = datasetsForSubmit.some((d) => d.computeKkDeltaOnSubmit);
       if (needsKk) {
         if (!options?.requestKkConsent) {
           setSubmitStatus({
@@ -172,11 +426,17 @@ export function useNexafsSubmit(
       }
 
       try {
-        for (const dataset of datasetsToSubmit) {
+        if (!(await ensureSubmitPasskey())) {
+          return;
+        }
+
+        let didRetryPasskey = false;
+        for (const dataset of datasetsForSubmit) {
           if (!dataset.moleculeId) return;
 
-          const attributionRows = filterValidOrcidAttributions(
+          const attributionRows = ensureSessionDataCuratorAttribution(
             dataset.attributions,
+            sessionUploader,
           );
 
           const hasThetaMapping = Boolean(dataset.columnMappings.theta);
@@ -281,7 +541,7 @@ export function useNexafsSubmit(
             }
           }
 
-          const createResult = await createNexafsMutation.mutateAsync({
+          const createPayload = {
             sample: {
               moleculeId: dataset.moleculeId,
               identifier: crypto.randomUUID(),
@@ -325,6 +585,7 @@ export function useNexafsSubmit(
                     : {
                         pre: dataset.normalizationRegions.pre,
                         post: dataset.normalizationRegions.post,
+                        bandMode: dataset.normalizationBandMode,
                       },
               },
               validationOverride:
@@ -337,12 +598,16 @@ export function useNexafsSubmit(
                     }
                   : undefined,
               uploadedChannels: [
-                "rawabs",
-                ...(dataset.columnMappings.od ? (["od"] as const) : []),
+                "rawabs" as const,
+                ...(dataset.columnMappings.od
+                  ? (["od"] as const)
+                  : ([] as const)),
                 ...(dataset.columnMappings.massabsorption
                   ? (["massabsorption"] as const)
-                  : []),
-                ...(dataset.columnMappings.beta ? (["beta"] as const) : []),
+                  : ([] as const)),
+                ...(dataset.columnMappings.beta
+                  ? (["beta"] as const)
+                  : ([] as const)),
               ],
               computeKkDeltaOnSubmit: dataset.computeKkDeltaOnSubmit
                 ? true
@@ -352,7 +617,25 @@ export function useNexafsSubmit(
             spectrum: {
               points: spectrumPoints,
             },
-            peaksets: dataset.peaks.length > 0 ? dataset.peaks : undefined,
+            peaksets:
+              dataset.peaks.length > 0
+                ? dataset.peaks.map((peak) => {
+                    const mapped = plotPeakToPeaksetWrite({
+                      energy: peak.energy,
+                      intensity: peak.intensity ?? peak.amplitude,
+                      peakKind: peak.peakKind,
+                      bond: peak.bond,
+                      transition: peak.transition,
+                    });
+                    return {
+                      energy: mapped.energyev,
+                      intensity: mapped.intensity ?? undefined,
+                      bond: mapped.bond ?? undefined,
+                      transition: mapped.transition ?? undefined,
+                      peakKind: peak.peakKind ?? undefined,
+                    };
+                  })
+                : undefined,
             attributions:
               attributionRows.length > 0
                 ? attributionRows.map((row) => ({
@@ -363,7 +646,23 @@ export function useNexafsSubmit(
             sourcePaperDois: dataset.sourcePaperPublications.map(
               (publication) => publication.doi,
             ),
-          });
+          };
+
+          let createResult;
+          try {
+            createResult =
+              await createNexafsMutation.mutateAsync(createPayload);
+          } catch (createError) {
+            if (!isSessionAalRequiredError(createError) || didRetryPasskey) {
+              throw createError;
+            }
+            didRetryPasskey = true;
+            if (!(await ensureSubmitPasskey())) {
+              return;
+            }
+            createResult =
+              await createNexafsMutation.mutateAsync(createPayload);
+          }
 
           const sampleId = createResult.sample.id;
           const experimentId = createResult.experiments[0]?.experiment.id;
@@ -472,13 +771,21 @@ export function useNexafsSubmit(
         });
       }
     },
-    [createNexafsMutation, datasets, options, sampleAuxUpsertMutation, utils],
+    [
+      createNexafsMutation,
+      datasets,
+      ensureSubmitPasskey,
+      options,
+      sampleAuxUpsertMutation,
+      sessionUploader,
+      utils,
+    ],
   );
 
   return {
     submit,
     submitStatus,
     setSubmitStatus,
-    isPending: createNexafsMutation.isPending,
+    isPending: createNexafsMutation.isPending || isConfirmingPasskey,
   };
 }

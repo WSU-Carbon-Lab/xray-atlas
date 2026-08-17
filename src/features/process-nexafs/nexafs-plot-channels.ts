@@ -50,7 +50,8 @@ export const NEXAFS_PLOT_CHANNEL_DEFINITIONS: readonly NexafsPlotChannelDefiniti
       group: "spectroscopy",
       label: "Raw upload",
       shortLabel: "Raw",
-      description: "Uploaded absorption signal before normalization (rawabs).",
+      description:
+        "Uploaded absorption signal as provided (rawabs, or the mapped primary column before Atlas normalization).",
       yAxisQuantity: "raw-upload",
     },
     {
@@ -93,9 +94,8 @@ export const NEXAFS_PLOT_CHANNEL_DEFINITIONS: readonly NexafsPlotChannelDefiniti
       label: "Im(ε)",
       shortLabel: "Im ε",
       description:
-        "Imaginary part of dielectric permittivity from stored β and δ.",
+        "Imaginary permittivity from β (uses δ when present, otherwise δ = 0): Im(ε) = 2β(1 − δ).",
       yAxisQuantity: "permittivity-im",
-      requiresFormula: true,
     },
     {
       id: "im-chi",
@@ -103,9 +103,8 @@ export const NEXAFS_PLOT_CHANNEL_DEFINITIONS: readonly NexafsPlotChannelDefiniti
       label: "Im(χ)",
       shortLabel: "Im χ",
       description:
-        "Imaginary susceptibility χ = n² − 1 with n = 1 − δ + iβ: Im(χ) = 2β(1 − δ).",
+        "Imaginary susceptibility from β (uses δ when present, otherwise δ = 0): Im(χ) = 2β(1 − δ).",
       yAxisQuantity: "susceptibility-im",
-      requiresFormula: true,
     },
     {
       id: "delta",
@@ -130,9 +129,9 @@ export const NEXAFS_PLOT_CHANNEL_DEFINITIONS: readonly NexafsPlotChannelDefiniti
       group: "real",
       label: "Re(ε)",
       shortLabel: "Re ε",
-      description: "Real part of dielectric permittivity from stored β and δ.",
+      description:
+        "Real permittivity from β (uses δ when present, otherwise δ = 0): Re(ε) = (1 − δ)² − β².",
       yAxisQuantity: "permittivity-re",
-      requiresFormula: true,
     },
     {
       id: "re-chi",
@@ -140,9 +139,8 @@ export const NEXAFS_PLOT_CHANNEL_DEFINITIONS: readonly NexafsPlotChannelDefiniti
       label: "Re(χ)",
       shortLabel: "Re χ",
       description:
-        "Real susceptibility χ = n² − 1 with n = 1 − δ + iβ: Re(χ) = (1 − δ)² − β² − 1.",
+        "Real susceptibility from β (uses δ when present, otherwise δ = 0): Re(χ) = (1 − δ)² − β² − 1.",
       yAxisQuantity: "susceptibility-re",
-      requiresFormula: true,
     },
   ];
 
@@ -208,21 +206,29 @@ export interface NexafsPlotChannelAvailability {
   readonly massAbsorption: boolean;
   readonly beta: boolean;
   readonly delta: boolean;
+  /** True when stoichiometry is known (required for f₁/f₂ number-density conversion). */
+  readonly hasChemicalFormula: boolean;
+  /**
+   * True when β, δ, and formula are all present (legacy gate for dielectric ε/χ
+   * that historically also required formula). Prefer {@link isPlotChannelAvailable}.
+   */
   readonly derivedOptical: boolean;
 }
 
 /**
- * Reports which plot channels have enough persisted spectrum data to render.
+ * Reports which plot channels have enough spectrum data to render.
  *
- * @param spectrumPoints Rows mapped from the database for one experiment.
- * @param hasChemicalFormula When false, derived f/ε/χ channels stay unavailable.
+ * @param spectrumPoints Rows mapped from the database or contribute draft derivation.
+ * @param hasChemicalFormula When false, f₁/f₂ stay unavailable (ε/χ still need β and δ only).
  */
 export function assessPlotChannelAvailability(
   spectrumPoints: readonly SpectrumPoint[],
   hasChemicalFormula: boolean,
 ): NexafsPlotChannelAvailability {
   const hasRaw = spectrumPoints.some(
-    (p) => typeof p.rawabs === "number" && Number.isFinite(p.rawabs),
+    (p) =>
+      (typeof p.rawabs === "number" && Number.isFinite(p.rawabs)) ||
+      (typeof p.absorption === "number" && Number.isFinite(p.absorption)),
   );
   const hasOd = spectrumPoints.some(
     (p) => typeof p.od === "number" && Number.isFinite(p.od),
@@ -239,14 +245,15 @@ export function assessPlotChannelAvailability(
   const hasDelta = spectrumPoints.some(
     (p) => typeof p.delta === "number" && Number.isFinite(p.delta),
   );
-  const derivedOptical = hasChemicalFormula && hasBeta && hasDelta;
+  const formula = hasChemicalFormula;
   return {
     raw: hasRaw,
     normalized: hasOd,
     massAbsorption: hasMu,
     beta: hasBeta,
     delta: hasDelta,
-    derivedOptical,
+    hasChemicalFormula: formula,
+    derivedOptical: formula && hasBeta && hasDelta,
   };
 }
 
@@ -266,12 +273,14 @@ export function isPlotChannelAvailable(
     case "delta":
       return availability.delta;
     case "f2":
+      return availability.hasChemicalFormula && availability.beta;
     case "f1":
+      return availability.hasChemicalFormula && availability.delta;
     case "im-epsilon":
     case "re-epsilon":
     case "im-chi":
     case "re-chi":
-      return availability.derivedOptical;
+      return availability.beta;
     default: {
       const _exhaustive: never = id;
       return _exhaustive;
@@ -316,64 +325,79 @@ function deriveOpticalConstantRows(
   formula: string,
   channel: DerivedOpticalChannelId,
 ): SpectrumPoint[] | null {
-  const paired: Array<{ point: SpectrumPoint; beta: number; delta: number }> =
-    [];
-  for (const p of rows) {
-    if (
-      typeof p.beta === "number" &&
-      Number.isFinite(p.beta) &&
-      typeof p.delta === "number" &&
-      Number.isFinite(p.delta)
-    ) {
-      paired.push({ point: p, beta: p.beta, delta: p.delta });
-    }
-  }
-  if (paired.length === 0) {
-    return null;
-  }
-  const nd = resolveNumberDensity(formula);
-  if (nd == null) {
-    return null;
-  }
-
-  if (
-    channel === "im-epsilon" ||
-    channel === "re-epsilon" ||
-    channel === "im-chi" ||
-    channel === "re-chi"
-  ) {
-    return paired.map(({ point, beta, delta }) => {
-      const reN = 1 - delta;
-      const imN = beta;
-      const reEps = reN * reN - imN * imN;
-      const imEps = 2 * reN * imN;
-      const y =
-        channel === "im-epsilon" || channel === "im-chi"
-          ? imEps
-          : channel === "re-epsilon"
-            ? reEps
-            : reEps - 1;
-      return { ...point, absorption: y };
-    });
-  }
-
-  const energies = paired.map((x) => x.point.energy);
-  const betas = paired.map((x) => x.beta);
-  const deltas = paired.map((x) => x.delta);
-
   if (channel === "f2") {
+    const withBeta: Array<{ point: SpectrumPoint; beta: number }> = [];
+    for (const p of rows) {
+      if (typeof p.beta === "number" && Number.isFinite(p.beta)) {
+        withBeta.push({ point: p, beta: p.beta });
+      }
+    }
+    if (withBeta.length === 0) {
+      return null;
+    }
+    const nd = resolveNumberDensity(formula);
+    if (nd == null) {
+      return null;
+    }
+    const energies = withBeta.map((x) => x.point.energy);
+    const betas = withBeta.map((x) => x.beta);
     const f2 = refractiveBetaToImaginaryAsf(energies, betas, nd);
-    return paired.map(({ point }, i) => ({
+    return withBeta.map(({ point }, i) => ({
       ...point,
       absorption: f2[i]!,
     }));
   }
 
-  const f1 = opticalDeltaToRealAsf(energies, deltas, nd);
-  return paired.map(({ point }, i) => ({
-    ...point,
-    absorption: f1[i]!,
-  }));
+  if (channel === "f1") {
+    const withDelta: Array<{ point: SpectrumPoint; delta: number }> = [];
+    for (const p of rows) {
+      if (typeof p.delta === "number" && Number.isFinite(p.delta)) {
+        withDelta.push({ point: p, delta: p.delta });
+      }
+    }
+    if (withDelta.length === 0) {
+      return null;
+    }
+    const nd = resolveNumberDensity(formula);
+    if (nd == null) {
+      return null;
+    }
+    const energies = withDelta.map((x) => x.point.energy);
+    const deltas = withDelta.map((x) => x.delta);
+    const f1 = opticalDeltaToRealAsf(energies, deltas, nd);
+    return withDelta.map(({ point }, i) => ({
+      ...point,
+      absorption: f1[i]!,
+    }));
+  }
+
+  const paired: Array<{ point: SpectrumPoint; beta: number; delta: number }> =
+    [];
+  for (const p of rows) {
+    if (typeof p.beta !== "number" || !Number.isFinite(p.beta)) {
+      continue;
+    }
+    const delta =
+      typeof p.delta === "number" && Number.isFinite(p.delta) ? p.delta : 0;
+    paired.push({ point: p, beta: p.beta, delta });
+  }
+  if (paired.length === 0) {
+    return null;
+  }
+
+  return paired.map(({ point, beta, delta }) => {
+    const reN = 1 - delta;
+    const imN = beta;
+    const reEps = reN * reN - imN * imN;
+    const imEps = 2 * reN * imN;
+    const y =
+      channel === "im-epsilon" || channel === "im-chi"
+        ? imEps
+        : channel === "re-epsilon"
+          ? reEps
+          : reEps - 1;
+    return { ...point, absorption: y };
+  });
 }
 
 /**
@@ -393,9 +417,14 @@ export function buildPlotPointsForChannel(
   switch (channel) {
     case "raw":
       return (
-        mapRows(spectrumPoints, (p) =>
-          typeof p.rawabs === "number" ? p.rawabs : undefined,
-        ) ?? []
+        mapRows(spectrumPoints, (p) => {
+          if (typeof p.rawabs === "number" && Number.isFinite(p.rawabs)) {
+            return p.rawabs;
+          }
+          return typeof p.absorption === "number" && Number.isFinite(p.absorption)
+            ? p.absorption
+            : undefined;
+        }) ?? []
       );
     case "normalized":
       return (
@@ -429,13 +458,14 @@ export function buildPlotPointsForChannel(
       );
     case "f2":
     case "f1":
+      if (!formula) {
+        return [];
+      }
+      return deriveOpticalConstantRows(spectrumPoints, formula, channel) ?? [];
     case "im-epsilon":
     case "re-epsilon":
     case "im-chi":
     case "re-chi":
-      if (!formula) {
-        return [];
-      }
       return deriveOpticalConstantRows(spectrumPoints, formula, channel) ?? [];
     default: {
       const _exhaustive: never = channel;

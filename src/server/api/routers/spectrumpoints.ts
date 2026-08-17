@@ -19,6 +19,7 @@ import {
   isSpectrumPointsEnergyUniqueViolation,
 } from "~/server/nexafs/spectrumPointEnergyUniqueness";
 import { scheduleZenodoDepositSync } from "~/server/zenodo";
+import { SPECTRUMPOINTS_BROWSE_FETCH_CAP } from "~/lib/nexafs/spectrum-point-limits";
 
 const KK_DELTA_BATCH_CHUNK = 800;
 
@@ -57,7 +58,11 @@ export const spectrumpointsRouter = createTRPCRouter({
     .input(
       z.object({
         experimentId: z.string().uuid(),
-        limit: z.number().min(1).max(10000).default(1000),
+        limit: z
+          .number()
+          .min(1)
+          .max(SPECTRUMPOINTS_BROWSE_FETCH_CAP)
+          .default(1000),
         offset: z.number().min(0).default(0),
       }),
     )

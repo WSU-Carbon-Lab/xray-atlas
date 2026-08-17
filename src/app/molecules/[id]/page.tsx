@@ -1,11 +1,17 @@
 "use client";
 
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { useMoleculeDetail } from "~/components/browse/molecule-detail-context";
 import { NexafsBrowseExperimentSection } from "~/components/browse/nexafs-browse-experiment-section";
+import { MoleculeSimilarDatasetsPanel } from "~/components/nexafs/molecule-similar-datasets-panel";
 import { NexafsExperimentCompactSkeleton } from "~/components/feedback/loading-state";
+import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
+import {
+  MERGE_PAIR_SEARCH_PARAM,
+  parseMergePairSearchParam,
+} from "~/lib/nexafs-experiment-deep-link";
 import { trpc } from "~/trpc/client";
 
 const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
@@ -65,7 +71,12 @@ function MoleculeNexafsBrowseAfterMount() {
   if (!mounted) {
     return <MoleculeNexafsBrowseFallback />;
   }
-  return <MoleculeNexafsBrowse />;
+  return (
+    <>
+      <MoleculeSimilarDatasetsHost />
+      <MoleculeNexafsBrowse />
+    </>
+  );
 }
 
 export default function MoleculeDetailPage() {
@@ -106,5 +117,21 @@ export default function MoleculeDetailPage() {
       </h2>
       <MoleculeNexafsBrowseAfterMount />
     </section>
+  );
+}
+
+function MoleculeSimilarDatasetsHost() {
+  const { molecule, moleculeId } = useMoleculeDetail();
+  const searchParams = useSearchParams();
+  const initialMergePair = parseMergePairSearchParam(
+    searchParams.get(MERGE_PAIR_SEARCH_PARAM),
+  );
+  const slug = canonicalMoleculeSlugFromView(molecule);
+  return (
+    <MoleculeSimilarDatasetsPanel
+      moleculeId={moleculeId}
+      moleculeSlug={slug}
+      initialMergePair={initialMergePair}
+    />
   );
 }

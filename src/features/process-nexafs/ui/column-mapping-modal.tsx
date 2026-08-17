@@ -17,6 +17,7 @@ import {
 } from "~/features/process-nexafs/utils";
 import { parseCSVFile } from "~/features/process-nexafs/utils/csv";
 import { detectSpectrumColumnNames } from "~/features/process-nexafs/utils/csvParseChallenge";
+import { isSpectrumXlsxFileName } from "~/features/process-nexafs/utils/parseSpectrumXlsx";
 import type { SpectrumPoint } from "~/components/plots/types";
 
 interface ColumnMappingModalProps {
@@ -72,6 +73,7 @@ export function ColumnMappingModal({
   const [isReparsing, setIsReparsing] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const statusDropdownRef = useRef<HTMLDivElement>(null);
+  const isXlsxWorkbook = Boolean(file && isSpectrumXlsxFileName(file.name));
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -119,6 +121,9 @@ export function ColumnMappingModal({
 
   useEffect(() => {
     if (!isOpen || !file) return;
+    if (isSpectrumXlsxFileName(file.name)) {
+      return;
+    }
     let cancelled = false;
     const handle = window.setTimeout(() => {
       void (async () => {
@@ -403,6 +408,7 @@ export function ColumnMappingModal({
             min={0}
             step={1}
             value={String(headerRowIndex)}
+            disabled={isXlsxWorkbook}
             onChange={(event) => {
               const next = Number.parseInt(event.target.value, 10);
               setHeaderRowIndex(Number.isFinite(next) && next >= 0 ? next : 0);
@@ -410,7 +416,9 @@ export function ColumnMappingModal({
             aria-label="CSV header row index"
           />
           <p className="text-muted text-xs">
-            Use when the file has a preamble before column names.
+            {isXlsxWorkbook
+              ? "Workbook sheets already use the first row as headers. Map Energy and Absorption below."
+              : "Use when the file has a preamble before column names."}
           </p>
         </div>
         <div className="space-y-1.5">
@@ -420,6 +428,7 @@ export function ColumnMappingModal({
             min={0}
             step={1}
             value={String(skipRowsAfterHeader)}
+            disabled={isXlsxWorkbook}
             onChange={(event) => {
               const next = Number.parseInt(event.target.value, 10);
               setSkipRowsAfterHeader(
@@ -429,7 +438,9 @@ export function ColumnMappingModal({
             aria-label="Rows to skip after CSV header"
           />
           <p className="text-muted text-xs">
-            Skip units lines or blank separators before numeric data.
+            {isXlsxWorkbook
+              ? "Row skipping applies to CSV uploads, not workbook sheets."
+              : "Skip units lines or blank separators before numeric data."}
             {isReparsing ? " Updating preview..." : ""}
           </p>
         </div>

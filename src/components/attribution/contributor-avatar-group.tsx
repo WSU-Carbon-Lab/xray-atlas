@@ -9,12 +9,20 @@ export type ContributorAvatarGroupProps = Omit<
 >;
 
 /**
- * Stacked contributor avatars with a shared hover popover (caret tracks the hovered avatar; avatars stay fixed).
+ * Stacked contributor avatars with a shared hover popover, default max of three
+ * visible faces, circular charcoal `+N` overflow with knockout rings, and
+ * expand-on-hover for the rest.
  */
-export function ContributorAvatarGroup(props: ContributorAvatarGroupProps) {
+export function ContributorAvatarGroup({
+  max = 3,
+  expandOnHover = true,
+  ...props
+}: ContributorAvatarGroupProps) {
   return (
     <AvatarGroup
       {...props}
+      max={max}
+      expandOnHover={expandOnHover}
       tooltipVariant="name-orcid"
       tooltipMode="shared"
       contributorAvatars

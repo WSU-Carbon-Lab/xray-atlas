@@ -1,5 +1,11 @@
 export { useNexafsOptions } from "./useNexafsOptions";
-export { useNexafsSubmit, type SubmitStatus } from "./useNexafsSubmit";
+export {
+  useNexafsSubmit,
+  type SubmitStatus,
+  type DatasetPersistedIds,
+  type SimilarityConfirmRequest,
+  type SimilarityConfirmOutcome,
+} from "./useNexafsSubmit";
 export { useNexafsDatasets } from "./useNexafsDatasets";
 export { useMoleculeSearch } from "./useMoleculeSearch";
 export {

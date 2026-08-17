@@ -33,6 +33,7 @@ import {
   EdgeSelectModal,
   ExperimentSelectModal,
 } from "./descriptor-select-modals";
+import { spectrumEnergyExtent } from "~/lib/nexafs/edge-energy-bands";
 
 type InstrumentOption = { id: string; name: string; facilityName?: string };
 type EdgeOption = { id: string; targetatom: string; corestate: string };
@@ -52,6 +53,11 @@ interface DatasetTabsProps {
       | Partial<DatasetState>
       | ((dataset: DatasetState) => Partial<DatasetState>),
   ) => void;
+  /**
+   * After persist, instrument/edge/experiment-type segment clicks should open the
+   * ownership-gated Experiment panel instead of mutating draft-only local state.
+   */
+  onRequestPersistedDescriptorEdit?: (datasetId: string) => void;
 }
 
 type DescriptorModalType =
@@ -76,6 +82,7 @@ interface DescriptorTabContentProps {
   edgeOptions: EdgeOption[];
   onOpenModal: (type: DescriptorModalType, datasetId: string) => void;
   onRemove: (id: string) => void;
+  onRequestPersistedDescriptorEdit?: (datasetId: string) => void;
 }
 
 function MoleculeLabel({ moleculeId }: { moleculeId: string | null }) {
@@ -108,14 +115,23 @@ function DescriptorTabContent({
   edgeOptions,
   onOpenModal,
   onRemove,
+  onRequestPersistedDescriptorEdit,
 }: DescriptorTabContentProps) {
-  const statusInfo = useDatasetStatus(dataset);
-  const instrument = dataset.instrumentId
-    ? instrumentOptions.find((i) => i.id === dataset.instrumentId)
+  const statusInfo = useDatasetStatus(dataset, edgeOptions);
+  const isPersisted = Boolean(dataset.persistedExperimentId);
+  const persistedDescriptorsQuery = trpc.experiments.getDescriptors.useQuery(
+    { experimentId: dataset.persistedExperimentId ?? "" },
+    { enabled: isPersisted && Boolean(dataset.persistedExperimentId) },
+  );
+  const instrumentId =
+    persistedDescriptorsQuery.data?.instrumentId ?? dataset.instrumentId;
+  const edgeId = persistedDescriptorsQuery.data?.edgeId ?? dataset.edgeId;
+  const experimentType = (persistedDescriptorsQuery.data?.experimentType ??
+    dataset.experimentType) as ExperimentTypeOption;
+  const instrument = instrumentId
+    ? instrumentOptions.find((i) => i.id === instrumentId)
     : null;
-  const edge = dataset.edgeId
-    ? edgeOptions.find((e) => e.id === dataset.edgeId)
-    : null;
+  const edge = edgeId ? edgeOptions.find((e) => e.id === edgeId) : null;
 
   const filenameExperiment = useMemo(() => {
     const parsed = parseNexafsFilename(dataset.fileName);
@@ -133,9 +149,9 @@ function DescriptorTabContent({
 
   const experimentTypeLabel = useMemo(
     () =>
-      EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === dataset.experimentType)
-        ?.label ?? dataset.experimentType,
-    [dataset.experimentType],
+      EXPERIMENT_TYPE_OPTIONS.find((o) => o.value === experimentType)?.label ??
+      experimentType,
+    [experimentType],
   );
 
   const experimentTooltipLines = [
@@ -147,7 +163,7 @@ function DescriptorTabContent({
         : "No experiment-type token in filename (expected after edge, e.g. TEY, FY)",
     `Selected: ${experimentTypeLabel}`,
     filenameExperiment.mapped &&
-    filenameExperiment.mapped !== dataset.experimentType
+    filenameExperiment.mapped !== experimentType
       ? `Selection differs from filename mapping; click to align or override`
       : null,
   ].filter(Boolean) as string[];
@@ -195,6 +211,16 @@ function DescriptorTabContent({
   ) => {
     e.stopPropagation();
     e.preventDefault();
+    if (
+      isPersisted &&
+      (type === "instrument" || type === "edge" || type === "experiment")
+    ) {
+      onRequestPersistedDescriptorEdit?.(dataset.id);
+      return;
+    }
+    if (isPersisted && type === "molecule") {
+      return;
+    }
     onOpenModal(type, dataset.id);
   };
 
@@ -208,7 +234,12 @@ function DescriptorTabContent({
         className={`focus-visible:ring-accent min-w-0 rounded px-0.5 text-left focus:outline-none focus-visible:ring-2 ${
           isActive ? "whitespace-nowrap" : "max-w-[75px] truncate"
         }`}
-        title="Click to select molecule (required)"
+        title={
+          isPersisted
+            ? "Molecule cannot be changed after upload"
+            : "Click to select molecule (required)"
+        }
+        disabled={isPersisted}
       >
         <MoleculeLabel moleculeId={dataset.moleculeId} />
       </button>
@@ -219,7 +250,11 @@ function DescriptorTabContent({
         className={`focus-visible:ring-accent min-w-0 rounded px-0.5 text-left focus:outline-none focus-visible:ring-2 ${
           isActive ? "whitespace-nowrap" : "max-w-[55px] truncate"
         }`}
-        title="Click to select instrument (required)"
+        title={
+          isPersisted
+            ? "Edit instrument on the Experiment tab"
+            : "Click to select instrument (required)"
+        }
       >
         {instrument ? (
           <span className="font-medium">{instrument.name}</span>
@@ -236,10 +271,25 @@ function DescriptorTabContent({
         className={`focus-visible:ring-accent min-w-0 rounded px-0.5 text-left focus:outline-none focus-visible:ring-2 ${
           isActive ? "whitespace-nowrap" : "max-w-[46px] truncate"
         }`}
-        title="Click to select edge (required)"
+        title={
+          statusInfo.errors.find((error) =>
+            error.startsWith("Selected edge "),
+          ) ??
+          (isPersisted
+            ? "Edit edge on the Experiment tab"
+            : "Click to select edge (required)")
+        }
       >
         {edge ? (
-          <span className="font-mono font-medium">
+          <span
+            className={
+              statusInfo.errors.some((error) =>
+                error.startsWith("Selected edge "),
+              )
+                ? "text-danger font-mono font-medium"
+                : "font-mono font-medium"
+            }
+          >
             {edge.targetatom}({edge.corestate})
           </span>
         ) : (
@@ -257,10 +307,10 @@ function DescriptorTabContent({
             isActive ? "whitespace-nowrap" : "max-w-[52px] truncate"
           }`}
           title={experimentTooltipLines.join(". ")}
-          aria-label={`Experiment type ${EXPERIMENT_TYPE_TAB_SHORT[dataset.experimentType]}, click to change`}
+          aria-label={`Experiment type ${EXPERIMENT_TYPE_TAB_SHORT[experimentType]}, click to change`}
         >
           <span className="font-mono text-[11px] font-semibold tracking-tight sm:text-xs">
-            {EXPERIMENT_TYPE_TAB_SHORT[dataset.experimentType]}
+            {EXPERIMENT_TYPE_TAB_SHORT[experimentType]}
           </span>
         </button>
         <Tooltip.Content className="bg-foreground text-background max-w-xs rounded-lg px-3 py-2 text-left text-xs shadow-lg">
@@ -307,6 +357,7 @@ export function DatasetTabs({
   instrumentOptions,
   edgeOptions,
   updateDataset,
+  onRequestPersistedDescriptorEdit,
 }: DatasetTabsProps) {
   const dropState = useGlobalFileDropZoneContext();
   const newDatasetZoneId = GLOBAL_DROP_ZONE_IDS.NEXAFS_NEW_DATASET;
@@ -409,6 +460,9 @@ export function DatasetTabs({
     datasetIdForModal != null
       ? datasets.find((d) => d.id === datasetIdForModal)
       : undefined;
+  const modalSpectrumExtent = modalDataset
+    ? spectrumEnergyExtent(modalDataset.spectrumPoints)
+    : null;
 
   const shouldStretch = datasets.length === 1;
 
@@ -450,6 +504,9 @@ export function DatasetTabs({
                       edgeOptions={edgeOptions}
                       onOpenModal={openModal}
                       onRemove={onDatasetRemove}
+                      onRequestPersistedDescriptorEdit={
+                        onRequestPersistedDescriptorEdit
+                      }
                     />
                   </Tabs.Tab>
                 ))}
@@ -520,6 +577,8 @@ export function DatasetTabs({
         onClose={closeModal}
         onSelect={handleEdgeSelect}
         edges={edgeOptions}
+        spectrumEnergyMin={modalSpectrumExtent?.minEv ?? null}
+        spectrumEnergyMax={modalSpectrumExtent?.maxEv ?? null}
       />
       <ExperimentSelectModal
         isOpen={modalType === "experiment"}

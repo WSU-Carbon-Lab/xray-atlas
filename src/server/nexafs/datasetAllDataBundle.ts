@@ -13,8 +13,7 @@ import {
   buffersToTarGz,
   type TarGzEntry,
 } from "~/server/nexafs/tarGzFromBuffers";
-
-const SPECTRUM_POINT_CAP = 10_000;
+import { SPECTRUMPOINTS_BROWSE_FETCH_CAP } from "~/lib/nexafs/spectrum-point-limits";
 
 function sanitizeArchiveFilename(name: string): string {
   const base = name
@@ -68,7 +67,7 @@ export async function buildDatasetAllDataBundle(
   const spectrumRows = await db.spectrumpoints.findMany({
     where: { experimentid: experimentId },
     orderBy: { energyev: "asc" },
-    take: SPECTRUM_POINT_CAP,
+    take: SPECTRUMPOINTS_BROWSE_FETCH_CAP,
     include: {
       polarizations: {
         select: { polardeg: true, azimuthdeg: true },

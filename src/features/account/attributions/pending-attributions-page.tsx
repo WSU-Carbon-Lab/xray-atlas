@@ -16,9 +16,55 @@ import {
 } from "~/features/account/attributions/attribution-preferences-panel";
 import { finishPendingAttributionValidation } from "~/features/account/attributions/finish-pending-attribution-validation";
 import { WelcomeAttributionIntro } from "~/features/account/attributions/welcome-attribution-intro";
+import { moleculeMergePairHref } from "~/lib/nexafs-experiment-deep-link";
 import { site } from "~/app/brand";
 
 const ATTRIBUTION_PREFERENCES_ACCORDION_ID = "attribution-preferences";
+
+function SimilarDatasetsAttributionBanner() {
+  const summaryQuery = trpc.experiments.listMySimilarPairsSummary.useQuery(
+    {},
+    { staleTime: 30_000 },
+  );
+  const total = summaryQuery.data?.totalPairs ?? 0;
+  const samples = summaryQuery.data?.samples ?? [];
+  if (summaryQuery.isLoading || total === 0) {
+    return null;
+  }
+  return (
+    <Card className="border-border bg-surface border">
+      <Card.Content className="flex flex-col gap-3 px-4 py-4">
+        <p className="text-foreground text-sm font-semibold">
+          {total} possible duplicate pair{total === 1 ? "" : "s"} on your
+          molecules
+        </p>
+        <p className="text-muted text-sm">
+          Overlapping energy spans you can edit on both sides. Open a molecule
+          to review merge and absorb into one keep dataset.
+        </p>
+        <ul className="flex flex-col gap-1">
+          {samples.map((sample) => {
+            const slug = sample.moleculeSlug ?? sample.moleculeId;
+            return (
+              <li key={`${sample.pair.aId}:${sample.pair.bId}`}>
+                <Link
+                  href={moleculeMergePairHref(
+                    slug,
+                    sample.pair.aId,
+                    sample.pair.bId,
+                  )}
+                  className="text-accent hover:text-accent/80 text-sm font-medium transition-colors"
+                >
+                  {sample.moleculeName ?? slug}: {sample.pair.percent}% similar
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      </Card.Content>
+    </Card>
+  );
+}
 
 function formatDatasetLabel(row: {
   experiment: {
@@ -281,6 +327,8 @@ export function PendingAttributionsPage({
           </Accordion>
         </>
       )}
+
+      <SimilarDatasetsAttributionBanner />
 
       <section className="flex flex-col gap-3">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
