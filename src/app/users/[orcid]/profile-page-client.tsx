@@ -54,6 +54,7 @@ export function ProfilePageClient({
 
   const unlinkAccount = trpc.users.unlinkAccount.useMutation();
   const deletePasskey = trpc.users.deletePasskey.useMutation();
+  const renamePasskey = trpc.users.renamePasskey.useMutation();
   const utils = trpc.useUtils();
   const { toasts, removeToast, showToast } = useToast();
   const { performStepUp, runWithStepUp, isSteppingUp } =
@@ -173,6 +174,23 @@ export function ProfilePageClient({
       utils.users.getPasskeys,
       utils.users.getSessionWriteAssurance,
     ],
+  );
+
+  const handleRenamePasskey = useCallback(
+    async (passkeyId: string, nickname: string) => {
+      try {
+        await renamePasskey.mutateAsync({ passkeyId, nickname });
+        await utils.users.getPasskeys.invalidate();
+        showToast("Passkey renamed", "success");
+      } catch (error) {
+        showToast(
+          getErrorMessage(error, "Failed to rename passkey"),
+          "error",
+          0,
+        );
+      }
+    },
+    [renamePasskey, showToast, utils.users.getPasskeys],
   );
 
   const handleUnlinkGitHub = useCallback(
@@ -313,9 +331,11 @@ export function ProfilePageClient({
                   sessionWriteAssurance={sessionWriteAssurance}
                   isRegistering={isRegisteringPasskey}
                   isDeleting={deletePasskey.isPending}
+                  isRenaming={renamePasskey.isPending}
                   isPasskeySigningIn={isSteppingUp}
                   onRegister={handleRegisterPasskey}
                   onDelete={handleDeletePasskey}
+                  onRenamePasskey={handleRenamePasskey}
                   onPasskeySignIn={handlePasskeySignIn}
                 />
                 <ProfileGitHubSecuritySection

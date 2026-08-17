@@ -808,6 +808,38 @@ export const usersRouter = createTRPCRouter({
     }));
   }),
 
+  renamePasskey: protectedProcedure
+    .input(
+      z.object({
+        passkeyId: z.string().min(1).max(1024),
+        nickname: z.string().trim().min(1).max(60),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+      const passkey = await ctx.db.authenticator.findFirst({
+        where: {
+          credentialID: input.passkeyId,
+          userId: ctx.userId,
+          revokedAt: null,
+        },
+        select: { credentialID: true },
+      });
+      if (!passkey) {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message: "Passkey not found",
+        });
+      }
+      await ctx.db.authenticator.update({
+        where: { credentialID: input.passkeyId },
+        data: { nickname: input.nickname },
+      });
+      return { success: true };
+    }),
+
   deletePasskey: destructiveWriteProcedure
     .input(
       z.object({
