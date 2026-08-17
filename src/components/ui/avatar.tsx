@@ -682,6 +682,13 @@ export function CustomUserButton({ whatsNew }: { whatsNew?: WhatsNewSummary }) {
 interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
   users?: UserWithOrcid[];
   max?: number;
+  /**
+   * When true and more users than `max`, hovering or focusing the stack expands
+   * to show up to `expandMax` avatars (then collapses on leave).
+   */
+  expandOnHover?: boolean;
+  /** Cap while expanded; defaults to `Math.max(max, 8)`. */
+  expandMax?: number;
   tooltipVariant?: AvatarTooltipVariant;
   tooltipMode?: AvatarTooltipMode;
   /** Renders as the last stacked slot inside the overlap row (e.g. add-researcher control). */
@@ -706,6 +713,11 @@ interface AvatarGroupProps extends React.ComponentProps<typeof Avatar> {
   contributorRoleOptionSections?: ReadonlyArray<ContributorHoverRoleOptionSection>;
   /** When true, renders `ResearcherAvatar` stacks (badges, ORCID-only placeholders) instead of `CustomAvatar`. */
   contributorAvatars?: boolean;
+  /**
+   * When true (default), the group always occupies width for `max` faces plus a `+N`
+   * overflow slot (and trailing control when present) so compact cards do not reflow.
+   */
+  reserveStableWidth?: boolean;
 }
 
 export type AvatarTooltipVariant = "name" | "name-orcid";
@@ -723,11 +735,18 @@ const avatarStackSizePx = {
   lg: 40,
 } as const;
 
-/** Horizontal overlap between stacked avatars (`-space-x-2.5`). */
-const AVATAR_STACK_OVERLAP_PX = 10;
+/** Knockout ring so overlapping faces read as separate circles on zinc card shells. */
+const AVATAR_STACK_KNOCKOUT_RING_CLASS = "ring-2 ring-zinc-50 dark:ring-zinc-800";
+
+/** Horizontal overlap between stacked avatars (`-space-x-2`). */
+const AVATAR_STACK_OVERLAP_PX = 8;
 
 /**
  * Computes the pixel width of a stacked avatar row so loading placeholders match the final `AvatarGroup` footprint.
+ *
+ * Face, overflow, and trailing add controls share one `-space-x-2` stack (Apple-style).
+ * Pass `reserveOverflowSlot` to always include the `+N` circle so browse rows do not
+ * widen when overflow appears.
  */
 export function avatarGroupStackWidthPx(params: {
   avatarCount: number;
@@ -735,13 +754,19 @@ export function avatarGroupStackWidthPx(params: {
   size?: keyof typeof avatarStackSizePx;
   trailingSlotCount?: number;
   includeOverflowSlot?: boolean;
+  /** When true, always reserve one overflow circle even if `avatarCount <= max`. */
+  reserveOverflowSlot?: boolean;
 }): number {
   const sizePx = avatarStackSizePx[params.size ?? "sm"];
-  const max = params.max ?? 5;
+  const max = params.max ?? 3;
   const count = Math.max(params.avatarCount, 0);
-  const visible = Math.min(count, max);
-  const overflow = params.includeOverflowSlot && count > max ? 1 : 0;
-  const trailing = params.trailingSlotCount ?? 0;
+  const visible = params.reserveOverflowSlot ? max : Math.min(count, max);
+  const overflow =
+    params.reserveOverflowSlot ||
+    (Boolean(params.includeOverflowSlot) && count > max)
+      ? 1
+      : 0;
+  const trailing = Math.max(params.trailingSlotCount ?? 0, 0);
   const slotCount = visible + overflow + trailing;
   if (slotCount <= 0) {
     return sizePx;
@@ -755,6 +780,8 @@ export type AttributionAvatarRowSkeletonProps = {
   size?: keyof typeof avatarSizeClasses;
   trailingSlotCount?: number;
   includeOverflowSlot?: boolean;
+  /** When true, width matches `AvatarGroup` with a reserved `+N` slot. */
+  reserveOverflowSlot?: boolean;
   className?: string;
 };
 
@@ -767,6 +794,7 @@ export function AttributionAvatarRowSkeleton({
   size = "sm",
   trailingSlotCount = 0,
   includeOverflowSlot = false,
+  reserveOverflowSlot = false,
   className,
 }: AttributionAvatarRowSkeletonProps) {
   const sizeClass = avatarSizeClasses[size];
@@ -776,23 +804,31 @@ export function AttributionAvatarRowSkeleton({
     size,
     trailingSlotCount,
     includeOverflowSlot,
+    reserveOverflowSlot,
   });
-  const visible = Math.min(Math.max(avatarCount, 1), max);
-  const overflow = includeOverflowSlot && avatarCount > max ? 1 : 0;
+  const visible = reserveOverflowSlot
+    ? max
+    : Math.min(Math.max(avatarCount, trailingSlotCount > 0 ? 0 : 1), max);
+  const overflow =
+    reserveOverflowSlot || (includeOverflowSlot && avatarCount > max) ? 1 : 0;
   const slotCount = visible + overflow + trailingSlotCount;
 
   return (
     <div
-      className={cn("inline-flex shrink-0 items-center", className)}
+      className={cn(
+        "inline-flex h-8 shrink-0 items-center justify-end",
+        className,
+      )}
       style={{ width: widthPx, minWidth: widthPx }}
       aria-hidden
     >
-      <div className="flex items-center -space-x-2.5">
+      <div className="flex items-center -space-x-2">
         {Array.from({ length: slotCount }, (_, index) => (
           <span
             key={index}
             className={cn(
-              "border-border bg-default/50 animate-pulse rounded-full border",
+              "animate-pulse rounded-full bg-zinc-200 dark:bg-zinc-700",
+              AVATAR_STACK_KNOCKOUT_RING_CLASS,
               sizeClass,
             )}
           />
@@ -850,6 +886,7 @@ function AvatarIdentityTooltipContent({
   showArrow = true,
   onMouseEnter,
   onMouseLeave,
+  onNestedOverlayOpenChange,
   onRemoveContributorRow,
   onRoleChangeContributorRow,
   contributorRoleOptionSections,
@@ -859,6 +896,7 @@ function AvatarIdentityTooltipContent({
   showArrow?: boolean;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  onNestedOverlayOpenChange?: (isOpen: boolean) => void;
   onRemoveContributorRow?: (params: {
     user: UserWithOrcid;
     rowKey: string;
@@ -889,6 +927,7 @@ function AvatarIdentityTooltipContent({
       roleOptionSections={contributorRoleOptionSections}
       onMouseEnter={onMouseEnter}
       onMouseLeave={onMouseLeave}
+      onNestedOverlayOpenChange={onNestedOverlayOpenChange}
     />
   );
 }
@@ -910,6 +949,8 @@ function AvatarWithTooltip({
   const [position, setPosition] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLSpanElement>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nestedOverlayOpenRef = useRef(false);
+  const pointerInsideRef = useRef(false);
 
   const updatePosition = () => {
     const el = triggerRef.current;
@@ -930,16 +971,54 @@ function AvatarWithTooltip({
 
   const openTooltip = () => {
     updatePosition();
+    pointerInsideRef.current = true;
     clearCloseTimer();
     setIsOpen(true);
   };
 
   const scheduleCloseTooltip = () => {
+    if (nestedOverlayOpenRef.current) {
+      return;
+    }
     clearCloseTimer();
     closeTimerRef.current = setTimeout(() => {
+      if (nestedOverlayOpenRef.current || pointerInsideRef.current) {
+        closeTimerRef.current = null;
+        return;
+      }
       setIsOpen(false);
       closeTimerRef.current = null;
     }, TOOLTIP_CLOSE_DELAY_MS);
+  };
+
+  const handleNestedOverlayOpenChange = (isOpenNested: boolean) => {
+    nestedOverlayOpenRef.current = isOpenNested;
+    if (isOpenNested) {
+      clearCloseTimer();
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (nestedOverlayOpenRef.current) {
+        return;
+      }
+      const overTrigger = triggerRef.current?.matches(":hover") ?? false;
+      const overTooltip =
+        typeof document !== "undefined" &&
+        Boolean(
+          document.querySelector("[data-avatar-individual-tooltip]:hover"),
+        );
+      if (overTrigger || overTooltip) {
+        pointerInsideRef.current = true;
+        return;
+      }
+      pointerInsideRef.current = false;
+      scheduleCloseTooltip();
+    });
+  };
+
+  const handlePointerLeave = () => {
+    pointerInsideRef.current = false;
+    scheduleCloseTooltip();
   };
 
   useEffect(() => {
@@ -972,9 +1051,9 @@ function AvatarWithTooltip({
         ref={triggerRef}
         className="inline-flex shrink-0"
         onMouseEnter={openTooltip}
-        onMouseLeave={scheduleCloseTooltip}
+        onMouseLeave={handlePointerLeave}
         onFocus={openTooltip}
-        onBlur={scheduleCloseTooltip}
+        onBlur={handlePointerLeave}
       >
         {triggerElement}
       </span>
@@ -987,13 +1066,15 @@ function AvatarWithTooltip({
                 ? "pointer-events-auto"
                 : "pointer-events-none"
             }`}
+            data-avatar-individual-tooltip=""
             style={{ left: position.left, top: position.top }}
           >
             {tooltipVariant === "name-orcid" ? (
               <AvatarIdentityTooltipContent
                 user={user}
                 onMouseEnter={openTooltip}
-                onMouseLeave={scheduleCloseTooltip}
+                onMouseLeave={handlePointerLeave}
+                onNestedOverlayOpenChange={handleNestedOverlayOpenChange}
               />
             ) : (
               <div className="bg-foreground text-background max-w-[15rem] rounded-2xl px-2.5 py-1.5 text-sm font-medium shadow-lg">
@@ -1062,7 +1143,9 @@ function AvatarTrigger({
 
 export function AvatarGroup({
   users = [],
-  max = 5,
+  max = 3,
+  expandOnHover = true,
+  expandMax,
   size = "md",
   tooltipVariant = "name",
   tooltipMode = "individual",
@@ -1072,16 +1155,29 @@ export function AvatarGroup({
   onRoleChangeContributorRow,
   contributorRoleOptionSections,
   contributorAvatars = false,
+  reserveStableWidth = true,
 }: AvatarGroupProps) {
   const sizeClass = avatarSizeClasses[size] ?? avatarSizeClasses.md;
   const overflowTextClass =
     overflowCountTextSizeClasses[size] ?? overflowCountTextSizeClasses.md;
   const constrainedClass = `${sizeClass} min-h-0 min-w-0 shrink-0`;
-  const avatarWrapperClass = `bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full shadow-sm hover:z-20 ${sizeClass}`;
-  const researcherAvatarWrapperClass = `bg-surface-1 relative z-0 flex shrink-0 overflow-visible rounded-full shadow-sm hover:z-20 ${sizeClass}`;
+  const avatarWrapperClass = `bg-surface-1 relative z-0 flex shrink-0 overflow-hidden rounded-full hover:z-20 ${AVATAR_STACK_KNOCKOUT_RING_CLASS} ${sizeClass}`;
+  const researcherAvatarWrapperClass = `bg-surface-1 relative z-0 flex shrink-0 overflow-visible rounded-full hover:z-20 ${AVATAR_STACK_KNOCKOUT_RING_CLASS} ${sizeClass}`;
+  const reservedWidthPx = reserveStableWidth
+    ? avatarGroupStackWidthPx({
+        avatarCount: max,
+        max,
+        size,
+        trailingSlotCount: trailingSlot ? 1 : 0,
+        reserveOverflowSlot: true,
+      })
+    : undefined;
   const groupRef = useRef<HTMLDivElement>(null);
   const triggerRef = useRef<HTMLSpanElement | null>(null);
   const closeTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const nestedOverlayOpenRef = useRef(false);
+  const pointerInsideSharedTooltipRef = useRef(false);
+  const [isExpanded, setIsExpanded] = useState(false);
   const [isSharedTooltipOpen, setIsSharedTooltipOpen] = useState(false);
   const [activeUser, setActiveUser] = useState<UserWithOrcid | null>(null);
   const [sharedTooltipPosition, setSharedTooltipPosition] = useState({
@@ -1092,8 +1188,11 @@ export function AvatarGroup({
 
   const useSharedTooltip =
     tooltipVariant === "name-orcid" && tooltipMode === "shared";
-  const displayUsers = users.slice(0, max);
-  const remaining = users.length - max;
+  const expandedCap = expandMax ?? Math.max(max, 8);
+  const visibleCap =
+    expandOnHover && isExpanded ? expandedCap : Math.max(1, max);
+  const displayUsers = users.slice(0, visibleCap);
+  const remaining = users.length - displayUsers.length;
 
   const clearCloseTimer = () => {
     if (closeTimerRef.current) {
@@ -1127,6 +1226,7 @@ export function AvatarGroup({
     user: UserWithOrcid,
     triggerEl: HTMLSpanElement,
   ) => {
+    pointerInsideSharedTooltipRef.current = true;
     clearCloseTimer();
     triggerRef.current = triggerEl;
     setActiveUser(user);
@@ -1137,11 +1237,58 @@ export function AvatarGroup({
   };
 
   const scheduleSharedTooltipClose = () => {
+    if (nestedOverlayOpenRef.current) {
+      return;
+    }
     clearCloseTimer();
     closeTimerRef.current = setTimeout(() => {
+      if (
+        nestedOverlayOpenRef.current ||
+        pointerInsideSharedTooltipRef.current
+      ) {
+        closeTimerRef.current = null;
+        return;
+      }
       setIsSharedTooltipOpen(false);
+      setActiveUser(null);
       closeTimerRef.current = null;
     }, TOOLTIP_CLOSE_DELAY_MS);
+  };
+
+  const handleNestedOverlayOpenChange = (isOpenNested: boolean) => {
+    nestedOverlayOpenRef.current = isOpenNested;
+    if (isOpenNested) {
+      clearCloseTimer();
+      return;
+    }
+    requestAnimationFrame(() => {
+      if (nestedOverlayOpenRef.current) {
+        return;
+      }
+      const overGroup = groupRef.current?.matches(":hover") ?? false;
+      const overTooltip =
+        typeof document !== "undefined" &&
+        Boolean(document.querySelector("[data-avatar-shared-tooltip]:hover"));
+      if (overGroup || overTooltip) {
+        pointerInsideSharedTooltipRef.current = true;
+        return;
+      }
+      pointerInsideSharedTooltipRef.current = false;
+      scheduleSharedTooltipClose();
+      if (expandOnHover) {
+        setIsExpanded(false);
+      }
+    });
+  };
+
+  const handleSharedTooltipPointerEnter = () => {
+    pointerInsideSharedTooltipRef.current = true;
+    clearCloseTimer();
+  };
+
+  const handleSharedTooltipPointerLeave = () => {
+    pointerInsideSharedTooltipRef.current = false;
+    scheduleSharedTooltipClose();
   };
 
   useEffect(() => {
@@ -1168,27 +1315,41 @@ export function AvatarGroup({
   if (!users || users.length === 0) {
     return (
       <div
-        className="flex items-center overflow-visible"
+        className="flex h-8 shrink-0 items-center justify-end overflow-visible"
+        style={
+          reservedWidthPx != null
+            ? { width: reservedWidthPx, minWidth: reservedWidthPx }
+            : undefined
+        }
         role={trailingSlot ? "group" : undefined}
       >
-        {trailingSlot ? null : (
-          <span
-            className={`bg-surface-1 relative z-0 flex overflow-hidden rounded-full shadow-sm ${sizeClass}`}
-          >
-            <CustomAvatar
-              size={size}
-              user={{ name: "?" }}
-              className={constrainedClass}
-            />
-          </span>
-        )}
-        {trailingSlot ? (
-          <span
-            className={`relative z-30 inline-flex shrink-0 items-center justify-center ${sizeClass}`}
-          >
-            {trailingSlot}
-          </span>
-        ) : null}
+        <div className="flex items-center -space-x-2 overflow-visible">
+          {trailingSlot ? null : (
+            <span
+              className={cn(
+                "bg-surface-1 relative z-0 flex overflow-hidden rounded-full",
+                AVATAR_STACK_KNOCKOUT_RING_CLASS,
+                sizeClass,
+              )}
+            >
+              <CustomAvatar
+                size={size}
+                user={{ name: "?" }}
+                className={constrainedClass}
+              />
+            </span>
+          )}
+          {trailingSlot ? (
+            <span
+              className={cn(
+                "relative z-30 inline-flex shrink-0 items-center justify-center",
+                sizeClass,
+              )}
+            >
+              {trailingSlot}
+            </span>
+          ) : null}
+        </div>
       </div>
     );
   }
@@ -1197,12 +1358,45 @@ export function AvatarGroup({
     <>
       <div
         ref={groupRef}
-        className="flex items-center overflow-visible"
+        className="flex h-8 shrink-0 items-center justify-end overflow-visible"
+        style={
+          reservedWidthPx != null
+            ? { width: reservedWidthPx, minWidth: reservedWidthPx }
+            : undefined
+        }
         role="group"
-        onMouseEnter={clearCloseTimer}
-        onMouseLeave={scheduleSharedTooltipClose}
+        onMouseEnter={() => {
+          pointerInsideSharedTooltipRef.current = true;
+          clearCloseTimer();
+          if (expandOnHover && users.length > max) {
+            setIsExpanded(true);
+          }
+        }}
+        onMouseLeave={() => {
+          pointerInsideSharedTooltipRef.current = false;
+          if (nestedOverlayOpenRef.current) {
+            return;
+          }
+          scheduleSharedTooltipClose();
+          if (expandOnHover) {
+            setIsExpanded(false);
+          }
+        }}
+        onFocusCapture={() => {
+          if (expandOnHover && users.length > max) {
+            setIsExpanded(true);
+          }
+        }}
+        onBlurCapture={(event) => {
+          const next = event.relatedTarget as Node | null;
+          if (!next || !groupRef.current?.contains(next)) {
+            if (expandOnHover) {
+              setIsExpanded(false);
+            }
+          }
+        }}
       >
-        <div className="flex items-center -space-x-2.5 overflow-visible">
+        <div className="flex items-center -space-x-2 overflow-visible transition-[gap] duration-150">
           {displayUsers.map((user, index) => {
             const userKey = avatarGroupUserReactKey(user, index);
             if (wrapAvatarTrigger || contributorAvatars) {
@@ -1283,21 +1477,51 @@ export function AvatarGroup({
             );
           })}
           {remaining > 0 ? (
-            <span
-              className={`bg-surface-2 text-text-primary relative z-10 flex shrink-0 items-center justify-center rounded-full font-bold shadow-sm ${sizeClass} ${overflowTextClass}`}
+            <button
+              type="button"
+              className={cn(
+                "relative z-10 inline-flex shrink-0 items-center justify-center rounded-full p-0",
+                sizeClass,
+              )}
+              aria-label={`Show ${remaining} more contributors`}
               title={`${remaining} more`}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                if (expandOnHover) {
+                  setIsExpanded(true);
+                }
+              }}
             >
-              +{remaining}
+              <Avatar
+                size={size}
+                className={cn(
+                  constrainedClass,
+                  AVATAR_STACK_KNOCKOUT_RING_CLASS,
+                )}
+              >
+                <Avatar.Fallback
+                  className={cn(
+                    "inline-flex h-full w-full items-center justify-center rounded-full bg-zinc-900 font-semibold text-white dark:bg-zinc-950",
+                    overflowTextClass,
+                  )}
+                >
+                  +{remaining}
+                </Avatar.Fallback>
+              </Avatar>
+            </button>
+          ) : null}
+          {trailingSlot ? (
+            <span
+              className={cn(
+                "relative z-30 inline-flex shrink-0 items-center justify-center",
+                sizeClass,
+              )}
+            >
+              {trailingSlot}
             </span>
           ) : null}
         </div>
-        {trailingSlot ? (
-          <span
-            className={`relative z-30 ml-1 inline-flex shrink-0 items-center justify-center ${sizeClass}`}
-          >
-            {trailingSlot}
-          </span>
-        ) : null}
       </div>
       {useSharedTooltip &&
       isSharedTooltipOpen &&
@@ -1306,6 +1530,7 @@ export function AvatarGroup({
         ? createPortal(
             <div
               className="z-tooltip pointer-events-auto fixed -translate-x-1/2 -translate-y-full"
+              data-avatar-shared-tooltip=""
               style={{
                 left: sharedTooltipPosition.left,
                 top: sharedTooltipPosition.top,
@@ -1314,8 +1539,9 @@ export function AvatarGroup({
               <AvatarIdentityTooltipContent
                 user={activeUser}
                 arrowOffsetPx={sharedTooltipPosition.arrowOffset}
-                onMouseEnter={clearCloseTimer}
-                onMouseLeave={scheduleSharedTooltipClose}
+                onMouseEnter={handleSharedTooltipPointerEnter}
+                onMouseLeave={handleSharedTooltipPointerLeave}
+                onNestedOverlayOpenChange={handleNestedOverlayOpenChange}
                 onRemoveContributorRow={onRemoveContributorRow}
                 onRoleChangeContributorRow={onRoleChangeContributorRow}
                 contributorRoleOptionSections={contributorRoleOptionSections}

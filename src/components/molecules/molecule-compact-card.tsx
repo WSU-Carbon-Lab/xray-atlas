@@ -185,8 +185,8 @@ export const CompactCard = memo(function CompactCard({
   return (
     <>
       <div className="border-border-default hover:border-border-strong dark:border-border-default hover:border-accent/30 @container/moleculecard w-full overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm transition-[border-color,box-shadow] duration-200 hover:shadow-md dark:bg-zinc-800">
-        <div className="group flex w-full flex-col gap-2 p-3 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-3">
-          <div className="flex min-w-0 flex-1 flex-col gap-2 @md/moleculecard:min-w-0 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-3">
+        <div className="group grid w-full grid-cols-1 gap-2 p-3 @md/moleculecard:grid-cols-[minmax(0,1fr)_auto] @md/moleculecard:items-center @md/moleculecard:gap-3">
+          <div className="flex min-w-0 flex-col gap-2 @md/moleculecard:min-w-0 @md/moleculecard:flex-row @md/moleculecard:items-center @md/moleculecard:gap-3">
             <div
               className={cn(
                 "flex min-w-0 items-center gap-2 @md/moleculecard:gap-3",
@@ -282,7 +282,7 @@ export const CompactCard = memo(function CompactCard({
             </div>
           ) : null}
           <div
-            className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/moleculecard:gap-x-3 @md/moleculecard:gap-y-0 @md/moleculecard:border-t-0 @md/moleculecard:border-l @md/moleculecard:pt-0 @md/moleculecard:pl-4 dark:border-zinc-600"
+            className="flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/moleculecard:flex-nowrap @md/moleculecard:gap-y-0 @md/moleculecard:border-t-0 @md/moleculecard:border-l @md/moleculecard:pt-0 @md/moleculecard:pl-4 dark:border-zinc-600"
             onClick={(e) => e.stopPropagation()}
           >
             <MoleculeCardActions
@@ -294,7 +294,7 @@ export const CompactCard = memo(function CompactCard({
               size="sm"
               actionsLayout="compact"
             />
-            <ContributorAvatarGroup users={avatarUsers} size="sm" />
+            <ContributorAvatarGroup users={avatarUsers} size="sm" max={3} />
             <CompactCardMetricsColumn>
               <CompactCardMetricStat
                 icon={<Eye className="h-3.5 w-3.5 shrink-0" aria-hidden />}

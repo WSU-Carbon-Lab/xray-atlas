@@ -25,7 +25,6 @@ import {
   type ProfileGitHubPresentation,
   ProfilePasskeysSection,
   ProfileSectionCard,
-  ProfileSecuritySectionSkeleton,
 } from "./profile-sections";
 
 type ProfileUser = inferRouterOutputs<AppRouter>["users"]["getById"];
@@ -442,11 +441,13 @@ export function ProfilePageClient({
           </Tabs.ListContainer>
 
           <Tabs.Panel id="contributions" className="pt-6">
-            <ProfileContributionsSection
-              userId={user.id}
-              isOwnProfile={isOwnProfile}
-              onRunWithDestructiveSessionAal={runWithDestructiveSessionAal}
-            />
+            {effectiveTab === "contributions" ? (
+              <ProfileContributionsSection
+                userId={user.id}
+                isOwnProfile={isOwnProfile}
+                onRunWithDestructiveSessionAal={runWithDestructiveSessionAal}
+              />
+            ) : null}
           </Tabs.Panel>
 
           <Tabs.Panel id="preferences" className="pt-6">
@@ -480,9 +481,7 @@ export function ProfilePageClient({
                 />
                 <ProfileApiKeysSection />
               </ProfileSectionCard>
-            ) : (
-              <ProfileSecuritySectionSkeleton />
-            )}
+            ) : null}
           </Tabs.Panel>
         </Tabs>
       ) : (

@@ -74,6 +74,7 @@ import {
   warmBareAtomCacheForFormula,
   type DifferenceSpectrum,
 } from "~/features/process-nexafs/utils";
+import { applyNormalizationRegionEdgeChange } from "~/lib/nexafs/normalization-region-edge-clamp";
 import type {
   NormalizationRegionEdgeId,
   ReferenceCurve,
@@ -92,7 +93,9 @@ import {
   DatasetAttributionEditor,
   type DatasetAttributionChange,
 } from "./dataset-attribution-editor";
+import { ExperimentAttributionEditSection } from "./experiment-attribution-edit-section";
 import { SourcePaperPublicationsEditor } from "./source-paper-publications-editor";
+import { ExperimentSourcePublicationsEditor } from "./experiment-source-publications-editor";
 import {
   DatasetAuxFilesTab,
   type AuxDropTargetsActive,
@@ -102,19 +105,28 @@ import {
   type VisualizationMode,
   type GraphStyle,
 } from "./visualization-toggle";
+import { NexafsExperimentDescriptorsPanel } from "~/components/nexafs/nexafs-experiment-descriptors-panel";
+import { NexafsExperimentSampleInfoPanel } from "~/components/nexafs/nexafs-experiment-sample-info-panel";
+import { NexafsExperimentPeaksPanel } from "~/components/nexafs/nexafs-experiment-peaks-panel";
+import { mapPeaksetsToPlotPeaks } from "~/features/process-nexafs/hooks/useNexafsSpectrumBrowseModel";
 import { trpc } from "~/trpc/client";
 import { useMoleculeSearch } from "~/features/process-nexafs";
 import type { MoleculeSearchResult } from "~/features/process-nexafs";
-import { buildUploadBareAtomReferenceCurves } from "~/features/process-nexafs/utils/uploadBareAtomReferenceCurves";
 import { channelDefinitionById } from "~/components/plots/data-rail";
 import type { OpticalLinkPlotConfig } from "~/components/plots/hooks/useLinkedOpticalTraces";
 import { resolveLinkedCompanionChannel } from "~/components/nexafs/nexafs-plot-data-rail";
-import { bareAtomOverlaySupportedForChannel } from "~/features/process-nexafs/bare-atom-representation-matrix";
+import {
+  bareAtomOverlaySupportedForChannel,
+  bareAtomReferencesForOverlay,
+  buildBareAtomRepresentationMatrix,
+  type BareAtomRepresentationMatrix,
+} from "~/features/process-nexafs/bare-atom-representation-matrix";
 import {
   buildPlotPointsForChannel,
   isImaginaryChannel,
   isPlotChannelAvailable,
   isRealChannel,
+  LINKED_IMAGINARY_TO_REAL,
   plotChannelToLegacyDataView,
   spectrumYAxisQuantityForChannel,
   type NexafsImaginaryChannelId,
@@ -124,6 +136,11 @@ import {
 } from "~/features/process-nexafs/nexafs-plot-channels";
 import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
 import { buildUploadDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
+import {
+  activeNormalizationRegions,
+  normalizationBandModeIsReady,
+  type NormalizationBandMode,
+} from "~/lib/nexafs/normalization-band-mode";
 import { useUploadDatasetDiagnostics } from "~/features/process-nexafs/hooks/useUploadDatasetDiagnostics";
 import { useTheme } from "next-themes";
 import type {
@@ -135,7 +152,10 @@ import type { CursorMode } from "~/components/plots/visx/CursorModeSelector";
 import { BareAtomStepEdgeIcon } from "~/components/icons";
 import { showToast } from "~/components/ui/toast";
 import { SimpleDialog } from "~/components/ui/dialog";
-import { DefaultButton as DialogButton } from "~/components/ui/button";
+import {
+  DefaultButton,
+  DefaultButton as DialogButton,
+} from "~/components/ui/button";
 
 type SpectrumPoint = DatasetState["spectrumPoints"][number];
 
@@ -187,7 +207,11 @@ function parsePastedSpectrumText(text: string): {
     const energy = parseNum(cells[energyIdx] ?? "NaN");
     const absorption = parseNum(cells[absorptionIdx] ?? "NaN");
     if (!Number.isFinite(energy) || !Number.isFinite(absorption)) continue;
-    const point: SpectrumPoint = { energy, absorption };
+    const point: SpectrumPoint = {
+      energy,
+      absorption,
+      rawabs: absorption,
+    };
     if (thetaIdx >= 0 && cells[thetaIdx]) {
       const t = parseNum(cells[thetaIdx]!);
       if (Number.isFinite(t)) point.theta = t;
@@ -960,6 +984,15 @@ interface DatasetContentProps {
   isLoadingCalibrations: boolean;
   isLoadingVendors: boolean;
   onAuxDropTargetsChange?: (active: AuxDropTargetsActive) => void;
+  /**
+   * Parent-driven mode switch (e.g. tab segment clicks after persist route to
+   * the Experiment information panel).
+   */
+  visualizationModeRequest?: {
+    mode: VisualizationMode;
+    nonce: number;
+    startDescriptorEditing?: boolean;
+  } | null;
 }
 
 export function DatasetContent({
@@ -975,6 +1008,7 @@ export function DatasetContent({
   isLoadingCalibrations: _isLoadingCalibrations,
   isLoadingVendors,
   onAuxDropTargetsChange,
+  visualizationModeRequest = null,
 }: DatasetContentProps) {
   const { resolvedTheme } = useTheme();
   const chartIsDark = resolvedTheme === "dark";
@@ -996,6 +1030,8 @@ export function DatasetContent({
   >([]);
   const [showBareAtomContributionOverlay, setShowBareAtomContributionOverlay] =
     useState(false);
+  const [bareAtomOverlayMatrix, setBareAtomOverlayMatrix] =
+    useState<BareAtomRepresentationMatrix | null>(null);
   const [linkImaginaryReal, setLinkImaginaryReal] = useState(false);
   const [opticalLinkSplitView, setOpticalLinkSplitView] = useState(false);
   const [showThetaData, setShowThetaData] = useState(false);
@@ -1012,6 +1048,90 @@ export function DatasetContent({
     useState<KkBrowserConsentContinuation | null>(null);
   const [auxUploadKind, setAuxUploadKind] = useState<AuxFileKind>("other");
   const [auxUploadDescription, setAuxUploadDescription] = useState("");
+  const [startDescriptorEditing, setStartDescriptorEditing] = useState(false);
+  const [kkUploadBusy, setKkUploadBusy] = useState(false);
+  const [geometryEditMode, setGeometryEditMode] = useState(false);
+  const lastVisualizationRequestNonceRef = useRef<number | null>(null);
+
+  const isPersisted = Boolean(dataset.persistedExperimentId);
+  const visualizationModes = useMemo<VisualizationMode[]>(
+    () =>
+      isPersisted
+        ? ["graph", "table", "peaks", "sample", "experiment", "aux"]
+        : ["graph", "table", "aux"],
+    [isPersisted],
+  );
+
+  const utils = trpc.useUtils();
+  const persistedExperimentId = dataset.persistedExperimentId;
+  const peaksQuery = trpc.spectrumpoints.peaksForExperiment.useQuery(
+    { experimentId: persistedExperimentId ?? "" },
+    {
+      enabled: isPersisted && Boolean(persistedExperimentId),
+    },
+  );
+  const replacePeaksets = trpc.experiments.replacePeaksets.useMutation({
+    onSuccess: async () => {
+      if (!persistedExperimentId) return;
+      await utils.spectrumpoints.peaksForExperiment.invalidate({
+        experimentId: persistedExperimentId,
+      });
+    },
+  });
+  const [persistedPeaksDirty, setPersistedPeaksDirty] = useState(false);
+  const peaksHydratedForExperimentRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    setPersistedPeaksDirty(false);
+    peaksHydratedForExperimentRef.current = null;
+  }, [persistedExperimentId]);
+
+  useEffect(() => {
+    if (!isPersisted || !persistedExperimentId) {
+      peaksHydratedForExperimentRef.current = null;
+      return;
+    }
+    if (persistedPeaksDirty || !peaksQuery.isSuccess) {
+      return;
+    }
+    const mapped = mapPeaksetsToPlotPeaks(peaksQuery.data).map((peak) => ({
+      energy: peak.energy,
+      amplitude: peak.amplitude,
+      id: peak.id,
+      peakKind: peak.peakKind ?? null,
+    }));
+    const sameAsLocal =
+      mapped.length === dataset.peaks.length &&
+      mapped.every((peak, index) => {
+        const local = dataset.peaks[index];
+        return (
+          local != null &&
+          local.energy === peak.energy &&
+          (local.peakKind ?? null) === (peak.peakKind ?? null) &&
+          (local.id ?? null) === (peak.id ?? null)
+        );
+      });
+    if (
+      sameAsLocal &&
+      peaksHydratedForExperimentRef.current === persistedExperimentId
+    ) {
+      return;
+    }
+    peaksHydratedForExperimentRef.current = persistedExperimentId;
+    onDatasetUpdate(dataset.id, {
+      peaks: mapped,
+      selectedPeakId: null,
+    });
+  }, [
+    dataset.id,
+    dataset.peaks,
+    isPersisted,
+    onDatasetUpdate,
+    persistedExperimentId,
+    persistedPeaksDirty,
+    peaksQuery.data,
+    peaksQuery.isSuccess,
+  ]);
 
   useEffect(() => {
     setNexafsAuxUploadDefaults({
@@ -1026,13 +1146,52 @@ export function DatasetContent({
     }
   }, [onAuxDropTargetsChange, visualizationMode]);
 
-  const [kkUploadBusy, setKkUploadBusy] = useState(false);
-  const [geometryEditMode, setGeometryEditMode] = useState(false);
+  useEffect(() => {
+    if (!visualizationModeRequest) {
+      return;
+    }
+    if (
+      lastVisualizationRequestNonceRef.current ===
+      visualizationModeRequest.nonce
+    ) {
+      return;
+    }
+    lastVisualizationRequestNonceRef.current = visualizationModeRequest.nonce;
+    if (!visualizationModes.includes(visualizationModeRequest.mode)) {
+      return;
+    }
+    setVisualizationMode(visualizationModeRequest.mode);
+    if (visualizationModeRequest.mode !== "table") {
+      setGeometryEditMode(false);
+    }
+    if (
+      visualizationModeRequest.mode === "experiment" &&
+      visualizationModeRequest.startDescriptorEditing
+    ) {
+      setStartDescriptorEditing(true);
+    }
+  }, [visualizationModeRequest, visualizationModes]);
+
+  useEffect(() => {
+    if (visualizationMode !== "experiment") {
+      setStartDescriptorEditing(false);
+    }
+  }, [visualizationMode]);
+
+  useEffect(() => {
+    if (!visualizationModes.includes(visualizationMode)) {
+      setVisualizationMode("graph");
+    }
+  }, [visualizationMode, visualizationModes]);
+
   const handleVisualizationModeChange = useCallback(
     (mode: VisualizationMode) => {
       setVisualizationMode(mode);
       if (mode !== "table") {
         setGeometryEditMode(false);
+      }
+      if (mode !== "experiment") {
+        setStartDescriptorEditing(false);
       }
     },
     [],
@@ -1259,47 +1418,53 @@ export function DatasetContent({
   const absorptionNormType = dataset.normalizationTypes.absorption;
   const betaNormType = dataset.normalizationTypes.beta;
 
+  const bandMode = dataset.normalizationBandMode;
+  const activeNormRegions = useMemo(
+    () => activeNormalizationRegions(dataset.normalizationRegions, bandMode),
+    [dataset.normalizationRegions, bandMode],
+  );
+
   const zeroOneComputation = useMemo(() => {
     if (
       dataset.spectrumPoints.length === 0 ||
-      !dataset.normalizationRegions.pre ||
-      !dataset.normalizationRegions.post
+      !normalizationBandModeIsReady(dataset.normalizationRegions, bandMode)
     ) {
       return null;
     }
     return computeZeroOneNormalization(
       dataset.spectrumPoints,
-      dataset.normalizationRegions.pre,
-      dataset.normalizationRegions.post,
+      activeNormRegions.pre,
+      activeNormRegions.post,
     );
   }, [
     dataset.spectrumPoints,
-    dataset.normalizationRegions.pre,
-    dataset.normalizationRegions.post,
+    dataset.normalizationRegions,
+    bandMode,
+    activeNormRegions.pre,
+    activeNormRegions.post,
   ]);
 
   const bareAtomComputation = useMemo(() => {
     if (
       dataset.spectrumPoints.length === 0 ||
-      !dataset.normalizationRegions.pre ||
-      !dataset.normalizationRegions.post ||
+      !normalizationBandModeIsReady(dataset.normalizationRegions, bandMode) ||
       !dataset.bareAtomPoints ||
       dataset.bareAtomPoints.length === 0
     ) {
       return null;
     }
-    const preRange = dataset.normalizationRegions.pre;
-    const postRange = dataset.normalizationRegions.post;
     return computeNormalizationForExperiment(
       dataset.spectrumPoints,
       dataset.bareAtomPoints,
-      preRange,
-      postRange,
+      activeNormRegions.pre,
+      activeNormRegions.post,
     );
   }, [
     dataset.spectrumPoints,
-    dataset.normalizationRegions.pre,
-    dataset.normalizationRegions.post,
+    dataset.normalizationRegions,
+    bandMode,
+    activeNormRegions.pre,
+    activeNormRegions.post,
     dataset.bareAtomPoints,
   ]);
 
@@ -1311,8 +1476,7 @@ export function DatasetContent({
   useEffect(() => {
     if (
       dataset.spectrumPoints.length > 0 &&
-      dataset.normalizationRegions.pre &&
-      dataset.normalizationRegions.post &&
+      normalizationBandModeIsReady(dataset.normalizationRegions, bandMode) &&
       absorptionComputation
     ) {
       const result = absorptionComputation;
@@ -1344,8 +1508,7 @@ export function DatasetContent({
         });
       }
     } else if (
-      !dataset.normalizationRegions.pre &&
-      !dataset.normalizationRegions.post &&
+      !normalizationBandModeIsReady(dataset.normalizationRegions, bandMode) &&
       (dataset.normalizedPoints !== null || dataset.normalization !== null)
     ) {
       onDatasetUpdate(dataset.id, {
@@ -1362,6 +1525,7 @@ export function DatasetContent({
     pre1,
     post0,
     post1,
+    bandMode,
     absorptionNormType,
     datasetId,
   ]);
@@ -1407,50 +1571,30 @@ export function DatasetContent({
   const handleNormalizationEdgeEnergyChange = useCallback(
     (edge: NormalizationRegionEdgeId, energy: number) => {
       if (dataset.normalizationLocked) return;
-      const regions = dataset.normalizationRegions;
-      const sortPair = (a: number, b: number): [number, number] =>
-        a <= b ? [a, b] : [b, a];
-
-      if (edge === "preMin" || edge === "preMax") {
-        const cur = regions.pre;
-        if (!cur) {
-          onDatasetUpdate(dataset.id, {
-            normalizationRegions: {
-              ...regions,
-              pre: sortPair(energy, energy),
-            },
-          });
-          return;
-        }
-        const lo = Math.min(cur[0], cur[1]);
-        const hi = Math.max(cur[0], cur[1]);
-        const next =
-          edge === "preMin" ? sortPair(energy, hi) : sortPair(lo, energy);
-        onDatasetUpdate(dataset.id, {
-          normalizationRegions: { ...regions, pre: next },
-        });
-        return;
-      }
-
-      const cur = regions.post;
-      if (!cur) {
-        onDatasetUpdate(dataset.id, {
-          normalizationRegions: {
-            ...regions,
-            post: sortPair(energy, energy),
-          },
-        });
-        return;
-      }
-      const lo = Math.min(cur[0], cur[1]);
-      const hi = Math.max(cur[0], cur[1]);
-      const next =
-        edge === "postMin" ? sortPair(energy, hi) : sortPair(lo, energy);
+      const active = activeNormalizationRegions(
+        dataset.normalizationRegions,
+        bandMode,
+      );
+      const nextActive = applyNormalizationRegionEdgeChange(
+        active,
+        edge,
+        energy,
+      );
       onDatasetUpdate(dataset.id, {
-        normalizationRegions: { ...regions, post: next },
+        normalizationRegions: {
+          pre:
+            bandMode === "post"
+              ? dataset.normalizationRegions.pre
+              : nextActive.pre,
+          post:
+            bandMode === "pre"
+              ? dataset.normalizationRegions.post
+              : nextActive.post,
+        },
       });
     },
     [
+      bandMode,
       dataset.id,
       dataset.normalizationLocked,
       dataset.normalizationRegions,
@@ -1519,7 +1663,7 @@ export function DatasetContent({
   ]);
 
   const [uploadPlotChannel, setUploadPlotChannel] =
-    useState<NexafsPlotChannelId>("normalized");
+    useState<NexafsPlotChannelId>("raw");
   const gateToastTimestampsRef = useRef<Record<string, number>>({});
 
   const dataView = plotChannelToLegacyDataView(uploadPlotChannel);
@@ -1558,6 +1702,15 @@ export function DatasetContent({
       return uploadedOd.map((point) => ({
         ...point,
         absorption: point.od!,
+      }));
+    }
+    if (dataset.spectrumPoints.length > 0) {
+      return dataset.spectrumPoints.map((point) => ({
+        ...point,
+        absorption:
+          typeof point.rawabs === "number" && Number.isFinite(point.rawabs)
+            ? point.rawabs
+            : point.absorption,
       }));
     }
     return [];
@@ -1669,9 +1822,69 @@ export function DatasetContent({
 
   const buildUploadPlotPoints = useCallback(
     (channel: NexafsPlotChannelId): SpectrumPoint[] => {
+      const rowsForDerived = (() => {
+        if (
+          channel !== "f2" &&
+          channel !== "f1" &&
+          channel !== "im-epsilon" &&
+          channel !== "re-epsilon" &&
+          channel !== "im-chi" &&
+          channel !== "re-chi"
+        ) {
+          return uploadSpectrumRowsForChannelPlot;
+        }
+        const next = uploadSpectrumRowsForChannelPlot.map((p) => ({ ...p }));
+        if (betaPoints && betaPoints.length === next.length) {
+          for (let i = 0; i < next.length; i++) {
+            const b = betaPoints[i]!.absorption;
+            if (typeof b === "number" && Number.isFinite(b)) {
+              next[i] = { ...next[i]!, beta: b };
+            }
+          }
+        }
+        if (deltaPoints && deltaPoints.length === next.length) {
+          for (let i = 0; i < next.length; i++) {
+            const d = deltaPoints[i]!.absorption;
+            if (typeof d === "number" && Number.isFinite(d)) {
+              next[i] = { ...next[i]!, delta: d };
+            }
+          }
+        } else if (deltaPoints && deltaPoints.length > 0) {
+          const byEnergy = new Map<number, number>();
+          for (const p of deltaPoints) {
+            byEnergy.set(Math.round(p.energy * 1e9) / 1e9, p.absorption);
+          }
+          for (let i = 0; i < next.length; i++) {
+            const d = byEnergy.get(Math.round(next[i]!.energy * 1e9) / 1e9);
+            if (typeof d === "number" && Number.isFinite(d)) {
+              next[i] = { ...next[i]!, delta: d };
+            }
+          }
+        }
+        if (betaPoints && betaPoints.length !== next.length) {
+          const byEnergy = new Map<number, number>();
+          for (const p of betaPoints) {
+            byEnergy.set(Math.round(p.energy * 1e9) / 1e9, p.absorption);
+          }
+          for (let i = 0; i < next.length; i++) {
+            if (
+              typeof next[i]!.beta === "number" &&
+              Number.isFinite(next[i]!.beta)
+            ) {
+              continue;
+            }
+            const b = byEnergy.get(Math.round(next[i]!.energy * 1e9) / 1e9);
+            if (typeof b === "number" && Number.isFinite(b)) {
+              next[i] = { ...next[i]!, beta: b };
+            }
+          }
+        }
+        return next;
+      })();
+
       const fromChannel = buildPlotPointsForChannel(
         channel,
-        uploadSpectrumRowsForChannelPlot,
+        rowsForDerived,
         stoichiometryFormula,
       );
       if (fromChannel.length > 0) {
@@ -1885,8 +2098,14 @@ export function DatasetContent({
 
   const handleResetAllPeaksFromPlotRail = useCallback(() => {
     onDatasetUpdate(dataset.id, { peaks: [], selectedPeakId: null });
-    showToast("All peaks removed", "success");
-  }, [dataset.id, onDatasetUpdate]);
+    if (isPersisted) {
+      setPersistedPeaksDirty(true);
+    }
+    showToast(
+      isPersisted ? "All peaks removed (unsaved)" : "All peaks removed",
+      "success",
+    );
+  }, [dataset.id, isPersisted, onDatasetUpdate]);
 
   const handleAutoDetectPeaksFromPlotRail = useCallback(() => {
     const filtered = filterSpectrumPointsByGeometry(
@@ -1905,14 +2124,59 @@ export function DatasetContent({
     });
     const merged = mergePeaksPreservingManualAndSteps(dataset.peaks, newAuto);
     onDatasetUpdate(dataset.id, { peaks: merged, selectedPeakId: null });
-    showToast("Auto-detected peaks updated", "success");
+    if (isPersisted) {
+      setPersistedPeaksDirty(true);
+    }
+    showToast(
+      isPersisted
+        ? "Auto-detected peaks updated (unsaved)"
+        : "Auto-detected peaks updated",
+      "success",
+    );
   }, [
     plotPoints,
     selectedGeometry,
     dataset.peaks,
     dataset.id,
+    isPersisted,
     onDatasetUpdate,
   ]);
+
+  const handleSavePersistedPeaks = useCallback(async () => {
+    if (!persistedExperimentId) return;
+    try {
+      await replacePeaksets.mutateAsync({
+        experimentId: persistedExperimentId,
+        peaks: dataset.peaks.map((peak) => ({
+          energy: peak.energy,
+          intensity: peak.intensity ?? peak.amplitude,
+          peakKind: peak.peakKind ?? null,
+        })),
+      });
+      setPersistedPeaksDirty(false);
+      showToast("Saved peak assignments", "success");
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? error.message
+          : "Could not save peak assignments",
+        "error",
+      );
+    }
+  }, [dataset.peaks, persistedExperimentId, replacePeaksets]);
+
+  const handleDiscardPersistedPeaks = useCallback(() => {
+    if (!peaksQuery.data) return;
+    const mapped = mapPeaksetsToPlotPeaks(peaksQuery.data).map((peak) => ({
+      energy: peak.energy,
+      amplitude: peak.amplitude,
+      id: peak.id,
+      peakKind: peak.peakKind ?? null,
+    }));
+    onDatasetUpdate(dataset.id, { peaks: mapped, selectedPeakId: null });
+    setPersistedPeaksDirty(false);
+    showToast("Reverted peak assignments", "success");
+  }, [dataset.id, onDatasetUpdate, peaksQuery.data]);
 
   const henkeMergeDomainUpload = useMemo(
     () =>
@@ -1991,44 +2255,117 @@ export function DatasetContent({
     return [];
   }, []);
 
-  const bareAtomContributionOverlayCurves = useMemo((): ReferenceCurve[] => {
+  useEffect(() => {
+    if (
+      !bareAtomOverlaySupportedForChannel(uploadPlotChannel) &&
+      showBareAtomContributionOverlay
+    ) {
+      setShowBareAtomContributionOverlay(false);
+    }
+  }, [uploadPlotChannel, showBareAtomContributionOverlay]);
+
+  useEffect(() => {
     if (
       !showBareAtomContributionOverlay ||
-      !dataset.bareAtomPoints?.length ||
+      !selectedMolecule?.chemicalFormula?.trim() ||
       !bareAtomOverlaySupportedForChannel(uploadPlotChannel)
     ) {
-      return [];
+      setBareAtomOverlayMatrix(null);
+      return;
     }
-    const formula = selectedMolecule?.chemicalFormula?.trim();
-    if (!formula) {
-      return [];
+
+    const formula = selectedMolecule.chemicalFormula.trim();
+    const energies = Array.from(
+      new Set(
+        dataset.spectrumPoints
+          .map((p) => p.energy)
+          .filter((e) => Number.isFinite(e) && e > 0),
+      ),
+    ).sort((a, b) => a - b);
+
+    if (energies.length < 2) {
+      setBareAtomOverlayMatrix(null);
+      return;
     }
-    const referenceView =
-      dataView === "beta"
-        ? "beta"
-        : dataView === "delta"
-          ? "delta"
-          : "absorption";
-    return buildUploadBareAtomReferenceCurves({
-      barePoints: dataset.bareAtomPoints,
-      bareDeltaPoints: bareAtomDeltaPoints,
-      dataView: referenceView,
-      muNormalization: absorptionComputation,
-      betaMuNormalization:
-        betaNormType === "bare-atom" ? bareAtomComputation : zeroOneComputation,
-      isDark: chartIsDark,
-    });
+
+    let cancelled = false;
+    void (async () => {
+      try {
+        const matrix = await buildBareAtomRepresentationMatrix(
+          formula,
+          energies,
+        );
+        if (cancelled) {
+          return;
+        }
+        if (!matrix) {
+          setBareAtomOverlayMatrix(null);
+          showToast("Could not compute bare atom reference curve", "error");
+          return;
+        }
+        setBareAtomOverlayMatrix(matrix);
+      } catch {
+        if (!cancelled) {
+          setBareAtomOverlayMatrix(null);
+          showToast("Could not compute bare atom reference curve", "error");
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [
     showBareAtomContributionOverlay,
-    uploadPlotChannel,
-    dataView,
-    dataset.bareAtomPoints,
-    bareAtomDeltaPoints,
     selectedMolecule?.chemicalFormula,
-    absorptionComputation,
-    bareAtomComputation,
-    zeroOneComputation,
-    betaNormType,
+    uploadPlotChannel,
+    dataset.spectrumPoints,
+  ]);
+
+  const bareAtomContributionOverlayCurves = useMemo((): ReferenceCurve[] => {
+    if (!showBareAtomContributionOverlay || !bareAtomOverlayMatrix) {
+      return [];
+    }
+    if (!bareAtomOverlaySupportedForChannel(uploadPlotChannel)) {
+      return [];
+    }
+
+    let linkRoles:
+      | {
+          imaginaryRole: NexafsImaginaryChannelId;
+          realRole: NexafsRealChannelId;
+        }
+      | undefined;
+    if (linkImaginaryReal && isImaginaryChannel(uploadPlotChannel)) {
+      linkRoles = {
+        imaginaryRole: uploadPlotChannel,
+        realRole: LINKED_IMAGINARY_TO_REAL[uploadPlotChannel],
+      };
+    } else if (linkImaginaryReal && isRealChannel(uploadPlotChannel)) {
+      const imaginaryEntry = (
+        Object.entries(LINKED_IMAGINARY_TO_REAL) as Array<
+          [NexafsImaginaryChannelId, NexafsRealChannelId]
+        >
+      ).find(([, real]) => real === uploadPlotChannel);
+      if (imaginaryEntry) {
+        linkRoles = {
+          imaginaryRole: imaginaryEntry[0],
+          realRole: uploadPlotChannel,
+        };
+      }
+    }
+
+    return bareAtomReferencesForOverlay(
+      bareAtomOverlayMatrix,
+      uploadPlotChannel,
+      chartIsDark,
+      linkRoles,
+    );
+  }, [
+    showBareAtomContributionOverlay,
+    bareAtomOverlayMatrix,
+    uploadPlotChannel,
+    linkImaginaryReal,
     chartIsDark,
   ]);
 
@@ -2040,7 +2377,13 @@ export function DatasetContent({
     [bareAtomFullViewReferenceCurves, bareAtomContributionOverlayCurves],
   );
 
+  const hasStoredMassAbsorption = dataset.spectrumPoints.some(
+    (point) =>
+      typeof point.massabsorption === "number" &&
+      Number.isFinite(point.massabsorption),
+  );
   const absorptionAvailable =
+    hasStoredMassAbsorption ||
     (absorptionComputation?.normalizedPoints?.length ?? 0) > 0;
   const betaAvailable =
     absorptionAvailable &&
@@ -2052,16 +2395,20 @@ export function DatasetContent({
     useMemo((): NexafsPlotChannelAvailability => {
       const hasRaw = dataset.spectrumPoints.some(
         (point) =>
-          typeof point.rawabs === "number" && Number.isFinite(point.rawabs),
+          (typeof point.rawabs === "number" && Number.isFinite(point.rawabs)) ||
+          (typeof point.absorption === "number" &&
+            Number.isFinite(point.absorption)),
       );
       const formula = selectedMolecule?.chemicalFormula?.trim();
+      const hasFormula = Boolean(formula);
       return {
         raw: hasRaw,
         normalized: edgeZeroOnePoints.length > 0,
         massAbsorption: absorptionAvailable,
         beta: betaAvailable,
         delta: deltaAvailable,
-        derivedOptical: Boolean(formula) && betaAvailable && deltaAvailable,
+        hasChemicalFormula: hasFormula,
+        derivedOptical: hasFormula && betaAvailable && deltaAvailable,
       };
     }, [
       dataset.spectrumPoints,
@@ -2077,6 +2424,7 @@ export function DatasetContent({
       return;
     }
     const fallbacks: NexafsPlotChannelId[] = [
+      "raw",
       "normalized",
       "mass-absorption",
       "beta",
@@ -2195,13 +2543,37 @@ export function DatasetContent({
         return undefined;
       }
       if (channel === "mass-absorption") {
-        return "Set pre- and post-edge windows and normalize to enable mu.";
+        const windowsReady = normalizationBandModeIsReady(
+          dataset.normalizationRegions,
+          bandMode,
+        );
+        if (!windowsReady) {
+          if (bandMode === "pre") {
+            return "Set the pre-edge window to enable mu.";
+          }
+          if (bandMode === "post") {
+            return "Set the post-edge window to enable mu.";
+          }
+          return "Set pre- and post-edge windows to enable mu.";
+        }
+        if (!selectedMolecule?.chemicalFormula?.trim()) {
+          return "Select a molecule with a chemical formula so Atlas can scale to bare-atom mu.";
+        }
+        if (!dataset.bareAtomPoints?.length) {
+          return isCalculatingBareAtom
+            ? "Computing bare-atom reference for mu…"
+            : "Bare-atom reference is not ready yet; wait for Henke/CXRO or re-select the molecule.";
+        }
+        return "Bare-atom normalization could not use the active window(s). Widen them slightly or move them onto flatter continuum.";
       }
       if (channel === "beta") {
         return "Normalize to mu with bare-atom reference to enable beta.";
       }
       if (channel === "delta") {
         return "Run KK from the right rail or upload delta values first.";
+      }
+      if (channel === "raw") {
+        return "Upload spectrum points to plot the raw uploaded signal.";
       }
       if (channel === "normalized") {
         return "Upload spectrum points to plot optical density.";
@@ -2214,11 +2586,42 @@ export function DatasetContent({
         channel === "im-chi" ||
         channel === "re-chi"
       ) {
-        return "Select a molecule formula and derive beta and delta to use derived optical constants.";
+        const formula = selectedMolecule?.chemicalFormula?.trim();
+        if (channel === "f2" || channel === "f1") {
+          if (!formula) {
+            return "Select a molecule with a chemical formula to derive f1/f2.";
+          }
+          if (channel === "f2" && !betaAvailable) {
+            return "Derive beta (normalize with bare-atom reference) before using f2.";
+          }
+          if (channel === "f1" && !deltaAvailable) {
+            return "Run KK from the right rail (or upload delta) before using f1.";
+          }
+        }
+        if (
+          channel === "im-epsilon" ||
+          channel === "re-epsilon" ||
+          channel === "im-chi" ||
+          channel === "re-chi"
+        ) {
+          if (!betaAvailable) {
+            return "Derive beta (normalize with bare-atom reference) before using epsilon or chi.";
+          }
+        }
+        return "Derived optical constants are not available for this dataset yet.";
       }
       return "Not available for this dataset yet.";
     },
-    [uploadChannelAvailability],
+    [
+      uploadChannelAvailability,
+      selectedMolecule?.chemicalFormula,
+      betaAvailable,
+      deltaAvailable,
+      dataset.normalizationRegions,
+      dataset.bareAtomPoints?.length,
+      bandMode,
+      isCalculatingBareAtom,
+    ],
   );
 
   const handlePlotChannelChange = useCallback(
@@ -2369,7 +2772,6 @@ export function DatasetContent({
               isDisabled={plotBareAtomToggleDisabled}
               className={plotToolbarGlyphToggleGroupItemVerticalClass}
             >
-              <ToggleButtonGroup.Separator />
               <BareAtomStepEdgeIcon className="h-6 w-6" aria-hidden />
             </ToggleButton>
           </PlotToolbarRichHint>
@@ -2398,6 +2800,16 @@ export function DatasetContent({
         onResetToDefaultRegions={handleResetNormalizationRegions}
         normalizationLocked={dataset.normalizationLocked}
         hasData={dataset.spectrumPoints.length > 0}
+        bandMode={dataset.normalizationBandMode}
+        onBandModeChange={(mode: NormalizationBandMode) => {
+          onDatasetUpdate(dataset.id, { normalizationBandMode: mode });
+        }}
+        showBandPreview={dataset.showNormalizationBandPreview}
+        onShowBandPreviewChange={(show) => {
+          onDatasetUpdate(dataset.id, {
+            showNormalizationBandPreview: show,
+          });
+        }}
         isPeakSetMode={isManualPeakMode}
         onPeakSetModeChange={handlePeakSetModeFromPlotRail}
         peakCount={dataset.peaks.length}
@@ -2449,11 +2861,10 @@ export function DatasetContent({
     ) : null;
 
   const normalizationRegionsForPlot =
-    dataset.normalizationRegions.pre != null ||
-    dataset.normalizationRegions.post != null
+    activeNormRegions.pre != null || activeNormRegions.post != null
       ? {
-          pre: dataset.normalizationRegions.pre,
-          post: dataset.normalizationRegions.post,
+          pre: activeNormRegions.pre,
+          post: activeNormRegions.post,
         }
       : undefined;
 
@@ -2503,14 +2914,21 @@ export function DatasetContent({
   return (
     <div className="flex min-h-0 w-full flex-1 flex-col gap-6">
       <div className="py-0.5">
-        <SourcePaperPublicationsEditor
-          publications={dataset.sourcePaperPublications}
-          onChange={(next) => {
-            onDatasetUpdate(dataset.id, {
-              sourcePaperPublications: next,
-            });
-          }}
-        />
+        {isPersisted && dataset.persistedExperimentId ? (
+          <ExperimentSourcePublicationsEditor
+            experimentId={dataset.persistedExperimentId}
+            enabled
+          />
+        ) : (
+          <SourcePaperPublicationsEditor
+            publications={dataset.sourcePaperPublications}
+            onChange={(next) => {
+              onDatasetUpdate(dataset.id, {
+                sourcePaperPublications: next,
+              });
+            }}
+          />
+        )}
       </div>
 
       <div className="flex w-full flex-col">
@@ -2524,7 +2942,7 @@ export function DatasetContent({
           </p>
         ) : null}
         <VisualizationToggle
-          modes={["graph", "table", "aux"]}
+          modes={visualizationModes}
           mode={visualizationMode}
           graphStyle={graphStyle}
           onModeChange={handleVisualizationModeChange}
@@ -2535,7 +2953,47 @@ export function DatasetContent({
         />
         <div className="mt-3 w-full">
           <div className="w-full min-w-0">
-            {visualizationMode === "aux" ? (
+            {visualizationMode === "sample" &&
+            isPersisted &&
+            dataset.persistedExperimentId ? (
+              <NexafsExperimentSampleInfoPanel
+                experimentId={dataset.persistedExperimentId}
+                sampleId={dataset.persistedSampleId}
+                enabled
+              />
+            ) : visualizationMode === "peaks" &&
+              isPersisted &&
+              dataset.persistedExperimentId ? (
+              <NexafsExperimentPeaksPanel
+                experimentId={dataset.persistedExperimentId}
+                enabled
+                onRequestPlotPeakEdit={() => {
+                  setVisualizationMode("graph");
+                  setIsManualPeakMode(true);
+                  setIsPlotNormalizationMode(false);
+                  setNormalizationSelectionTarget(null);
+                }}
+                onPeaksSaved={() => {
+                  setPersistedPeaksDirty(false);
+                }}
+              />
+            ) : visualizationMode === "experiment" &&
+              isPersisted &&
+              dataset.persistedExperimentId ? (
+              <NexafsExperimentDescriptorsPanel
+                experimentId={dataset.persistedExperimentId}
+                enabled
+                startEditing={startDescriptorEditing}
+                onDescriptorsSaved={(next) => {
+                  onDatasetUpdate(dataset.id, {
+                    edgeId: next.edgeId,
+                    instrumentId: next.instrumentId,
+                    experimentType: next.experimentType,
+                  });
+                  setStartDescriptorEditing(false);
+                }}
+              />
+            ) : visualizationMode === "aux" ? (
               <DatasetAuxFilesTab
                 variant={dataset.persistedExperimentId ? "persisted" : "draft"}
                 dataset={dataset}
@@ -2571,6 +3029,7 @@ export function DatasetContent({
                       referenceCurves={spectrumReferenceCurves}
                       normalizationRegions={normalizationRegionsForPlot}
                       showNormalizationShading={
+                        dataset.showNormalizationBandPreview &&
                         normalizationRegionsForPlot != null
                       }
                       normalizationEdgeHandlesEnabled={
@@ -2618,6 +3077,9 @@ export function DatasetContent({
                           },
                         );
                         onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+                        if (isPersisted) {
+                          setPersistedPeaksDirty(true);
+                        }
                       }}
                       onPeakPatch={(peakId, patch) => {
                         const updatedPeaks = dataset.peaks.map(
@@ -2637,6 +3099,9 @@ export function DatasetContent({
                           },
                         );
                         onDatasetUpdate(dataset.id, { peaks: updatedPeaks });
+                        if (isPersisted) {
+                          setPersistedPeaksDirty(true);
+                        }
                       }}
                       onPeakDelete={(peakId) => {
                         const updatedPeaks = dataset.peaks.filter(
@@ -2651,6 +3116,9 @@ export function DatasetContent({
                               ? null
                               : dataset.selectedPeakId,
                         });
+                        if (isPersisted) {
+                          setPersistedPeaksDirty(true);
+                        }
                       }}
                       onPeakAdd={(energy) => {
                         const roundedEnergy = Math.round(energy * 100) / 100;
@@ -2680,10 +3148,14 @@ export function DatasetContent({
                           energy: roundedEnergy,
                           amplitude,
                           id: `peak-manual-${Date.now()}`,
+                          peakKind: "pi-star" as const,
                         } as PeakData & { id: string };
                         onDatasetUpdate(dataset.id, {
                           peaks: [...dataset.peaks, newPeak],
                         });
+                        if (isPersisted) {
+                          setPersistedPeaksDirty(true);
+                        }
                       }}
                       differenceSpectra={differenceSpectra}
                       opticalLink={opticalLink}
@@ -2724,6 +3196,18 @@ export function DatasetContent({
                     <div className="text-center">
                       <p className="font-medium">Error processing data</p>
                       <p className="mt-1 text-sm">{dataset.spectrumError}</p>
+                    </div>
+                  </div>
+                ) : dataset.spectrumPoints.length > 0 ? (
+                  <div className="flex h-[400px] items-center justify-center text-gray-500 dark:text-gray-400">
+                    <div className="text-center">
+                      <p className="font-medium">
+                        Normalization windows need adjustment
+                      </p>
+                      <p className="mt-1 text-sm">
+                        Keep pre-edge below post-edge and include at least a few
+                        points in each window, or reset the regions.
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -2771,16 +3255,38 @@ export function DatasetContent({
               </div>
             ) : null}
 
-            {/* Peak Drag Toast - only show when manual peak mode is active */}
             {visualizationMode !== "aux" &&
             dataset.peaks.length > 0 &&
             isManualPeakMode ? (
               <div className="rounded-lg border border-blue-200 bg-blue-50 p-3 text-sm text-blue-800 dark:border-blue-800 dark:bg-blue-900/20 dark:text-blue-200">
-                <div className="flex items-center gap-2">
+                <div className="flex flex-wrap items-center gap-2">
                   <PencilIcon className="h-4 w-4" />
                   <span>
                     You can drag existing peaks on the plot to adjust.
                   </span>
+                  {isPersisted && persistedPeaksDirty ? (
+                    <>
+                      <DefaultButton
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        onPress={handleDiscardPersistedPeaks}
+                        isDisabled={replacePeaksets.isPending}
+                      >
+                        Discard
+                      </DefaultButton>
+                      <DefaultButton
+                        type="button"
+                        size="sm"
+                        onPress={() => {
+                          void handleSavePersistedPeaks();
+                        }}
+                        isDisabled={replacePeaksets.isPending}
+                      >
+                        {replacePeaksets.isPending ? "Saving..." : "Save peaks"}
+                      </DefaultButton>
+                    </>
+                  ) : null}
                 </div>
               </div>
             ) : null}
@@ -2788,110 +3294,125 @@ export function DatasetContent({
         </div>
       </div>
 
-      <DatasetAttributionEditor
-        attributions={dataset.attributions}
-        onChange={handleAttributionsChange}
-      />
+      {isPersisted && dataset.persistedExperimentId ? (
+        <ExperimentAttributionEditSection
+          experimentId={dataset.persistedExperimentId}
+          enabled
+          variant="panel"
+          readOnlyFallback={
+            <p className="text-muted text-sm">
+              Researcher attribution is read-only for this dataset.
+            </p>
+          }
+        />
+      ) : (
+        <DatasetAttributionEditor
+          attributions={dataset.attributions}
+          onChange={handleAttributionsChange}
+        />
+      )}
 
-      {/* Sample Information */}
-      <div className="border-border bg-surface flex flex-col gap-5 rounded-lg border p-4">
-        <SampleInformationEditStack
-          layout="inset"
-          linkedSampleAux={{
-            value: dataset.sampleAux,
-            onChange: (next) => {
-              onDatasetUpdate(dataset.id, { sampleAux: next });
-            },
-            onProcessMethodChange: (processMethod) => {
+      {/* Sample Information — draft only; post-persist uses Sample tab panel */}
+      {!isPersisted ? (
+        <div className="border-border bg-surface flex flex-col gap-5 rounded-lg border p-4">
+          <SampleInformationEditStack
+            layout="inset"
+            linkedSampleAux={{
+              value: dataset.sampleAux,
+              onChange: (next) => {
+                onDatasetUpdate(dataset.id, { sampleAux: next });
+              },
+              onProcessMethodChange: (processMethod) => {
+                onDatasetUpdate(dataset.id, (current) => ({
+                  sampleInfo: applyProcessMethodToSampleFields(
+                    current.sampleInfo,
+                    processMethod,
+                  ),
+                }));
+              },
+            }}
+            processMethod={dataset.sampleInfo.processMethod}
+            setProcessMethod={(value) =>
               onDatasetUpdate(dataset.id, (current) => ({
                 sampleInfo: applyProcessMethodToSampleFields(
                   current.sampleInfo,
-                  processMethod,
+                  value,
                 ),
-              }));
-            },
-          }}
-          processMethod={dataset.sampleInfo.processMethod}
-          setProcessMethod={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: applyProcessMethodToSampleFields(
-                current.sampleInfo,
-                value,
-              ),
-              sampleAux: linkedSampleAuxForProcessMethod(
-                current.sampleAux,
-                value,
-              ),
-            }))
-          }
-          substrate={dataset.sampleInfo.substrate}
-          setSubstrate={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, substrate: value },
-            }))
-          }
-          patterningLayer={dataset.sampleInfo.patterningLayer}
-          setPatterningLayer={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, patterningLayer: value },
-            }))
-          }
-          solvent={dataset.sampleInfo.solvent}
-          setSolvent={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, solvent: value },
-            }))
-          }
-          thickness={dataset.sampleInfo.thickness}
-          setThickness={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, thickness: value },
-            }))
-          }
-          molecularWeight={dataset.sampleInfo.molecularWeight}
-          setMolecularWeight={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, molecularWeight: value },
-            }))
-          }
-          selectedVendorId={dataset.sampleInfo.vendorId}
-          setSelectedVendorId={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, vendorId: value },
-            }))
-          }
-          newVendorName={dataset.sampleInfo.newVendorName}
-          setNewVendorName={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, newVendorName: value },
-            }))
-          }
-          newVendorUrl={dataset.sampleInfo.newVendorUrl}
-          setNewVendorUrl={(value) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: { ...current.sampleInfo, newVendorUrl: value },
-            }))
-          }
-          onVendorFieldsChange={(patch) =>
-            onDatasetUpdate(dataset.id, (current) => ({
-              sampleInfo: {
-                ...current.sampleInfo,
-                ...(patch.selectedVendorId !== undefined
-                  ? { vendorId: patch.selectedVendorId }
-                  : null),
-                ...(patch.newVendorName !== undefined
-                  ? { newVendorName: patch.newVendorName }
-                  : null),
-                ...(patch.newVendorUrl !== undefined
-                  ? { newVendorUrl: patch.newVendorUrl }
-                  : null),
-              },
-            }))
-          }
-          vendors={vendors}
-          isLoadingVendors={isLoadingVendors}
-        />
-      </div>
+                sampleAux: linkedSampleAuxForProcessMethod(
+                  current.sampleAux,
+                  value,
+                ),
+              }))
+            }
+            substrate={dataset.sampleInfo.substrate}
+            setSubstrate={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, substrate: value },
+              }))
+            }
+            patterningLayer={dataset.sampleInfo.patterningLayer}
+            setPatterningLayer={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, patterningLayer: value },
+              }))
+            }
+            solvent={dataset.sampleInfo.solvent}
+            setSolvent={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, solvent: value },
+              }))
+            }
+            thickness={dataset.sampleInfo.thickness}
+            setThickness={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, thickness: value },
+              }))
+            }
+            molecularWeight={dataset.sampleInfo.molecularWeight}
+            setMolecularWeight={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, molecularWeight: value },
+              }))
+            }
+            selectedVendorId={dataset.sampleInfo.vendorId}
+            setSelectedVendorId={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, vendorId: value },
+              }))
+            }
+            newVendorName={dataset.sampleInfo.newVendorName}
+            setNewVendorName={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, newVendorName: value },
+              }))
+            }
+            newVendorUrl={dataset.sampleInfo.newVendorUrl}
+            setNewVendorUrl={(value) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: { ...current.sampleInfo, newVendorUrl: value },
+              }))
+            }
+            onVendorFieldsChange={(patch) =>
+              onDatasetUpdate(dataset.id, (current) => ({
+                sampleInfo: {
+                  ...current.sampleInfo,
+                  ...(patch.selectedVendorId !== undefined
+                    ? { vendorId: patch.selectedVendorId }
+                    : null),
+                  ...(patch.newVendorName !== undefined
+                    ? { newVendorName: patch.newVendorName }
+                    : null),
+                  ...(patch.newVendorUrl !== undefined
+                    ? { newVendorUrl: patch.newVendorUrl }
+                    : null),
+                },
+              }))
+            }
+            vendors={vendors}
+            isLoadingVendors={isLoadingVendors}
+          />
+        </div>
+      ) : null}
 
       <div className="border-border bg-surface rounded-lg border p-4">
         <div className="flex flex-col gap-4">

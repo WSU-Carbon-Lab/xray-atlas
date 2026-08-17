@@ -289,16 +289,12 @@ export function PlotToolbarRichHint({
         title={title}
         hintBody={hintBody}
         showUnavailableLabel={showUnavailableLabel}
-        onPointerEnter={openHint}
-        onPointerLeave={scheduleClose}
       />,
     );
   }, [
     anchorBox,
     hintBody,
     open,
-    openHint,
-    scheduleClose,
     showUnavailableLabel,
     title,
   ]);
@@ -380,15 +376,11 @@ function PlotToolbarRichHintPanel({
   title,
   hintBody,
   showUnavailableLabel,
-  onPointerEnter,
-  onPointerLeave,
 }: {
   anchorBox: { left: number; top: number; outerClassName: string };
   title: string;
   hintBody: string;
   showUnavailableLabel: boolean;
-  onPointerEnter: () => void;
-  onPointerLeave: () => void;
 }) {
   return (
     <div
@@ -398,9 +390,7 @@ function PlotToolbarRichHintPanel({
       <div
         role="note"
         aria-label={title}
-        className="border-border bg-surface pointer-events-auto max-w-xs rounded-xl border px-3 py-2.5 text-left text-xs shadow-xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
-        onMouseEnter={onPointerEnter}
-        onMouseLeave={onPointerLeave}
+        className="border-border bg-surface pointer-events-none max-w-xs rounded-xl border px-3 py-2.5 text-left text-xs shadow-xl ring-1 ring-[color-mix(in_oklab,var(--foreground)_8%,transparent)]"
       >
         <p className="text-foreground leading-snug font-semibold">{title}</p>
         {showUnavailableLabel ? (

@@ -81,7 +81,7 @@ export function NexafsPlotDataRail({
       links={links}
       linkState={{ [NEXAFS_IMAGINARY_REAL_LINK_ID]: linkImaginaryReal }}
       onLinkStateChange={(_id, linked) => onLinkImaginaryRealChange(linked)}
-      hintPlacement="top"
+      hintPlacement="bottom"
       ariaLabel="NEXAFS data views"
       channelUnavailableDescription={channelUnavailableDescription}
     />

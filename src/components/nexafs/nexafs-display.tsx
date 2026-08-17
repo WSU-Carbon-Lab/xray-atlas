@@ -36,6 +36,13 @@ import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/e
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
 import { NexafsDatasetCitationHead } from "~/components/nexafs/nexafs-dataset-citation-head";
 import { NexafsDatasetMetricsRail } from "~/components/nexafs/nexafs-dataset-metrics-rail";
+import {
+  NEXAFS_COMPACT_CARD_ACTIONS_CLASS,
+  NEXAFS_COMPACT_CARD_META_CLASS,
+  NEXAFS_COMPACT_CARD_ROW_CLASS,
+  NEXAFS_COMPACT_CARD_SHELL_CLASS,
+  NEXAFS_COMPACT_INSTRUMENT_CHIP_CLASS,
+} from "~/components/nexafs/nexafs-compact-card-layout";
 import type { NexafsBrowseDatasetMetricsCardModel } from "~/lib/nexafs-dataset-metric-display-model";
 import type {
   NexafsBrowseLinkedPublication,
@@ -427,7 +434,7 @@ export function NexafsExperimentCompactCard({
     <ContributorsOrEmpty
       users={readOnlyContributorUsers}
       size="sm"
-      max={8}
+      max={3}
       empty="hidden"
     />
   );
@@ -475,7 +482,7 @@ export function NexafsExperimentCompactCard({
   return (
     <div
       id={nexafsExperimentCardDomId(experimentId)}
-      className="border-border-default dark:border-border-default @container/nexafscard flex w-full flex-col overflow-hidden rounded-2xl border bg-zinc-50 shadow-sm dark:bg-zinc-800"
+      className={NEXAFS_COMPACT_CARD_SHELL_CLASS}
     >
       <NexafsDatasetCitationHead
         active={spectrumExpanded}
@@ -490,13 +497,14 @@ export function NexafsExperimentCompactCard({
         aria-expanded={spectrumExpanded}
         onClick={toggleSpectrumExpanded}
         className={cn(
-          "flex w-full cursor-pointer flex-col p-3 motion-safe:transition-colors motion-safe:duration-200 @md/nexafscard:flex-row @md/nexafscard:items-center @md/nexafscard:gap-4",
+          NEXAFS_COMPACT_CARD_ROW_CLASS,
+          "cursor-pointer motion-safe:transition-colors motion-safe:duration-200",
           spectrumExpanded
             ? "bg-zinc-100/80 dark:bg-zinc-700/40"
             : "hover:bg-zinc-100/60 dark:hover:bg-zinc-700/25",
         )}
       >
-        <div className="flex min-w-0 flex-1 items-center gap-2 border-r border-zinc-200 pr-2 @md/nexafscard:gap-4 @md/nexafscard:pr-4 dark:border-zinc-600">
+        <div className={NEXAFS_COMPACT_CARD_META_CLASS}>
           <button
             type="button"
             onClick={(e) => {
@@ -558,17 +566,12 @@ export function NexafsExperimentCompactCard({
                 {edgeLabel}
               </span>
               <Tooltip delay={0}>
-                <Tooltip.Trigger className="inline-flex max-w-[74%] min-w-0 shrink">
+                <Tooltip.Trigger className="inline-flex min-w-0 shrink">
                   <span
-                    className={`inline-flex h-4.5 max-w-full min-w-0 items-center truncate rounded-full border px-1.5 font-medium ${instrumentClass}`}
+                    className={`${NEXAFS_COMPACT_INSTRUMENT_CHIP_CLASS} ${instrumentClass}`}
                     title={instrumentFacilityLabel}
                   >
-                    <span className="truncate @3xl/nexafscard:hidden">
-                      {instrumentName}
-                    </span>
-                    <span className="hidden min-w-0 truncate @3xl/nexafscard:inline">
-                      {instrumentFacilityLabel}
-                    </span>
+                    {instrumentName}
                   </span>
                 </Tooltip.Trigger>
                 <Tooltip.Content placement="top">
@@ -586,7 +589,7 @@ export function NexafsExperimentCompactCard({
             </div>
           </div>
         </div>
-        <div className="relative z-30 flex shrink-0 flex-wrap items-center justify-end gap-x-3 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:ml-auto @md/nexafscard:gap-x-3 @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 @md/nexafscard:pl-4 dark:border-zinc-600">
+        <div className={NEXAFS_COMPACT_CARD_ACTIONS_CLASS}>
           <div className="flex shrink-0 items-center self-center border-r border-zinc-200 pr-2 @md/nexafscard:pr-3 dark:border-zinc-600">
             <NexafsDatasetDoiCiteControl
               experimentId={experimentId}
@@ -652,17 +655,16 @@ export function NexafsExperimentCompactCard({
             />
           </div>
           <div
-            className="flex max-w-full min-w-0 items-center gap-1.5"
+            className="flex h-8 shrink-0 items-center justify-end"
             onClick={(e) => e.stopPropagation()}
             onKeyDown={(e) => e.stopPropagation()}
           >
             <ExperimentAttributionEditSection
               experimentId={experimentId}
-              enabled
+              enabled={isSignedIn}
               variant="inline"
               readOnlyFallback={readOnlyContributorAvatars}
-              skeletonAvatarCount={Math.max(1, readOnlyContributorUsers.length)}
-              skeletonTrailingSlotCount={2}
+              skeletonAvatarCount={3}
             />
           </div>
           <CompactCardMetricsColumn className="relative z-40">

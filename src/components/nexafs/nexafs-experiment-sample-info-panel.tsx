@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
-import { Button } from "@heroui/react";
+import { Button, Description } from "@heroui/react";
 import {
   SampleInformationEditStack,
   sampleAuxFieldsHasData,
@@ -320,6 +320,12 @@ export function NexafsExperimentSampleInfoPanel({
 
       {isEditing && coreDraft ? (
         <div className="flex flex-col gap-5">
+          {(sampleQuery.data?.experiments?.length ?? 0) > 1 ? (
+            <Description className="text-muted border-border bg-default rounded-lg border px-3 py-2 text-sm">
+              This sample is linked to {sampleQuery.data?.experiments.length}{" "}
+              experiments. Saving updates the shared sample row for all of them.
+            </Description>
+          ) : null}
           <SampleInformationEditStack
             showSectionHeading={false}
             showVendorCreateFields

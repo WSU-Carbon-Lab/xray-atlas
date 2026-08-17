@@ -4,14 +4,14 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "next-auth/react";
 import { ErrorMessage } from "@heroui/react";
 import { cn } from "@heroui/styles";
-import { Plus, Users } from "lucide-react";
+import { Plus } from "lucide-react";
 import { ContributorAvatarGroup } from "~/components/attribution/contributor-avatar-group";
 import { contributorRoleLabelsForDisplay } from "~/lib/contributor-avatar-display";
 import {
   ATTRIBUTION_NESTED_OVERLAY_SELECTOR,
   datasetAttributionsForAvatarDisplay,
   dedupeDatasetAttributions,
-  defaultUploaderAttribution,
+  ensureSessionDataCuratorAttribution,
   filterValidOrcidAttributions,
   groupContributorRoleOptionsByTier,
   listAttributionRoleOptions,
@@ -28,7 +28,6 @@ import { isValidOrcidUserId } from "~/lib/orcid";
 import { AddResearcherAttributionForm } from "./add-researcher-attribution-form";
 import { ApplyTeamAttributionForm } from "./apply-team-attribution-form";
 import {
-  AttributionAvatarRowSkeleton,
   avatarGroupStackWidthPx,
   normalizeProfileImageUrl,
   type UserWithOrcid,
@@ -45,6 +44,8 @@ type DatasetAttributionEditorProps = {
   /** When false, hides the visible "Researchers" label (use aria-label on the avatar row). */
   showLabel?: boolean;
 };
+
+type AttributionAddPanel = "person" | "team";
 
 function resolvedFromAvatarDisplay(
   display: AttributionAvatarDisplay,
@@ -111,6 +112,7 @@ export function DatasetAttributionEditor({
   const sessionOrcid = session?.user?.id ?? null;
   const sessionName = session?.user?.name ?? null;
   const sessionImage = normalizeProfileImageUrl(session?.user?.image);
+  const [addPanel, setAddPanel] = useState<AttributionAddPanel>("person");
 
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
@@ -152,9 +154,10 @@ export function DatasetAttributionEditor({
     () =>
       avatarGroupStackWidthPx({
         avatarCount: avatarUsers.length,
-        max: 8,
+        max: 3,
         size: "sm",
-        trailingSlotCount: 2,
+        trailingSlotCount: 1,
+        includeOverflowSlot: true,
       }),
     [avatarUsers.length],
   );
@@ -175,18 +178,31 @@ export function DatasetAttributionEditor({
     [],
   );
 
+  const curatorCount = useMemo(
+    () =>
+      validAttributions.filter((row) => isUploaderContributorRole(row.role))
+        .length,
+    [validAttributions],
+  );
+
   useEffect(() => {
-    if (!sessionOrcid || validAttributions.length > 0) {
+    if (!sessionOrcid || curatorCount > 0) {
       return;
     }
-    onChangeRef.current([
-      defaultUploaderAttribution({
+    onChangeRef.current(
+      ensureSessionDataCuratorAttribution(validAttributions, {
         orcid: sessionOrcid,
         displayName: sessionName,
         imageUrl: sessionImage,
       }),
-    ]);
-  }, [sessionImage, sessionName, sessionOrcid, validAttributions.length]);
+    );
+  }, [
+    curatorCount,
+    sessionImage,
+    sessionName,
+    sessionOrcid,
+    validAttributions,
+  ]);
 
   useEffect(() => {
     const hasInvalid = attributions.some(
@@ -321,74 +337,76 @@ export function DatasetAttributionEditor({
   );
 
   const addResearcherControl = (
-    <div className="flex items-center gap-1">
-      <PopoverMenu
-        align="start"
-        placement="auto"
-        ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
-        renderTrigger={({ triggerProps, isOpen }) => (
-          <button
-            type="button"
-            {...triggerProps}
-            className={cn(
-              "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent inline-flex size-8 shrink-0 items-center justify-center rounded-full border p-0 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-              isOpen && "ring-accent ring-2 ring-offset-2",
-            )}
-            aria-label="Add from team"
-          >
-            <Users className="size-4" aria-hidden />
-          </button>
-        )}
-        renderContent={({ close, contentProps, contentPositionClassName }) => (
-          <PopoverMenuContent
-            {...contentProps}
-            className={cn(
-              contentPositionClassName,
-              "border-border bg-surface w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-4 shadow-lg",
-            )}
-          >
-            <ApplyTeamAttributionForm
-              validAttributions={validAttributions}
-              onApplyAttributions={handleApplyTeamAttributions}
-              onClose={close}
-            />
-          </PopoverMenuContent>
-        )}
-      />
-      <PopoverMenu
-        align="start"
-        placement="auto"
-        ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
-        renderTrigger={({ triggerProps, isOpen }) => (
-          <button
-            type="button"
-            {...triggerProps}
-            className={cn(
-              "border-border bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent inline-flex size-8 shrink-0 items-center justify-center rounded-full border p-0 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
-              isOpen && "ring-accent ring-2 ring-offset-2",
-            )}
-            aria-label="Add researcher attribution"
-          >
-            <Plus className="size-4" aria-hidden />
-          </button>
-        )}
-        renderContent={({ close, contentProps, contentPositionClassName }) => (
-          <PopoverMenuContent
-            {...contentProps}
-            className={cn(
-              contentPositionClassName,
-              "border-border bg-surface w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-4 shadow-lg",
-            )}
-          >
+    <PopoverMenu
+      align="start"
+      placement="auto"
+      ignoreOutsidePointerDownSelector={ATTRIBUTION_NESTED_OVERLAY_SELECTOR}
+      renderTrigger={({ triggerProps, isOpen }) => (
+        <button
+          type="button"
+          {...triggerProps}
+          className={cn(
+            "bg-surface text-muted hover:bg-surface-2 hover:text-foreground focus-visible:ring-accent relative z-30 inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-300 p-0 shadow-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 dark:border-zinc-600",
+            "ring-2 ring-zinc-50 dark:ring-zinc-800",
+            isOpen && "text-foreground ring-accent ring-offset-2",
+          )}
+          aria-label="Add researchers"
+        >
+          <Plus className="size-4" aria-hidden />
+        </button>
+      )}
+      renderContent={({ close, contentProps, contentPositionClassName }) => (
+        <PopoverMenuContent
+          {...contentProps}
+          className={cn(
+            contentPositionClassName,
+            "border-border bg-surface w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-4 shadow-lg",
+          )}
+        >
+          <div className="mb-3 flex gap-1 rounded-lg bg-default/40 p-0.5">
+            <button
+              type="button"
+              className={cn(
+                "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                addPanel === "person"
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted hover:text-foreground",
+              )}
+              aria-pressed={addPanel === "person"}
+              onClick={() => setAddPanel("person")}
+            >
+              Add person
+            </button>
+            <button
+              type="button"
+              className={cn(
+                "flex-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors",
+                addPanel === "team"
+                  ? "bg-surface text-foreground shadow-sm"
+                  : "text-muted hover:text-foreground",
+              )}
+              aria-pressed={addPanel === "team"}
+              onClick={() => setAddPanel("team")}
+            >
+              Apply team
+            </button>
+          </div>
+          {addPanel === "person" ? (
             <AddResearcherAttributionForm
               validAttributions={validAttributions}
               onAppendAttribution={handleAppendAttribution}
               onClose={close}
             />
-          </PopoverMenuContent>
-        )}
-      />
-    </div>
+          ) : (
+            <ApplyTeamAttributionForm
+              validAttributions={validAttributions}
+              onApplyAttributions={handleApplyTeamAttributions}
+              onClose={close}
+            />
+          )}
+        </PopoverMenuContent>
+      )}
+    />
   );
 
   return (
@@ -414,27 +432,25 @@ export function DatasetAttributionEditor({
             className="flex shrink-0 items-center overflow-visible"
             style={{ minWidth: avatarStackWidthPx }}
           >
-            {avatarUsers.length === 0 ? (
-              <AttributionAvatarRowSkeleton
-                avatarCount={1}
-                max={8}
-                size="sm"
-                trailingSlotCount={2}
-              />
-            ) : (
-              <ContributorAvatarGroup
-                key={avatarUsers
-                  .map((user) => user.avatarStackKey ?? user.orcid ?? user.id)
-                  .join("|")}
-                users={avatarUsers}
-                size="sm"
-                max={8}
-                trailingSlot={addResearcherControl}
-                onRemoveContributorRow={handleRemoveContributorRow}
-                onRoleChangeContributorRow={handleRoleChangeContributorRow}
-                contributorRoleOptionSections={roleOptionSections}
-              />
-            )}
+            <ContributorAvatarGroup
+              key={
+                avatarUsers.length === 0
+                  ? "empty"
+                  : avatarUsers
+                      .map(
+                        (user) => user.avatarStackKey ?? user.orcid ?? user.id,
+                      )
+                      .join("|")
+              }
+              users={avatarUsers}
+              size="sm"
+              max={3}
+              expandOnHover
+              trailingSlot={addResearcherControl}
+              onRemoveContributorRow={handleRemoveContributorRow}
+              onRoleChangeContributorRow={handleRoleChangeContributorRow}
+              contributorRoleOptionSections={roleOptionSections}
+            />
           </div>
         </div>
       </div>

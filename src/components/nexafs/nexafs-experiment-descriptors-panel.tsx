@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { PencilIcon } from "@heroicons/react/24/outline";
 import { Button } from "@heroui/react";
 import { LoadingSkeleton } from "~/components/feedback/loading-state";
@@ -26,6 +26,17 @@ import type { SampleMetadataDisplaySection } from "~/lib/sample-metadata-display
 export type NexafsExperimentDescriptorsPanelProps = {
   experimentId: string;
   enabled: boolean;
+  /**
+   * Invoked after a successful `updateDescriptors` save so contribute tabs can
+   * sync local `DatasetState` labels without a full page reload.
+   */
+  onDescriptorsSaved?: (next: {
+    edgeId: string;
+    instrumentId: string;
+    experimentType: ExperimentTypeOption;
+  }) => void;
+  /** When true, opens the panel already in edit mode (e.g. tab segment request). */
+  startEditing?: boolean;
 };
 
 type DescriptorDraft = {
@@ -66,6 +77,8 @@ function NexafsExperimentDescriptorsSkeleton() {
 export function NexafsExperimentDescriptorsPanel({
   experimentId,
   enabled,
+  onDescriptorsSaved,
+  startEditing = false,
 }: NexafsExperimentDescriptorsPanelProps) {
   const utils = trpc.useUtils();
   const { instrumentOptions, edgeOptions } = useNexafsOptions();
@@ -95,6 +108,7 @@ export function NexafsExperimentDescriptorsPanel({
   const [isEditing, setIsEditing] = useState(false);
   const [draft, setDraft] = useState<DescriptorDraft | null>(null);
   const [openModal, setOpenModal] = useState<OpenModal>(null);
+  const startEditingAppliedRef = useRef(false);
 
   useEffect(() => {
     if (!isEditing) {
@@ -106,7 +120,7 @@ export function NexafsExperimentDescriptorsPanel({
   const persisted = descriptorsQuery.data;
 
   const beginEditing = useCallback(() => {
-    if (!persisted) {
+    if (!persisted || !canEdit) {
       return;
     }
     setDraft({
@@ -117,7 +131,22 @@ export function NexafsExperimentDescriptorsPanel({
         : null,
     });
     setIsEditing(true);
-  }, [persisted]);
+  }, [canEdit, persisted]);
+
+  useEffect(() => {
+    if (!startEditing || startEditingAppliedRef.current) {
+      return;
+    }
+    if (!persisted || !canEdit) {
+      return;
+    }
+    startEditingAppliedRef.current = true;
+    beginEditing();
+  }, [beginEditing, canEdit, persisted, startEditing]);
+
+  useEffect(() => {
+    startEditingAppliedRef.current = false;
+  }, [experimentId, startEditing]);
 
   const cancelEditing = useCallback(() => {
     setIsEditing(false);
@@ -220,6 +249,11 @@ export function NexafsExperimentDescriptorsPanel({
         instrumentId: draft.instrumentId,
         experimentType: draft.experimentType as ExperimentType,
       });
+      onDescriptorsSaved?.({
+        edgeId: draft.edgeId,
+        instrumentId: draft.instrumentId,
+        experimentType: draft.experimentType,
+      });
       showToast("Experiment information saved.", "success");
       setIsEditing(false);
     } catch (error) {
@@ -227,7 +261,7 @@ export function NexafsExperimentDescriptorsPanel({
         error instanceof Error ? error.message : "Failed to save descriptors.";
       showToast(message, "error");
     }
-  }, [dirty, draft, experimentId, persisted, updateDescriptors]);
+  }, [dirty, draft, experimentId, onDescriptorsSaved, persisted, updateDescriptors]);
 
   if (descriptorsQuery.isLoading || canEditQuery.isLoading) {
     return <NexafsExperimentDescriptorsSkeleton />;
@@ -318,6 +352,12 @@ export function NexafsExperimentDescriptorsPanel({
             isOpen={openModal === "edge"}
             onClose={() => setOpenModal(null)}
             edges={edgeOptions}
+            spectrumEnergyMin={
+              descriptorsQuery.data?.spectrumEnergyMin ?? null
+            }
+            spectrumEnergyMax={
+              descriptorsQuery.data?.spectrumEnergyMax ?? null
+            }
             onSelect={(edgeId) =>
               setDraft((previous) =>
                 previous ? { ...previous, edgeId } : previous,

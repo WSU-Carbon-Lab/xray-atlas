@@ -6,9 +6,17 @@ export {
   SpectrumEnergyConflictBanner,
   SpectrumRowConflictModal,
 } from "./spectrum-row-conflict-modal";
+export {
+  DatasetSimilarityCompareModal,
+  type DatasetSimilarityCompareModalProps,
+  type DatasetSimilarityConfirmRequest,
+  type SimilarityContinuePatch,
+} from "./dataset-similarity-compare-modal";
+export { DatasetMergeModal } from "./dataset-merge-modal";
 export { DatasetContent } from "./dataset-content";
 export { DatasetAttributionEditor } from "./dataset-attribution-editor";
 export { ExperimentAttributionEditSection } from "./experiment-attribution-edit-section";
+export { ExperimentSourcePublicationsEditor } from "./experiment-source-publications-editor";
 export { SourcePaperDoiField } from "./source-paper-doi-field";
 export { SourcePaperPublicationsEditor } from "./source-paper-publications-editor";
 export { DatasetTabs } from "./dataset-tabs";

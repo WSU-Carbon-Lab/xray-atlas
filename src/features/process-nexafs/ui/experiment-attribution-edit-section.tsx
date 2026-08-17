@@ -8,9 +8,11 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useSession } from "next-auth/react";
 import { Button } from "@heroui/react";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
+import { AttributionAvatarRowSkeleton } from "~/components/ui/avatar";
 import {
   datasetAttributionsEqual,
   datasetAttributionsFromContributorDtos,
@@ -19,7 +21,6 @@ import {
   filterValidOrcidAttributions,
   type DatasetAttributionEntry,
 } from "~/lib/nexafs-attribution";
-import { AttributionAvatarRowSkeleton } from "~/components/ui/avatar";
 import {
   DatasetAttributionEditor,
   type DatasetAttributionChange,
@@ -32,14 +33,14 @@ type ExperimentAttributionEditSectionProps = {
   variant?: "panel" | "inline";
   /** Shown when the viewer cannot edit or while edit permission is still loading. */
   readOnlyFallback?: ReactNode;
-  /** Reserved avatar slots while edit permission or attributions load (browse card contributor count). */
+  /** Reserved avatar slots while attributions load for an authorized editor. */
   skeletonAvatarCount?: number;
-  /** Trailing add/team controls on the contribute editor row (`Users`, `+`). */
-  skeletonTrailingSlotCount?: number;
 };
 
 /**
- * Loads and persists experiment researcher attributions for browse and molecule-detail dataset panels.
+ * Loads and persists experiment researcher attributions. The trailing circular
+ * `+` control (add person / apply team) renders only when the session is signed
+ * in and may edit the experiment.
  */
 export function ExperimentAttributionEditSection({
   experimentId,
@@ -47,19 +48,23 @@ export function ExperimentAttributionEditSection({
   variant = "panel",
   readOnlyFallback = null,
   skeletonAvatarCount = 3,
-  skeletonTrailingSlotCount = 0,
 }: ExperimentAttributionEditSectionProps) {
   const isInline = variant === "inline";
+  const { data: session, status: sessionStatus } = useSession();
+  const isSignedIn = Boolean(session?.user?.id);
+  const sessionReady = sessionStatus !== "loading";
+  const editQueriesEnabled = enabled && sessionReady && isSignedIn;
+
   const utils = trpc.useUtils();
   const canEditQuery = trpc.experiments.canEditExperiment.useQuery(
     { experimentId },
-    { enabled },
+    { enabled: editQueriesEnabled },
   );
   const canEdit = canEditQuery.data?.canEdit === true;
 
   const attributionsQuery = trpc.experiments.listAttributions.useQuery(
     { experimentId },
-    { enabled: enabled && canEdit },
+    { enabled: editQueriesEnabled && canEdit },
   );
 
   const setAttributionsMutation = trpc.experiments.setAttributions.useMutation({
@@ -92,13 +97,13 @@ export function ExperimentAttributionEditSection({
   const hydrationKey = `${experimentId}:${attributionsQuery.dataUpdatedAt}`;
 
   useEffect(() => {
-    if (!enabled) {
+    if (!editQueriesEnabled || !canEdit) {
       lastHydrationKeyRef.current = null;
       setHydratedFromServer(false);
       setDraftAttributions([]);
       return;
     }
-    if (!canEdit || !attributionsQuery.isSuccess) {
+    if (!attributionsQuery.isSuccess) {
       return;
     }
     if (lastHydrationKeyRef.current === hydrationKey) {
@@ -110,7 +115,7 @@ export function ExperimentAttributionEditSection({
   }, [
     attributionsQuery.isSuccess,
     canEdit,
-    enabled,
+    editQueriesEnabled,
     hydrationKey,
     serverAttributions,
   ]);
@@ -150,30 +155,38 @@ export function ExperimentAttributionEditSection({
     setDraftAttributions(serverAttributions);
   }, [serverAttributions]);
 
-  if (!enabled) {
+  if (!sessionReady) {
+    return (
+      <AttributionAvatarRowSkeleton
+        avatarCount={3}
+        max={3}
+        size="sm"
+        trailingSlotCount={enabled ? 1 : 0}
+        reserveOverflowSlot
+        className={isInline ? undefined : "py-1"}
+      />
+    );
+  }
+
+  if (!enabled || !isSignedIn) {
     return readOnlyFallback;
   }
 
-  const loadingPlaceholder = (
-    <AttributionAvatarRowSkeleton
-      avatarCount={skeletonAvatarCount}
-      max={8}
-      size="sm"
-      trailingSlotCount={skeletonTrailingSlotCount}
-      className={isInline ? undefined : "py-1"}
-    />
-  );
-
   if (!canEditQuery.isSuccess) {
-    return loadingPlaceholder;
+    return (
+      <AttributionAvatarRowSkeleton
+        avatarCount={3}
+        max={3}
+        size="sm"
+        trailingSlotCount={1}
+        reserveOverflowSlot
+        className={isInline ? undefined : "py-1"}
+      />
+    );
   }
 
   if (!canEdit) {
     return readOnlyFallback;
-  }
-
-  if (!attributionsQuery.isSuccess || !hydratedFromServer) {
-    return loadingPlaceholder;
   }
 
   if (attributionsQuery.isError) {
@@ -181,6 +194,19 @@ export function ExperimentAttributionEditSection({
       <p className="text-danger text-xs sm:text-sm">
         Could not load researcher attributions for this dataset.
       </p>
+    );
+  }
+
+  if (!attributionsQuery.isSuccess || !hydratedFromServer) {
+    return (
+      <AttributionAvatarRowSkeleton
+        avatarCount={skeletonAvatarCount}
+        max={3}
+        size="sm"
+        trailingSlotCount={1}
+        reserveOverflowSlot
+        className={isInline ? undefined : "py-1"}
+      />
     );
   }
 

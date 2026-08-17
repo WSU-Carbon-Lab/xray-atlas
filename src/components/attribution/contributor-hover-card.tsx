@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment } from "react";
+import { Fragment, useRef, useState } from "react";
 import Link from "next/link";
 import {
   Button,
@@ -13,12 +13,18 @@ import {
 import { Trash2 } from "lucide-react";
 import { ORCIDIcon } from "~/components/icons";
 import {
+  sampleFormSelectListBoxClass,
+  sampleFormSelectListBoxItemClass,
+  sampleFormSelectPopoverClass,
+} from "~/components/forms/sample-form-select";
+import {
   ResearcherAvatar,
   normalizeProfileImageUrl,
   type ContributorHoverRemoveRow,
   type ContributorHoverRoleOptionSection,
   type UserWithOrcid,
 } from "~/components/ui/avatar";
+import { cn } from "@heroui/styles";
 
 export type ContributorHoverCardProps = {
   user: UserWithOrcid;
@@ -30,6 +36,11 @@ export type ContributorHoverCardProps = {
   roleOptionSections?: ReadonlyArray<ContributorHoverRoleOptionSection>;
   onMouseEnter?: () => void;
   onMouseLeave?: () => void;
+  /**
+   * Reports when a portaled role Select menu opens or closes so parent hover
+   * tooltips can avoid scheduling dismiss while the nested overlay is active.
+   */
+  onNestedOverlayOpenChange?: (isOpen: boolean) => void;
 };
 
 function userDisplayName(user: UserWithOrcid): string {
@@ -55,10 +66,12 @@ function ContributorRoleSelect({
   row,
   roleOptionSections,
   onRoleChangeRow,
+  onOpenChange,
 }: {
   row: ContributorHoverRemoveRow;
   roleOptionSections: ReadonlyArray<ContributorHoverRoleOptionSection>;
   onRoleChangeRow: (rowKey: string, role: string) => void;
+  onOpenChange?: (isOpen: boolean) => void;
 }) {
   const selectedRole = row.contributorRole ?? "";
   const selectedLabel =
@@ -72,28 +85,35 @@ function ContributorRoleSelect({
       aria-label={`Change ${row.roleLabel} role`}
       selectedKey={selectedRole || null}
       isDisabled={row.roleChangeDisabled}
+      onOpenChange={onOpenChange}
       onSelectionChange={(key) => {
-        if (typeof key !== "string" || key === selectedRole) {
-          return;
+        if (typeof key === "string" && key !== selectedRole) {
+          onRoleChangeRow(row.rowKey, key);
         }
-        onRoleChangeRow(row.rowKey, key);
+        onOpenChange?.(false);
       }}
       className="min-w-0 flex-1"
     >
-      <Select.Trigger className="h-7 min-h-0 min-w-0 px-2">
+      <Select.Trigger className="h-7 min-h-0 min-w-0 rounded-lg px-2">
         <Select.Value className="truncate text-xs">
           {selectedLabel}
         </Select.Value>
         <Select.Indicator />
       </Select.Trigger>
-      <Select.Popover>
+      <Select.Popover
+        className={cn(sampleFormSelectPopoverClass, "z-tooltip")}
+        data-attribution-nested-overlay="true"
+      >
         <div data-attribution-nested-overlay="true">
           <ScrollShadow
             className="max-h-48 min-h-0"
             hideScrollBar
             orientation="vertical"
           >
-            <ListBox aria-label="Attribution roles" className="p-1">
+            <ListBox
+              aria-label="Attribution roles"
+              className={sampleFormSelectListBoxClass}
+            >
               {roleOptionSections.map((section, sectionIndex) => (
                 <Fragment key={section.sectionLabel}>
                   {sectionIndex > 0 ? <Separator className="my-1" /> : null}
@@ -106,6 +126,7 @@ function ContributorRoleSelect({
                         key={option.contributorType}
                         id={option.contributorType}
                         textValue={option.label}
+                        className={sampleFormSelectListBoxItemClass}
                       >
                         <span className="text-sm">{option.label}</span>
                         <ListBox.ItemIndicator />
@@ -135,6 +156,7 @@ export function ContributorHoverCard({
   roleOptionSections,
   onMouseEnter,
   onMouseLeave,
+  onNestedOverlayOpenChange,
 }: ContributorHoverCardProps) {
   const name = userDisplayName(user);
   const orcidValue = userOrcid(user);
@@ -152,12 +174,31 @@ export function ContributorHoverCard({
     typeof onRoleChangeRow === "function" &&
     roleOptionSections != null &&
     roleOptionSections.length > 0;
+  const openRoleSelectKeysRef = useRef(new Set<string>());
+  const [roleSelectOpen, setRoleSelectOpen] = useState(false);
+
+  const handleRoleSelectOpenChange = (rowKey: string, isOpen: boolean) => {
+    const keys = openRoleSelectKeysRef.current;
+    if (isOpen) {
+      keys.add(rowKey);
+    } else {
+      keys.delete(rowKey);
+    }
+    const nextOpen = keys.size > 0;
+    setRoleSelectOpen(nextOpen);
+    onNestedOverlayOpenChange?.(nextOpen);
+  };
 
   return (
     <div
       className="border-border bg-surface relative w-[min(16rem,calc(100vw-1rem))] rounded-2xl border px-3 py-2.5 shadow-lg"
       onMouseEnter={onMouseEnter}
-      onMouseLeave={onMouseLeave}
+      onMouseLeave={() => {
+        if (roleSelectOpen) {
+          return;
+        }
+        onMouseLeave?.();
+      }}
     >
       <div className="flex items-start gap-2">
         <ResearcherAvatar
@@ -244,6 +285,9 @@ export function ContributorHoverCard({
                   row={row}
                   roleOptionSections={roleOptionSections}
                   onRoleChangeRow={onRoleChangeRow}
+                  onOpenChange={(isOpen) =>
+                    handleRoleSelectOpenChange(row.rowKey, isOpen)
+                  }
                 />
               ) : (
                 <span className="text-muted text-xs">{row.roleLabel}</span>

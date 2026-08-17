@@ -20,6 +20,7 @@ import {
   type NexafsPlotChannelId,
 } from "~/features/process-nexafs/nexafs-plot-channels";
 import { NEXAFS_PLOT_DATA_RAIL_DEFINITION } from "~/features/process-nexafs/nexafs-plot-data-rail-config";
+import { peaksetRowToPlotPeak } from "~/lib/nexafs/peakset-kind";
 
 export type { NexafsBrowseDataView, NexafsPlotChannelId };
 
@@ -176,23 +177,40 @@ function NEXAFS_GATE_MESSAGE(channel: NexafsPlotChannelId): string {
   if (channel === "delta") {
     return "No stored delta values for this experiment.";
   }
-  if (
-    channel === "beta" ||
-    channel === "f2" ||
-    channel === "im-epsilon" ||
-    channel === "im-chi"
-  ) {
+  if (channel === "beta") {
     return "No stored beta values for this experiment.";
   }
-  return "Select a molecule formula and upload beta and delta to use derived optical constants.";
+  if (channel === "f2") {
+    return "Select a molecule formula and ensure beta is stored to plot f2.";
+  }
+  if (channel === "f1") {
+    return "Select a molecule formula and ensure delta is stored to plot f1.";
+  }
+  if (
+    channel === "im-epsilon" ||
+    channel === "re-epsilon" ||
+    channel === "im-chi" ||
+    channel === "re-chi"
+  ) {
+    return "Derive beta first to plot epsilon or chi (delta defaults to 0 until KK).";
+  }
+  return "Not available for this experiment.";
 }
 
 export function mapPeaksetsToPlotPeaks(
-  rows: Array<{ id: string; energyev: number; intensity: number | null }>,
+  rows: Array<{
+    id: string;
+    energyev: number;
+    intensity: number | null;
+    transition?: string | null;
+  }>,
 ): Peak[] {
-  return rows.map((p) => ({
-    id: p.id,
-    energy: p.energyev,
-    amplitude: p.intensity ?? undefined,
-  }));
+  return rows.map((p) =>
+    peaksetRowToPlotPeak({
+      id: p.id,
+      energyev: p.energyev,
+      intensity: p.intensity,
+      transition: p.transition ?? null,
+    }),
+  );
 }

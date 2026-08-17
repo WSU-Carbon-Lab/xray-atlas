@@ -361,7 +361,7 @@ function PlotDataRailTrayTrigger<
                         <PlotToolbarRichHint
                           title={ch.label}
                           description={ch.description}
-                          placement={hintPlacement ?? "right"}
+                          placement={hintPlacement ?? "bottom"}
                           whenDisabledDescription={
                             channelUnavailableDescription?.(ch.id) ??
                             "Not available for this dataset."
@@ -399,25 +399,20 @@ function PlotDataRailTrayTrigger<
 
   return (
     <div className="relative w-full shrink-0">
-      <PlotToolbarRichHint
-        title={tray.trayLabel}
-        description={tray.trayDescription}
-        placement={hintPlacement ?? "right"}
-      >
+      {isTrayOpen ? (
         <button
           ref={triggerRef}
           type="button"
           data-selected={trayHighlighted || isTrayOpen ? true : undefined}
-          aria-controls={isTrayOpen ? pickerContentId : undefined}
-          aria-expanded={isTrayOpen}
+          aria-controls={pickerContentId}
+          aria-expanded
           aria-haspopup="listbox"
-          aria-label={`${tray.trayLabel}, ${isTrayOpen ? "close" : "open"} channel menu`}
-          onClick={() => onTrayOpenChange(!isTrayOpen)}
+          aria-label={`${tray.trayLabel}, close channel menu`}
+          onClick={() => onTrayOpenChange(false)}
           className={cn(
             segmentClassName,
             "relative flex w-full cursor-pointer items-center justify-center p-0",
-            (trayHighlighted || isTrayOpen) &&
-              plotToolbarToggleForcedSelectedClass,
+            plotToolbarToggleForcedSelectedClass,
           )}
         >
           <span
@@ -427,14 +422,43 @@ function PlotDataRailTrayTrigger<
             {rowGlyph}
           </span>
           <ChevronRightIcon
-            className={cn(
-              "pointer-events-none absolute top-1/2 right-0.5 h-2.5 w-2.5 -translate-y-1/2 opacity-60 transition-transform duration-150",
-              isTrayOpen && "rotate-180",
-            )}
+            className="pointer-events-none absolute top-1/2 right-0.5 h-2.5 w-2.5 -translate-y-1/2 rotate-180 opacity-60 transition-transform duration-150"
             aria-hidden
           />
         </button>
-      </PlotToolbarRichHint>
+      ) : (
+        <PlotToolbarRichHint
+          title={tray.trayLabel}
+          description={tray.trayDescription}
+          placement={hintPlacement ?? "right"}
+        >
+          <button
+            ref={triggerRef}
+            type="button"
+            data-selected={trayHighlighted ? true : undefined}
+            aria-expanded={false}
+            aria-haspopup="listbox"
+            aria-label={`${tray.trayLabel}, open channel menu`}
+            onClick={() => onTrayOpenChange(true)}
+            className={cn(
+              segmentClassName,
+              "relative flex w-full cursor-pointer items-center justify-center p-0",
+              trayHighlighted && plotToolbarToggleForcedSelectedClass,
+            )}
+          >
+            <span
+              className="font-mono text-xs leading-none font-semibold"
+              aria-hidden
+            >
+              {rowGlyph}
+            </span>
+            <ChevronRightIcon
+              className="pointer-events-none absolute top-1/2 right-0.5 h-2.5 w-2.5 -translate-y-1/2 opacity-60 transition-transform duration-150"
+              aria-hidden
+            />
+          </button>
+        </PlotToolbarRichHint>
+      )}
       {pickerPortal}
     </div>
   );

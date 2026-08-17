@@ -107,6 +107,16 @@ export function defaultUploaderAttribution(params: {
 }
 
 /**
+ * Session identity used when seeding the contribute-upload DataCurator row.
+ */
+export type SessionUploaderAttributionIdentity = {
+  orcid: string;
+  displayName: string | null;
+  imageUrl?: string | null;
+  hasContributionAgreement?: boolean;
+};
+
+/**
  * Collapses duplicate `(orcid, role)` pairs while preserving the first display metadata.
  */
 export function dedupeDatasetAttributions(
@@ -152,6 +162,40 @@ export function filterValidOrcidAttributions(
       return { ...row, role };
     })
     .filter((row): row is DatasetAttributionEntry => row != null);
+}
+
+/**
+ * Ensures draft dataset attributions include a DataCurator when none is present by
+ * prepending the signed-in uploading user. Leaves rows unchanged when at least one
+ * DataCurator already exists (including an explicitly reassigned curator) or when
+ * `uploader` is null or not a valid ORCID. Does not collapse multiple curators;
+ * callers that require exactly one must validate after this call.
+ *
+ * @param rows - Current attribution entries (collectors, other roles, or empty)
+ * @param uploader - Session user to credit as DataCurator when missing; null skips seeding
+ * @returns Deduped valid ORCID rows with a session DataCurator prepended when needed
+ */
+export function ensureSessionDataCuratorAttribution(
+  rows: DatasetAttributionEntry[],
+  uploader: SessionUploaderAttributionIdentity | null,
+): DatasetAttributionEntry[] {
+  const valid = filterValidOrcidAttributions(rows);
+  const hasCurator = valid.some((row) => isUploaderContributorRole(row.role));
+  if (hasCurator) {
+    return valid;
+  }
+  if (!uploader || !isValidOrcidUserId(uploader.orcid)) {
+    return valid;
+  }
+  return dedupeDatasetAttributions([
+    defaultUploaderAttribution({
+      orcid: uploader.orcid,
+      displayName: uploader.displayName,
+      imageUrl: uploader.imageUrl,
+      hasContributionAgreement: uploader.hasContributionAgreement,
+    }),
+    ...valid,
+  ]);
 }
 
 /**
