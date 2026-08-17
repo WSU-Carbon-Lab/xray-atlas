@@ -171,20 +171,13 @@ export async function userMayAccessAdminWrites(
 export function sessionWriteAssuranceFailure(
   status: PasskeyEnrollmentStatus,
   requiredAal: AssertedAal,
-  kind: "destructive" | "admin" | "contribute",
+  kind: "destructive" | "admin",
 ): { message: string; appCode: SessionWriteAssuranceAppCode } {
   if (!status.enrolled) {
     if (kind === "admin") {
       return {
         message:
           "Register a passkey from your profile before using administration tools.",
-        appCode: "SESSION_AAL_REQUIRED",
-      };
-    }
-    if (kind === "contribute") {
-      return {
-        message:
-          "Register a passkey before contributing data. Browse and read-only access remain available with ORCID sign-in.",
         appCode: "SESSION_AAL_REQUIRED",
       };
     }
@@ -215,13 +208,6 @@ export function sessionWriteAssuranceFailure(
       appCode: "SESSION_AAL_REQUIRED",
     };
   }
-  if (kind === "contribute") {
-    return {
-      message:
-        "Confirm this upload with your passkey. ORCID-only sessions cannot submit contributions.",
-      appCode: "SESSION_AAL_REQUIRED",
-    };
-  }
   return {
     message:
       "Sign in with a passkey to confirm this action. ORCID-only sessions cannot delete or transfer data.",
@@ -233,7 +219,7 @@ async function assertSessionAalForWrites(
   db: MfaAccessDb,
   userId: string,
   req: Request | undefined,
-  kind: "destructive" | "admin" | "contribute",
+  kind: "destructive" | "admin",
 ): Promise<void> {
   const requiredAal =
     kind === "admin"
@@ -273,17 +259,6 @@ export async function assertSessionAalForDestructiveWrites(
 }
 
 /**
- * Throws FORBIDDEN when the active session does not meet AAL2 for NEXAFS contribute submit.
- */
-export async function assertSessionAalForContributeSubmit(
-  db: MfaAccessDb,
-  userId: string,
-  req: Request | undefined,
-): Promise<void> {
-  await assertSessionAalForWrites(db, userId, req, "contribute");
-}
-
-/**
  * Throws FORBIDDEN when the active session does not meet admin write AAL policy (AAL2 passkey).
  */
 export async function assertSessionAalForAdminWrites(
@@ -297,8 +272,8 @@ export async function assertSessionAalForAdminWrites(
 /**
  * Returns whether the user has completed passkey enrollment (at least one active credential).
  *
- * Most contribute mutations require enrollment only. NEXAFS `createWithSpectrum` also requires
- * a passkey-established AAL2 session via {@link assertSessionAalForContributeSubmit}.
+ * Contribute mutations (molecule/facility creation, NEXAFS `createWithSpectrum`) require
+ * enrollment only; no session-AAL step-up is required.
  */
 export async function userMayAccessContributeWrites(
   db: MfaAccessDb,

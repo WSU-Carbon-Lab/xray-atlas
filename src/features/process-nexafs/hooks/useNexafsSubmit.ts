@@ -47,11 +47,8 @@ import {
   DEFAULT_KK_MASS_DENSITY_G_CM3,
 } from "~/features/kk-calc";
 import {
-  isPasskeyClientCancelled,
   isSessionAalRequiredError,
   PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
-  PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
-  runPasskeyClientAuth,
 } from "~/lib/passkey-client-auth";
 
 export type SubmitStatus = { type: "error"; message: string } | undefined;
@@ -119,7 +116,6 @@ export function useNexafsSubmit(
   },
 ) {
   const [submitStatus, setSubmitStatus] = useState<SubmitStatus>(undefined);
-  const [isConfirmingPasskey, setIsConfirmingPasskey] = useState(false);
   const { data: session } = useSession();
   const sessionUploader =
     useMemo((): SessionUploaderAttributionIdentity | null => {
@@ -136,81 +132,18 @@ export function useNexafsSubmit(
   const createNexafsMutation =
     trpc.experiments.createWithSpectrum.useMutation();
   const sampleAuxUpsertMutation = trpc.sampleAux.upsert.useMutation();
-  const confirmPasskeySessionStepUp =
-    trpc.users.confirmPasskeySessionStepUp.useMutation();
 
   const ensureSubmitPasskey = useCallback(async (): Promise<boolean> => {
     const assurance = await utils.users.getSessionWriteAssurance.fetch();
-    if (assurance.satisfied) {
+    if (assurance.enrolled) {
       return true;
     }
-    if (!assurance.enrolled) {
-      setSubmitStatus({
-        type: "error",
-        message: PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
-      });
-      return false;
-    }
-
-    setIsConfirmingPasskey(true);
-    try {
-      const result = await runPasskeyClientAuth({
-        action: "sign-in",
-        callbackUrl: window.location.href,
-        errorFallback: "Passkey confirmation failed. Please try again.",
-        incompleteFallback: "Passkey confirmation did not complete",
-      });
-
-      if (!result.ok) {
-        const message =
-          result.errorMessage ??
-          "Passkey confirmation failed. Please try again.";
-        if (
-          isPasskeyClientCancelled(new Error(message)) ||
-          message.toLowerCase().includes("interrupted") ||
-          message.toLowerCase().includes("denied")
-        ) {
-          setSubmitStatus({
-            type: "error",
-            message: PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
-          });
-          return false;
-        }
-        setSubmitStatus({ type: "error", message });
-        return false;
-      }
-
-      const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
-      await utils.users.getSessionWriteAssurance.invalidate();
-      if (!stepUp.evaluation.satisfied) {
-        setSubmitStatus({
-          type: "error",
-          message:
-            "Passkey confirmation did not elevate this session. Try again, or register a passkey first.",
-        });
-        return false;
-      }
-      return true;
-    } catch (error) {
-      if (isPasskeyClientCancelled(error)) {
-        setSubmitStatus({
-          type: "error",
-          message: PASSKEY_STEP_UP_CONTRIBUTE_CANCELLED_MESSAGE,
-        });
-        return false;
-      }
-      setSubmitStatus({
-        type: "error",
-        message:
-          error instanceof Error
-            ? error.message
-            : "Passkey confirmation failed. Please try again.",
-      });
-      return false;
-    } finally {
-      setIsConfirmingPasskey(false);
-    }
-  }, [confirmPasskeySessionStepUp, utils.users.getSessionWriteAssurance]);
+    setSubmitStatus({
+      type: "error",
+      message: PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE,
+    });
+    return false;
+  }, [utils.users.getSessionWriteAssurance]);
 
   const submit = useCallback(
     async (event?: React.FormEvent<HTMLFormElement>) => {
@@ -786,6 +719,6 @@ export function useNexafsSubmit(
     submit,
     submitStatus,
     setSubmitStatus,
-    isPending: createNexafsMutation.isPending || isConfirmingPasskey,
+    isPending: createNexafsMutation.isPending,
   };
 }

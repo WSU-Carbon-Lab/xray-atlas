@@ -5,7 +5,6 @@ import {
   assertPasskeyEnrolledForContribute,
   SessionAalRequiredError,
   assertSessionAalForAdminWrites,
-  assertSessionAalForContributeSubmit,
   assertSessionAalForDestructiveWrites,
 } from "~/server/auth/mfa-access";
 import { hasManageUsersCapability } from "~/server/auth/privileged-role";
@@ -118,26 +117,6 @@ const enforcePasskeyForContribute = t.middleware(async ({ ctx, next }) => {
 /** Mutations that create or modify contributed scientific records require passkey enrollment. */
 export const contributeWriteProcedure = protectedProcedure.use(
   enforcePasskeyForContribute,
-);
-
-const enforceContributeSubmitAal = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.userId) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
-  await assertSessionAalForContributeSubmit(ctx.db, ctx.userId, ctx.req);
-  return next({
-    ctx: {
-      userId: ctx.userId,
-    },
-  });
-});
-
-/**
- * NEXAFS dataset submit requires passkey enrollment and a passkey-established AAL2 session.
- * Follow-up contribute writes (aux files, sample metadata) stay on {@link contributeWriteProcedure}.
- */
-export const contributeSubmitProcedure = contributeWriteProcedure.use(
-  enforceContributeSubmitAal,
 );
 
 const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
