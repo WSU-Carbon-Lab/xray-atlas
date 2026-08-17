@@ -31,5 +31,11 @@ export {
   useDatasetStatus,
 } from "./hooks";
 export type { SubmitStatus, DatasetStatus, DatasetStatusInfo } from "./hooks";
+export type { SimilarityConfirmRequest } from "./hooks";
 export { NexafsContributeFlow } from "./components/NexafsContributeFlow";
 export type { NexafsContributeFlowProps } from "./components/NexafsContributeFlow";
+export {
+  DatasetSimilarityCompareModal,
+  type DatasetSimilarityCompareModalProps,
+  type DatasetSimilarityConfirmRequest,
+} from "./ui/dataset-similarity-compare-modal";

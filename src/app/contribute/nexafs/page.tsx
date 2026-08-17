@@ -17,6 +17,12 @@ import {
   useNexafsSubmit,
 } from "~/features/process-nexafs";
 import type { NexafsContributeFlowProps } from "~/features/process-nexafs";
+import type {
+  SimilarityConfirmOutcome,
+  SimilarityConfirmRequest,
+} from "~/features/process-nexafs/hooks/useNexafsSubmit";
+import { DatasetSimilarityCompareModal } from "~/features/process-nexafs/ui/dataset-similarity-compare-modal";
+import type { SimilarityContinuePatch } from "~/features/process-nexafs/utils/similarity-continue-patch";
 import { useRouter } from "next/navigation";
 import { useCallback, useRef, useState } from "react";
 import {
@@ -80,6 +86,11 @@ export default function NEXAFSContributePage() {
 
   const kkConsentResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [kkConsentOpen, setKkConsentOpen] = useState(false);
+  const similarityResolverRef = useRef<
+    ((value: SimilarityConfirmOutcome) => void) | null
+  >(null);
+  const [similarityRequest, setSimilarityRequest] =
+    useState<SimilarityConfirmRequest | null>(null);
 
   const dismissKkConsent = useCallback(() => {
     kkConsentResolverRef.current?.(false);
@@ -103,6 +114,31 @@ export default function NEXAFSContributePage() {
       setKkConsentOpen(true);
     });
   }, []);
+
+  const dismissSimilarityConfirm = useCallback(() => {
+    similarityResolverRef.current?.({ confirmed: false });
+    similarityResolverRef.current = null;
+    setSimilarityRequest(null);
+  }, []);
+
+  const acceptSimilarityConfirm = useCallback(
+    (patch: SimilarityContinuePatch) => {
+      similarityResolverRef.current?.({ confirmed: true, patch });
+      similarityResolverRef.current = null;
+      setSimilarityRequest(null);
+    },
+    [],
+  );
+
+  const requestSimilarityConfirm = useCallback(
+    async (request: SimilarityConfirmRequest) => {
+      return await new Promise<SimilarityConfirmOutcome>((resolve) => {
+        similarityResolverRef.current = resolve;
+        setSimilarityRequest(request);
+      });
+    },
+    [],
+  );
 
   const {
     instrumentOptions,
@@ -180,8 +216,11 @@ export default function NEXAFSContributePage() {
         );
       },
       requestKkConsent,
+      requestSimilarityConfirm,
       showToast,
       onEnergyConflicts: requestEnergyConflictResolution,
+      edgeOptions,
+      instrumentOptions,
     },
   );
 
@@ -388,6 +427,12 @@ export default function NEXAFSContributePage() {
         isOpen={kkConsentOpen}
         onDismiss={dismissKkConsent}
         onAccept={acceptKkConsent}
+      />
+
+      <DatasetSimilarityCompareModal
+        request={similarityRequest}
+        onCancel={dismissSimilarityConfirm}
+        onContinue={acceptSimilarityConfirm}
       />
     </>
   );
