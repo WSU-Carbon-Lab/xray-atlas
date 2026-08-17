@@ -42,6 +42,7 @@ export function detectSpectrumColumnNames(columns: readonly string[]): {
   const absorptionCol = columns.find((col) => {
     const lower = col.toLowerCase().trim();
     if (lower === "mu" || lower === "μ") return true;
+    if (/^(tey|pey|fy|tfy|pfy|trans|transmission)$/i.test(lower)) return true;
     return (
       lower.includes("absorption") ||
       lower.includes("abs") ||

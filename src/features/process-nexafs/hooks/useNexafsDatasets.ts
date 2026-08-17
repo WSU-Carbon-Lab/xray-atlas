@@ -108,7 +108,9 @@ function buildAutofillUpdatesFromParsedFilename(
   if (experimentType) {
     updates.experimentType = experimentType;
   } else if (parsedFilename.experimentMode) {
-    const normalizedMode = normalizeExperimentMode(parsedFilename.experimentMode);
+    const normalizedMode = normalizeExperimentMode(
+      parsedFilename.experimentMode,
+    );
     if (
       normalizedMode &&
       EXPERIMENT_TYPE_OPTIONS.some((opt) => opt.value === normalizedMode)
@@ -170,6 +172,13 @@ async function resolveMoleculeIdFromFilenameToken(
     if (moleculeId) return moleculeId;
   }
   return undefined;
+}
+
+function mergeCsvParseChallenges(
+  existing: readonly string[],
+  next: readonly string[],
+): string[] {
+  return [...new Set([...existing, ...next])];
 }
 
 export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
@@ -268,7 +277,11 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
 
           if (isNaN(energy) || isNaN(absorption)) continue;
 
-          const point: SpectrumPoint = { energy, absorption };
+          const point: SpectrumPoint = {
+            energy,
+            absorption,
+            rawabs: absorption,
+          };
 
           if (
             thetaColumn &&
@@ -378,10 +391,13 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
           updateDataset(datasetId, {
             spectrumPoints,
             spectrumError: undefined,
-            csvParseChallenges: [
-              ...challengeMessages,
-              `Duplicate photon energies with conflicting values (${preflight.conflicts.length} group${preflight.conflicts.length === 1 ? "" : "s"}). Resolve before submit.`,
-            ],
+            csvParseChallenges: mergeCsvParseChallenges(
+              dataset.csvParseChallenges,
+              [
+                ...challengeMessages,
+                `Duplicate photon energies with conflicting values (${preflight.conflicts.length} group${preflight.conflicts.length === 1 ? "" : "s"}). Resolve before submit.`,
+              ],
+            ),
           });
           return;
         }
@@ -397,7 +413,10 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         updateDataset(datasetId, {
           spectrumPoints: preflight.points,
           spectrumError: undefined,
-          csvParseChallenges: challengeMessages,
+          csvParseChallenges: mergeCsvParseChallenges(
+            dataset.csvParseChallenges,
+            challengeMessages,
+          ),
         });
       } catch (error) {
         updateDataset(datasetId, {
@@ -446,6 +465,8 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
             const parsedSheets = await parseSpectrumXlsxFile(file);
             const nextDatasets: DatasetState[] = [];
             let replacedCount = 0;
+            let firstMappingDatasetId: string | null = null;
+            const conflictMessages: string[] = [];
 
             for (const sheet of parsedSheets) {
               const existing = findReplaceableUnsubmittedDataset(
@@ -478,7 +499,8 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 documentMetadata: null,
                 instrumentOptions,
                 vendors,
-                experimentType: updates.experimentType ?? dataset.experimentType,
+                experimentType:
+                  updates.experimentType ?? dataset.experimentType,
                 instrumentId:
                   updates.instrumentId !== undefined &&
                   updates.instrumentId !== ""
@@ -494,13 +516,9 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
                 fixedPhi:
                   dataset.fixedPhi || String(DEFAULT_UPLOAD_PHI_DEGREES),
                 csvColumns: sheet.columns,
-                csvRawData: sheet.rawData.map((row) => ({
-                  energy: row.energy,
-                  mu: row.mu,
-                  theta: row.theta,
-                })),
+                csvRawData: sheet.rawData,
                 csvParseOptions: { headerRowIndex: 0, skipRowsAfterHeader: 0 },
-                csvParseChallenges: [],
+                csvParseChallenges: sheet.parseChallenges,
                 columnMappings: sheet.columnMappings,
                 sampleInfo: existing ? dataset.sampleInfo : autofill.sampleInfo,
                 ...mergeAutofillAttributions(dataset.attributions, autofill),
@@ -511,6 +529,14 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               );
               catalog = upsertDatasetById(catalog, merged);
               nextDatasets.push(merged);
+              if (sheet.needsUserMapping && firstMappingDatasetId == null) {
+                firstMappingDatasetId = merged.id;
+              }
+              if (sheet.parseChallenges.length > 0) {
+                conflictMessages.push(
+                  `${sheet.sheetName}: ${sheet.parseChallenges[0]}`,
+                );
+              }
             }
 
             setDatasets((prev) => {
@@ -521,11 +547,37 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
               return next;
             });
             setActiveDatasetId((prev) => prev ?? nextDatasets[0]?.id ?? null);
-            for (const dataset of nextDatasets) {
+            for (let index = 0; index < nextDatasets.length; index += 1) {
+              const dataset = nextDatasets[index];
+              const sheet = parsedSheets[index];
+              if (!dataset || sheet?.needsUserMapping) {
+                continue;
+              }
               setTimeout(() => processDatasetDataRef.current(dataset.id), 50);
             }
+            if (firstMappingDatasetId) {
+              setColumnMappingFile({
+                file,
+                datasetId: firstMappingDatasetId,
+              });
+              const mappingName =
+                nextDatasets.find((row) => row.id === firstMappingDatasetId)
+                  ?.fileName ?? file.name;
+              showToast(
+                `Need help mapping columns in ${mappingName}. Confirm Energy and Absorption, or pick a header row.`,
+                "error",
+                10000,
+              );
+            }
+            if (conflictMessages.length > 0) {
+              showToast(conflictMessages[0]!, "error", 12000);
+            }
 
-            if (parsedSheets.length > 1 || replacedCount > 0) {
+            if (
+              parsedSheets.length > 1 ||
+              replacedCount > 0 ||
+              firstMappingDatasetId
+            ) {
               const createdCount = parsedSheets.length - replacedCount;
               const parts: string[] = [];
               if (replacedCount > 0) {
@@ -581,15 +633,20 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
         );
         if (moleculeId && !dataset.moleculeId) updates.moleculeId = moleculeId;
 
-        const seeded: DatasetState = applyIncomingSpectrumOntoUnsubmittedDataset(
-          { ...dataset, ...updates },
-          existing,
-        );
+        const seeded: DatasetState =
+          applyIncomingSpectrumOntoUnsubmittedDataset(
+            { ...dataset, ...updates },
+            existing,
+          );
         catalog = upsertDatasetById(catalog, seeded);
         setDatasets((prev) => upsertDatasetById(prev, seeded));
         setActiveDatasetId((prev) => prev ?? seeded.id);
         if (existing) {
-          showToast(`Updated ${file.name} in the current upload.`, "success", 6000);
+          showToast(
+            `Updated ${file.name} in the current upload.`,
+            "success",
+            6000,
+          );
         }
 
         const isJson = file.name.toLowerCase().endsWith(".json");
@@ -833,6 +890,34 @@ export function useNexafsDatasets(options: UseNexafsDatasetsOptions) {
       };
 
       try {
+        if (isSpectrumXlsxFileName(file.name)) {
+          const current = datasetsRef.current.find(
+            (row) => row.id === datasetId,
+          );
+          const updates: Partial<DatasetState> = {
+            columnMappings: mappings,
+            csvParseChallenges: [],
+            spectrumError: null,
+          };
+          if (current) {
+            updates.csvColumns = current.csvColumns;
+            updates.csvRawData = current.csvRawData;
+            updates.csvParseOptions = current.csvParseOptions;
+          }
+          if (fixedValues?.theta !== undefined) {
+            updates.fixedTheta = fixedValues.theta;
+          }
+          if (fixedValues?.phi !== undefined) {
+            updates.fixedPhi = fixedValues.phi;
+          } else if (!mappings.phi) {
+            updates.fixedPhi = String(DEFAULT_UPLOAD_PHI_DEGREES);
+          }
+          updateDataset(datasetId, updates);
+          setColumnMappingFile(null);
+          setTimeout(() => processDatasetDataRef.current(datasetId), 100);
+          return;
+        }
+
         const parsed = await parseCSVFile(file, nextParseOptions);
         const updates: Partial<DatasetState> = {
           columnMappings: mappings,

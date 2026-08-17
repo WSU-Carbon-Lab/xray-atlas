@@ -58,11 +58,13 @@ export {
   parseSpectrumXlsxFile,
   isSpectrumXlsxFileName,
   detectWidePairedSpectrumXlsxSheets,
+  detectGenericTableSpectrumXlsxSheets,
   SPECTRUM_XLSX_DETECTORS,
 } from "./parseSpectrumXlsx";
 export type {
   ParsedSpectrumXlsxSheet,
   SpectrumXlsxDetector,
+  SpectrumXlsxFormatId,
 } from "./parseSpectrumXlsx";
 export {
   WIDE_PAIRED_UPLOAD_COLUMNS,
@@ -71,6 +73,9 @@ export {
   pairWidePairedGeometryColumns,
   moleculeTokenFromWidePairedWorkbookName,
   parsedFilenameFromWidePairedSemantics,
+  parseWidePairedSemanticsFromHeaders,
+  uniqueWidePairedBaseTokens,
+  widePairedSemanticsConflictMessage,
   isWidePairedWorksheet,
   experimentTypeFromWidePairedSemantics,
   unpivotWidePairedRowsToUploadFormat,

@@ -72,13 +72,7 @@ export interface WidePairedUploadRow {
 
 const EDGE_LITERAL = "edge";
 
-const TECHNIQUE_TOKENS = new Set([
-  "tey",
-  "pey",
-  "fy",
-  "trans",
-  "transmission",
-]);
+const TECHNIQUE_TOKENS = new Set(["tey", "pey", "fy", "trans", "transmission"]);
 
 const WIDE_COLUMN_HEADER =
   /^(?<base>.+?)_(?<theta>\d+(?:\.\d+)?)deg(?<energySuffix>_En)?$/i;
@@ -213,6 +207,78 @@ export function pairWidePairedGeometryColumns(
 
   pairs.sort((a, b) => a.thetaDegrees - b.thetaDegrees);
   return pairs;
+}
+
+/**
+ * Collects distinct wide-format base tokens from a header row.
+ *
+ * @param headers Header row labels from one worksheet.
+ * @returns Unique base tokens in first-seen order.
+ */
+export function uniqueWidePairedBaseTokens(
+  headers: readonly string[],
+): string[] {
+  const tokens: string[] = [];
+  const seen = new Set<string>();
+  for (const header of headers) {
+    const parsed = parseWidePairedColumnHeader(header);
+    if (!parsed || seen.has(parsed.baseToken)) {
+      continue;
+    }
+    seen.add(parsed.baseToken);
+    tokens.push(parsed.baseToken);
+  }
+  return tokens;
+}
+
+/**
+ * Parses sheet-name grammar from the first wide-format column prefix.
+ *
+ * @param headers Header row labels from one worksheet.
+ * @returns Semantics when a prefix matches `{molecule}_{atom}_{shell}_edge_…`, otherwise `null`.
+ */
+export function parseWidePairedSemanticsFromHeaders(
+  headers: readonly string[],
+): WidePairedSheetSemantics | null {
+  const tokens = uniqueWidePairedBaseTokens(headers);
+  for (const token of tokens) {
+    const semantics = parseWidePairedSheetName(token);
+    if (semantics) {
+      return semantics;
+    }
+  }
+  return null;
+}
+
+/**
+ * Builds a contributor-facing warning when the sheet tab and column prefixes
+ * disagree on edge, technique, facility, or beamline.
+ *
+ * @param sheetName Workbook sheet tab label.
+ * @param sheetSemantics Parsed sheet-tab semantics, or `null` when the tab does not match.
+ * @param headerSemantics Parsed column-prefix semantics, or `null` when prefixes do not match.
+ * @returns Warning text, or `null` when there is no disagreement to surface.
+ */
+export function widePairedSemanticsConflictMessage(
+  sheetName: string,
+  sheetSemantics: WidePairedSheetSemantics | null,
+  headerSemantics: WidePairedSheetSemantics | null,
+): string | null {
+  if (!sheetSemantics || !headerSemantics) {
+    return null;
+  }
+  if (
+    sheetSemantics.edgeLabel === headerSemantics.edgeLabel &&
+    sheetSemantics.technique.toLowerCase() ===
+      headerSemantics.technique.toLowerCase() &&
+    sheetSemantics.facility.toLowerCase() ===
+      headerSemantics.facility.toLowerCase() &&
+    sheetSemantics.beamline.toLowerCase() ===
+      headerSemantics.beamline.toLowerCase()
+  ) {
+    return null;
+  }
+  return `Sheet tab "${sheetName}" is ${sheetSemantics.edgeLabel} ${sheetSemantics.technique} ${sheetSemantics.facility} ${sheetSemantics.beamline}, but columns are labeled ${headerSemantics.edgeLabel} ${headerSemantics.technique} ${headerSemantics.facility} ${headerSemantics.beamline}. Descriptors were filled from the column headers. Confirm edge, facility, and instrument before submitting.`;
 }
 
 /**

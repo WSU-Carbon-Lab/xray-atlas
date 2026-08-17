@@ -156,6 +156,7 @@ export function parseNexafsJson(file: File): Promise<{
                   const spectrumPoint: SpectrumPoint = {
                     energy: energyNum,
                     absorption: absorptionNum,
+                    rawabs: absorptionNum,
                   };
 
                   if (theta !== undefined && theta !== null) {
@@ -204,6 +205,10 @@ export function parseNexafsJson(file: File): Promise<{
                     ? energy
                     : parseFloat(String(energy)),
                 absorption:
+                  typeof absorption === "number"
+                    ? absorption
+                    : parseFloat(String(absorption)),
+                rawabs:
                   typeof absorption === "number"
                     ? absorption
                     : parseFloat(String(absorption)),
@@ -276,6 +281,8 @@ export function parseNexafsJson(file: File): Promise<{
                       ? (absorption as { absorption: number }).absorption
                       : parseFloat(String(absorption)),
               };
+
+              spectrumPoint.rawabs = spectrumPoint.absorption;
 
               if (thetaArray[i] !== undefined) {
                 spectrumPoint.theta =
