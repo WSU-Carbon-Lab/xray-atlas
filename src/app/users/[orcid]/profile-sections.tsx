@@ -11,9 +11,12 @@ import {
   Card,
   Checkbox,
   Chip,
+  Input,
+  Label,
   ListBox,
   Pagination,
   Tabs,
+  TextField,
   Tooltip,
 } from "@heroui/react";
 import {
@@ -104,9 +107,9 @@ function passkeyDeviceLabel(passkey: {
 }): string {
   if (passkey.nickname?.trim()) return passkey.nickname.trim();
   if (passkey.deviceType === "multiDevice") {
-    return "Cross-platform security key";
+    return "Synced passkey";
   }
-  return "This device";
+  return "Hardware key (this device only)";
 }
 
 export function ProfileHeader({
@@ -672,9 +675,11 @@ export function ProfilePasskeysSection({
   sessionWriteAssurance,
   isRegistering,
   isDeleting,
+  isRenaming,
   isPasskeySigningIn,
   onRegister,
   onDelete,
+  onRenamePasskey,
   onPasskeySignIn,
 }: {
   passkeys:
@@ -698,12 +703,27 @@ export function ProfilePasskeysSection({
   sessionWriteAssurance: SessionWriteAssuranceEvaluation | undefined;
   isRegistering: boolean;
   isDeleting: boolean;
+  isRenaming: boolean;
   isPasskeySigningIn: boolean;
   onRegister: () => Promise<void>;
   onDelete: (passkeyId: string) => Promise<void>;
+  onRenamePasskey: (passkeyId: string, nickname: string) => Promise<void>;
   onPasskeySignIn: () => Promise<void>;
 }) {
   const [revokeTargetId, setRevokeTargetId] = useState<string | null>(null);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingValue, setEditingValue] = useState("");
+
+  const commitRename = (passkeyId: string) => {
+    const trimmed = editingValue.trim();
+    if (!trimmed) {
+      setEditingId(null);
+      return;
+    }
+    void onRenamePasskey(passkeyId, trimmed).finally(() => {
+      setEditingId(null);
+    });
+  };
 
   const showContributionHint =
     (passkeyRequiredRedirect || passkeyEnrollment?.enrolled === false) &&
@@ -833,9 +853,66 @@ export function ProfilePasskeysSection({
                         <Key className="h-5 w-5" aria-hidden />
                       </span>
                       <div className="min-w-0">
-                        <p className="text-foreground text-sm font-medium">
-                          {passkeyDeviceLabel(passkey)}
-                        </p>
+                        {editingId === passkey.id ? (
+                          <TextField
+                            className="flex items-center gap-2"
+                            value={editingValue}
+                            onChange={setEditingValue}
+                            isDisabled={isRenaming}
+                          >
+                            <Label className="sr-only">Passkey nickname</Label>
+                            <Input
+                              autoFocus
+                              variant="secondary"
+                              placeholder={passkeyDeviceLabel(passkey)}
+                              className="text-foreground placeholder:text-muted h-8 w-full max-w-48 min-w-0 text-sm"
+                              onKeyDown={(event) => {
+                                if (event.key === "Enter") {
+                                  event.preventDefault();
+                                  commitRename(passkey.id);
+                                } else if (event.key === "Escape") {
+                                  event.preventDefault();
+                                  setEditingId(null);
+                                }
+                              }}
+                            />
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 shrink-0 px-2"
+                              isPending={isRenaming}
+                              onPress={() => commitRename(passkey.id)}
+                            >
+                              Save
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="h-8 shrink-0 px-2"
+                              isDisabled={isRenaming}
+                              onPress={() => setEditingId(null)}
+                            >
+                              Cancel
+                            </Button>
+                          </TextField>
+                        ) : (
+                          <div className="flex min-w-0 flex-wrap items-center gap-1.5">
+                            <p className="text-foreground text-sm font-medium">
+                              {passkeyDeviceLabel(passkey)}
+                            </p>
+                            <Button
+                              size="sm"
+                              variant="ghost"
+                              className="text-muted hover:text-foreground h-auto shrink-0 px-1.5 py-0.5 text-xs"
+                              onPress={() => {
+                                setEditingId(passkey.id);
+                                setEditingValue(passkey.nickname?.trim() ?? "");
+                              }}
+                            >
+                              Rename
+                            </Button>
+                          </div>
+                        )}
                         <p className="text-muted mt-1 text-xs">
                           {lastUsed ? `Last used ${lastUsed}` : "Not used yet"}
                           {passkey.backedUp

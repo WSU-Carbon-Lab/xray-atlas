@@ -1,12 +1,15 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { MoleculeDisplay } from "~/components/molecules/molecule-display";
 import { MoleculeNexafsTabs } from "./molecule-nexafs-tabs";
 import { MoleculeDetailProvider } from "./molecule-detail-context";
-import { ToastContainer, useToast } from "~/components/ui/toast";
+import { ProfileDangerZoneRail } from "~/components/profile/profile-danger-zone-rail";
+import { ToastContainer, showToast, useToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
+import { useDestructiveSessionStepUp } from "~/hooks/useDestructiveSessionStepUp";
 import type { MoleculeView } from "~/types/molecule";
 
 type Molecule = MoleculeView;
@@ -34,6 +37,34 @@ export function MoleculeDetailLayoutClient({
   const canEditSettled = !isSignedIn || canEditQuery.isFetched;
   const canEdit =
     isSignedIn && canEditSettled && canEditQuery.data?.canEdit === true;
+  // Delete is creator-only server-side (`molecules.remove`), unlike `canEdit`
+  // above which also allows contributors. Gate the danger-rail's visibility
+  // directly on ownership so contributors never see a delete button that
+  // would dead-end in a FORBIDDEN error — mirrors the NEXAFS browse-row gate
+  // in `nexafs-browse-experiment-section.tsx`.
+  const currentUserId = session?.user?.id ?? null;
+  const canDelete =
+    currentUserId != null && currentUserId === molecule.createdById;
+
+  const router = useRouter();
+  const utils = trpc.useUtils();
+  const { runWithStepUp, isSteppingUp } = useDestructiveSessionStepUp();
+  const removeMolecule = trpc.molecules.remove.useMutation({
+    onSuccess: () => {
+      showToast("Molecule deleted", "success");
+      void utils.molecules.invalidate();
+      router.push("/browse/molecules");
+    },
+  });
+
+  const handleDeleteMolecule = async () => {
+    if (!window.confirm(`Delete "${molecule.name}"? This cannot be undone.`)) {
+      return;
+    }
+    await runWithStepUp(async () => {
+      await removeMolecule.mutateAsync({ moleculeId });
+    });
+  };
 
   return (
     <MoleculeDetailProvider
@@ -92,13 +123,23 @@ export function MoleculeDetailLayoutClient({
             </ol>
           </nav>
         </div>
-        <div className="mb-8">
-          <MoleculeDisplay
-            molecule={molecule}
-            variant="header"
-            canEdit={canEdit}
-            isSignedIn={isSignedIn}
-          />
+        <div className="mb-8 flex items-start gap-4">
+          <div className="flex-1">
+            <MoleculeDisplay
+              molecule={molecule}
+              variant="header"
+              canEdit={canEdit}
+              isSignedIn={isSignedIn}
+            />
+          </div>
+          {canDelete ? (
+            <ProfileDangerZoneRail
+              subjectLabel={molecule.name}
+              onDelete={handleDeleteMolecule}
+              deleteDisabled={isSteppingUp || removeMolecule.isPending}
+              showTransfer={false}
+            />
+          ) : null}
         </div>
         <div className="space-y-6">
           <MoleculeNexafsTabs />

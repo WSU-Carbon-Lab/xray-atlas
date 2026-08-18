@@ -5,7 +5,6 @@ import {
   assertPasskeyEnrolledForContribute,
   SessionAalRequiredError,
   assertSessionAalForAdminWrites,
-  assertSessionAalForContributeSubmit,
   assertSessionAalForDestructiveWrites,
 } from "~/server/auth/mfa-access";
 import { hasManageUsersCapability } from "~/server/auth/privileged-role";
@@ -120,26 +119,6 @@ export const contributeWriteProcedure = protectedProcedure.use(
   enforcePasskeyForContribute,
 );
 
-const enforceContributeSubmitAal = t.middleware(async ({ ctx, next }) => {
-  if (!ctx.userId) {
-    throw new TRPCError({ code: "UNAUTHORIZED" });
-  }
-  await assertSessionAalForContributeSubmit(ctx.db, ctx.userId, ctx.req);
-  return next({
-    ctx: {
-      userId: ctx.userId,
-    },
-  });
-});
-
-/**
- * NEXAFS dataset submit requires passkey enrollment and a passkey-established AAL2 session.
- * Follow-up contribute writes (aux files, sample metadata) stay on {@link contributeWriteProcedure}.
- */
-export const contributeSubmitProcedure = contributeWriteProcedure.use(
-  enforceContributeSubmitAal,
-);
-
 const enforceManageUsers = t.middleware(async ({ ctx, next }) => {
   if (!ctx.userId) {
     throw new TRPCError({ code: "UNAUTHORIZED" });
@@ -184,12 +163,10 @@ const enforceAdminSessionAal = t.middleware(async ({ ctx, next }) => {
 
 /**
  * Destructive or ownership-changing self-service writes require passkey enrollment and AAL2
- * (passkey-established session). Role-based AAL3 is not applied here; use {@link adminProcedure}
- * for administrator console mutations.
- *
- * The export name is historical (`privilegedWriteProcedure`); behavior is destructive-write AAL2 only.
+ * (passkey-established session) established within the step-up window. Role-based AAL3 is not
+ * applied here; use {@link adminProcedure} for administrator console mutations.
  */
-export const privilegedWriteProcedure = protectedProcedure.use(
+export const destructiveWriteProcedure = protectedProcedure.use(
   enforceDestructiveSessionAal,
 );
 

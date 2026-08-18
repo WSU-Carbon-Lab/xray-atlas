@@ -4,7 +4,10 @@ import {
   it as bunIt,
 } from "bun:test";
 import { AAL1, AAL2, AAL3 } from "~/server/auth/aal";
-import { sessionMeetsRequiredAal } from "~/server/auth/mfa-access";
+import {
+  sessionMeetsRequiredAal,
+  STEP_UP_WINDOW_MS,
+} from "~/server/auth/mfa-access";
 import {
   WEBAUTHN_AUTHENTICATOR,
   type SessionAssuranceSnapshot,
@@ -52,6 +55,7 @@ describe("sessionMeetsRequiredAal", () => {
         assurance({
           assertedAal: AAL2,
           authenticator: WEBAUTHN_AUTHENTICATOR,
+          lastVerifiedAt: new Date(),
         }),
       ),
     ).toBe(true);
@@ -64,6 +68,7 @@ describe("sessionMeetsRequiredAal", () => {
         assurance({
           assertedAal: AAL2,
           authenticator: WEBAUTHN_AUTHENTICATOR,
+          lastVerifiedAt: new Date(),
         }),
       ),
     ).toBe(true);
@@ -85,6 +90,50 @@ describe("sessionMeetsRequiredAal", () => {
         assurance({
           assertedAal: AAL3,
           authenticator: WEBAUTHN_AUTHENTICATOR,
+        }),
+      ),
+    ).toBe(true);
+  });
+});
+
+describe("sessionMeetsRequiredAal step-up window", () => {
+  it("is satisfied just inside the 2h window", () => {
+    const lastVerifiedAt = new Date(Date.now() - (STEP_UP_WINDOW_MS - 60_000));
+    expect(
+      sessionMeetsRequiredAal(
+        AAL2,
+        assurance({
+          assertedAal: AAL2,
+          authenticator: WEBAUTHN_AUTHENTICATOR,
+          lastVerifiedAt,
+        }),
+      ),
+    ).toBe(true);
+  });
+
+  it("is not satisfied once the 2h window has elapsed", () => {
+    const lastVerifiedAt = new Date(Date.now() - (STEP_UP_WINDOW_MS + 60_000));
+    expect(
+      sessionMeetsRequiredAal(
+        AAL2,
+        assurance({
+          assertedAal: AAL2,
+          authenticator: WEBAUTHN_AUTHENTICATOR,
+          lastVerifiedAt,
+        }),
+      ),
+    ).toBe(false);
+  });
+
+  it("AAL3 checks ignore the step-up window", () => {
+    const lastVerifiedAt = new Date(Date.now() - (STEP_UP_WINDOW_MS + 60_000));
+    expect(
+      sessionMeetsRequiredAal(
+        AAL3,
+        assurance({
+          assertedAal: AAL3,
+          authenticator: WEBAUTHN_AUTHENTICATOR,
+          lastVerifiedAt,
         }),
       ),
     ).toBe(true);

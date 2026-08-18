@@ -23,6 +23,7 @@ export interface PendingPasskeyEnrollmentMeta {
   aaguid: string | null;
   attestationFormat: string | null;
   credentialDeviceType: string;
+  suggestedNickname: string;
 }
 
 function encodePayload<T>(payload: T): string {
@@ -93,7 +94,9 @@ function isPendingPasskeyEnrollmentMeta(
     record.credentialDeviceType.length > 0 &&
     (record.aaguid === null || typeof record.aaguid === "string") &&
     (record.attestationFormat === null ||
-      typeof record.attestationFormat === "string")
+      typeof record.attestationFormat === "string") &&
+    typeof record.suggestedNickname === "string" &&
+    record.suggestedNickname.length > 0
   );
 }
 

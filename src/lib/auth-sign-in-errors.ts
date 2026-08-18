@@ -18,6 +18,16 @@ const WEB_AUTHN_SIGN_IN_ERROR_MESSAGES: Record<string, string> = {
     "Passkey request was incomplete. Try again in Chrome, Safari, or Firefox on localhost or https.",
   "Invalid action":
     "Passkey request used an unsupported action. Refresh the page and try again.",
+  // Thrown by @simplewebauthn/browser's `startRegistration` when the platform authenticator
+  // rejects `navigator.credentials.create()` with `InvalidStateError` because the credential is
+  // already listed in `excludeCredentials` (i.e. this device already has a passkey for the
+  // account). It reaches here as `error.message` via `usePasskeyEnrollmentGate`'s
+  // `onEnrollmentError`, not through Auth.js's own `result.error` query-param path -- confirmed
+  // by static analysis of `@simplewebauthn/browser@9.0.1`'s `identifyRegistrationError`, not a
+  // live browser run. TODO: verify this exact key against a real duplicate-device registration
+  // attempt before relying on it in production.
+  "The authenticator was previously registered":
+    "This device already has a passkey for your account. Manage it from your profile's Security tab instead of creating a new one.",
 };
 
 const KNOWN_PASSKEY_ADAPTER_MESSAGES: Record<string, string> = {

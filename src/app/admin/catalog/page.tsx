@@ -10,7 +10,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type KeyboardEvent,
 } from "react";
@@ -21,11 +20,7 @@ import { SimpleDialog } from "~/components/ui/dialog";
 import { showToast } from "~/components/ui/toast";
 import { trpc } from "~/trpc/client";
 import type { AdminCatalogDeleteImpact } from "~/lib/nexafs/admin-catalog-types";
-import {
-  isPasskeyClientCancelled,
-  PASSKEY_STEP_UP_CANCELLED_MESSAGE,
-  runPasskeyClientAuth,
-} from "~/lib/passkey-client-auth";
+import { useDestructiveSessionStepUp } from "~/hooks/useDestructiveSessionStepUp";
 
 const PAGE_SIZE = 20;
 
@@ -48,8 +43,7 @@ export default function AdminCatalogPage() {
   const [pendingExperimentId, setPendingExperimentId] = useState<string | null>(
     null,
   );
-  const [isConfirmingPasskey, setIsConfirmingPasskey] = useState(false);
-  const passkeyConfirmInFlightRef = useRef(false);
+  const { runWithStepUp, isSteppingUp } = useDestructiveSessionStepUp();
 
   const capabilities = trpc.admin.catalog.capabilities.useQuery();
   const canDeleteMolecules = capabilities.data?.canDeleteMolecules === true;
@@ -104,8 +98,6 @@ export default function AdminCatalogPage() {
   );
 
   const utils = trpc.useUtils();
-  const confirmPasskeySessionStepUp =
-    trpc.users.confirmPasskeySessionStepUp.useMutation();
   const deleteMolecule = trpc.admin.catalog.deleteMolecule.useMutation({
     onSuccess: async (result) => {
       showToast(`Removed molecule ${result.impact.label}`, "success");
@@ -118,9 +110,6 @@ export default function AdminCatalogPage() {
         utils.molecules.invalidate(),
       ]);
     },
-    onError: (error) => {
-      showToast(error.message, "error");
-    },
   });
   const deleteExperiment = trpc.admin.catalog.deleteExperiment.useMutation({
     onSuccess: async (result) => {
@@ -132,87 +121,25 @@ export default function AdminCatalogPage() {
         utils.experiments.browseSearch.invalidate(),
       ]);
     },
-    onError: (error) => {
-      showToast(error.message, "error");
-    },
   });
-
-  const confirmPasskeyForCatalogDelete =
-    useCallback(async (): Promise<boolean> => {
-      if (passkeyConfirmInFlightRef.current) {
-        return false;
-      }
-      passkeyConfirmInFlightRef.current = true;
-      setIsConfirmingPasskey(true);
-      try {
-        const result = await runPasskeyClientAuth({
-          action: "sign-in",
-          callbackUrl: window.location.href,
-          errorFallback: "Passkey confirmation failed. Please try again.",
-          incompleteFallback: "Passkey confirmation did not complete",
-        });
-        if (!result.ok) {
-          const message =
-            result.errorMessage ??
-            "Passkey confirmation failed. Please try again.";
-          if (
-            isPasskeyClientCancelled(new Error(message)) ||
-            message.toLowerCase().includes("interrupted") ||
-            message.toLowerCase().includes("denied")
-          ) {
-            showToast(PASSKEY_STEP_UP_CANCELLED_MESSAGE, "error");
-            return false;
-          }
-          showToast(message, "error");
-          return false;
-        }
-        const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
-        await utils.users.getSessionWriteAssurance.invalidate();
-        if (!stepUp.evaluation.adminSatisfied) {
-          showToast(
-            "Passkey confirmation did not attach to this session. Try again.",
-            "error",
-          );
-          return false;
-        }
-        return true;
-      } catch (error) {
-        if (isPasskeyClientCancelled(error)) {
-          showToast(PASSKEY_STEP_UP_CANCELLED_MESSAGE, "error");
-          return false;
-        }
-        showToast(
-          error instanceof Error && error.message
-            ? error.message
-            : "Passkey confirmation failed",
-          "error",
-        );
-        return false;
-      } finally {
-        passkeyConfirmInFlightRef.current = false;
-        setIsConfirmingPasskey(false);
-      }
-    }, [confirmPasskeySessionStepUp, utils.users.getSessionWriteAssurance]);
 
   const handleConfirmMoleculeDelete = useCallback(async () => {
     if (!pendingMoleculeId) {
       return;
     }
-    if (!(await confirmPasskeyForCatalogDelete())) {
-      return;
-    }
-    deleteMolecule.mutate({ moleculeId: pendingMoleculeId });
-  }, [confirmPasskeyForCatalogDelete, deleteMolecule, pendingMoleculeId]);
+    await runWithStepUp(async () => {
+      await deleteMolecule.mutateAsync({ moleculeId: pendingMoleculeId });
+    });
+  }, [deleteMolecule, pendingMoleculeId, runWithStepUp]);
 
   const handleConfirmExperimentDelete = useCallback(async () => {
     if (!pendingExperimentId) {
       return;
     }
-    if (!(await confirmPasskeyForCatalogDelete())) {
-      return;
-    }
-    deleteExperiment.mutate({ experimentId: pendingExperimentId });
-  }, [confirmPasskeyForCatalogDelete, deleteExperiment, pendingExperimentId]);
+    await runWithStepUp(async () => {
+      await deleteExperiment.mutateAsync({ experimentId: pendingExperimentId });
+    });
+  }, [deleteExperiment, pendingExperimentId, runWithStepUp]);
 
   const onTabChange = useCallback((key: string | number) => {
     const next = String(key);
@@ -481,7 +408,7 @@ export default function AdminCatalogPage() {
       <SimpleDialog
         isOpen={Boolean(pendingExperimentId)}
         onClose={() => {
-          if (isConfirmingPasskey || deleteExperiment.isPending) {
+          if (isSteppingUp || deleteExperiment.isPending) {
             return;
           }
           setPendingExperimentId(null);
@@ -497,14 +424,14 @@ export default function AdminCatalogPage() {
         <div className="mt-4 flex justify-end gap-2">
           <Button
             variant="ghost"
-            isDisabled={isConfirmingPasskey || deleteExperiment.isPending}
+            isDisabled={isSteppingUp || deleteExperiment.isPending}
             onPress={() => setPendingExperimentId(null)}
           >
             Cancel
           </Button>
           <Button
             variant="danger"
-            isPending={isConfirmingPasskey || deleteExperiment.isPending}
+            isPending={isSteppingUp || deleteExperiment.isPending}
             isDisabled={
               experimentPreview.isLoading || Boolean(experimentPreview.error)
             }
@@ -518,7 +445,7 @@ export default function AdminCatalogPage() {
       <SimpleDialog
         isOpen={Boolean(pendingMoleculeId)}
         onClose={() => {
-          if (isConfirmingPasskey || deleteMolecule.isPending) {
+          if (isSteppingUp || deleteMolecule.isPending) {
             return;
           }
           setPendingMoleculeId(null);
@@ -534,14 +461,14 @@ export default function AdminCatalogPage() {
         <div className="mt-4 flex justify-end gap-2">
           <Button
             variant="ghost"
-            isDisabled={isConfirmingPasskey || deleteMolecule.isPending}
+            isDisabled={isSteppingUp || deleteMolecule.isPending}
             onPress={() => setPendingMoleculeId(null)}
           >
             Cancel
           </Button>
           <Button
             variant="danger"
-            isPending={isConfirmingPasskey || deleteMolecule.isPending}
+            isPending={isSteppingUp || deleteMolecule.isPending}
             isDisabled={
               moleculePreview.isLoading || Boolean(moleculePreview.error)
             }

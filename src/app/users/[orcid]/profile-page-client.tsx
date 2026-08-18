@@ -8,13 +8,10 @@ import type { inferRouterOutputs } from "@trpc/server";
 import { trpc } from "~/trpc/client";
 import { ToastContainer, useToast } from "~/components/ui/toast";
 import {
-  applyPasskeyClientRedirect,
-  getSessionAalRequiredAppCode,
   isPasskeyClientCancelled,
-  PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE,
-  PASSKEY_STEP_UP_CANCELLED_MESSAGE,
   runPasskeyClientAuth,
 } from "~/lib/passkey-client-auth";
+import { useDestructiveSessionStepUp } from "~/hooks/useDestructiveSessionStepUp";
 import { ProfileAttributionPreferencesSection } from "~/features/account/attributions/attribution-preferences-panel";
 import type { AppRouter } from "~/server/api/root";
 import {
@@ -57,17 +54,17 @@ export function ProfilePageClient({
 
   const unlinkAccount = trpc.users.unlinkAccount.useMutation();
   const deletePasskey = trpc.users.deletePasskey.useMutation();
-  const confirmPasskeySessionStepUp =
-    trpc.users.confirmPasskeySessionStepUp.useMutation();
+  const renamePasskey = trpc.users.renamePasskey.useMutation();
   const utils = trpc.useUtils();
   const { toasts, removeToast, showToast } = useToast();
+  const { performStepUp, runWithStepUp, isSteppingUp } =
+    useDestructiveSessionStepUp();
 
   const [isRegisteringPasskey, setIsRegisteringPasskey] = useState(false);
   const [selectedTab, setSelectedTab] = useState<ProfileTabId>(() =>
     passkeyRequiredRedirect ? "security" : "contributions",
   );
   const tabChangeReadyRef = useRef(false);
-  const stepUpInFlightRef = useRef(false);
 
   const isOwnProfile =
     sessionStatus === "loading"
@@ -82,18 +79,22 @@ export function ProfilePageClient({
   const { data: passkeyEnrollment } =
     trpc.users.getPasskeyEnrollmentStatus.useQuery(undefined, {
       enabled: isOwnProfile,
+      // Avoid refetching on every window focus; enrollment changes already
+      // invalidate this query directly.
+      staleTime: 5 * 60 * 1000,
     });
 
   const { data: sessionWriteAssurance } =
     trpc.users.getSessionWriteAssurance.useQuery(undefined, {
       enabled: isOwnProfile,
+      // Same rationale as AdminSessionGate: avoid the AAL2 assurance flipping
+      // content on an incidental window-focus refetch mid-session.
+      staleTime: 60 * 1000,
     });
 
   const { data: passkeys } = trpc.users.getPasskeys.useQuery(undefined, {
     enabled: isOwnProfile,
   });
-
-  const [isPasskeySigningIn, setIsPasskeySigningIn] = useState(false);
 
   const tabIds = useMemo((): ProfileTabId[] => {
     if (isOwnProfile) {
@@ -109,157 +110,12 @@ export function ProfilePageClient({
     return () => window.cancelAnimationFrame(frame);
   }, []);
 
-  const confirmSessionStepUpQuiet = useCallback(async (): Promise<{
-    satisfied: boolean;
-    adminSatisfied: boolean;
-  }> => {
-    const stepUp = await confirmPasskeySessionStepUp.mutateAsync();
-    await Promise.all([
-      utils.users.getSessionWriteAssurance.invalidate(),
-      utils.users.getPasskeys.invalidate(),
-    ]);
-    return {
-      satisfied: stepUp.evaluation.satisfied,
-      adminSatisfied: stepUp.evaluation.adminSatisfied,
-    };
-  }, [
-    confirmPasskeySessionStepUp,
-    utils.users.getPasskeys,
-    utils.users.getSessionWriteAssurance,
-  ]);
-
-  const performPasskeySessionStepUp = useCallback(
-    async (options?: {
-      quietSuccess?: boolean;
-    }): Promise<"satisfied" | "cancelled" | "failed"> => {
-      if (stepUpInFlightRef.current) {
-        return "failed";
-      }
-      stepUpInFlightRef.current = true;
-      setIsPasskeySigningIn(true);
-      try {
-        const result = await runPasskeyClientAuth({
-          action: "sign-in",
-          callbackUrl: window.location.href,
-          errorFallback: "Passkey confirmation failed. Please try again.",
-          incompleteFallback: "Passkey confirmation did not complete",
-        });
-
-        if (!result.ok) {
-          const message =
-            result.errorMessage ??
-            "Passkey confirmation failed. Please try again.";
-          if (
-            isPasskeyClientCancelled(new Error(message)) ||
-            message.toLowerCase().includes("interrupted") ||
-            message.toLowerCase().includes("denied")
-          ) {
-            showToast(PASSKEY_STEP_UP_CANCELLED_MESSAGE, "error", 0);
-            return "cancelled";
-          }
-          showToast(message, "error", 0);
-          return "failed";
-        }
-
-        if (sessionStatus === "authenticated") {
-          const evaluation = await confirmSessionStepUpQuiet();
-          if (!options?.quietSuccess) {
-            showToast("Passkey confirmed for this session", "success");
-          }
-          return evaluation.satisfied ? "satisfied" : "failed";
-        }
-
-        if (result.redirectUrl) {
-          applyPasskeyClientRedirect(result);
-          return "satisfied";
-        }
-
-        await utils.users.getSessionWriteAssurance.invalidate();
-        if (!options?.quietSuccess) {
-          showToast("Signed in with passkey", "success");
-        }
-        return "satisfied";
-      } catch (signInError) {
-        console.error("Failed passkey sign-in:", signInError);
-        if (isPasskeyClientCancelled(signInError)) {
-          showToast(PASSKEY_STEP_UP_CANCELLED_MESSAGE, "error", 0);
-          return "cancelled";
-        }
-        showToast(
-          getErrorMessage(signInError, "Passkey confirmation failed"),
-          "error",
-          0,
-        );
-        return "failed";
-      } finally {
-        stepUpInFlightRef.current = false;
-        setIsPasskeySigningIn(false);
-      }
-    },
-    [
-      confirmSessionStepUpQuiet,
-      sessionStatus,
-      showToast,
-      utils.users.getSessionWriteAssurance,
-    ],
-  );
-
   const handlePasskeySignIn = useCallback(async () => {
-    await performPasskeySessionStepUp();
-  }, [performPasskeySessionStepUp]);
-
-  const runWithDestructiveSessionAal = useCallback(
-    async (action: () => Promise<void>): Promise<void> => {
-      const assurance = await utils.users.getSessionWriteAssurance.fetch();
-
-      if (!assurance.enrolled) {
-        showToast(PASSKEY_ENROLL_BEFORE_DESTRUCTIVE_MESSAGE, "error", 0);
-        setSelectedTab("security");
-        return;
-      }
-
-      if (!assurance.satisfied) {
-        const stepResult = await performPasskeySessionStepUp({
-          quietSuccess: true,
-        });
-        if (stepResult !== "satisfied") {
-          return;
-        }
-      }
-
-      try {
-        await action();
-      } catch (error) {
-        if (getSessionAalRequiredAppCode(error)) {
-          const stepResult = await performPasskeySessionStepUp({
-            quietSuccess: true,
-          });
-          if (stepResult !== "satisfied") {
-            return;
-          }
-          try {
-            await action();
-          } catch (retryError) {
-            showToast(
-              getErrorMessage(
-                retryError,
-                "Action failed after passkey confirmation",
-              ),
-              "error",
-              0,
-            );
-          }
-          return;
-        }
-        showToast(getErrorMessage(error, "Action failed"), "error", 0);
-      }
-    },
-    [
-      performPasskeySessionStepUp,
-      showToast,
-      utils.users.getSessionWriteAssurance,
-    ],
-  );
+    const result = await performStepUp();
+    if (result === "satisfied") {
+      await utils.users.getPasskeys.invalidate();
+    }
+  }, [performStepUp, utils.users.getPasskeys]);
 
   const handleRegisterPasskey = useCallback(async () => {
     setIsRegisteringPasskey(true);
@@ -306,7 +162,7 @@ export function ProfilePageClient({
 
   const handleDeletePasskey = useCallback(
     async (passkeyId: string) => {
-      await runWithDestructiveSessionAal(async () => {
+      await runWithStepUp(async () => {
         await deletePasskey.mutateAsync({ passkeyId });
         await Promise.all([
           utils.users.getPasskeys.invalidate(),
@@ -318,12 +174,29 @@ export function ProfilePageClient({
     },
     [
       deletePasskey,
-      runWithDestructiveSessionAal,
+      runWithStepUp,
       showToast,
       utils.users.getPasskeyEnrollmentStatus,
       utils.users.getPasskeys,
       utils.users.getSessionWriteAssurance,
     ],
+  );
+
+  const handleRenamePasskey = useCallback(
+    async (passkeyId: string, nickname: string) => {
+      try {
+        await renamePasskey.mutateAsync({ passkeyId, nickname });
+        await utils.users.getPasskeys.invalidate();
+        showToast("Passkey renamed", "success");
+      } catch (error) {
+        showToast(
+          getErrorMessage(error, "Failed to rename passkey"),
+          "error",
+          0,
+        );
+      }
+    },
+    [renamePasskey, showToast, utils.users.getPasskeys],
   );
 
   const handleUnlinkGitHub = useCallback(
@@ -440,7 +313,7 @@ export function ProfilePageClient({
               <ProfileContributionsSection
                 userId={user.id}
                 isOwnProfile={isOwnProfile}
-                onRunWithDestructiveSessionAal={runWithDestructiveSessionAal}
+                onRunWithDestructiveSessionAal={runWithStepUp}
               />
             ) : null}
           </Tabs.Panel>
@@ -464,9 +337,11 @@ export function ProfilePageClient({
                   sessionWriteAssurance={sessionWriteAssurance}
                   isRegistering={isRegisteringPasskey}
                   isDeleting={deletePasskey.isPending}
-                  isPasskeySigningIn={isPasskeySigningIn}
+                  isRenaming={renamePasskey.isPending}
+                  isPasskeySigningIn={isSteppingUp}
                   onRegister={handleRegisterPasskey}
                   onDelete={handleDeletePasskey}
+                  onRenamePasskey={handleRenamePasskey}
                   onPasskeySignIn={handlePasskeySignIn}
                 />
                 <ProfileGitHubSecuritySection

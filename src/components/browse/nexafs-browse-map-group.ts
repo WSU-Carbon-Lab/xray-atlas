@@ -30,6 +30,7 @@ export function mapNexafsBrowseGroupToCard(group: NexafsBrowseGroup) {
         group.experimentId,
       ),
       experimentId: group.experimentId,
+      createdBy: group.createdBy,
       moleculeId: molecule.id,
       displayName: molecule.displayName,
       iupacname: molecule.iupacname,
