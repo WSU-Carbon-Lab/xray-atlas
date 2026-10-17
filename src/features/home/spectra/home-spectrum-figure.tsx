@@ -32,7 +32,7 @@ export function HomeSpectrumFigure({
         viewBox={`0 0 ${w} ${h}`}
         role="img"
         aria-label={`${spectrum.title}: ${tab.label}`}
-        className="h-auto w-full"
+        className="home-plot h-auto w-full"
       >
         <defs>
           <pattern
@@ -70,7 +70,7 @@ export function HomeSpectrumFigure({
               x={(band.x0 + band.x1) / 2}
               y={top + 14}
               textAnchor="middle"
-              className="fill-muted text-[11px]"
+              className="fill-muted"
             >
               {band.label}
             </text>
@@ -83,17 +83,12 @@ export function HomeSpectrumFigure({
             x={tick.x}
             y={h - 14}
             textAnchor="middle"
-            className="fill-muted text-[11px] tabular-nums"
+            className="fill-muted tabular-nums"
           >
             {tick.label}
           </text>
         ))}
-        <text
-          x={w - r}
-          y={h - 2}
-          textAnchor="end"
-          className="fill-muted text-[11px]"
-        >
+        <text x={w - r} y={h - 2} textAnchor="end" className="fill-muted">
           Photon energy (eV)
         </text>
         <text
@@ -101,7 +96,7 @@ export function HomeSpectrumFigure({
           y={h / 2}
           transform={`rotate(-90 12 ${h / 2})`}
           textAnchor="middle"
-          className="fill-muted text-[11px]"
+          className="fill-muted"
         >
           {tab.yLabel}
         </text>
@@ -110,7 +105,7 @@ export function HomeSpectrumFigure({
             key={t.key}
             d={t.d}
             fill="none"
-            stroke={stroke(t)}
+            style={{ stroke: stroke(t) }}
             strokeWidth={t.tone === "primary" ? 2.25 : 1.75}
             strokeDasharray={t.dashed ? "4 4" : undefined}
             strokeLinejoin="round"
@@ -127,9 +122,10 @@ export function HomeSpectrumFigure({
               strokeWidth={1.5}
             />
             <text
-              x={m.x + 8}
+              x={m.x > w - r - 80 ? m.x - 8 : m.x + 8}
+              textAnchor={m.x > w - r - 80 ? "end" : "start"}
               y={m.y - 8}
-              className="fill-foreground text-[11px]"
+              className="fill-foreground"
             >
               {m.label}
             </text>
@@ -143,8 +139,11 @@ export function HomeSpectrumFigure({
             className="text-muted inline-flex items-center gap-1.5"
           >
             <span
-              className="inline-block h-0.5 w-4 rounded-full"
-              style={{ background: stroke(t) }}
+              className="inline-block h-0 w-4 border-t-2"
+              style={{
+                borderTopColor: stroke(t),
+                borderTopStyle: t.dashed ? "dashed" : "solid",
+              }}
               aria-hidden
             />
             {t.label}

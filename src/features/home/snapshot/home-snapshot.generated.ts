@@ -244,7 +244,7 @@ export const HOME_SNAPSHOT: HomeSnapshot = {
         caption:
           "β is the absorptive part of the refractive index; δ follows from it by a Kramers-Kronig transform (kkcalc lineage, Ben Watts).",
         wikiHref: "/wiki/nexafs/optical-constants",
-        yLabel: "n = 1 - δ + iβ",
+        yLabel: "β, δ (dimensionless)",
         traces: [
           {
             key: "beta",
