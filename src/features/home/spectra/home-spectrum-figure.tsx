@@ -107,6 +107,26 @@ export function HomeSpectrumFigure({
         >
           {tab.yLabel}
         </text>
+        {tab.refLines?.map((ref) => (
+          <g key={ref.label}>
+            <line
+              x1={l}
+              x2={w - r}
+              y1={ref.y}
+              y2={ref.y}
+              className="stroke-border"
+              strokeDasharray="2 3"
+            />
+            <text
+              x={w - r - 4}
+              y={ref.y - 4}
+              textAnchor="end"
+              className="fill-muted"
+            >
+              {ref.label}
+            </text>
+          </g>
+        ))}
         {tab.traces.map((t) => (
           <path
             key={t.key}

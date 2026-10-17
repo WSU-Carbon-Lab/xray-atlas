@@ -393,28 +393,41 @@ function buildSpectrum(
   }
   const windows = parseWindows(normalizationRaw);
   const rawExt = extent([primary], (r) => r.rawabs);
-  if (windows && rawExt && odExt) {
+  if (windows && rawExt && odExt && rawExt[1] > 0) {
+    // Raw signal is shown honestly: divided by one constant (its maximum) and
+    // nothing else, so its pre-edge offset and slope stay visible against the
+    // normalized trace pinned to 0 (pre-edge) and 1 (edge step).
+    const rawMax = rawExt[1];
+    const normDomain: [number, number] = [
+      Math.min(0, rawExt[0] / rawMax, odExt[0]),
+      Math.max(1, odExt[1]),
+    ];
+    const sy = buildLinearScale(normDomain, [H - PAD.b, PAD.t]);
     tabs.push({
       id: "normalization",
       label: "Normalization",
       caption:
         "Pre- and post-edge windows pin the signal to zero below the edge and to the atomic step above it, turning detector counts into a comparable spectrum.",
       wikiHref: "/wiki/nexafs/normalization",
-      yLabel: "Signal (scaled)",
+      yLabel: "Normalized absorption",
       traces: [
         {
           key: "raw",
-          label: "Raw signal",
-          d: series(primary, (r) => r.rawabs, rawExt),
+          label: "Raw signal / max",
+          d: series(primary, (r) => r.rawabs / rawMax, normDomain),
           tone: "muted",
           dashed: true,
         },
         {
           key: "od",
           label: "Normalized",
-          d: series(primary, (r) => r.od, odExt),
+          d: series(primary, (r) => r.od, normDomain),
           tone: "primary",
         },
+      ],
+      refLines: [
+        { y: Number(sy(0).toFixed(1)), label: "0" },
+        { y: Number(sy(1).toFixed(1)), label: "1 (edge step)" },
       ],
       bands: [
         {

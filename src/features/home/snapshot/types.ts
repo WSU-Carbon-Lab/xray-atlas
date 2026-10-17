@@ -71,6 +71,13 @@ export interface HomeSpectrumTab {
   traces: readonly HomeSpectrumTrace[];
   bands: readonly HomeSpectrumBand[];
   markers: readonly HomeSpectrumMarker[];
+  /** Horizontal reference lines (viewBox y) such as the 0 and 1 normalization levels. */
+  refLines?: readonly HomeSpectrumRefLine[];
+}
+
+export interface HomeSpectrumRefLine {
+  y: number;
+  label: string;
 }
 
 export interface HomeSpectrumTick {
