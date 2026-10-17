@@ -790,3 +790,46 @@
 .spectrum-plot-pan-dragging * {
   cursor: grabbing !important;
 }
+
+@layer components {
+  .home-kicker {
+    @apply text-accent text-[0.6875rem] font-semibold tracking-[0.16em] uppercase;
+  }
+  .home-chip {
+    @apply border-border bg-surface text-foreground hover:border-accent/60 focus-visible:ring-accent/50 inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none;
+  }
+  .home-stage {
+    @apply mt-10 space-y-6 lg:mt-14;
+  }
+  .home-stage__grid {
+    @apply grid gap-4 md:grid-cols-3;
+  }
+  .home-stage__grid--open {
+    @apply md:grid-cols-[minmax(0,1fr)_14rem];
+  }
+  .home-tile {
+    @apply border-border bg-surface hover:border-accent/50 focus-visible:ring-accent/50 flex min-h-56 flex-col items-start gap-2 overflow-hidden rounded-3xl border p-6 text-left transition-[border-color,transform] duration-200 hover:-translate-y-0.5 focus-visible:ring-2 focus-visible:outline-none;
+  }
+  .home-tile--compact {
+    @apply min-h-0 gap-1 p-4;
+  }
+  .home-tile__preview {
+    @apply mt-auto w-full;
+  }
+  .home-tile--compact .home-tile__preview {
+    @apply h-10 opacity-70;
+  }
+  .home-rail {
+    @apply flex flex-col gap-3;
+  }
+  .home-view {
+    @apply border-border bg-surface min-h-[28rem] space-y-6 rounded-3xl border p-6 sm:p-8;
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  ::view-transition-group(*) {
+    animation-duration: 320ms;
+    animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
+  }
+}
