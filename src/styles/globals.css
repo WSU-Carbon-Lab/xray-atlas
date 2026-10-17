@@ -840,6 +840,33 @@
   .home-search {
     @apply border-border bg-surface/80 space-y-4 rounded-3xl border p-4 shadow-sm backdrop-blur sm:p-6;
   }
+  .home-facility {
+    @apply grid grid-cols-3 gap-x-2 gap-y-2 p-2 sm:grid-cols-7;
+  }
+  .home-facility__dim {
+    @apply pointer-events-none opacity-60 blur-[3px] grayscale select-none;
+  }
+  .home-facility__focus {
+    @apply col-start-3 flex flex-col items-center gap-1 sm:col-start-7;
+  }
+  .home-facility__storage {
+    @apply relative col-span-full;
+  }
+  .home-facility__path {
+    @apply absolute -top-2 -bottom-2 w-2;
+    right: calc((100% - 1rem) / 6 - 0.25rem);
+  }
+  @media (min-width: 40rem) {
+    .home-facility__path {
+      right: calc((100% - 3rem) / 14 - 0.25rem);
+    }
+  }
+  .home-facility__atlas {
+    @apply border-accent/60 bg-accent/10 text-foreground col-start-3 justify-self-center rounded-full border px-2 py-1 text-xs font-semibold whitespace-nowrap sm:col-start-7 sm:px-3 sm:text-sm;
+  }
+  .home-dataflow {
+    animation: home-dataflow 1.6s linear infinite;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
@@ -866,6 +893,16 @@
 }
 @media (prefers-reduced-motion: reduce) {
   .home-trace {
+    animation: none;
+  }
+}
+@keyframes home-dataflow {
+  to {
+    stroke-dashoffset: -24;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-dataflow {
     animation: none;
   }
 }
