@@ -5,6 +5,7 @@
  * breaks the 25 KB gzip budget, so a bad snapshot is never written.
  */
 import "dotenv/config";
+import { spawnSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";
 import { gzipSync } from "node:zlib";
 import path from "node:path";
@@ -44,7 +45,30 @@ const CURATED: ReadonlyArray<{ slug: string; blurb: string }> = [
       "A high-performance non-fullerene acceptor whose nitrogen and sulfur edges separate its end groups from its fused core.",
   },
 ];
-const SHOWCASE_EXPERIMENT_ID = "775e9e6a-18d1-4a2a-943a-7590e18aeee9";
+/**
+ * Showcase experiment: Cu phthalocyanine, C K, TEY. Chosen over the P3HT
+ * C K experiment (775e9e6a-...) because it has four geometries, finite beta
+ * and delta, and parseable normalization windows, so all four tabs render.
+ */
+const SHOWCASE_EXPERIMENT_ID = "1de3a908-8310-427a-bff8-1722c3538ce8";
+const ELEMENT_NAMES: Record<string, string> = {
+  C: "Carbon",
+  N: "Nitrogen",
+  O: "Oxygen",
+  F: "Fluorine",
+  S: "Sulfur",
+};
+const DETECTION_LABEL: Record<string, string> = {
+  TOTAL_ELECTRON_YIELD: "total electron yield",
+  PARTIAL_ELECTRON_YIELD: "partial electron yield",
+  FLUORESCENT_YIELD: "fluorescence yield",
+  TRANSMISSION: "transmission",
+};
+interface ExperimentEdge {
+  symbol: string;
+  coreState: string;
+  title: string;
+}
 const W = 720;
 const H = 360;
 const PAD = { l: 48, r: 16, t: 16, b: 36 };
@@ -67,7 +91,8 @@ interface PointRow {
   od: number | null;
   beta: number | null;
   delta: number | null;
-  polardeg: string | null;
+  polardeg: number | null;
+  azimuthdeg: number | null;
 }
 
 async function main(): Promise<void> {
@@ -149,19 +174,22 @@ async function main(): Promise<void> {
     const exp = await client.query<{
       normalization_ranges: unknown;
       slug: string;
+      targetatom: string;
+      corestate: string;
+      experimenttype: string | null;
     }>(
-      `select e.normalization_ranges,
+      `select e.normalization_ranges, ed.targetatom, ed.corestate, e.experimenttype,
               (select s.slug from samples sa join moleculesynonyms s
                  on s.moleculeid = sa.moleculeid
                 where sa.id = e.sampleid order by s."order" limit 1) as slug
-         from experiments e where e.id = $1`,
+         from experiments e join edges ed on ed.id = e.edgeid where e.id = $1`,
       [SHOWCASE_EXPERIMENT_ID],
     );
     const expRow = exp.rows[0];
     if (!expRow) throw new Error("showcase experiment not found");
     const pts = await client.query<PointRow>(
       `select sp.energyev, sp.rawabs, sp.od, sp.beta, sp.delta,
-              p.polardeg::text as polardeg
+              p.polardeg::float8 as polardeg, p.azimuthdeg::float8 as azimuthdeg
          from spectrumpoints sp
          join experiments ex on ex.id = sp.experimentid
          left join polarizations p on p.id = coalesce(sp.polarizationid, ex.polarizationid)
@@ -182,6 +210,11 @@ async function main(): Promise<void> {
       molecules: [molecules[0]!, molecules[1]!, molecules[2]!],
       spectrum: buildSpectrum(
         expRow.slug,
+        {
+          symbol: expRow.targetatom,
+          coreState: expRow.corestate,
+          title: `${ELEMENT_NAMES[expRow.targetatom] ?? expRow.targetatom} ${expRow.corestate}-edge, ${DETECTION_LABEL[expRow.experimenttype ?? ""] ?? "NEXAFS"}`,
+        },
         pts.rows,
         peaks.rows,
         expRow.normalization_ranges,
@@ -195,6 +228,8 @@ async function main(): Promise<void> {
       throw new Error(`snapshot ${gz} B gzip exceeds ${BUDGET_BYTES} B budget`);
     }
     await writeFile(OUT, body, "utf8");
+    const fmt = spawnSync("bunx", ["oxfmt", OUT], { stdio: "inherit" });
+    if (fmt.status !== 0) throw new Error("oxfmt failed on generated snapshot");
   } finally {
     await client.end();
   }
@@ -202,6 +237,7 @@ async function main(): Promise<void> {
 
 function buildSpectrum(
   slug: string,
+  edge: ExperimentEdge,
   rows: readonly PointRow[],
   peaks: ReadonlyArray<{ energyev: number; transition: string | null }>,
   normalizationRaw: unknown,
@@ -210,16 +246,30 @@ function buildSpectrum(
   const eMin = rows[0]!.energyev;
   const eMax = rows[rows.length - 1]!.energyev;
   const sx = buildLinearScale([eMin, eMax], [PAD.l, W - PAD.r]);
-  const byTheta = new Map<string, PointRow[]>();
-  for (const r of rows) {
-    const k = r.polardeg ?? "none";
-    const list = byTheta.get(k) ?? [];
-    list.push(r);
-    byTheta.set(k, list);
+  interface Geometry {
+    theta: number;
+    phi: number;
+    rows: PointRow[];
   }
-  const thetas = [...byTheta.keys()].sort((a, b) => Number(a) - Number(b));
-  const primaryKey = thetas.includes("55") ? "55" : thetas[0]!;
-  const primary = byTheta.get(primaryKey)!;
+  const groups = new Map<string, Geometry>();
+  for (const r of rows) {
+    const theta = r.polardeg ?? 0;
+    const phi = r.azimuthdeg ?? 0;
+    const k = `${theta}|${phi}`;
+    const g = groups.get(k) ?? { theta, phi, rows: [] };
+    g.rows.push(r);
+    groups.set(k, g);
+  }
+  const geoms = [...groups.values()].sort(
+    (a, b) => a.theta - b.theta || a.phi - b.phi,
+  );
+  const multiPhi = new Set(geoms.map((g) => g.phi)).size > 1;
+  const geomLabel = (g: Geometry): string =>
+    multiPhi ? `θ = ${g.theta}°, φ = ${g.phi}°` : `θ = ${g.theta}°`;
+  const primaryGeom = geoms.reduce((best, g) =>
+    Math.abs(g.theta - 55) < Math.abs(best.theta - 55) ? g : best,
+  );
+  const primary = primaryGeom.rows;
 
   const series = (
     list: readonly PointRow[],
@@ -261,26 +311,49 @@ function buildSpectrum(
       (p) =>
         /pi/i.test(p.transition ?? "") && !/sigma/i.test(p.transition ?? ""),
     );
-    const bands: HomeSpectrumBand[] = [
-      {
-        x0: sx(pi[0]?.energyev ?? 284),
-        x1: sx((pi.at(-1)?.energyev ?? 287) + 1),
-        kind: "pi",
-        label: "π*",
-      },
-      { x0: sx(288), x1: sx(Math.min(eMax, 310)), kind: "sigma", label: "σ*" },
-    ];
+    const bands: HomeSpectrumBand[] = [];
+    if (edge.symbol === "C" && edge.coreState === "K") {
+      const sigmaStart = 288;
+      let piStart = pi[0]?.energyev;
+      let piEnd = pi.at(-1)?.energyev;
+      if (piStart === undefined || piEnd === undefined) {
+        console.warn(
+          "no pi* peaks in peaksets; using default 284-288 eV pi* window",
+        );
+        piStart = 284;
+        piEnd = sigmaStart;
+      }
+      const piStop = Math.min(piEnd + 1, sigmaStart - 0.25);
+      bands.push(
+        {
+          x0: sx(piStart),
+          x1: sx(Math.max(piStart, piStop)),
+          kind: "pi",
+          label: "π*",
+        },
+        {
+          x0: sx(sigmaStart),
+          x1: sx(Math.min(eMax, 310)),
+          kind: "sigma",
+          label: "σ*",
+        },
+      );
+    } else {
+      console.warn(
+        `skipping pi*/sigma* bands: only defined for C K, got ${edge.symbol} ${edge.coreState}`,
+      );
+    }
     tabs.push({
       id: "absorption",
       label: "Absorption",
       caption:
-        "Sharp π* resonances below the edge, broad σ* shape resonances above it. The fingerprint of the carbon bonding.",
+        "Sharp π* resonances below the edge, broad σ* shape resonances above it. The fingerprint of the local bonding at this edge.",
       wikiHref: "/wiki/nexafs/quantities",
       yLabel: "Optical density",
       traces: [
         {
           key: "od",
-          label: `θ = ${primaryKey}°`,
+          label: geomLabel(primaryGeom),
           d: series(primary, (r) => r.od, odExt),
           tone: "primary",
         },
@@ -289,9 +362,9 @@ function buildSpectrum(
       markers: [],
     });
   }
-  if (thetas.length >= 2) {
+  if (geoms.length >= 2) {
     const ext = extent(
-      thetas.map((t) => byTheta.get(t)!),
+      geoms.map((g) => g.rows),
       (r) => r.od,
     );
     if (ext) {
@@ -302,15 +375,15 @@ function buildSpectrum(
           "Rotating the X-ray polarization relative to the film reweights π* and σ* intensity. That is how NEXAFS reads molecular orientation.",
         wikiHref: "/wiki/nexafs/orientation",
         yLabel: "Optical density",
-        traces: thetas.map((t, i) => ({
-          key: `theta-${t}`,
-          label: `θ = ${t}°`,
-          d: series(byTheta.get(t)!, (r) => r.od, ext),
-          tone: { ramp: thetas.length === 1 ? 1 : i / (thetas.length - 1) },
+        traces: geoms.map((g, i) => ({
+          key: `geom-${g.theta}-${g.phi}`,
+          label: geomLabel(g),
+          d: series(g.rows, (r) => r.od, ext),
+          tone: { ramp: i / (geoms.length - 1) },
         })),
         bands: [],
         markers: isosbestic(
-          thetas.map((t) => byTheta.get(t)!),
+          geoms.map((g) => g.rows),
           sx,
           ext,
         ),
@@ -395,7 +468,7 @@ function buildSpectrum(
   return {
     moleculeSlug: slug,
     experimentId: SHOWCASE_EXPERIMENT_ID,
-    title: "Carbon K-edge, total electron yield",
+    title: edge.title,
     width: W,
     height: H,
     xTicks: niceTicks([eMin, eMax], 6).map((e) => ({
