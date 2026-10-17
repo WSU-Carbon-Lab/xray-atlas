@@ -16,7 +16,7 @@ import { buildDatasetCitationBundle } from "~/lib/dataset-citation";
 import { contributorCitationSortKey } from "~/lib/datacite-contributor-types";
 import { normalizeDoi } from "~/lib/doi";
 import { formatExperimentType } from "~/components/browse/nexafs-browse-experiment-utils";
-import { readAtlasDatasetId } from "~/server/nexafs/atlas-dataset-id";
+import { normalizeAtlasDatasetId } from "~/lib/atlas-dataset-id";
 import { loadContributorUserContextByOrcid } from "~/server/nexafs/datasetAttributionClaiming";
 import { buildAtlasDatasetCitationUrl } from "~/server/zenodo/atlas-public-site-origin";
 import { db } from "~/server/db";
@@ -78,6 +78,7 @@ export async function GET(
           facilities: { select: { name: true } },
         },
       },
+      atlasdatasetid: true,
       experimentmetrics: { select: { datasetdoi: true } },
       experimentzenododeposit: { select: { doi: true } },
       experimentcontributors: {
@@ -101,15 +102,11 @@ export async function GET(
   const datasetDoi =
     normalizeDoi(experiment.experimentzenododeposit?.doi) ??
     normalizeDoi(experiment.experimentmetrics?.datasetdoi);
-  const atlasDatasetIdPromise = readAtlasDatasetId(db, experiment.id);
-  const userContextPromise = loadContributorUserContextByOrcid(
+  const atlasDatasetId = normalizeAtlasDatasetId(experiment.atlasdatasetid);
+  const userContextByOrcid = await loadContributorUserContextByOrcid(
     db,
     experiment.experimentcontributors.map((row) => row.orcidid),
   );
-  const [atlasDatasetId, userContextByOrcid] = await Promise.all([
-    atlasDatasetIdPromise,
-    userContextPromise,
-  ]);
   const atlasCitationUrl = atlasDatasetId
     ? buildAtlasDatasetCitationUrl(atlasDatasetId)
     : null;

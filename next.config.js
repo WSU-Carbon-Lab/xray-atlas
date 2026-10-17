@@ -120,7 +120,12 @@ const config = {
       },
       {
         source: "/wiki/api/openapi-contract",
-        destination: "/wiki/api/openapi",
+        destination: "/wiki/api/v1",
+        permanent: true,
+      },
+      {
+        source: "/wiki/api/openapi",
+        destination: "/wiki/api/v1",
         permanent: true,
       },
     ];

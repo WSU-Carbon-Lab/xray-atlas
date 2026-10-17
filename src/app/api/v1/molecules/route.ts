@@ -70,9 +70,9 @@ export async function GET(request: Request): Promise<NextResponse> {
         updatedat: true,
         moleculesynonyms: {
           orderBy: [{ order: "asc" }, { synonym: "asc" }],
+          take: query.synonymsLimit,
           select: {
             synonym: true,
-            order: true,
           },
         },
         _count: {
@@ -119,9 +119,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         viewCount: molecule.viewcount,
         synonymsCount: molecule._count.moleculesynonyms,
         sampleCount: molecule._count.samples,
-        synonyms: molecule.moleculesynonyms
-          .slice(0, query.synonymsLimit)
-          .map((entry) => entry.synonym),
+        synonyms: molecule.moleculesynonyms.map((entry) => entry.synonym),
         createdAt: molecule.createdat.toISOString(),
         updatedAt: molecule.updatedat.toISOString(),
       })),

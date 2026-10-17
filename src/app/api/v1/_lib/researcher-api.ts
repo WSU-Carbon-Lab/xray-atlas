@@ -68,7 +68,14 @@ export function parseDatasetSummaryQuery(params: URLSearchParams) {
 export function parseDoiDiscoveryQuery(params: URLSearchParams) {
   const parsed = z
     .object({
-      doi: z.string().trim().min(1).max(512),
+      doi: z
+        .string({
+          required_error: "DOI is required.",
+          invalid_type_error: "DOI is required.",
+        })
+        .trim()
+        .min(1, "DOI is required.")
+        .max(512),
       moleculeId: optionalUuid,
       edgeId: optionalUuid,
     })

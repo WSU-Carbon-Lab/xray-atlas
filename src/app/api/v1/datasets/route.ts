@@ -23,7 +23,10 @@ export async function GET(request: Request): Promise<NextResponse> {
 
     const datasets = await db.experiments.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        experimenttype: true,
+        createdat: true,
         edges: {
           select: {
             id: true,
@@ -76,7 +79,6 @@ export async function GET(request: Request): Promise<NextResponse> {
         experimentmetrics: {
           select: {
             datasetdoi: true,
-            hasdatasetdoi: true,
           },
         },
         experimentzenododeposit: {

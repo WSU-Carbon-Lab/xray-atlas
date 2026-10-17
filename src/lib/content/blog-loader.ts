@@ -28,12 +28,10 @@ export interface BlogEntry {
  *
  * @returns Absolute paths to MDX files in stable lexicographic order.
  */
-async function listBlogMdxFiles(
-  directory: string = BLOG_CONTENT_ROOT,
-): Promise<string[]> {
+async function listBlogMdxFiles(): Promise<string[]> {
   let entries: Dirent[];
   try {
-    entries = await readdir(directory, { withFileTypes: true });
+    entries = await readdir(BLOG_CONTENT_ROOT, { withFileTypes: true });
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return [];
@@ -43,7 +41,7 @@ async function listBlogMdxFiles(
 
   return entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".mdx"))
-    .map((entry) => path.join(directory, entry.name))
+    .map((entry) => path.join(BLOG_CONTENT_ROOT, entry.name))
     .sort((left, right) => left.localeCompare(right));
 }
 

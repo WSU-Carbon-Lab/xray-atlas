@@ -1,16 +1,9 @@
-import { NextResponse } from "next/server";
-
 /**
- * Preserves legacy molecule redirect-search behavior for `/api/v1` callers by forwarding
- * query params to the existing `/api/molecules/search` route.
+ * Resolves a molecule search on `/api/v1` with the same redirect rules as
+ * `/api/molecules/search`.
+ *
+ * One of `q`, `query`, `search`, or `s` is required. A single confident match
+ * redirects to that molecule page. Several matches redirect to
+ * `/browse/molecules` with `q` preserved. An empty query returns 400.
  */
-export async function GET(request: Request): Promise<NextResponse> {
-  const requestUrl = new URL(request.url);
-  const targetUrl = new URL("/api/molecules/search", requestUrl.origin);
-
-  for (const [key, value] of requestUrl.searchParams.entries()) {
-    targetUrl.searchParams.append(key, value);
-  }
-
-  return NextResponse.redirect(targetUrl, { status: 307 });
-}
+export { GET } from "~/app/api/molecules/search/route";

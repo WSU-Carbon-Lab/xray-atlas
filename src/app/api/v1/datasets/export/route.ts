@@ -96,7 +96,14 @@ export async function GET(request: Request): Promise<NextResponse> {
       where: {
         experiments: where,
       },
-      include: {
+      select: {
+        energyev: true,
+        rawabs: true,
+        i0: true,
+        od: true,
+        massabsorption: true,
+        beta: true,
+        delta: true,
         experiments: {
           select: {
             id: true,

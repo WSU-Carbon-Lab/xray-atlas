@@ -24,12 +24,13 @@ export interface WikiEntry {
  *
  * @returns Absolute paths to MDX files in stable lexicographic order.
  */
-async function listWikiMdxFiles(
-  directory: string = WIKI_CONTENT_ROOT,
-): Promise<string[]> {
+async function listWikiMdxFiles(relativeDirectory = ""): Promise<string[]> {
   let entries: Dirent[];
   try {
-    entries = await readdir(directory, { withFileTypes: true });
+    entries = await readdir(
+      path.join(process.cwd(), "content", "wiki", relativeDirectory),
+      { withFileTypes: true },
+    );
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return [];
@@ -41,18 +42,23 @@ async function listWikiMdxFiles(
   const childDirs: string[] = [];
 
   for (const entry of entries) {
-    const entryPath = path.join(directory, entry.name);
+    const relativeEntry =
+      relativeDirectory.length > 0
+        ? path.join(relativeDirectory, entry.name)
+        : entry.name;
     if (entry.isDirectory()) {
-      childDirs.push(entryPath);
+      childDirs.push(relativeEntry);
       continue;
     }
     if (entry.isFile() && entry.name.endsWith(".mdx")) {
-      files.push(entryPath);
+      files.push(path.join(process.cwd(), "content", "wiki", relativeEntry));
     }
   }
 
   childDirs.sort((left, right) => left.localeCompare(right));
-  const nested = await Promise.all(childDirs.map(listWikiMdxFiles));
+  const nested = await Promise.all(
+    childDirs.map((relativeEntry) => listWikiMdxFiles(relativeEntry)),
+  );
   return [
     ...files.sort((left, right) => left.localeCompare(right)),
     ...nested.flat(),
