@@ -1,6 +1,6 @@
 import "~/styles/globals.css";
 
-import { Geist } from "next/font/google";
+import { Geist, Newsreader } from "next/font/google";
 import { HeaderWhatsNewSuspense } from "~/components/layout/header-whats-new";
 import { FooterGithubStarsSuspense } from "~/components/layout/footer-github-stars";
 import { siteMetadata } from "./metadata";
@@ -33,6 +33,14 @@ const geist = Geist({
   variable: "--font-geist-sans",
 });
 
+const newsreader = Newsreader({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-display",
+  adjustFontFallback: true,
+  fallback: ["Georgia", "Cambria", "Times New Roman", "serif"],
+});
+
 export default async function RootLayout({
   children,
   modal,
@@ -41,7 +49,7 @@ export default async function RootLayout({
     <html
       lang="en"
       suppressHydrationWarning
-      className={`${geist.variable} min-h-screen w-full`}
+      className={`${geist.variable} ${newsreader.variable} min-h-screen w-full`}
     >
       <body className="bg-background text-foreground flex min-h-screen flex-col">
         <SessionProvider>

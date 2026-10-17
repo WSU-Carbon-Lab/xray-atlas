@@ -46,7 +46,7 @@ export function Footer({
             </span>
           </div>
           <div className="flex items-center gap-3">
-            <GitHubStarsLink stars={githubStars} variant="static" />
+            <GitHubStarsLink stars={githubStars} />
           </div>
         </div>
         <div className="grid grid-cols-1 gap-8 md:grid-cols-8">

@@ -3,243 +3,167 @@
 import {
   useEffect,
   useState,
-  type ComponentType,
+  type KeyboardEvent as ReactKeyboardEvent,
   type ReactElement,
   type ReactNode,
 } from "react";
 import Link from "next/link";
 import { cn } from "@heroui/styles";
-import { Home, Info, Upload, Search, ChevronDown } from "lucide-react";
+import { ChevronDown, Upload } from "lucide-react";
 import { WSULogoIcon } from "../icons";
 import { GitHubStarsLink } from "./github-stars-link";
 import { useSession } from "next-auth/react";
 import { CustomUserButton } from "~/components/ui/avatar";
 import { SignInButton } from "../auth/sign-in-button";
 import { ThemeToggle } from "../theme/theme-toggle";
-import {
-  BoltIcon,
-  BeakerIcon,
-  BookOpenIcon,
-  BuildingOfficeIcon,
-  CodeBracketIcon,
-  CommandLineIcon,
-  InformationCircleIcon,
-  MapIcon,
-  NewspaperIcon,
-  ShieldCheckIcon,
-} from "@heroicons/react/24/outline";
 import { site } from "~/app/brand";
-import { wikiDocTopics, wikiTopicIntroLinkLabel } from "~/lib/wiki-doc-nav";
 import type { WhatsNewSummary } from "~/lib/whats-new-summary";
 import {
-  HeaderMenuButton,
-  HeaderMenuColumn,
-  HeaderMenuNestedGroup,
+  headerDropdownBridgeClass,
   headerDropdownInnerClass,
   headerDropdownPanelClass,
   useHeaderDropdown,
+  useHeaderMenuInlineEdge,
 } from "./header-dropdown-menu";
 
-type HeaderMenuIcon = ComponentType<{ className?: string }>;
-
 const headerMenuLinkClass =
-  "text-foreground hover:bg-default/50 flex min-h-9 w-full min-w-0 items-start gap-2.5 rounded-md px-3 py-2 text-left text-sm no-underline transition-colors";
+  "text-foreground decoration-foreground block px-1 py-1 text-sm leading-snug whitespace-nowrap no-underline underline-offset-4 transition-colors hover:underline";
+
+/**
+ * Header nav label. The word underlines while the menu is open or hovered.
+ */
+function HeaderNavTrigger({
+  label,
+  isOpen,
+  triggerProps,
+}: {
+  label: string;
+  isOpen: boolean;
+  triggerProps: {
+    onClick: () => void;
+    onKeyDown: (event: ReactKeyboardEvent<HTMLButtonElement>) => void;
+  };
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      className="text-foreground flex items-center gap-1 text-sm"
+      aria-expanded={isOpen}
+      aria-haspopup="menu"
+      {...triggerProps}
+    >
+      <span
+        className={cn(
+          "decoration-transparent underline underline-offset-[6px] transition-[text-decoration-color] duration-200",
+          isOpen ? "decoration-foreground" : "hover:decoration-foreground",
+        )}
+      >
+        {label}
+      </span>
+      <ChevronDown
+        className={cn(
+          "size-3 opacity-70 transition-transform duration-200 ease-out",
+          isOpen && "rotate-180",
+        )}
+        aria-hidden
+      />
+    </button>
+  );
+}
 
 function HeaderMenuLink({
   href,
-  icon: Icon,
   label,
   onNavigate,
 }: {
   href: string;
-  icon?: HeaderMenuIcon;
   label: ReactNode;
   onNavigate: () => void;
 }): ReactElement {
   return (
     <Link href={href} onClick={onNavigate} className={headerMenuLinkClass}>
-      {Icon ? (
-        <Icon className="text-accent mt-0.5 size-4 shrink-0" aria-hidden />
-      ) : null}
-      <span className="min-w-0 flex-1 leading-snug">{label}</span>
+      {label}
     </Link>
   );
 }
 
-function HeaderMenuNestedNavLink({
-  href,
+const headerNavLinkClass =
+  "text-foreground decoration-transparent text-sm underline underline-offset-[6px] transition-[text-decoration-color] duration-200 hover:decoration-foreground";
+
+const BROWSE_ITEMS = [
+  { href: "/browse/nexafs", label: "NEXAFS" },
+  { href: "/browse/molecules", label: "Molecule" },
+  { href: "/browse/facilities", label: "Facility" },
+] as const;
+
+const LEARN_ITEMS = [
+  { href: "/wiki", label: "Wiki" },
+  { href: "/wiki/atlas", label: "Using X-ray Atlas" },
+  { href: "/wiki/api", label: "API Docs" },
+] as const;
+
+const NEWS_ITEMS = [
+  { href: "/blog", label: "Blog" },
+  { href: "/about/roadmap", label: "Roadmap" },
+  { href: "/about/developers", label: "Developers" },
+] as const;
+
+const CONTRIBUTE_ITEMS = [
+  { href: "/wiki/atlas/contributing", label: "Get started" },
+  { href: "/contribute", label: "Upload data" },
+] as const;
+
+/**
+ * Header menu with a muted section label and text links.
+ *
+ * The panel is centered under the trigger. Nested wiki sections stay on
+ * the wiki. The panel repeats `label` as the kicker.
+ */
+function HeaderNavMenu({
+  menuId,
   label,
-  indent = 1,
-  onNavigate,
+  items,
 }: {
-  href: string;
-  label: ReactNode;
-  indent?: 1 | 2;
-  onNavigate: () => void;
+  menuId: string;
+  label: string;
+  items: readonly { href: string; label: string }[];
 }): ReactElement {
+  const { isOpen, dropdownRef, close, rootProps, triggerProps } =
+    useHeaderDropdown(menuId);
+  const { panelRef, edgeClassName, edgeStyle } = useHeaderMenuInlineEdge(
+    isOpen,
+    dropdownRef,
+  );
+
   return (
-    <Link
-      href={href}
-      onClick={onNavigate}
-      className={cn(
-        "text-foreground hover:bg-default/50 grid min-h-9 w-full min-w-0 grid-cols-[minmax(0,1fr)_0.875rem] items-center gap-x-2 rounded-md py-2 text-left text-sm no-underline transition-colors",
-        indent === 2 ? "pr-3 pl-9" : "pr-3 pl-6",
-      )}
+    <div
+      className="relative flex h-full items-center"
+      ref={dropdownRef}
+      {...rootProps}
     >
-      <span className="min-w-0 leading-snug">{label}</span>
-      <span aria-hidden className="size-3.5 shrink-0" />
-    </Link>
-  );
-}
-
-function AboutDropdown() {
-  const { isOpen, setIsOpen, dropdownRef, close } = useHeaderDropdown();
-  const [isWikiOpen, setIsWikiOpen] = useState(false);
-  const [wikiGroupExpanded, setWikiGroupExpanded] = useState<Set<string>>(
-    () => new Set(),
-  );
-
-  const closeAll = (): void => {
-    close();
-    setIsWikiOpen(false);
-    setWikiGroupExpanded(new Set());
-  };
-
-  const toggleWikiGroup = (key: string): void => {
-    setWikiGroupExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) {
-        next.delete(key);
-      } else {
-        next.add(key);
-      }
-      return next;
-    });
-  };
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="text-foreground hover:text-foreground flex items-center text-sm"
-        aria-expanded={isOpen}
-        aria-haspopup="true"
-      >
-        <Info className="mr-2 h-4 w-4" />
-        About
-        <ChevronDown
-          className={`ml-1 h-3 w-3 transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
+      <HeaderNavTrigger
+        isOpen={isOpen}
+        label={label}
+        triggerProps={triggerProps}
+      />
       {isOpen ? (
         <div
-          className={`${headerDropdownPanelClass} left-1/2 w-[min(100vw-2rem,36rem)] -translate-x-1/2 p-2`}
+          ref={panelRef}
+          className={cn(headerDropdownBridgeClass, edgeClassName)}
+          style={edgeStyle}
         >
-          <div className="grid grid-cols-3 gap-1">
-            <HeaderMenuColumn title="Discover">
-              <HeaderMenuLink
-                href="/about"
-                icon={InformationCircleIcon}
-                label="About"
-                onNavigate={closeAll}
-              />
-              <HeaderMenuLink
-                href="/blog"
-                icon={NewspaperIcon}
-                label="Blog"
-                onNavigate={closeAll}
-              />
-            </HeaderMenuColumn>
-
-            <HeaderMenuColumn title="Docs">
-              <HeaderMenuButton
-                aria-controls="about-wiki-nav"
-                aria-expanded={isWikiOpen}
-                chevronOpen={isWikiOpen}
-                icon={BookOpenIcon}
-                label="Wiki"
-                onClick={() => setIsWikiOpen((prev) => !prev)}
-              />
-              {isWikiOpen ? (
-                <div
-                  id="about-wiki-nav"
-                  className="border-border/60 flex w-full min-w-0 flex-col gap-0.5 border-l pl-1.5"
-                >
-                  {wikiDocTopics.map((topic) => {
-                    if (topic.sections.length === 0) {
-                      return (
-                        <HeaderMenuNestedNavLink
-                          key={topic.href}
-                          href={topic.href}
-                          label={topic.label}
-                          onNavigate={closeAll}
-                        />
-                      );
-                    }
-
-                    const groupOpen = wikiGroupExpanded.has(topic.href);
-                    return (
-                      <HeaderMenuNestedGroup
-                        key={topic.href}
-                        id={`about-wiki-${topic.href.replace(/\//g, "-")}`}
-                        isOpen={groupOpen}
-                        label={topic.label}
-                        onToggle={() => toggleWikiGroup(topic.href)}
-                      >
-                        <HeaderMenuNestedNavLink
-                          href={topic.href}
-                          indent={2}
-                          label={wikiTopicIntroLinkLabel(topic)}
-                          onNavigate={closeAll}
-                        />
-                        {topic.sections.map((section) =>
-                          section.href ? (
-                            <HeaderMenuNestedNavLink
-                              key={section.href}
-                              href={section.href}
-                              indent={2}
-                              label={section.label}
-                              onNavigate={closeAll}
-                            />
-                          ) : null,
-                        )}
-                      </HeaderMenuNestedGroup>
-                    );
-                  })}
-                </div>
-              ) : null}
-              <HeaderMenuLink
-                href="/wiki/api"
-                icon={CodeBracketIcon}
-                label="API"
-                onNavigate={closeAll}
-              />
-            </HeaderMenuColumn>
-
-            <HeaderMenuColumn title="Project">
-              <HeaderMenuLink
-                href="/about/roadmap"
-                icon={MapIcon}
-                label="Roadmap"
-                onNavigate={closeAll}
-              />
-              <HeaderMenuLink
-                href="/about/developers"
-                icon={CommandLineIcon}
-                label="Developers"
-                onNavigate={closeAll}
-              />
-              <HeaderMenuLink
-                href="/privacy"
-                icon={ShieldCheckIcon}
-                label="Privacy"
-                onNavigate={closeAll}
-              />
-            </HeaderMenuColumn>
+          <div className={headerDropdownPanelClass}>
+            <p className="text-muted px-1 text-xs">{label}</p>
+            <div className={headerDropdownInnerClass}>
+              {items.map((item) => (
+                <HeaderMenuLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  onNavigate={close}
+                />
+              ))}
+            </div>
           </div>
         </div>
       ) : null}
@@ -247,97 +171,61 @@ function AboutDropdown() {
   );
 }
 
-function BrowseDropdown() {
-  const { isOpen, setIsOpen, dropdownRef, close } = useHeaderDropdown();
-
-  return (
-    <div className="relative" ref={dropdownRef}>
-      <button
-        type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="text-foreground hover:text-foreground flex items-center text-sm"
-        aria-expanded={isOpen}
-        aria-haspopup="true"
-      >
-        <Search className="mr-2 h-4 w-4" />
-        Browse
-        <ChevronDown
-          className={`ml-1 h-3 w-3 transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`}
-        />
-      </button>
-
-      {isOpen ? (
-        <div className={`${headerDropdownPanelClass} left-0 w-48`}>
-          <div className={headerDropdownInnerClass}>
-            <HeaderMenuLink
-              href="/browse/nexafs"
-              icon={BoltIcon}
-              label="NEXAFS"
-              onNavigate={close}
-            />
-            <HeaderMenuLink
-              href="/browse/molecules"
-              icon={BeakerIcon}
-              label="Molecule"
-              onNavigate={close}
-            />
-            <HeaderMenuLink
-              href="/browse/facilities"
-              icon={BuildingOfficeIcon}
-              label="Facility"
-              onNavigate={close}
-            />
-          </div>
-        </div>
-      ) : null}
-    </div>
+/**
+ * Accent header action for starting or uploading.
+ *
+ * The control sits after a divider so it reads apart from the text nav. The
+ * menu offers the contributing guide and the upload hub.
+ */
+function HeaderContributeMenu(): ReactElement {
+  const { isOpen, dropdownRef, close, rootProps, triggerProps } =
+    useHeaderDropdown("contribute");
+  const { panelRef, edgeClassName, edgeStyle } = useHeaderMenuInlineEdge(
+    isOpen,
+    dropdownRef,
   );
-}
-
-function ContributeDropdown() {
-  const { isOpen, setIsOpen, dropdownRef, close } = useHeaderDropdown();
 
   return (
-    <div className="relative" ref={dropdownRef}>
+    <div
+      className="relative flex h-full items-center"
+      ref={dropdownRef}
+      {...rootProps}
+    >
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
-        className="text-foreground hover:text-foreground flex items-center text-sm"
+        className="bg-accent text-accent-foreground focus-visible:ring-accent inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium shadow-[0_8px_20px_-12px_var(--accent)] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2"
         aria-expanded={isOpen}
-        aria-haspopup="true"
+        aria-haspopup="menu"
+        {...triggerProps}
       >
-        <Upload className="mr-2 h-4 w-4" />
+        <Upload className="size-4" aria-hidden />
         Contribute
         <ChevronDown
-          className={`ml-1 h-3 w-3 transition-transform ${
-            isOpen ? "rotate-180" : ""
-          }`}
+          className={cn(
+            "size-3 opacity-80 transition-transform duration-200 ease-out",
+            isOpen && "rotate-180",
+          )}
+          aria-hidden
         />
       </button>
-
       {isOpen ? (
-        <div className={`${headerDropdownPanelClass} right-0 w-48`}>
-          <div className={headerDropdownInnerClass}>
-            <HeaderMenuLink
-              href="/contribute/nexafs"
-              icon={BoltIcon}
-              label="NEXAFS"
-              onNavigate={close}
-            />
-            <HeaderMenuLink
-              href="/contribute/molecule"
-              icon={BeakerIcon}
-              label="Molecule"
-              onNavigate={close}
-            />
-            <HeaderMenuLink
-              href="/contribute/facility"
-              icon={BuildingOfficeIcon}
-              label="Facility"
-              onNavigate={close}
-            />
+        <div
+          ref={panelRef}
+          className={cn(headerDropdownBridgeClass, edgeClassName)}
+          style={edgeStyle}
+        >
+          <div className={headerDropdownPanelClass}>
+            <p className="text-muted px-1 text-xs">Contribute</p>
+            <div className={headerDropdownInnerClass}>
+              {CONTRIBUTE_ITEMS.map((item) => (
+                <HeaderMenuLink
+                  key={item.href}
+                  href={item.href}
+                  label={item.label}
+                  onNavigate={close}
+                />
+              ))}
+            </div>
           </div>
         </div>
       ) : null}
@@ -369,47 +257,48 @@ export default function Header({
           className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4"
           aria-label="Main"
         >
-          <div className="flex min-w-0 flex-1 items-center justify-start">
+          <div className="flex shrink-0 items-center justify-start">
             <Link
               href="/"
               className="text-foreground hover:text-foreground flex items-center justify-start space-x-2 no-underline"
             >
               <WSULogoIcon className="block h-10 w-10 justify-start align-middle" />
-              <span className="align-middle font-sans text-3xl leading-none font-bold">
+              <span className="align-middle font-sans text-3xl leading-none font-bold whitespace-nowrap">
                 {site.name}
               </span>
             </Link>
           </div>
 
-          <ul className="m-0 ml-auto flex list-none flex-wrap items-center gap-2 p-0 md:gap-5">
-            <li className="hidden sm:flex">
-              <Link
-                href="/"
-                className="text-foreground hover:text-foreground flex items-center text-sm"
-              >
-                <Home className="mr-2 h-4 w-4" />
-                Home
-              </Link>
-            </li>
-            <li className="hidden sm:flex">
-              <BrowseDropdown />
-            </li>
-            <li className="hidden sm:flex">
-              <AboutDropdown />
-            </li>
-            <li className="hidden sm:flex">
-              <ContributeDropdown />
-            </li>
-            <li className="flex items-center">
-              <div
-                className="bg-border mx-2 h-6 w-px"
-                style={{ minWidth: "1px" }}
+          <ul className="m-0 ml-auto flex h-full list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
+            <li className="hidden h-full md:flex">
+              <HeaderNavMenu
+                menuId="browse"
+                label="Browse"
+                items={BROWSE_ITEMS}
               />
             </li>
-            <li className="flex">
-              <ThemeToggle />
+            <li className="hidden h-full md:flex">
+              <HeaderNavMenu menuId="learn" label="Learn" items={LEARN_ITEMS} />
             </li>
-            <li className="flex">
+            <li className="hidden h-full md:flex">
+              <HeaderNavMenu menuId="news" label="News" items={NEWS_ITEMS} />
+            </li>
+            <li className="hidden md:flex">
+              <Link href="/about" className={headerNavLinkClass}>
+                About
+              </Link>
+            </li>
+            <li className="hidden md:flex">
+              <Link href="/privacy" className={headerNavLinkClass}>
+                Policy
+              </Link>
+            </li>
+            <li aria-hidden className="bg-border hidden h-5 w-px md:block" />
+            <li className="flex h-full items-center">
+              <HeaderContributeMenu />
+            </li>
+            <li className="flex h-full items-center gap-0.5">
+              <ThemeToggle />
               <GitHubStarsLink stars={githubStars} />
             </li>
             <li className="flex items-center">
