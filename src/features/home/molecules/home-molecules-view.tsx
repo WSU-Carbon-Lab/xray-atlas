@@ -75,6 +75,11 @@ export function HomeMoleculesView({
                     imageUrl={m.imageUrl}
                     name={m.name}
                     className="h-36 w-full"
+                    fallback={
+                      <span className="font-display text-muted text-2xl">
+                        {m.formula}
+                      </span>
+                    }
                   />
                 ) : (
                   <span className="font-display text-muted text-2xl">
