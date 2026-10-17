@@ -1,7 +1,8 @@
-import type { ReactElement, ReactNode } from "react";
+import { Suspense, type ReactElement, type ReactNode } from "react";
 import { attribution, mission, site } from "~/app/brand";
 import { HeroUpdatesRow } from "~/components/home/hero-updates-row";
 import { HOME_SNAPSHOT } from "./snapshot/home-snapshot.generated";
+import { getCachedHomeMoleculeCounts } from "~/server/home/home-molecule-counts";
 import { HomeAtlasStage } from "./stage/home-atlas-stage";
 import { HomeSearchBand } from "./search/home-search-band";
 import { HomeMoleculesView } from "./molecules/home-molecules-view";
@@ -13,6 +14,21 @@ import { HomeFacilitiesPreview } from "./facilities/home-facilities-preview";
 import { HomeLatestPosts } from "./content/home-latest-posts";
 import { HomeWikiPicks } from "./content/home-wiki-picks";
 import { HomeContributeStrip } from "./content/home-contribute-strip";
+
+/** Molecules view with cached live counts overlaid on snapshot values; snapshot stays on failure. */
+async function HomeMoleculesWithCounts(): Promise<ReactElement> {
+  const molecules = HOME_SNAPSHOT.molecules;
+  const counts = await getCachedHomeMoleculeCounts(molecules.map((m) => m.id));
+  return (
+    <HomeMoleculesView
+      molecules={molecules.map((m) => ({
+        ...m,
+        datasetCount: counts[m.id]?.datasets ?? m.datasetCount,
+        favoriteCount: counts[m.id]?.favorites ?? m.favoriteCount,
+      }))}
+    />
+  );
+}
 
 /** Home page composition. `announcement` is the suspended What's New link. */
 export function HomePage({
@@ -48,7 +64,13 @@ export function HomePage({
             facilities: <HomeFacilitiesPreview />,
           }}
           views={{
-            molecules: <HomeMoleculesView molecules={s.molecules} />,
+            molecules: (
+              <Suspense
+                fallback={<HomeMoleculesView molecules={s.molecules} />}
+              >
+                <HomeMoleculesWithCounts />
+              </Suspense>
+            ),
             spectra: <HomeSpectraView spectrum={s.spectrum} />,
             facilities: <HomeFacilitiesView />,
           }}
