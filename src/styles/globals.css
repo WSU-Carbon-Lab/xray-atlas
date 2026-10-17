@@ -825,6 +825,15 @@
   .home-view {
     @apply border-border bg-surface min-h-[28rem] space-y-6 rounded-3xl border p-6 sm:p-8;
   }
+  .home-element {
+    @apply border-border bg-background text-foreground hover:border-accent/60 focus-visible:ring-accent/50 flex size-11 flex-col items-center justify-center gap-0.5 rounded-xl border transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35;
+  }
+  .home-element--on {
+    @apply border-accent bg-accent/10 text-accent;
+  }
+  .home-search {
+    @apply border-border bg-surface/80 space-y-4 rounded-3xl border p-4 shadow-sm backdrop-blur sm:p-6;
+  }
 }
 
 @media (prefers-reduced-motion: no-preference) {
