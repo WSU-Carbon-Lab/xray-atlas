@@ -17,7 +17,10 @@ export function MoleculeLinkGraph({
       {molecules.map((m) => (
         <div
           key={m.id}
-          style={{ viewTransitionName: `home-mol-${m.slug}` }}
+          style={{
+            viewTransitionName: `home-mol-${m.slug}`,
+            viewTransitionClass: "home",
+          }}
           className="space-y-3"
         >
           <Link

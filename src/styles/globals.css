@@ -888,7 +888,8 @@
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  ::view-transition-group(*) {
+  /* Scoped to home-page elements (view-transition-class: home) so other routes keep defaults. */
+  ::view-transition-group(.home) {
     animation-duration: 320ms;
     animation-timing-function: cubic-bezier(0.2, 0.8, 0.2, 1);
   }

@@ -66,7 +66,10 @@ export function HomeMoleculesView({
           {molecules.map((m) => (
             <li
               key={m.id}
-              style={{ viewTransitionName: `home-mol-${m.slug}` }}
+              style={{
+                viewTransitionName: `home-mol-${m.slug}`,
+                viewTransitionClass: "home",
+              }}
               className="border-border bg-background relative flex flex-col gap-3 rounded-2xl border p-4"
             >
               <div className="flex h-36 items-center justify-center overflow-hidden">
@@ -95,7 +98,8 @@ export function HomeMoleculesView({
               </Link>
               <p className="text-muted text-sm leading-6">{m.blurb}</p>
               <p className="text-muted mt-auto text-xs tabular-nums">
-                {m.formula} · {m.datasetCount} datasets
+                {m.formula} · {m.datasetCount}{" "}
+                {m.datasetCount === 1 ? "dataset" : "datasets"}
               </p>
             </li>
           ))}
