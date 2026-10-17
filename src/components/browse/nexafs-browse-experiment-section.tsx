@@ -100,7 +100,7 @@ const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
  * @param itemsPerPageLabelId - `id` of the external label element for the items-per-page select.
  * @param emptyListMessage - Copy shown when the catalog is empty and no search is active.
  * @param variant - `"fullPage"` wraps in page chrome; `"embedded"` renders controls only.
- * @param initialBrowseList - Cached default `browseList` page (quality, limit 12, offset 0, no filters). Applied only while the live query is still that default.
+ * @param initialBrowseList - Cached default `browseList` page (quality, limit 12, offset 0). Full-page catalog applies it with no molecule filter. Embedded mode applies it for the locked molecule. Ignored once the live query leaves that default.
  */
 export interface NexafsBrowseExperimentSectionProps {
   basePath: string;
@@ -256,21 +256,27 @@ export function NexafsBrowseExperimentSection({
     ...(deepLinkExperimentId ? { experimentIds: [deepLinkExperimentId] } : {}),
   };
 
-  const isDefaultCatalogPage =
-    variant === "fullPage" &&
-    !lockedMoleculeId &&
+  const isDefaultBrowseQuery =
     !hasSearchQuery &&
     deepLinkExperimentId === null &&
     sortBy === "quality" &&
     itemsPerPage === 12 &&
     currentPage === 1 &&
-    effectiveMoleculeIds.length === 0 &&
     selection.edge.length === 0 &&
     selection.instrument.length === 0 &&
     selection.contributor.length === 0 &&
     catalogFilters.experimentType === undefined &&
     !catalogFilters.verifiedOnly &&
     catalogFilters.verificationSource === "either";
+  const isDefaultCatalogPage =
+    isDefaultBrowseQuery &&
+    ((variant === "fullPage" &&
+      !lockedMoleculeId &&
+      effectiveMoleculeIds.length === 0) ||
+      (variant === "embedded" &&
+        lockedMoleculeId != null &&
+        effectiveMoleculeIds.length === 1 &&
+        effectiveMoleculeIds[0] === lockedMoleculeId));
 
   const searchData = trpc.experiments.browseSearch.useQuery(
     {
@@ -296,8 +302,14 @@ export function NexafsBrowseExperimentSection({
     },
     {
       enabled: listQueryReady && !hasSearchQuery,
-      staleTime: 30_000,
+      staleTime: variant === "embedded" ? 60_000 : 30_000,
       gcTime: 300_000,
+      refetchOnMount:
+        variant === "embedded" &&
+        isDefaultCatalogPage &&
+        initialBrowseList != null
+          ? false
+          : undefined,
       initialData:
         isDefaultCatalogPage && initialBrowseList
           ? initialBrowseList

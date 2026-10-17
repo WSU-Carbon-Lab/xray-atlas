@@ -1,137 +1,124 @@
-"use client";
-
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { usePathname, useSearchParams } from "next/navigation";
-import { useSession } from "next-auth/react";
-import { useMoleculeDetail } from "~/components/browse/molecule-detail-context";
-import { NexafsBrowseExperimentSection } from "~/components/browse/nexafs-browse-experiment-section";
-import { MoleculeSimilarDatasetsPanel } from "~/components/nexafs/molecule-similar-datasets-panel";
-import { NexafsExperimentCompactSkeleton } from "~/components/feedback/loading-state";
+import { Suspense, type ReactElement } from "react";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import {
-  MERGE_PAIR_SEARCH_PARAM,
-  parseMergePairSearchParam,
-} from "~/lib/nexafs-experiment-deep-link";
-import { trpc } from "~/trpc/client";
+  MoleculeDetailPageClient,
+  MoleculeNexafsBrowseFallback,
+  MoleculeNexafsBrowseGate,
+} from "./molecule-detail-page-client";
+import { MoleculeNexafsDatasetSection } from "./molecule-nexafs-dataset-section";
+import {
+  moleculeRouteNeedsCanonicalRedirect,
+  resolveMoleculeByRouteId,
+} from "./molecule-detail-request";
 
-const VIEW_DEBOUNCE_KEY = "xray-atlas-view-debounce";
-const VIEW_DEBOUNCE_MS = 2000;
-
-function shouldDebounceTrackView(): boolean {
-  if (typeof window === "undefined") return true;
-  const last = sessionStorage.getItem(VIEW_DEBOUNCE_KEY);
-  if (!last) return false;
-  const elapsed = Date.now() - parseInt(last, 10);
-  return elapsed < VIEW_DEBOUNCE_MS;
+interface MoleculeDetailSearchParams {
+  q?: string | string[];
+  page?: string | string[];
+  edge?: string | string[];
+  mol?: string | string[];
+  instrument?: string | string[];
+  contributor?: string | string[];
+  experimentType?: string | string[];
+  verified?: string | string[];
+  verificationSource?: string | string[];
+  nexafsExperiment?: string | string[];
 }
 
-function markTrackViewSent(): void {
-  if (typeof window === "undefined") return;
-  sessionStorage.setItem(VIEW_DEBOUNCE_KEY, Date.now().toString());
-}
-
-function MoleculeNexafsBrowse() {
-  const pathname = usePathname();
-  const { moleculeId } = useMoleculeDetail();
-  const contributeHref = `/contribute/nexafs?moleculeId=${moleculeId}`;
-
-  return (
-    <NexafsBrowseExperimentSection
-      variant="embedded"
-      basePath={pathname}
-      contributeNexafsHref={contributeHref}
-      showMoleculeFilter={false}
-      lockedMoleculeId={moleculeId}
-      emptyStateBrowseAllHref={`/browse/nexafs?molecule=${encodeURIComponent(moleculeId)}`}
-      emptyListMessage="No NEXAFS datasets for this molecule yet."
-      itemsPerPageLabelId="molecule-nexafs-items-per-page"
-    />
-  );
-}
-
-function MoleculeNexafsBrowseFallback() {
-  return (
-    <div
-      className="space-y-3"
-      aria-busy
-      aria-label="Loading NEXAFS experiments"
-    >
-      {Array.from({ length: 6 }).map((_, i) => (
-        <NexafsExperimentCompactSkeleton key={i} />
-      ))}
-    </div>
-  );
-}
-
-function MoleculeNexafsBrowseAfterMount() {
-  const [mounted, setMounted] = useState(false);
-  useLayoutEffect(() => {
-    setMounted(true);
-  }, []);
-  if (!mounted) {
-    return <MoleculeNexafsBrowseFallback />;
+function firstSearchParam(
+  value: string | string[] | undefined,
+): string | undefined {
+  if (Array.isArray(value)) {
+    return value[0];
   }
+  return value;
+}
+
+function isActiveFlag(value: string | undefined): boolean {
+  return value === "1" || value === "true";
+}
+
+function isDefaultMoleculeNexafsRequest(
+  searchParams: MoleculeDetailSearchParams,
+): boolean {
+  const query = firstSearchParam(searchParams.q)?.trim() ?? "";
+  const pageRaw = firstSearchParam(searchParams.page);
+  const page = pageRaw ? Number.parseInt(pageRaw, 10) : 1;
+  const verificationSource = firstSearchParam(searchParams.verificationSource);
+  const facetKeys = [
+    searchParams.edge,
+    searchParams.mol,
+    searchParams.instrument,
+    searchParams.contributor,
+    searchParams.experimentType,
+    searchParams.nexafsExperiment,
+  ];
+  const hasFacet = facetKeys.some((value) => {
+    const text = firstSearchParam(value)?.trim() ?? "";
+    return text.length > 0;
+  });
+  const verifiedOnly =
+    isActiveFlag(firstSearchParam(searchParams.verified)) ||
+    (verificationSource !== undefined &&
+      verificationSource.length > 0 &&
+      verificationSource !== "either");
   return (
-    <>
-      <MoleculeSimilarDatasetsHost />
-      <MoleculeNexafsBrowse />
-    </>
+    query.length === 0 &&
+    !hasFacet &&
+    !verifiedOnly &&
+    (!Number.isFinite(page) || page <= 1)
   );
 }
 
-export default function MoleculeDetailPage() {
-  const { molecule } = useMoleculeDetail();
-  const { data: session, status: sessionStatus } = useSession();
-  const trackViewSent = useRef(false);
+/**
+ * Renders the molecule NEXAFS section for `/molecules/[id]`.
+ *
+ * Reuses `resolveMoleculeByRouteId` so this render does not issue a second
+ * `getBySlug` or `getById`. Returns the client shell without awaiting the
+ * browse list. On the canonical slug with no browse filters, the list loads
+ * inside `Suspense` from `MoleculeNexafsDatasetSection`. Collision, missing,
+ * and non-canonical params return nothing because the layout renders the
+ * collision card, `notFound`, or the canonical redirect. `mergePair` does not
+ * suppress the seed. `nexafsExperiment` does, and the client query fills it.
+ *
+ * @param props.params Route segment `id` (slug or UUID).
+ * @param props.searchParams Shareable NEXAFS query keys, including `nexafsExperiment` and `mergePair`.
+ * @returns The client section, or `null` when the layout owns the response.
+ */
+export default async function MoleculeDetailPage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ id: string }>;
+  searchParams: Promise<MoleculeDetailSearchParams>;
+}): Promise<ReactElement | null> {
+  const [{ id: routeId }, query] = await Promise.all([params, searchParams]);
 
-  const trackView = trpc.molecules.trackView.useMutation();
-  const trackViewMutateRef = useRef(trackView.mutate);
-  trackViewMutateRef.current = trackView.mutate;
+  let resolved: Awaited<ReturnType<typeof resolveMoleculeByRouteId>>;
+  try {
+    resolved = await resolveMoleculeByRouteId(routeId);
+  } catch {
+    return null;
+  }
+  if (resolved.status !== "found") {
+    return null;
+  }
+  const molecule = resolved.molecule;
+  if (
+    moleculeRouteNeedsCanonicalRedirect(
+      routeId,
+      canonicalMoleculeSlugFromView(molecule),
+    )
+  ) {
+    return null;
+  }
 
-  useEffect(() => {
-    if (!molecule?.id || trackViewSent.current) return;
-    if (sessionStatus !== "authenticated" || !session?.user?.id) return;
-    if (shouldDebounceTrackView()) return;
-    trackViewSent.current = true;
-    trackViewMutateRef.current(
-      { moleculeId: molecule.id },
-      {
-        onSuccess: (data) => {
-          if (data?.recorded === true) markTrackViewSent();
-        },
-        onError: () => {
-          trackViewSent.current = false;
-        },
-      },
-    );
-  }, [molecule?.id, session?.user?.id, sessionStatus]);
-
-  return (
-    <section
-      className="space-y-6"
-      aria-labelledby="nexafs-heading"
-      suppressHydrationWarning
-    >
-      <h2 id="nexafs-heading" className="sr-only" suppressHydrationWarning>
-        NEXAFS spectra for this molecule
-      </h2>
-      <MoleculeNexafsBrowseAfterMount />
-    </section>
+  const datasetList = isDefaultMoleculeNexafsRequest(query) ? (
+    <Suspense fallback={<MoleculeNexafsBrowseFallback />}>
+      <MoleculeNexafsDatasetSection moleculeId={molecule.id} />
+    </Suspense>
+  ) : (
+    <MoleculeNexafsBrowseGate />
   );
-}
 
-function MoleculeSimilarDatasetsHost() {
-  const { molecule, moleculeId } = useMoleculeDetail();
-  const searchParams = useSearchParams();
-  const initialMergePair = parseMergePairSearchParam(
-    searchParams.get(MERGE_PAIR_SEARCH_PARAM),
-  );
-  const slug = canonicalMoleculeSlugFromView(molecule);
-  return (
-    <MoleculeSimilarDatasetsPanel
-      moleculeId={moleculeId}
-      moleculeSlug={slug}
-      initialMergePair={initialMergePair}
-    />
-  );
+  return <MoleculeDetailPageClient>{datasetList}</MoleculeDetailPageClient>;
 }

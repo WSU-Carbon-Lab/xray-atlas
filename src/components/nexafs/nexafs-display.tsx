@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useLayoutEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Link from "next/link";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -70,7 +70,7 @@ const NexafsExperimentDatasetPanel = dynamic(
     import("~/components/nexafs/nexafs-experiment-dataset-panel").then(
       (mod) => mod.NexafsExperimentDatasetPanel,
     ),
-  { loading: NexafsDatasetPanelLoading },
+  { ssr: false, loading: NexafsDatasetPanelLoading },
 );
 
 const NexafsDatasetDoiCiteControl = dynamic(
@@ -258,9 +258,10 @@ export type NexafsExperimentCompactCardProps = {
    */
   citationYear?: number;
   /**
-   * When true, expands the spectrum panel on mount (e.g. deep-link match from the
-   * parent list). The card also expands when `?nexafsExperiment=` matches
-   * `experimentId`. The browse section scrolls that card into view after load,
+   * When true, expands this card's spectrum panel after the card list paints.
+   * The card also expands when `?nexafsExperiment=` matches `experimentId`.
+   * The first paint stays collapsed so the plot chunk is not mounted with the
+   * card chrome. The browse section scrolls that card into view after load,
    * and collapsing clears the query param from the address bar.
    */
   defaultExpanded?: boolean;
@@ -318,8 +319,7 @@ export function NexafsExperimentCompactCard({
   const searchParams = useSearchParams();
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [spectrumExpanded, setSpectrumExpanded] = useState(false);
-  const [spectrumPanelMounted, setSpectrumPanelMounted] =
-    useState(defaultExpanded);
+  const [spectrumPanelMounted, setSpectrumPanelMounted] = useState(false);
   const [spectrumFetchEnabled, setSpectrumFetchEnabled] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
   const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
@@ -332,11 +332,14 @@ export function NexafsExperimentCompactCard({
   const isDeepLinkTarget =
     deepLinkTargetId !== null && deepLinkTargetId === experimentId;
 
-  useLayoutEffect(() => {
+  useEffect(() => {
     const shouldExpand = defaultExpanded || isDeepLinkTarget;
     if (!shouldExpand) return;
-    setSpectrumExpanded(true);
-    setSpectrumPanelMounted(true);
+    const frame = window.requestAnimationFrame(() => {
+      setSpectrumExpanded(true);
+      setSpectrumPanelMounted(true);
+    });
+    return () => window.cancelAnimationFrame(frame);
   }, [defaultExpanded, isDeepLinkTarget]);
 
   useEffect(() => {

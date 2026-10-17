@@ -41,6 +41,11 @@ import {
   getCachedBrowseTagCounts,
   getCachedMoleculeBrowsePage,
 } from "~/server/molecules/molecule-browse-page";
+import { overlayMoleculeViewFavorite } from "~/server/molecules/molecule-detail-favorite";
+import {
+  getCachedMoleculePublicSlugLookup,
+  getCachedMoleculePublicView,
+} from "~/server/cache/molecule-detail-public-cache";
 
 function slugifyTagName(name: string): string {
   const base = name
@@ -694,158 +699,40 @@ export const moleculesRouter = createTRPCRouter({
   getById: publicProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const molecule = await ctx.db.molecules.findUnique({
-        where: { id: input.id },
-        include: {
-          moleculesynonyms: {
-            orderBy: [{ order: "asc" }, { synonym: "asc" }],
-          },
-          samples: {
-            include: { _count: { select: { experiments: true } } },
-          },
-          moleculecontributors: {
-            include: {
-              user: {
-                select: { id: true, name: true, image: true },
-              },
-            },
-            orderBy: { contributedat: "asc" },
-          },
-          moleculetags: {
-            include: { tags: true },
-          },
-        },
-      });
-
-      if (!molecule) {
+      const view = await getCachedMoleculePublicView(input.id);
+      if (!view) {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Molecule not found",
         });
       }
-
-      let userHasFavorited = false;
-      if (ctx.userId) {
-        const favorite = await findMoleculeFavorite(
-          ctx.db,
-          molecule.id,
-          ctx.userId,
-        );
-        userHasFavorited = favorite != null;
-      }
-
-      return toMoleculeView(
-        { ...molecule, viewcount: molecule.viewcount },
-        { userHasFavorited },
-      );
+      return overlayMoleculeViewFavorite(ctx.db, ctx.userId, view);
     }),
 
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string().min(1).max(200) }))
     .query(async ({ ctx, input }) => {
-      const COLLISION_CANDIDATE_LIMIT = 200;
       const normalizedSlug = slugifyMoleculeSynonym(input.slug);
-      const matches = await ctx.db.moleculesynonyms.findMany({
-        where: { slug: normalizedSlug },
-        select: { moleculeid: true },
-        distinct: ["moleculeid"],
-        orderBy: { moleculeid: "asc" },
-        take: COLLISION_CANDIDATE_LIMIT + 1,
-      });
-      const moleculeIds = matches
-        .slice(0, COLLISION_CANDIDATE_LIMIT)
-        .map((m) => m.moleculeid);
-
-      if (moleculeIds.length === 0) {
-        throw new TRPCError({
-          code: "NOT_FOUND",
-          message: "Molecule not found",
-        });
-      }
-
-      if (moleculeIds.length === 1) {
-        const molecule = await ctx.db.molecules.findUnique({
-          where: { id: moleculeIds[0] },
-          include: {
-            moleculesynonyms: {
-              orderBy: [{ order: "asc" }, { synonym: "asc" }],
-            },
-            samples: {
-              include: { _count: { select: { experiments: true } } },
-            },
-            moleculecontributors: {
-              include: {
-                user: {
-                  select: { id: true, name: true, image: true },
-                },
-              },
-              orderBy: { contributedat: "asc" },
-            },
-            moleculetags: {
-              include: { tags: true },
-            },
-          },
-        });
-
-        if (!molecule) {
+      const lookup = await getCachedMoleculePublicSlugLookup(normalizedSlug);
+      switch (lookup.kind) {
+        case "missing":
           throw new TRPCError({
             code: "NOT_FOUND",
             message: "Molecule not found",
           });
-        }
-
-        let userHasFavorited = false;
-        if (ctx.userId) {
-          const favorite = await findMoleculeFavorite(
-            ctx.db,
-            molecule.id,
-            ctx.userId,
-          );
-          userHasFavorited = favorite != null;
-        }
-
-        return toMoleculeView(
-          { ...molecule, viewcount: molecule.viewcount },
-          { userHasFavorited },
-        );
-      }
-
-      const molecules = await ctx.db.molecules.findMany({
-        where: { id: { in: moleculeIds } },
-        select: {
-          id: true,
-          iupacname: true,
-          moleculesynonyms: {
-            where: { order: 0 },
-            orderBy: [{ order: "asc" }, { synonym: "asc" }],
-            take: 1,
-            select: { synonym: true },
-          },
-        },
-      });
-
-      const candidates = molecules
-        .map((m) => {
-          const primary = m.moleculesynonyms[0]?.synonym ?? null;
-          const name = primary ?? m.iupacname;
+        case "collision":
           return {
-            id: m.id,
-            name,
-            iupacName: m.iupacname,
-            slug: slugifyMoleculeSynonym(primary ?? m.iupacname),
+            kind: "slug_collision" as const,
+            slug: lookup.slug,
+            candidates: lookup.candidates,
           };
-        })
-        .sort((a, b) => {
-          const bySlug = a.slug.localeCompare(b.slug);
-          if (bySlug !== 0) return bySlug;
-          return a.id.localeCompare(b.id);
-        });
-
-      return {
-        kind: "slug_collision" as const,
-        slug: normalizedSlug,
-        candidates,
-      };
+        case "found":
+          return overlayMoleculeViewFavorite(ctx.db, ctx.userId, lookup.view);
+        default: {
+          const unreachable: never = lookup;
+          return unreachable;
+        }
+      }
     }),
 
   list: publicProcedure
