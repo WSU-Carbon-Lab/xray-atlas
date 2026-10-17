@@ -45,7 +45,7 @@ export function PeriodicStrip({
         const el = PERIODIC_ELEMENTS.find((e) => e.symbol === symbol);
         const options = edges.filter((e) => e.symbol === symbol);
         const edge = options.find((e) => /\bK$/.test(e.label)) ?? options[0];
-        const on = edge ? selected.includes(edge.edgeId) : false;
+        const on = options.some((o) => selected.includes(o.edgeId));
         const name = el?.name ?? symbol;
         return (
           <button

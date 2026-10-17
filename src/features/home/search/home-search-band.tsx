@@ -5,14 +5,20 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Input } from "@heroui/react";
 import type { ExperimentType } from "~/prisma/browser";
-import {
-  PeriodicEdgeModal,
-  type EdgeOption,
-} from "~/components/browse/unified-search/periodic-edge-modal";
+import dynamic from "next/dynamic";
+import type { EdgeOption } from "~/components/browse/unified-search/periodic-edge-modal";
 import { HOME_SNAPSHOT } from "../snapshot/home-snapshot.generated";
 import type { HomeEdgeOption } from "../snapshot/types";
 import { buildBrowseHref } from "./build-browse-href";
 import { PeriodicStrip } from "./periodic-strip";
+
+const PeriodicEdgeModal = dynamic(
+  () =>
+    import("~/components/browse/unified-search/periodic-edge-modal").then(
+      (m) => m.PeriodicEdgeModal,
+    ),
+  { ssr: false },
+);
 
 const MODES: ReadonlyArray<{
   token: string;
@@ -46,6 +52,7 @@ export function HomeSearchBand(): ReactElement {
   const [edges, setEdges] = useState<readonly HomeEdgeOption[]>([]);
   const [mode, setMode] = useState<ExperimentType | undefined>(undefined);
   const [tableOpen, setTableOpen] = useState(false);
+  const [tableMounted, setTableMounted] = useState(false);
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
@@ -133,7 +140,10 @@ export function HomeSearchBand(): ReactElement {
         <button
           type="button"
           className="home-chip"
-          onClick={() => setTableOpen(true)}
+          onClick={() => {
+            setTableMounted(true);
+            setTableOpen(true);
+          }}
         >
           Full table
         </button>
@@ -149,13 +159,15 @@ export function HomeSearchBand(): ReactElement {
           </button>
         ))}
       </div>
-      <PeriodicEdgeModal
-        isOpen={tableOpen}
-        onClose={() => setTableOpen(false)}
-        edges={MODAL_EDGES}
-        selectedEdgeIds={edges.map((e) => e.edgeId)}
-        onChange={setEdgeIds}
-      />
+      {tableMounted && (
+        <PeriodicEdgeModal
+          isOpen={tableOpen}
+          onClose={() => setTableOpen(false)}
+          edges={MODAL_EDGES}
+          selectedEdgeIds={edges.map((e) => e.edgeId)}
+          onChange={setEdgeIds}
+        />
+      )}
     </form>
   );
 }
