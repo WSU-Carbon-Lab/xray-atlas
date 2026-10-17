@@ -65,3 +65,6 @@ export function niceTicks(
   }
   return ticks;
 }
+
+/** Plot-area padding in viewBox units shared by the snapshot generator and the figure renderer. */
+export const SPECTRUM_PAD = { l: 48, r: 16, t: 16, b: 36 } as const;

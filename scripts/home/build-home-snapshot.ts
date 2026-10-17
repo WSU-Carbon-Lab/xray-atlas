@@ -15,6 +15,7 @@ import {
   buildTracePath,
   decimateSorted,
   niceTicks,
+  SPECTRUM_PAD,
   type XY,
 } from "../../src/features/home/snapshot/svg-paths";
 import type {
@@ -71,7 +72,7 @@ interface ExperimentEdge {
 }
 const W = 720;
 const H = 360;
-const PAD = { l: 48, r: 16, t: 16, b: 36 };
+const PAD = SPECTRUM_PAD;
 const MAX_POINTS = 260;
 const BUDGET_BYTES = 25 * 1024;
 const OUT = path.resolve(
