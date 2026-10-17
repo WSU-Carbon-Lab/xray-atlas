@@ -27,7 +27,7 @@ export function HomeSpectrumFigure({
   const base = h - b;
   const hatchId = `home-hatch-${tab.id}`;
   return (
-    <figure className="space-y-3">
+    <figure className="space-y-2">
       <svg
         viewBox={`0 0 ${w} ${h}`}
         role="img"
@@ -63,12 +63,19 @@ export function HomeSpectrumFigure({
               fill={
                 band.kind === "pre" || band.kind === "post"
                   ? `url(#${hatchId})`
-                  : "color-mix(in oklab, var(--accent) 9%, transparent)"
+                  : "color-mix(in oklab, var(--accent) 5%, transparent)"
               }
+            />
+            <line
+              x1={band.x0}
+              x2={band.x1}
+              y1={top - 4}
+              y2={top - 4}
+              className="stroke-border"
             />
             <text
               x={(band.x0 + band.x1) / 2}
-              y={top + 14}
+              y={top - 10}
               textAnchor="middle"
               className="fill-muted"
             >
@@ -132,7 +139,10 @@ export function HomeSpectrumFigure({
           </g>
         ))}
       </svg>
-      <figcaption className="flex flex-wrap gap-x-4 gap-y-1 text-xs">
+      <figcaption
+        className="flex flex-wrap gap-x-4 gap-y-1 text-xs"
+        style={{ paddingLeft: `${(l / w) * 100}%` }}
+      >
         {tab.traces.map((t) => (
           <span
             key={t.key}
