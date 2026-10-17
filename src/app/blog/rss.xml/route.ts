@@ -1,6 +1,10 @@
 import { site } from "~/app/brand";
 import { buildBlogRssXml } from "~/lib/content/blog-feed";
-import { getPublishedBlogEntries } from "~/lib/content/blog-loader";
+import {
+  blogEntryWithoutBody,
+  getBlogFrontmatterIndex,
+  isListableBlogEntry,
+} from "~/lib/content/blog-loader";
 
 export const dynamic = "force-static";
 
@@ -8,7 +12,9 @@ export const dynamic = "force-static";
  * Serves the global RSS 2.0 feed for all published blog posts.
  */
 export async function GET(): Promise<Response> {
-  const published = await getPublishedBlogEntries();
+  const published = (await getBlogFrontmatterIndex())
+    .filter(isListableBlogEntry)
+    .map(blogEntryWithoutBody);
   const channelLink = `${site.url}/blog`;
 
   const xml = buildBlogRssXml({

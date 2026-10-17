@@ -1,5 +1,9 @@
 import { cookies } from "next/headers";
 import type { PrismaClient } from "~/prisma/client";
+import {
+  readCachedSessionUserId,
+  rememberSessionUserId,
+} from "~/server/auth/session-user-cache";
 
 export const SESSION_COOKIE_NAMES = [
   "__Host-authjs.session-token",
@@ -30,10 +34,32 @@ export async function getSessionTokenFromCookies(): Promise<string | null> {
   }
 }
 
+const sessionUserInflight = new Map<string, Promise<string | null>>();
+
+async function lookupSessionUserId(
+  db: SessionLookupDb,
+  sessionToken: string,
+): Promise<string | null> {
+  try {
+    const row = await db.session.findUnique({
+      where: { sessionToken },
+      select: { userId: true, expires: true },
+    });
+    if (!row?.userId || row.expires < new Date()) {
+      return null;
+    }
+    rememberSessionUserId(sessionToken, row.userId);
+    return row.userId;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * Resolves the signed-in Atlas user id from Auth.js session cookies without invoking the full
- * Auth.js `auth()` pipeline. Returns `null` when no valid session exists or when the database
- * lookup fails so callers fail closed on account-linking gates.
+ * Auth.js `auth()` pipeline. Reuses an in-flight lookup and an 8 second token cache.
+ * Returns `null` when no valid session exists or when the database lookup fails so callers
+ * fail closed on account-linking gates. A request with no session cookie does not read the cache.
  */
 export async function getSessionUserIdFromCookies(
   db: SessionLookupDb,
@@ -42,18 +68,19 @@ export async function getSessionUserIdFromCookies(
   if (!sessionToken) {
     return null;
   }
-  try {
-    const row = await db.session.findUnique({
-      where: { sessionToken },
-      select: { userId: true, expires: true },
-    });
-    if (!row || row.expires < new Date()) {
-      return null;
-    }
-    return row.userId;
-  } catch {
-    return null;
+  const cached = readCachedSessionUserId(sessionToken);
+  if (cached) {
+    return cached;
   }
+  const inflight = sessionUserInflight.get(sessionToken);
+  if (inflight) {
+    return inflight;
+  }
+  const pending = lookupSessionUserId(db, sessionToken).finally(() => {
+    sessionUserInflight.delete(sessionToken);
+  });
+  sessionUserInflight.set(sessionToken, pending);
+  return pending;
 }
 
 /**

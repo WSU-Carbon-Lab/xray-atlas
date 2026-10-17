@@ -7,15 +7,14 @@ import { useRouter } from "next/navigation";
 import { Breadcrumbs } from "@heroui/react";
 import { BeakerIcon } from "@heroicons/react/24/outline";
 import { site } from "~/app/brand";
-import { ContributionAgreementModal, ContributeAccessGate } from "~/components/contribute";
-import {
-  ContributeClearFormButton,
-  MoleculeContributionForm,
-} from "~/components/forms";
+import { ContributionAgreementModal } from "~/components/contribute/contribution-agreement-modal";
+import { ContributeAccessGate } from "~/components/contribute/contribute-access-gate";
+import { ContributeClearFormButton } from "~/components/forms/contribute-clear-form-button";
+import { MoleculeContributionForm } from "~/components/forms/molecule-contribution-form";
 import type {
   MoleculeContributePageProps,
   MoleculeContributionFormHandle,
-} from "~/components/forms";
+} from "~/components/forms/types";
 import { useContributionAgreementGate } from "~/hooks/useContributionAgreementGate";
 import { usePasskeyEnrollmentGate } from "~/hooks/usePasskeyEnrollmentGate";
 

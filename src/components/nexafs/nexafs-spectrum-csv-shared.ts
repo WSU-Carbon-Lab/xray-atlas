@@ -2,8 +2,8 @@ import type { SpectrumPoint } from "~/components/plots/types";
 import {
   buildNexafsSpectrumExportCsv,
   type NexafsSpectrumCsvExportOptions,
-  type SpectrumPolarizationNode,
-} from "~/features/process-nexafs/utils";
+} from "~/features/process-nexafs/utils/spectrumExportCsv";
+import type { SpectrumPolarizationNode } from "~/features/process-nexafs/utils/groupSpectrumByPolarizationThetaPhi";
 import { showToast } from "~/components/ui/toast";
 import type { TraceData } from "~/components/plots/types";
 import { parseTraceGeometryIdentity } from "~/components/plots/spectrum/parse-trace-geometry-identity";

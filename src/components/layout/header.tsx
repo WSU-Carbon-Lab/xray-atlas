@@ -1,8 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+  type ComponentType,
+  type ReactElement,
+  type ReactNode,
+} from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { cn } from "@heroui/styles";
 import { Home, Info, Upload, Search, ChevronDown } from "lucide-react";
 import { WSULogoIcon } from "../icons";
 import { GitHubStarsLink } from "./github-stars-link";
@@ -29,11 +35,62 @@ import {
   HeaderMenuButton,
   HeaderMenuColumn,
   HeaderMenuNestedGroup,
-  HeaderMenuNestedLink,
   headerDropdownInnerClass,
   headerDropdownPanelClass,
   useHeaderDropdown,
 } from "./header-dropdown-menu";
+
+type HeaderMenuIcon = ComponentType<{ className?: string }>;
+
+const headerMenuLinkClass =
+  "text-foreground hover:bg-default/50 flex min-h-9 w-full min-w-0 items-start gap-2.5 rounded-md px-3 py-2 text-left text-sm no-underline transition-colors";
+
+function HeaderMenuLink({
+  href,
+  icon: Icon,
+  label,
+  onNavigate,
+}: {
+  href: string;
+  icon?: HeaderMenuIcon;
+  label: ReactNode;
+  onNavigate: () => void;
+}): ReactElement {
+  return (
+    <Link href={href} onClick={onNavigate} className={headerMenuLinkClass}>
+      {Icon ? (
+        <Icon className="text-accent mt-0.5 size-4 shrink-0" aria-hidden />
+      ) : null}
+      <span className="min-w-0 flex-1 leading-snug">{label}</span>
+    </Link>
+  );
+}
+
+function HeaderMenuNestedNavLink({
+  href,
+  label,
+  indent = 1,
+  onNavigate,
+}: {
+  href: string;
+  label: ReactNode;
+  indent?: 1 | 2;
+  onNavigate: () => void;
+}): ReactElement {
+  return (
+    <Link
+      href={href}
+      onClick={onNavigate}
+      className={cn(
+        "text-foreground hover:bg-default/50 grid min-h-9 w-full min-w-0 grid-cols-[minmax(0,1fr)_0.875rem] items-center gap-x-2 rounded-md py-2 text-left text-sm no-underline transition-colors",
+        indent === 2 ? "pr-3 pl-9" : "pr-3 pl-6",
+      )}
+    >
+      <span className="min-w-0 leading-snug">{label}</span>
+      <span aria-hidden className="size-3.5 shrink-0" />
+    </Link>
+  );
+}
 
 function AboutDropdown() {
   const { isOpen, setIsOpen, dropdownRef, close } = useHeaderDropdown();
@@ -41,17 +98,11 @@ function AboutDropdown() {
   const [wikiGroupExpanded, setWikiGroupExpanded] = useState<Set<string>>(
     () => new Set(),
   );
-  const router = useRouter();
 
   const closeAll = (): void => {
     close();
     setIsWikiOpen(false);
     setWikiGroupExpanded(new Set());
-  };
-
-  const handleItemClick = (path: string): void => {
-    router.push(path);
-    closeAll();
   };
 
   const toggleWikiGroup = (key: string): void => {
@@ -90,15 +141,17 @@ function AboutDropdown() {
         >
           <div className="grid grid-cols-3 gap-1">
             <HeaderMenuColumn title="Discover">
-              <HeaderMenuButton
+              <HeaderMenuLink
+                href="/about"
                 icon={InformationCircleIcon}
                 label="About"
-                onClick={() => handleItemClick("/about")}
+                onNavigate={closeAll}
               />
-              <HeaderMenuButton
+              <HeaderMenuLink
+                href="/blog"
                 icon={NewspaperIcon}
                 label="Blog"
-                onClick={() => handleItemClick("/blog")}
+                onNavigate={closeAll}
               />
             </HeaderMenuColumn>
 
@@ -119,10 +172,11 @@ function AboutDropdown() {
                   {wikiDocTopics.map((topic) => {
                     if (topic.sections.length === 0) {
                       return (
-                        <HeaderMenuNestedLink
+                        <HeaderMenuNestedNavLink
                           key={topic.href}
+                          href={topic.href}
                           label={topic.label}
-                          onClick={() => handleItemClick(topic.href)}
+                          onNavigate={closeAll}
                         />
                       );
                     }
@@ -136,18 +190,20 @@ function AboutDropdown() {
                         label={topic.label}
                         onToggle={() => toggleWikiGroup(topic.href)}
                       >
-                        <HeaderMenuNestedLink
+                        <HeaderMenuNestedNavLink
+                          href={topic.href}
                           indent={2}
                           label={wikiTopicIntroLinkLabel(topic)}
-                          onClick={() => handleItemClick(topic.href)}
+                          onNavigate={closeAll}
                         />
                         {topic.sections.map((section) =>
                           section.href ? (
-                            <HeaderMenuNestedLink
+                            <HeaderMenuNestedNavLink
                               key={section.href}
+                              href={section.href}
                               indent={2}
                               label={section.label}
-                              onClick={() => handleItemClick(section.href!)}
+                              onNavigate={closeAll}
                             />
                           ) : null,
                         )}
@@ -156,28 +212,32 @@ function AboutDropdown() {
                   })}
                 </div>
               ) : null}
-              <HeaderMenuButton
+              <HeaderMenuLink
+                href="/wiki/api"
                 icon={CodeBracketIcon}
                 label="API"
-                onClick={() => handleItemClick("/wiki/api")}
+                onNavigate={closeAll}
               />
             </HeaderMenuColumn>
 
             <HeaderMenuColumn title="Project">
-              <HeaderMenuButton
+              <HeaderMenuLink
+                href="/about/roadmap"
                 icon={MapIcon}
                 label="Roadmap"
-                onClick={() => handleItemClick("/about/roadmap")}
+                onNavigate={closeAll}
               />
-              <HeaderMenuButton
+              <HeaderMenuLink
+                href="/about/developers"
                 icon={CommandLineIcon}
                 label="Developers"
-                onClick={() => handleItemClick("/about/developers")}
+                onNavigate={closeAll}
               />
-              <HeaderMenuButton
+              <HeaderMenuLink
+                href="/privacy"
                 icon={ShieldCheckIcon}
                 label="Privacy"
-                onClick={() => handleItemClick("/privacy")}
+                onNavigate={closeAll}
               />
             </HeaderMenuColumn>
           </div>
@@ -189,12 +249,6 @@ function AboutDropdown() {
 
 function BrowseDropdown() {
   const { isOpen, setIsOpen, dropdownRef, close } = useHeaderDropdown();
-  const router = useRouter();
-
-  const handleItemClick = (path: string): void => {
-    router.push(path);
-    close();
-  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -217,20 +271,23 @@ function BrowseDropdown() {
       {isOpen ? (
         <div className={`${headerDropdownPanelClass} left-0 w-48`}>
           <div className={headerDropdownInnerClass}>
-            <HeaderMenuButton
+            <HeaderMenuLink
+              href="/browse/nexafs"
               icon={BoltIcon}
               label="NEXAFS"
-              onClick={() => handleItemClick("/browse/nexafs")}
+              onNavigate={close}
             />
-            <HeaderMenuButton
+            <HeaderMenuLink
+              href="/browse/molecules"
               icon={BeakerIcon}
               label="Molecule"
-              onClick={() => handleItemClick("/browse/molecules")}
+              onNavigate={close}
             />
-            <HeaderMenuButton
+            <HeaderMenuLink
+              href="/browse/facilities"
               icon={BuildingOfficeIcon}
               label="Facility"
-              onClick={() => handleItemClick("/browse/facilities")}
+              onNavigate={close}
             />
           </div>
         </div>
@@ -241,12 +298,6 @@ function BrowseDropdown() {
 
 function ContributeDropdown() {
   const { isOpen, setIsOpen, dropdownRef, close } = useHeaderDropdown();
-  const router = useRouter();
-
-  const handleItemClick = (path: string): void => {
-    router.push(path);
-    close();
-  };
 
   return (
     <div className="relative" ref={dropdownRef}>
@@ -269,20 +320,23 @@ function ContributeDropdown() {
       {isOpen ? (
         <div className={`${headerDropdownPanelClass} right-0 w-48`}>
           <div className={headerDropdownInnerClass}>
-            <HeaderMenuButton
+            <HeaderMenuLink
+              href="/contribute/nexafs"
               icon={BoltIcon}
               label="NEXAFS"
-              onClick={() => handleItemClick("/contribute/nexafs")}
+              onNavigate={close}
             />
-            <HeaderMenuButton
+            <HeaderMenuLink
+              href="/contribute/molecule"
               icon={BeakerIcon}
               label="Molecule"
-              onClick={() => handleItemClick("/contribute/molecule")}
+              onNavigate={close}
             />
-            <HeaderMenuButton
+            <HeaderMenuLink
+              href="/contribute/facility"
               icon={BuildingOfficeIcon}
               label="Facility"
-              onClick={() => handleItemClick("/contribute/facility")}
+              onNavigate={close}
             />
           </div>
         </div>

@@ -153,6 +153,7 @@ export function CatalogHeroSearch({
   const showPopularityPanel = isOpen && !showTypeaheadPanel;
 
   const facetCountsQuery = trpc.experiments.facetCounts.useQuery(undefined, {
+    enabled: showPopularityPanel,
     staleTime: 300_000,
   });
   const {
@@ -445,7 +446,9 @@ export function CatalogHeroSearch({
             <CatalogSearchPopularityPanel
               sections={popularitySections}
               variant="home"
-              isLoading={facetCountsLoading}
+              isLoading={
+                facetCountsLoading || (facetCounts == null && !facetCountsError)
+              }
               onSelectItem={navigatePopularity}
             />
           ) : (isTypeaheadLoading ||

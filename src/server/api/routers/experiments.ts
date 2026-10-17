@@ -52,8 +52,9 @@ import { Prisma, ExperimentType, ProcessMethod } from "~/prisma/client";
 import { normalizeSampleSubstrate } from "~/lib/normalizeSampleSubstrate";
 import { cachePublicCatalogRead } from "~/server/cache/public-catalog-cache";
 import {
-  getCachedAnonymousNexafsBrowse,
-  isAnonymousUnfilteredNexafsBrowse,
+  getCachedNexafsBrowseList,
+  getCachedNexafsBrowseSearch,
+  overlayNexafsBrowseFavoriteFlags,
 } from "~/server/cache/nexafs-browse-public-cache";
 import { loadNexafsFacetCounts } from "~/server/nexafs/nexafsFacetCounts";
 import {
@@ -68,10 +69,7 @@ import {
   type NormalizationScope,
   type UploadedChannel,
 } from "~/server/nexafs/normalizationMetadata";
-import {
-  fetchNexafsBrowseGrouped,
-  type NexafsBrowseSortKey,
-} from "~/server/nexafs/nexafsBrowseGroups";
+import { type NexafsBrowseSortKey } from "~/server/nexafs/nexafsBrowseGroups";
 import { persistExperimentMetricsTables } from "~/server/nexafs/persistExperimentMetricsTables";
 import { findExperimentFavorite } from "~/server/db/engagement-queries";
 import {
@@ -498,41 +496,17 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const filters = {
-        moleculeId: input.moleculeId,
-        edgeId: input.edgeId,
-        instrumentId: input.instrumentId,
-        moleculeIds: input.moleculeIds,
-        edgeIds: input.edgeIds,
-        instrumentIds: input.instrumentIds,
-        contributorOrcids: input.contributorOrcids,
-        experimentType: input.experimentType,
-        verifiedOnly: input.verifiedOnly,
-        verificationSource: input.verificationSource,
-        sourcePaperDoi: input.sourcePaperDoi,
-        experimentIds: input.experimentIds,
-      };
-
-      const { groups, total } =
-        !ctx.userId && isAnonymousUnfilteredNexafsBrowse(input)
-          ? await getCachedAnonymousNexafsBrowse(ctx.db, {
-              limit: input.limit,
-              offset: input.offset,
-              sortBy: input.sortBy,
-            })
-          : await fetchNexafsBrowseGrouped(ctx.db, {
-              viewerUserId: ctx.userId,
-              filters,
-              searchQuery: null,
-              sortBy: input.sortBy,
-              limit: input.limit,
-              offset: input.offset,
-            });
+      const page = await getCachedNexafsBrowseList(ctx.db, input);
+      const groups = await overlayNexafsBrowseFavoriteFlags(
+        ctx.db,
+        ctx.userId,
+        page.groups,
+      );
 
       return {
         groups,
-        total,
-        hasMore: input.offset + groups.length < total,
+        total: page.total,
+        hasMore: input.offset + groups.length < page.total,
       };
     }),
 
@@ -569,28 +543,16 @@ export const experimentsRouter = createTRPCRouter({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const { groups, total } = await fetchNexafsBrowseGrouped(ctx.db, {
-        viewerUserId: ctx.userId,
-        filters: {
-          moleculeId: input.moleculeId,
-          edgeId: input.edgeId,
-          instrumentId: input.instrumentId,
-          moleculeIds: input.moleculeIds,
-          edgeIds: input.edgeIds,
-          instrumentIds: input.instrumentIds,
-          contributorOrcids: input.contributorOrcids,
-          experimentType: input.experimentType,
-          verifiedOnly: input.verifiedOnly,
-          verificationSource: input.verificationSource,
-          sourcePaperDoi: input.sourcePaperDoi,
-        },
-        searchQuery: input.query.trim(),
-        sortBy: input.sortBy,
-        limit: input.limit,
-        offset: input.offset,
+      const page = await getCachedNexafsBrowseSearch(ctx.db, {
+        ...input,
+        query: input.query.trim(),
       });
-
-      return { groups, total };
+      const groups = await overlayNexafsBrowseFavoriteFlags(
+        ctx.db,
+        ctx.userId,
+        page.groups,
+      );
+      return { groups, total: page.total };
     }),
 
   findByPolarization: publicProcedure

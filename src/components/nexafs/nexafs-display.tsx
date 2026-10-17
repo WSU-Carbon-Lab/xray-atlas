@@ -31,7 +31,6 @@ import {
 import { buildPublicAtlasDatasetCitationUrl } from "~/lib/atlas-citation-url";
 import { nexafsExperimentCardDomId } from "~/lib/scroll-nexafs-experiment-card";
 import type { MoleculeView } from "~/types/molecule";
-import { NexafsExperimentDatasetPanel } from "~/components/nexafs/nexafs-experiment-dataset-panel";
 import { ExperimentAttributionEditSection } from "~/features/process-nexafs/ui/experiment-attribution-edit-section";
 import { NexafsPublicationVerificationControl } from "~/components/nexafs/nexafs-publication-verification-control";
 import { NexafsDatasetCitationHead } from "~/components/nexafs/nexafs-dataset-citation-head";
@@ -55,6 +54,24 @@ import {
   resolveCitationCreatorDisplayName,
 } from "~/lib/dataset-citation";
 import { contributorCitationSortKey } from "~/lib/datacite-contributor-types";
+
+function NexafsDatasetPanelLoading() {
+  return (
+    <div
+      className="min-h-[min(70vh,680px)] w-full"
+      aria-busy="true"
+      aria-label="Loading spectrum plot"
+    />
+  );
+}
+
+const NexafsExperimentDatasetPanel = dynamic(
+  () =>
+    import("~/components/nexafs/nexafs-experiment-dataset-panel").then(
+      (mod) => mod.NexafsExperimentDatasetPanel,
+    ),
+  { loading: NexafsDatasetPanelLoading },
+);
 
 const NexafsDatasetDoiCiteControl = dynamic(
   () =>
@@ -301,6 +318,8 @@ export function NexafsExperimentCompactCard({
   const searchParams = useSearchParams();
   const [imageModalOpen, setImageModalOpen] = useState(false);
   const [spectrumExpanded, setSpectrumExpanded] = useState(false);
+  const [spectrumPanelMounted, setSpectrumPanelMounted] =
+    useState(defaultExpanded);
   const [spectrumFetchEnabled, setSpectrumFetchEnabled] = useState(false);
   const [optimisticFavoriteDelta, setOptimisticFavoriteDelta] = useState(0);
   const [optimisticUserFavorited, setOptimisticUserFavorited] = useState<
@@ -317,6 +336,7 @@ export function NexafsExperimentCompactCard({
     const shouldExpand = defaultExpanded || isDeepLinkTarget;
     if (!shouldExpand) return;
     setSpectrumExpanded(true);
+    setSpectrumPanelMounted(true);
   }, [defaultExpanded, isDeepLinkTarget]);
 
   useEffect(() => {
@@ -430,6 +450,7 @@ export function NexafsExperimentCompactCard({
   }, [experimentId, pathname, router, searchParams]);
 
   const toggleSpectrumExpanded = useCallback(() => {
+    setSpectrumPanelMounted(true);
     setSpectrumExpanded((open) => {
       if (open) {
         queueMicrotask(() => {
@@ -775,10 +796,12 @@ export function NexafsExperimentCompactCard({
       >
         <div className="pointer-events-auto min-h-0 overflow-hidden">
           <div className="w-full min-w-0 border-t border-zinc-200 px-3 pt-3 pb-3 dark:border-zinc-600">
-            <NexafsExperimentDatasetPanel
-              experimentId={experimentId}
-              enabled={spectrumFetchEnabled}
-            />
+            {spectrumPanelMounted ? (
+              <NexafsExperimentDatasetPanel
+                experimentId={experimentId}
+                enabled={spectrumFetchEnabled}
+              />
+            ) : null}
           </div>
         </div>
       </div>

@@ -35,9 +35,12 @@ import { userHasAdminOrMaintainerLineageRole } from "~/lib/dataset-attribution-c
 import {
   moleculeBrowseFiltersSchema,
   normalizeMoleculeBrowseFilters,
-  prismaMoleculeBrowseWhere,
   sqlMoleculeBrowseFilters,
 } from "~/server/molecules/molecule-browse-filters";
+import {
+  getCachedBrowseTagCounts,
+  getCachedMoleculeBrowsePage,
+} from "~/server/molecules/molecule-browse-page";
 
 function slugifyTagName(name: string): string {
   const base = name
@@ -1172,168 +1175,10 @@ export const moleculesRouter = createTRPCRouter({
         .merge(moleculeBrowseFiltersSchema),
     )
     .query(async ({ ctx, input }) => {
-      let molecules: Awaited<
-        ReturnType<
-          typeof ctx.db.molecules.findMany<{
-            include: {
-              moleculesynonyms: { orderBy: { order: "asc" }[] };
-              moleculecontributors: {
-                include: {
-                  user: { select: { id: true; name: true; image: true } };
-                };
-                orderBy: { contributedat: "asc" }[];
-              };
-              moleculetags: { include: { tags: true } };
-              samples: {
-                include: { _count: { select: { experiments: true } } };
-              };
-            };
-          }>
-        >
-      >;
-
-      const browseFilters = normalizeMoleculeBrowseFilters(input);
-      const tagFilter = prismaMoleculeBrowseWhere(browseFilters);
-      const browseFilterSql = sqlMoleculeBrowseFilters(browseFilters, "m");
-
-      if (input.sortBy === "datasets") {
-        const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
-          SELECT m.id
-          FROM public.molecules m
-          LEFT JOIN public.samples s ON s.moleculeid = m.id
-          LEFT JOIN public.experiments e ON e.sampleid = s.id
-          WHERE (${browseFilterSql})
-          GROUP BY m.id
-          ORDER BY COUNT(DISTINCT e.id) DESC, m.createdat DESC
-          LIMIT ${input.limit}
-          OFFSET ${input.offset}
-        `;
-        const ids = orderedIds.map((r) => r.id);
-        if (ids.length === 0) {
-          molecules = [];
-        } else {
-          const found = await ctx.db.molecules.findMany({
-            where: { id: { in: ids } },
-            include: {
-              moleculesynonyms: { orderBy: [{ order: "asc" }] },
-              moleculecontributors: {
-                include: {
-                  user: { select: { id: true, name: true, image: true } },
-                },
-                orderBy: [{ contributedat: "asc" }],
-              },
-              moleculetags: { include: { tags: true } },
-              samples: {
-                include: { _count: { select: { experiments: true } } },
-              },
-            },
-          });
-          const idToIndex = new Map(ids.map((id, i) => [id, i]));
-          molecules = found.sort(
-            (a, b) => (idToIndex.get(a.id) ?? 0) - (idToIndex.get(b.id) ?? 0),
-          );
-        }
-      } else if (input.sortBy === "name") {
-        const orderedIds = await ctx.db.$queryRaw<Array<{ id: string }>>`
-          SELECT m.id
-          FROM public.molecules m
-          WHERE (${browseFilterSql})
-          ORDER BY LOWER(
-            COALESCE(
-              (
-                SELECT ms.synonym
-                FROM public.moleculesynonyms ms
-                WHERE ms.moleculeid = m.id AND ms."order" = 0
-                ORDER BY LENGTH(ms.synonym) ASC, ms.synonym ASC
-                LIMIT 1
-              ),
-              m.iupacname
-            )
-          ) ASC
-          LIMIT ${input.limit}
-          OFFSET ${input.offset}
-        `;
-        const ids = orderedIds.map((r) => r.id);
-        if (ids.length === 0) {
-          molecules = [];
-        } else {
-          const found = await ctx.db.molecules.findMany({
-            where: { id: { in: ids } },
-            include: {
-              moleculesynonyms: { orderBy: [{ order: "asc" }] },
-              moleculecontributors: {
-                include: {
-                  user: { select: { id: true, name: true, image: true } },
-                },
-                orderBy: [{ contributedat: "asc" }],
-              },
-              moleculetags: { include: { tags: true } },
-              samples: {
-                include: { _count: { select: { experiments: true } } },
-              },
-            },
-          });
-          const idToIndex = new Map(ids.map((id, i) => [id, i]));
-          molecules = found.sort(
-            (a, b) => (idToIndex.get(a.id) ?? 0) - (idToIndex.get(b.id) ?? 0),
-          );
-        }
-      } else {
-        const orderBy =
-          input.sortBy === "favorites"
-            ? [
-                { favoritecount: "desc" as const },
-                { createdat: "desc" as const },
-                { id: "desc" as const },
-              ]
-            : input.sortBy === "views"
-              ? [
-                  { viewcount: "desc" as const },
-                  { createdat: "desc" as const },
-                  { id: "desc" as const },
-                ]
-              : [{ createdat: "desc" as const }, { id: "desc" as const }];
-
-        molecules = await ctx.db.molecules.findMany({
-          where: tagFilter,
-          take: input.limit,
-          skip: input.offset,
-          include: {
-            moleculesynonyms: { orderBy: [{ order: "asc" }] },
-            moleculecontributors: {
-              include: {
-                user: { select: { id: true, name: true, image: true } },
-              },
-              orderBy: [{ contributedat: "asc" }],
-            },
-            moleculetags: { include: { tags: true } },
-            samples: {
-              include: { _count: { select: { experiments: true } } },
-            },
-          },
-          orderBy,
-        });
-      }
-
-      const totalCount = await ctx.db.molecules.count({
-        where: tagFilter,
-      });
-
-      const moleculesWithSortedSynonyms = molecules.map((molecule) => ({
-        ...molecule,
-        moleculesynonyms: [
-          ...molecule.moleculesynonyms
-            .filter((syn) => syn.order === 0)
-            .sort((a, b) => a.synonym.length - b.synonym.length),
-          ...molecule.moleculesynonyms
-            .filter((syn) => syn.order !== 0)
-            .sort((a, b) => a.synonym.length - b.synonym.length),
-        ],
-      }));
-
+      const page = await getCachedMoleculeBrowsePage(ctx.db, input);
       let favoritedSet = new Set<string>();
-      if (ctx.userId && moleculesWithSortedSynonyms.length > 0) {
-        const ids = moleculesWithSortedSynonyms.map((m) => m.id);
+      if (ctx.userId && page.molecules.length > 0) {
+        const ids = page.molecules.map((molecule) => molecule.id);
         const favorited = await ctx.db.moleculefavorites.findMany({
           where: {
             moleculeid: { in: ids },
@@ -1341,19 +1186,20 @@ export const moleculesRouter = createTRPCRouter({
           },
           select: { moleculeid: true },
         });
-        favoritedSet = new Set(favorited.map((f) => f.moleculeid));
+        favoritedSet = new Set(favorited.map((row) => row.moleculeid));
       }
-
-      const viewMolecules = moleculesWithSortedSynonyms.map((mol) =>
-        toMoleculeView(mol, {
-          userHasFavorited: favoritedSet.has(mol.id),
-        }),
-      );
-
+      const molecules =
+        favoritedSet.size === 0
+          ? page.molecules
+          : page.molecules.map((molecule) =>
+              favoritedSet.has(molecule.id)
+                ? { ...molecule, userHasFavorited: true }
+                : molecule,
+            );
       return {
-        molecules: viewMolecules,
-        total: totalCount,
-        hasMore: input.offset + molecules.length < totalCount,
+        molecules,
+        total: page.total,
+        hasMore: input.offset + page.molecules.length < page.total,
       };
     }),
 
@@ -1472,30 +1318,7 @@ export const moleculesRouter = createTRPCRouter({
   }),
 
   browseTagCounts: publicProcedure.query(async ({ ctx }) => {
-    const rows = await ctx.db.$queryRaw<
-      Array<{
-        id: string;
-        name: string;
-        color: string | null;
-        count: bigint;
-      }>
-    >`
-      SELECT
-        t.id,
-        t.name,
-        t.color,
-        COUNT(mt.molecule_id)::bigint AS count
-      FROM public.tags t
-      LEFT JOIN public.molecule_tags mt ON mt.tag_id = t.id
-      GROUP BY t.id, t.name, t.color
-      ORDER BY count DESC, t.name ASC
-    `;
-    return rows.map((row) => ({
-      id: row.id,
-      label: row.name,
-      color: row.color,
-      count: Number(row.count),
-    }));
+    return getCachedBrowseTagCounts(ctx.db);
   }),
 
   findOrCreateTag: protectedProcedure

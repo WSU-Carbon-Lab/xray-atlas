@@ -45,7 +45,8 @@ export async function getWhatsNewSummary(): Promise<WhatsNewSummary | null> {
 }
 
 /**
- * Cross-request cached What's New highlight for header chrome (10 minute TTL).
+ * Cross-request cached What's New highlight shared by the header and the home hero.
+ * Reuses one 10 minute cache entry so those surfaces do not scan blog entries separately.
  */
 export const getCachedWhatsNewSummary = unstable_cache(
   getWhatsNewSummary,

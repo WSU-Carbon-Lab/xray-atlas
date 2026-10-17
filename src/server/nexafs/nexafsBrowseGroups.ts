@@ -460,6 +460,66 @@ export function mapNexafsBrowseGroupRow(
   };
 }
 
+function browseSortPreLimitSql(sortBy: NexafsBrowseSortKey): Prisma.Sql {
+  switch (sortBy) {
+    case "geometries":
+      return Prisma.sql`,
+        (
+          SELECT COUNT(*)::bigint
+          FROM (
+            SELECT DISTINCT t.polardeg, t.azimuthdeg
+            FROM (
+              SELECT p.polardeg, p.azimuthdeg
+              FROM spectrumpoints sp
+              INNER JOIN polarizations p ON p.id = sp.polarizationid
+              WHERE sp.experimentid = e.id
+                AND sp.polarizationid IS NOT NULL
+              UNION
+              SELECT p.polardeg, p.azimuthdeg
+              FROM polarizations p
+              WHERE p.id = e.polarizationid
+            ) t
+          ) u
+        ) AS polarization_geometry_count`;
+    case "publications":
+      return Prisma.sql`,
+        (
+          SELECT COUNT(*)::bigint
+          FROM experimentpublications ep_sort
+          WHERE ep_sort.experimentid = e.id
+            AND ep_sort.role <> 'source'
+        ) AS publication_link_count`;
+    case "quality":
+    case "favorites":
+    case "views":
+    case "name":
+    case "newest":
+      return Prisma.empty;
+    default: {
+      const unreachable: never = sortBy;
+      return unreachable;
+    }
+  }
+}
+
+/**
+ * Loads one page of grouped NEXAFS browse rows and the unpaged match count.
+ *
+ * Runs the filtered count and the page read together. Orders and limits the
+ * page before adjacent-energy aggregation, so a `quality` sort reads
+ * `experiment_metrics.quality_aggregate_score` and computes spacing from one
+ * `spectrumpoints` window per returned experiment. A null `viewerUserId` yields
+ * `userHasFavorited` false without reading `experiment_favorites`.
+ *
+ * @param db Prisma client that executes both reads.
+ * @param args.viewerUserId Session user id, or null on the public catalog cache path.
+ * @param args.filters Browse predicates combined with AND. Empty filters match every experiment.
+ * @param args.searchQuery Free-text pattern, or null when text search is off.
+ * @param args.sortBy Ordering key applied before the page limit.
+ * @param args.limit Maximum groups in the page. Caller supplies a non-negative integer.
+ * @param args.offset Groups skipped after ordering. Caller supplies a non-negative integer.
+ * @returns `groups` in `sortBy` order and `total` as the filtered experiment count.
+ */
 export async function fetchNexafsBrowseGrouped(
   db: PrismaClient,
   args: {
@@ -474,6 +534,16 @@ export async function fetchNexafsBrowseGrouped(
   const whereSql = buildNexafsBrowseWhereSql(args.filters, args.searchQuery);
   const orderBySql = buildNexafsBrowseOrderBySql(args.sortBy);
   const viewerUserId = args.viewerUserId ?? null;
+  const userHasFavoritedSql =
+    viewerUserId == null
+      ? Prisma.sql`FALSE`
+      : Prisma.sql`EXISTS (
+          SELECT 1
+          FROM experiment_favorites ef
+          WHERE ef.experiment_id = e.id
+            AND ef.user_id = ${viewerUserId}
+        )`;
+  const sortPreLimitSql = browseSortPreLimitSql(args.sortBy);
   const polarizationGeometryCountSql = Prisma.sql`(
         SELECT COUNT(*)::bigint
         FROM (
@@ -492,7 +562,7 @@ export async function fetchNexafsBrowseGrouped(
         ) u
       ) AS polarization_geometry_count`;
 
-  const countRows = await db.$queryRaw<Array<{ cnt: bigint }>>`
+  const countQuery = db.$queryRaw<Array<{ cnt: bigint }>>`
     SELECT COUNT(*)::bigint AS cnt
     FROM experiments e
     INNER JOIN samples s ON s.id = e.sampleid
@@ -503,8 +573,8 @@ export async function fetchNexafsBrowseGrouped(
     WHERE ${whereSql}
   `;
 
-  const rows = await db.$queryRaw<NexafsBrowseGroupRow[]>`
-    WITH base AS (
+  const pageQuery = db.$queryRaw<NexafsBrowseGroupRow[]>`
+    WITH filtered AS (
       SELECT
         e.id AS experiment_id,
         e.polarizationid AS canonical_polarization_id,
@@ -513,12 +583,7 @@ export async function fetchNexafsBrowseGrouped(
           NULLIF(to_jsonb(eq) ->> 'upvotes', '')::bigint,
           0
         ) AS experiment_favorite_count,
-        EXISTS (
-          SELECT 1
-          FROM experiment_favorites ef
-          WHERE ef.experiment_id = e.id
-            AND ef.user_id = ${viewerUserId}
-        ) AS user_has_favorited,
+        ${userHasFavoritedSql} AS user_has_favorited,
         e.createdat,
         e.createdby,
         e.experimenttype,
@@ -543,7 +608,9 @@ export async function fetchNexafsBrowseGrouped(
         s.solvent AS sample_solvent,
         s.thickness AS sample_thickness,
         s.molecularweight AS sample_molecular_weight,
-        v.name AS sample_vendor_name
+        v.name AS sample_vendor_name,
+        em_rank.quality_aggregate_score AS dataset_quality_score
+        ${sortPreLimitSql}
       FROM experiments e
       INNER JOIN samples s ON s.id = e.sampleid
       INNER JOIN molecules m ON m.id = s.moleculeid
@@ -559,7 +626,174 @@ export async function fetchNexafsBrowseGrouped(
       INNER JOIN instruments i ON i.id = e.instrumentid
       LEFT JOIN facilities f ON f.id = i.facilityid
       LEFT JOIN experimentquality eq ON eq.experimentid = e.id
+      LEFT JOIN experiment_metrics em_rank ON em_rank.experiment_id = e.id
       WHERE ${whereSql}
+    ),
+    page AS (
+      SELECT *
+      FROM filtered g
+      ${orderBySql}
+      LIMIT ${args.limit} OFFSET ${args.offset}
+    ),
+    point_rows AS (
+      SELECT
+        pg.experiment_id,
+        sp.energyev,
+        (
+          sp.energyev = sp.energyev
+          AND sp.energyev > '-Infinity'::double precision
+          AND sp.energyev < 'Infinity'::double precision
+          AND sp.rawabs = sp.rawabs
+          AND sp.rawabs > '-Infinity'::double precision
+          AND sp.rawabs < 'Infinity'::double precision
+        ) AS finite_sample,
+        (
+          sp.rawabserr IS NOT NULL
+          AND sp.rawabserr = sp.rawabserr
+          AND sp.rawabserr > '-Infinity'::double precision
+          AND sp.rawabserr < 'Infinity'::double precision
+        ) AS finite_err
+      FROM page pg
+      INNER JOIN spectrumpoints sp
+        ON sp.experimentid = pg.experiment_id
+        AND (
+          pg.canonical_polarization_id IS NULL
+          OR sp.polarizationid = pg.canonical_polarization_id
+        )
+    ),
+    point_deltas AS MATERIALIZED (
+      SELECT
+        experiment_id,
+        finite_err,
+        CASE
+          WHEN finite_sample THEN
+            energyev - LAG(energyev) OVER (
+              PARTITION BY experiment_id, finite_sample
+              ORDER BY energyev
+            )
+          ELSE NULL
+        END AS delta_ev
+      FROM point_rows
+    ),
+    spacing_base AS (
+      SELECT
+        experiment_id,
+        bool_or(finite_err) AS has_error_bars,
+        MIN(delta_ev) FILTER (
+          WHERE delta_ev IS NOT NULL AND delta_ev > 0
+        ) AS minimum_spacing_ev,
+        COALESCE(
+          100.0 * AVG(
+            CASE WHEN delta_ev < 0.1 THEN 1.0 ELSE 0.0 END
+          ) FILTER (WHERE delta_ev IS NOT NULL AND delta_ev > 0),
+          0
+        ) AS hyperfine_pct,
+        COALESCE(
+          100.0 * AVG(
+            CASE
+              WHEN delta_ev >= 0.1 AND delta_ev < 1.0 THEN 1.0
+              ELSE 0.0
+            END
+          ) FILTER (WHERE delta_ev IS NOT NULL AND delta_ev > 0),
+          0
+        ) AS good_pct,
+        COALESCE(
+          100.0 * AVG(
+            CASE
+              WHEN delta_ev >= 1.0 AND delta_ev <= 5.0 THEN 1.0
+              ELSE 0.0
+            END
+          ) FILTER (WHERE delta_ev IS NOT NULL AND delta_ev > 0),
+          0
+        ) AS fair_pct,
+        COALESCE(
+          100.0 * AVG(
+            CASE WHEN delta_ev > 5.0 THEN 1.0 ELSE 0.0 END
+          ) FILTER (WHERE delta_ev IS NOT NULL AND delta_ev > 0),
+          0
+        ) AS poor_pct,
+        AVG(delta_ev) FILTER (
+          WHERE delta_ev IS NOT NULL AND delta_ev > 0
+        ) AS mean_ev,
+        percentile_cont(0.75) WITHIN GROUP (ORDER BY delta_ev) FILTER (
+          WHERE delta_ev IS NOT NULL AND delta_ev > 0
+        ) AS p75_ev
+      FROM point_deltas
+      GROUP BY experiment_id
+    ),
+    spacing AS (
+      SELECT
+        s.experiment_id,
+        s.has_error_bars,
+        s.minimum_spacing_ev,
+        s.hyperfine_pct,
+        s.good_pct,
+        s.fair_pct,
+        s.poor_pct,
+        s.mean_ev,
+        s.p75_ev,
+        CASE
+          WHEN s.p75_ev IS NULL THEN NULL
+          WHEN s.p75_ev < 0.1 THEN
+            100.0 * COALESCE(
+              (
+                SELECT AVG(
+                  CASE WHEN d.delta_ev <= s.p75_ev THEN 1.0 ELSE 0.0 END
+                )
+                FROM point_deltas d
+                WHERE d.experiment_id = s.experiment_id
+                  AND d.delta_ev IS NOT NULL
+                  AND d.delta_ev > 0
+                  AND d.delta_ev < 0.1
+              ),
+              0
+            )
+          WHEN s.p75_ev < 1 THEN
+            100.0 * COALESCE(
+              (
+                SELECT AVG(
+                  CASE WHEN d.delta_ev <= s.p75_ev THEN 1.0 ELSE 0.0 END
+                )
+                FROM point_deltas d
+                WHERE d.experiment_id = s.experiment_id
+                  AND d.delta_ev IS NOT NULL
+                  AND d.delta_ev > 0
+                  AND d.delta_ev >= 0.1
+                  AND d.delta_ev < 1.0
+              ),
+              0
+            )
+          WHEN s.p75_ev <= 5 THEN
+            100.0 * COALESCE(
+              (
+                SELECT AVG(
+                  CASE WHEN d.delta_ev <= s.p75_ev THEN 1.0 ELSE 0.0 END
+                )
+                FROM point_deltas d
+                WHERE d.experiment_id = s.experiment_id
+                  AND d.delta_ev IS NOT NULL
+                  AND d.delta_ev > 0
+                  AND d.delta_ev >= 1.0
+                  AND d.delta_ev <= 5.0
+              ),
+              0
+            )
+          ELSE
+            100.0 * COALESCE(
+              (
+                SELECT AVG(
+                  CASE WHEN d.delta_ev <= s.p75_ev THEN 1.0 ELSE 0.0 END
+                )
+                FROM point_deltas d
+                WHERE d.experiment_id = s.experiment_id
+                  AND d.delta_ev IS NOT NULL
+                  AND d.delta_ev > 0
+                  AND d.delta_ev > 5.0
+              ),
+              0
+            )
+        END AS p75_bucket_progress_pct
+      FROM spacing_base s
     ),
     enriched AS (
       SELECT
@@ -767,290 +1001,21 @@ export async function fetchNexafsBrowseGrouped(
           SELECT json_build_object(
             'quality_aggregate_score', em.quality_aggregate_score,
             'normalization_ranges_present', em.normalization_ranges_present,
-            'has_error_bars', EXISTS (
-              SELECT 1
-              FROM spectrumpoints sp
-              WHERE sp.experimentid = b.experiment_id
-                AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                AND sp.rawabserr IS NOT NULL
-                AND sp.rawabserr = sp.rawabserr
-                AND sp.rawabserr > '-Infinity'::double precision
-                AND sp.rawabserr < 'Infinity'::double precision
-            ),
-            'minimum_spacing_ev', (
-              SELECT MIN(d.delta_ev)
-              FROM (
-                SELECT
-                  sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                FROM spectrumpoints sp
-                WHERE sp.experimentid = b.experiment_id
-                  AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                  AND sp.energyev = sp.energyev
-                  AND sp.energyev > '-Infinity'::double precision
-                  AND sp.energyev < 'Infinity'::double precision
-                  AND sp.rawabs = sp.rawabs
-                  AND sp.rawabs > '-Infinity'::double precision
-                  AND sp.rawabs < 'Infinity'::double precision
-              ) d
-              WHERE d.delta_ev IS NOT NULL
-                AND d.delta_ev > 0
-            ),
-            'spacing_distribution_hyperfine_pct', (
-              SELECT COALESCE(
-                100.0 * AVG(
-                  CASE WHEN d.delta_ev < 0.1 THEN 1.0 ELSE 0.0 END
-                ),
-                0
-              )
-              FROM (
-                SELECT
-                  sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                FROM spectrumpoints sp
-                WHERE sp.experimentid = b.experiment_id
-                  AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                  AND sp.energyev = sp.energyev
-                  AND sp.energyev > '-Infinity'::double precision
-                  AND sp.energyev < 'Infinity'::double precision
-                  AND sp.rawabs = sp.rawabs
-                  AND sp.rawabs > '-Infinity'::double precision
-                  AND sp.rawabs < 'Infinity'::double precision
-              ) d
-              WHERE d.delta_ev IS NOT NULL
-                AND d.delta_ev > 0
-            ),
-            'spacing_distribution_good_pct', (
-              SELECT COALESCE(
-                100.0 * AVG(
-                  CASE WHEN d.delta_ev >= 0.1 AND d.delta_ev < 1.0 THEN 1.0 ELSE 0.0 END
-                ),
-                0
-              )
-              FROM (
-                SELECT
-                  sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                FROM spectrumpoints sp
-                WHERE sp.experimentid = b.experiment_id
-                  AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                  AND sp.energyev = sp.energyev
-                  AND sp.energyev > '-Infinity'::double precision
-                  AND sp.energyev < 'Infinity'::double precision
-                  AND sp.rawabs = sp.rawabs
-                  AND sp.rawabs > '-Infinity'::double precision
-                  AND sp.rawabs < 'Infinity'::double precision
-              ) d
-              WHERE d.delta_ev IS NOT NULL
-                AND d.delta_ev > 0
-            ),
-            'spacing_distribution_fair_pct', (
-              SELECT COALESCE(
-                100.0 * AVG(
-                  CASE WHEN d.delta_ev >= 1.0 AND d.delta_ev <= 5.0 THEN 1.0 ELSE 0.0 END
-                ),
-                0
-              )
-              FROM (
-                SELECT
-                  sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                FROM spectrumpoints sp
-                WHERE sp.experimentid = b.experiment_id
-                  AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                  AND sp.energyev = sp.energyev
-                  AND sp.energyev > '-Infinity'::double precision
-                  AND sp.energyev < 'Infinity'::double precision
-                  AND sp.rawabs = sp.rawabs
-                  AND sp.rawabs > '-Infinity'::double precision
-                  AND sp.rawabs < 'Infinity'::double precision
-              ) d
-              WHERE d.delta_ev IS NOT NULL
-                AND d.delta_ev > 0
-            ),
-            'spacing_distribution_poor_pct', (
-              SELECT COALESCE(
-                100.0 * AVG(
-                  CASE WHEN d.delta_ev > 5.0 THEN 1.0 ELSE 0.0 END
-                ),
-                0
-              )
-              FROM (
-                SELECT
-                  sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                FROM spectrumpoints sp
-                WHERE sp.experimentid = b.experiment_id
-                  AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                  AND sp.energyev = sp.energyev
-                  AND sp.energyev > '-Infinity'::double precision
-                  AND sp.energyev < 'Infinity'::double precision
-                  AND sp.rawabs = sp.rawabs
-                  AND sp.rawabs > '-Infinity'::double precision
-                  AND sp.rawabs < 'Infinity'::double precision
-              ) d
-              WHERE d.delta_ev IS NOT NULL
-                AND d.delta_ev > 0
-            ),
-            'spacing_distribution_mean_ev', (
-              SELECT AVG(d.delta_ev)
-              FROM (
-                SELECT
-                  sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                FROM spectrumpoints sp
-                WHERE sp.experimentid = b.experiment_id
-                  AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                  AND sp.energyev = sp.energyev
-                  AND sp.energyev > '-Infinity'::double precision
-                  AND sp.energyev < 'Infinity'::double precision
-                  AND sp.rawabs = sp.rawabs
-                  AND sp.rawabs > '-Infinity'::double precision
-                  AND sp.rawabs < 'Infinity'::double precision
-              ) d
-              WHERE d.delta_ev IS NOT NULL
-                AND d.delta_ev > 0
-            ),
-            'spacing_distribution_p75_ev', (
-              SELECT percentile_cont(0.75) WITHIN GROUP (ORDER BY d.delta_ev)
-              FROM (
-                SELECT
-                  sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                FROM spectrumpoints sp
-                WHERE sp.experimentid = b.experiment_id
-                  AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                  AND sp.energyev = sp.energyev
-                  AND sp.energyev > '-Infinity'::double precision
-                  AND sp.energyev < 'Infinity'::double precision
-                  AND sp.rawabs = sp.rawabs
-                  AND sp.rawabs > '-Infinity'::double precision
-                  AND sp.rawabs < 'Infinity'::double precision
-              ) d
-              WHERE d.delta_ev IS NOT NULL
-                AND d.delta_ev > 0
-            ),
-            'spacing_distribution_p75_bucket_progress_pct', (
-              SELECT
-                CASE
-                  WHEN stats.p75_ev IS NULL THEN NULL
-                  WHEN stats.p75_ev < 0.1 THEN
-                    100.0 * COALESCE(
-                      (
-                        SELECT AVG(
-                          CASE WHEN d.delta_ev <= stats.p75_ev THEN 1.0 ELSE 0.0 END
-                        )
-                        FROM (
-                          SELECT sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                          FROM spectrumpoints sp
-                          WHERE sp.experimentid = b.experiment_id
-                            AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                            AND sp.energyev = sp.energyev
-                            AND sp.energyev > '-Infinity'::double precision
-                            AND sp.energyev < 'Infinity'::double precision
-                            AND sp.rawabs = sp.rawabs
-                            AND sp.rawabs > '-Infinity'::double precision
-                            AND sp.rawabs < 'Infinity'::double precision
-                        ) d
-                        WHERE d.delta_ev IS NOT NULL
-                          AND d.delta_ev > 0
-                          AND d.delta_ev < 0.1
-                      ),
-                      0
-                    )
-                  WHEN stats.p75_ev < 1 THEN
-                    100.0 * COALESCE(
-                      (
-                        SELECT AVG(
-                          CASE WHEN d.delta_ev <= stats.p75_ev THEN 1.0 ELSE 0.0 END
-                        )
-                        FROM (
-                          SELECT sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                          FROM spectrumpoints sp
-                          WHERE sp.experimentid = b.experiment_id
-                            AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                            AND sp.energyev = sp.energyev
-                            AND sp.energyev > '-Infinity'::double precision
-                            AND sp.energyev < 'Infinity'::double precision
-                            AND sp.rawabs = sp.rawabs
-                            AND sp.rawabs > '-Infinity'::double precision
-                            AND sp.rawabs < 'Infinity'::double precision
-                        ) d
-                        WHERE d.delta_ev IS NOT NULL
-                          AND d.delta_ev >= 0.1
-                          AND d.delta_ev < 1.0
-                      ),
-                      0
-                    )
-                  WHEN stats.p75_ev <= 5 THEN
-                    100.0 * COALESCE(
-                      (
-                        SELECT AVG(
-                          CASE WHEN d.delta_ev <= stats.p75_ev THEN 1.0 ELSE 0.0 END
-                        )
-                        FROM (
-                          SELECT sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                          FROM spectrumpoints sp
-                          WHERE sp.experimentid = b.experiment_id
-                            AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                            AND sp.energyev = sp.energyev
-                            AND sp.energyev > '-Infinity'::double precision
-                            AND sp.energyev < 'Infinity'::double precision
-                            AND sp.rawabs = sp.rawabs
-                            AND sp.rawabs > '-Infinity'::double precision
-                            AND sp.rawabs < 'Infinity'::double precision
-                        ) d
-                        WHERE d.delta_ev IS NOT NULL
-                          AND d.delta_ev >= 1.0
-                          AND d.delta_ev <= 5.0
-                      ),
-                      0
-                    )
-                  ELSE
-                    100.0 * COALESCE(
-                      (
-                        SELECT AVG(
-                          CASE WHEN d.delta_ev <= stats.p75_ev THEN 1.0 ELSE 0.0 END
-                        )
-                        FROM (
-                          SELECT sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                          FROM spectrumpoints sp
-                          WHERE sp.experimentid = b.experiment_id
-                            AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                            AND sp.energyev = sp.energyev
-                            AND sp.energyev > '-Infinity'::double precision
-                            AND sp.energyev < 'Infinity'::double precision
-                            AND sp.rawabs = sp.rawabs
-                            AND sp.rawabs > '-Infinity'::double precision
-                            AND sp.rawabs < 'Infinity'::double precision
-                        ) d
-                        WHERE d.delta_ev IS NOT NULL
-                          AND d.delta_ev > 5.0
-                      ),
-                      0
-                    )
-                END
-              FROM (
-                SELECT percentile_cont(0.75) WITHIN GROUP (ORDER BY d.delta_ev) AS p75_ev
-                FROM (
-                  SELECT
-                    sp.energyev - LAG(sp.energyev) OVER (ORDER BY sp.energyev) AS delta_ev
-                  FROM spectrumpoints sp
-                  WHERE sp.experimentid = b.experiment_id
-                    AND (b.canonical_polarization_id IS NULL OR sp.polarizationid = b.canonical_polarization_id)
-                    AND sp.energyev = sp.energyev
-                    AND sp.energyev > '-Infinity'::double precision
-                    AND sp.energyev < 'Infinity'::double precision
-                    AND sp.rawabs = sp.rawabs
-                    AND sp.rawabs > '-Infinity'::double precision
-                    AND sp.rawabs < 'Infinity'::double precision
-                ) d
-                WHERE d.delta_ev IS NOT NULL
-                  AND d.delta_ev > 0
-              ) stats
-            )
+            'has_error_bars', COALESCE(st.has_error_bars, false),
+            'minimum_spacing_ev', st.minimum_spacing_ev,
+            'spacing_distribution_hyperfine_pct', COALESCE(st.hyperfine_pct, 0),
+            'spacing_distribution_good_pct', COALESCE(st.good_pct, 0),
+            'spacing_distribution_fair_pct', COALESCE(st.fair_pct, 0),
+            'spacing_distribution_poor_pct', COALESCE(st.poor_pct, 0),
+            'spacing_distribution_mean_ev', st.mean_ev,
+            'spacing_distribution_p75_ev', st.p75_ev,
+            'spacing_distribution_p75_bucket_progress_pct', st.p75_bucket_progress_pct
           )
           FROM experiment_metrics em
+          LEFT JOIN spacing st ON st.experiment_id = em.experiment_id
           WHERE em.experiment_id = b.experiment_id
         ) AS experiment_metrics_header_json,
-        (
-          SELECT em.quality_aggregate_score
-          FROM experiment_metrics em
-          WHERE em.experiment_id = b.experiment_id
-        ) AS dataset_quality_score,
+        b.dataset_quality_score,
         (
           SELECT COALESCE(
             json_agg(t.row_json ORDER BY t.ord),
@@ -1077,12 +1042,13 @@ export async function fetchNexafsBrowseGrouped(
           ) t
         ) AS experiment_metrics_channels_json,
         ${polarizationGeometryCountSql}
-      FROM base b
+      FROM page b
     )
     SELECT * FROM enriched g
     ${orderBySql}
-    LIMIT ${args.limit} OFFSET ${args.offset}
   `;
+
+  const [countRows, rows] = await Promise.all([countQuery, pageQuery]);
 
   const total = Number(countRows[0]?.cnt ?? 0n);
 

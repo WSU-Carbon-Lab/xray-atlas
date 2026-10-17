@@ -2,8 +2,7 @@ import { ImageResponse } from "next/og";
 import { site } from "~/app/brand";
 import { getBlogCategory } from "~/lib/content/blog-categories";
 import {
-  getBlogEntries,
-  getBlogEntryBySlug,
+  getBlogFrontmatterIndex,
   isListableBlogEntry,
 } from "~/lib/content/blog-loader";
 import { blogOgTilePalette } from "~/lib/content/blog-og-palette";
@@ -20,7 +19,7 @@ interface BlogPostOpenGraphImageProps {
  * Emits static params for listable blog posts only.
  */
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  const entries = await getBlogEntries();
+  const entries = await getBlogFrontmatterIndex();
   return entries
     .filter(isListableBlogEntry)
     .map((entry) => ({ slug: entry.slug }));
@@ -33,7 +32,8 @@ export default async function BlogPostOpenGraphImage({
   params,
 }: BlogPostOpenGraphImageProps): Promise<ImageResponse> {
   const { slug } = await params;
-  const entry = await getBlogEntryBySlug(slug);
+  const entries = await getBlogFrontmatterIndex();
+  const entry = entries.find((item) => item.slug === slug);
 
   if (!entry || !isListableBlogEntry(entry)) {
     return new ImageResponse(

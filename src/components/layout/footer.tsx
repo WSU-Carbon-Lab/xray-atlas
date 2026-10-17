@@ -1,24 +1,39 @@
 "use client";
+
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { WSULogoIcon } from "../icons";
 import GitHubStarsLink from "./github-stars-link";
 import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
-import { trpc } from "~/trpc/client";
 import { attribution, mission, site } from "~/app/brand";
 
+/** Host or collaborator link rendered in the site footer. */
+export interface FooterCatalogLink {
+  id: string;
+  name: string;
+  url: string | null;
+}
+
+/** Collaborator lists supplied by the server footer loader. */
+export interface FooterCatalog {
+  hosts: FooterCatalogLink[];
+  collaborators: FooterCatalogLink[];
+}
+
+/**
+ * Renders the site footer. `catalog` omitted means the server loader has not
+ * resolved yet. `catalog` null means that load failed.
+ */
 export function Footer({
   githubStars,
+  catalog,
 }: {
   githubStars?: number | null;
+  catalog?: FooterCatalog | null;
 } = {}) {
-  const collaboratorsQuery = trpc.collaborators.getAll.useQuery();
-  const {
-    data: collaboratorsData,
-    isLoading: isLoadingCollaborators,
-    isError,
-    error,
-    refetch,
-  } = collaboratorsQuery;
+  const router = useRouter();
+  const isLoadingCollaborators = catalog === undefined;
+  const isError = catalog === null;
 
   return (
     <footer className="border-border bg-surface border-t">
@@ -42,40 +57,39 @@ export function Footer({
               <div className="text-muted text-sm">Loading...</div>
             ) : isError ? (
               <CatalogDataErrorState
-                error={error}
+                error={new Error("Collaborators unavailable")}
                 title="Collaborators unavailable"
                 compact
                 className="border-dashed shadow-none"
-                onRetry={() => void refetch()}
+                onRetry={() => router.refresh()}
               />
             ) : (
               <>
-                {collaboratorsData?.hosts &&
-                  collaboratorsData.hosts.length > 0 && (
-                    <div>
-                      <h4 className="text-foreground mb-2 text-sm font-semibold">
-                        Hosted by {attribution.lab}
-                      </h4>
-                      <div className="space-y-1">
-                        {collaboratorsData.hosts.map((host) => (
-                          <p key={host.id} className="text-muted text-sm">
-                            {host.url ? (
-                              <Link
-                                href={host.url}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="text-muted hover:text-accent transition-colors hover:underline"
-                              >
-                                {host.name}
-                              </Link>
-                            ) : (
-                              <span>{host.name}</span>
-                            )}
-                          </p>
-                        ))}
-                      </div>
+                {catalog.hosts.length > 0 && (
+                  <div>
+                    <h4 className="text-foreground mb-2 text-sm font-semibold">
+                      Hosted by {attribution.lab}
+                    </h4>
+                    <div className="space-y-1">
+                      {catalog.hosts.map((host) => (
+                        <p key={host.id} className="text-muted text-sm">
+                          {host.url ? (
+                            <Link
+                              href={host.url}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-muted hover:text-accent transition-colors hover:underline"
+                            >
+                              {host.name}
+                            </Link>
+                          ) : (
+                            <span>{host.name}</span>
+                          )}
+                        </p>
+                      ))}
                     </div>
-                  )}
+                  </div>
+                )}
               </>
             )}
           </div>
@@ -128,18 +142,17 @@ export function Footer({
               <div className="text-foreground-500 text-sm">Loading...</div>
             ) : isError ? (
               <CatalogDataErrorState
-                error={error}
+                error={new Error("Collaborators unavailable")}
                 title="Collaborators unavailable"
                 compact
                 className="border-dashed shadow-none"
-                onRetry={() => void refetch()}
+                onRetry={() => router.refresh()}
               />
             ) : (
               <>
-                {collaboratorsData?.collaborators &&
-                collaboratorsData.collaborators.length > 0 ? (
+                {catalog.collaborators.length > 0 ? (
                   <ul className="text-muted space-y-2 text-sm">
-                    {collaboratorsData.collaborators.map((collab) => (
+                    {catalog.collaborators.map((collab) => (
                       <li key={collab.id}>
                         {collab.url ? (
                           <Link

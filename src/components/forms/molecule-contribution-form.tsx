@@ -13,7 +13,7 @@ import { useTheme } from "next-themes";
 import {
   ContributionFileDropOverlay,
   type ContributionFileDropOverlayFileKind,
-} from "~/components/contribute";
+} from "~/components/contribute/contribution-file-drop-overlay";
 import { normalizeMoleculeUploadForPersistence } from "~/types/upload";
 import { MoleculeSynonymsField } from "./molecule-synonyms-field";
 import { MoleculeTagsField } from "./molecule-tags-field";

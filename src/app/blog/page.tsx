@@ -9,9 +9,11 @@ import {
 } from "~/components/blog/blog-post-cards";
 import { BlogTeaserSection } from "~/components/blog/blog-teaser-section";
 import {
+  blogEntryWithoutBody,
+  getBlogFrontmatterIndex,
   getLatestReleasePost,
-  getPublishedBlogEntries,
   getTeaserEntries,
+  isListableBlogEntry,
   topBlogTags,
 } from "~/lib/content/blog-loader";
 
@@ -31,11 +33,14 @@ export const metadata: Metadata = {
  * Static blog index with masthead, featured newest release post, filterable grid, and teasers.
  */
 export default async function BlogIndexPage(): Promise<ReactElement> {
-  const [published, teasers, featuredRelease] = await Promise.all([
-    getPublishedBlogEntries(),
+  const [catalog, teasers, featuredRelease] = await Promise.all([
+    getBlogFrontmatterIndex(),
     getTeaserEntries(),
     getLatestReleasePost(),
   ]);
+  const published = catalog
+    .filter(isListableBlogEntry)
+    .map(blogEntryWithoutBody);
   const featured = featuredRelease ?? null;
   const featuredSlug = featured?.slug;
   const rest = featuredSlug

@@ -1,5 +1,5 @@
 import { auth } from "~/server/auth";
-import { NextResponse } from "next/server";
+import { NextResponse, type NextRequest } from "next/server";
 import {
   decodePendingAttributionReviewCookieValue,
   PENDING_ATTRIBUTION_RETURN_TO_COOKIE,
@@ -26,10 +26,18 @@ const reviewCookieWrite = {
 };
 
 /**
- * Next.js proxy: contribute auth gate plus one-shot first-login divert to
- * pending attributions when `createUser` set the review cookie (pendingCount >= 1).
+ * Next.js proxy. Public HTML skips the database session lookup.
+ * Contribute gates and the first-login attribution review cookie still resolve the session.
  */
-export default auth((req) => {
+function requestNeedsProxySession(request: NextRequest): boolean {
+  const { pathname } = request.nextUrl;
+  if (pathname.startsWith("/contribute")) {
+    return true;
+  }
+  return Boolean(request.cookies.get(PENDING_ATTRIBUTION_REVIEW_COOKIE)?.value);
+}
+
+const sessionProxy = auth((req) => {
   const pathname = req.nextUrl.pathname;
 
   if (pathname.startsWith("/api/auth")) {
@@ -90,6 +98,16 @@ export default auth((req) => {
 
   return NextResponse.next();
 });
+
+export default function proxy(
+  ...args: Parameters<typeof sessionProxy>
+): ReturnType<typeof sessionProxy> {
+  const request = args[0];
+  if (!requestNeedsProxySession(request)) {
+    return NextResponse.next();
+  }
+  return sessionProxy(...args);
+}
 
 export const config = {
   matcher: [

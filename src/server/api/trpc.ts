@@ -1,6 +1,6 @@
 import { initTRPC, TRPCError } from "@trpc/server";
-import { auth } from "~/server/auth";
 import { db } from "~/server/db";
+import { getSessionUserIdFromCookies } from "~/server/auth/session-token";
 import {
   assertPasskeyEnrolledForContribute,
   SessionAalRequiredError,
@@ -46,8 +46,7 @@ const createInnerTRPCContext = (opts: CreateContextOptions) => {
 export const createTRPCContext = async (
   opts: FetchCreateContextOptions = {},
 ) => {
-  const session = await auth();
-  const userId = session?.user?.id ?? null;
+  const userId = await getSessionUserIdFromCookies(db);
   const clientIp = getClientIpFromRequest(opts.req);
   const userAgent = opts.req?.headers.get("user-agent")?.trim() ?? null;
 

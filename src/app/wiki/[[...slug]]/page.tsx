@@ -1,8 +1,29 @@
 import type { Metadata } from "next";
 import type { ReactElement } from "react";
+import type { MDXComponents } from "mdx/types";
 import { notFound } from "next/navigation";
 import { MdxArticle } from "~/components/content/mdx-article";
 import { getWikiEntries, getWikiEntryBySlug } from "~/lib/content/wiki-loader";
+
+/**
+ * Registers `OpticalConstantsExample` when this article renders that embed.
+ *
+ * Blog posts do not call this helper. Wiki articles that omit the tag skip the
+ * import, so the plot chunk stays off those pages.
+ *
+ * @param source - Wiki MDX source for the resolved slug.
+ * @returns Component map containing the example, or `undefined` when unused.
+ */
+async function wikiOpticalConstantsComponents(
+  source: string,
+): Promise<MDXComponents | undefined> {
+  if (!source.includes("<OpticalConstantsExample")) {
+    return undefined;
+  }
+  const { OpticalConstantsExample } =
+    await import("~/components/content/embeds/optical-constants-example");
+  return { OpticalConstantsExample };
+}
 
 interface WikiCatchAllPageProps {
   params: Promise<{ slug?: string[] }>;
@@ -70,5 +91,6 @@ export default async function WikiCatchAllPage({
     notFound();
   }
 
-  return <MdxArticle source={entry.body} />;
+  const components = await wikiOpticalConstantsComponents(entry.body);
+  return <MdxArticle source={entry.body} components={components} />;
 }

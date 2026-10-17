@@ -1,55 +1,41 @@
 "use client";
 
 import {
-  BeakerIcon,
   BuildingOfficeIcon,
   WrenchScrewdriverIcon,
 } from "@heroicons/react/24/outline";
 import { AddEntityModal } from "./add-entity-modal";
-import MoleculeContributePage from "~/app/contribute/molecule/page";
 import FacilityContributePage from "~/app/contribute/facility/page";
 import { InstrumentContributionForm } from "~/components/forms/instrument-contribution-form";
 
-type BaseTriggerProps = {
+/**
+ * Facility and instrument contribution triggers.
+ *
+ * These forms stay statically imported. The molecule trigger lives in
+ * `add-molecule-button.tsx` so the molecule sketcher is not part of this module.
+ */
+
+interface BaseTriggerProps {
+  /** Optional classes applied to the trigger card. */
   className?: string;
-};
-
-type MoleculeTriggerProps = BaseTriggerProps & {
-  onCreated?: (moleculeId?: string) => void;
-};
-
-export function AddMoleculeButton({
-  className,
-  onCreated,
-}: MoleculeTriggerProps) {
-  return (
-    <AddEntityModal
-      title="Contribute Molecule"
-      description="Upload a molecule entry with synonyms, identifiers, and structural metadata."
-      triggerLabel="Add Molecule"
-      triggerDescription="Share a new molecule with the community."
-      triggerIcon={BeakerIcon}
-      triggerClassName={className}
-      size="xl"
-      fullWidth
-    >
-      {({ close }) => (
-        <MoleculeContributePage
-          variant="modal"
-          onCompleted={(payload) => {
-            onCreated?.(payload.moleculeId);
-          }}
-          onClose={close}
-        />
-      )}
-    </AddEntityModal>
-  );
 }
 
-type FacilityTriggerProps = BaseTriggerProps & {
+interface FacilityTriggerProps extends BaseTriggerProps {
+  /**
+   * Called with the created facility id when the form finishes.
+   * The id is omitted when the form completes without one.
+   */
   onCreated?: (facilityId?: string) => void;
-};
+}
 
+/**
+ * Renders the Add Facility trigger and, once the dialog is open, the facility
+ * contribute form.
+ *
+ * @param props.className - Optional classes on the trigger card.
+ * @param props.onCreated - Completion callback. Receives `facilityId` when the form supplies one.
+ * @returns The trigger card and the contribution dialog.
+ */
 export function AddFacilityButton({
   className,
   onCreated,
@@ -78,12 +64,29 @@ export function AddFacilityButton({
   );
 }
 
-type InstrumentTriggerProps = BaseTriggerProps & {
+interface InstrumentTriggerProps extends BaseTriggerProps {
+  /** Facility the new instrument is attached to. Omit to let the form pick one. */
   facilityId?: string;
+  /** Display name included in the dialog title when `facilityId` is set. */
   facilityName?: string;
+  /** Called with the created instrument id and its facility id. */
   onCreated?: (payload: { instrumentId: string; facilityId: string }) => void;
-};
+}
 
+/**
+ * Renders the Add Instrument trigger and, once the dialog is open, the
+ * instrument contribution form.
+ *
+ * When `facilityId` is set, the trigger uses the header variant and the form
+ * is bound to that facility. Otherwise the trigger is a card and the form
+ * asks for a facility.
+ *
+ * @param props.className - Optional classes on the trigger card.
+ * @param props.facilityId - Facility id passed through to the form.
+ * @param props.facilityName - Facility label shown in the dialog title and trigger description.
+ * @param props.onCreated - Completion callback with `instrumentId` and `facilityId`.
+ * @returns The trigger card and the contribution dialog.
+ */
 export function AddInstrumentButton({
   className,
   facilityId,

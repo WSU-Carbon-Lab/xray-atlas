@@ -1,8 +1,9 @@
 "use client";
 
-import type { ComponentType, ReactNode } from "react";
+import type { ComponentType, ReactElement, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Button } from "@heroui/react";
 import { HeroUpdatesRow } from "~/components/home/hero-updates-row";
 import { AccentNavChip } from "~/components/ui/accent-nav-chip";
@@ -19,13 +20,9 @@ import { CatalogHeroSearch } from "~/components/home/catalog-hero-search";
 import { MoleculeCard } from "~/components/molecules/molecule-display";
 import { MoleculeCardSkeleton } from "~/components/feedback/loading-state";
 import { CatalogDataErrorState } from "~/components/feedback/catalog-data-error-state";
-import { trpc } from "~/trpc/client";
-import { useRouter } from "next/navigation";
 import { canonicalMoleculeSlugFromView } from "~/lib/molecule-slug";
 import { mission, site } from "~/app/brand";
-
-/** Maximum popularity-ranked molecules shown in the home carousel (independent of catalog size). */
-const HOME_POPULAR_MOLECULES_MAX = 4;
+import type { MoleculeView } from "~/types/molecule";
 
 function usePopularCarouselItemsPerPage(): number {
   const [itemsPerPage, setItemsPerPage] = useState(2);
@@ -128,40 +125,55 @@ function PopularMoleculesCarouselFooter({
   );
 }
 
-function TopUpvotedMolecules() {
+/**
+ * Suspense fallback for the home popular-molecules carousel.
+ * Uses the same viewport column count as the loaded carousel.
+ */
+export function HomePopularMoleculesFallback(): ReactElement {
+  const itemsPerPage = usePopularCarouselItemsPerPage();
+  return <PopularMoleculesCarouselSkeleton itemsPerPage={itemsPerPage} />;
+}
+
+/**
+ * Shows the catalog error panel when the server popular-molecules read fails.
+ * `message` is the server error text passed through so database-outage copy still matches.
+ */
+export function HomePopularMoleculesError({
+  message,
+}: {
+  message: string;
+}): ReactElement {
   const router = useRouter();
+  return (
+    <div className="border-border/70 bg-muted/5 rounded-xl border border-dashed px-4 py-10 sm:px-6">
+      <CatalogDataErrorState
+        error={message}
+        title="Failed to load molecules"
+        compact
+        onRetry={() => router.refresh()}
+      />
+    </div>
+  );
+}
+
+/**
+ * Renders the home popular-molecules carousel from server-provided rows.
+ * A stretched link covers the card. Name links, registry links, and buttons sit above that link.
+ */
+export function TopUpvotedMolecules({
+  molecules,
+}: {
+  molecules: MoleculeView[];
+}): ReactElement {
   const itemsPerPage = usePopularCarouselItemsPerPage();
   const [page, setPage] = useState(0);
-  const topFavoritedQuery = trpc.molecules.getTopFavorited.useQuery(
-    { limit: HOME_POPULAR_MOLECULES_MAX },
-    { staleTime: 120_000, gcTime: 300_000 },
-  );
-  const { data, isLoading, isError, error, refetch } = topFavoritedQuery;
 
-  const molecules = data?.molecules ?? [];
   const totalPages =
     molecules.length === 0 ? 1 : Math.ceil(molecules.length / itemsPerPage);
 
   useEffect(() => {
     setPage((p) => Math.min(p, Math.max(0, totalPages - 1)));
   }, [totalPages, itemsPerPage]);
-
-  if (isLoading) {
-    return <PopularMoleculesCarouselSkeleton itemsPerPage={itemsPerPage} />;
-  }
-
-  if (isError) {
-    return (
-      <div className="border-border/70 bg-muted/5 rounded-xl border border-dashed px-4 py-10 sm:px-6">
-        <CatalogDataErrorState
-          error={error}
-          title="Failed to load molecules"
-          compact
-          onRetry={() => void refetch()}
-        />
-      </div>
-    );
-  }
 
   if (molecules.length === 0) {
     return (
@@ -189,15 +201,16 @@ function TopUpvotedMolecules() {
         }}
       >
         {pageMolecules.map((molecule) => (
-          <div key={molecule.id} className="flex min-h-0 min-w-0 flex-col">
-            <div
-              onClick={() =>
-                router.push(
-                  `/molecules/${canonicalMoleculeSlugFromView(molecule)}`,
-                )
-              }
-              className="flex h-full min-h-0 w-full flex-1 cursor-pointer rounded-xl transition-[opacity,box-shadow] hover:opacity-[0.98]"
-            >
+          <div
+            key={molecule.id}
+            className="text-foreground relative flex min-h-0 min-w-0 cursor-pointer flex-col rounded-xl transition-[opacity,box-shadow] hover:opacity-[0.98]"
+          >
+            <Link
+              href={`/molecules/${canonicalMoleculeSlugFromView(molecule)}`}
+              aria-label={molecule.name}
+              className="absolute inset-0 z-0 rounded-xl"
+            />
+            <div className="pointer-events-none relative z-10 flex h-full min-h-0 w-full flex-1 [&_a]:pointer-events-auto [&_button]:pointer-events-auto [&_[role=button]]:pointer-events-auto">
               <MoleculeCard molecule={molecule} variant="fullCarousel" />
             </div>
           </div>
@@ -258,10 +271,16 @@ function BrowseCatalogChip() {
   );
 }
 
+/**
+ * Home page shell: hero, catalog search, quick links, and the popular-molecules slot.
+ * `popularMolecules` is the server-rendered carousel (or its suspense fallback).
+ */
 export function HomePageContent({
   heroAnnouncement,
+  popularMolecules,
 }: {
   heroAnnouncement?: ReactNode;
+  popularMolecules: ReactNode;
 }) {
   return (
     <div className="flex min-h-screen flex-col">
@@ -333,7 +352,7 @@ export function HomePageContent({
               <BrowseCatalogChip />
             </div>
           </header>
-          <TopUpvotedMolecules />
+          {popularMolecules}
         </div>
       </section>
     </div>
