@@ -1,11 +1,8 @@
 import type { ReactElement } from "react";
 import { WhatsNewHeroAnnouncement } from "~/components/home/whats-new-hero-announcement";
-import { HomeCatalog } from "./home-catalog";
+import { HomePage as HomePageView } from "~/features/home/home-page";
 
-/**
- * Home route. Renders the static catalog shell and suspends only the
- * What's New link, which reads cached blog frontmatter.
- */
+/** Home route: static Atlas Stage rendered from the committed snapshot; no database read at paint. */
 export default function HomePage(): ReactElement {
-  return <HomeCatalog announcement={<WhatsNewHeroAnnouncement />} />;
+  return <HomePageView announcement={<WhatsNewHeroAnnouncement />} />;
 }

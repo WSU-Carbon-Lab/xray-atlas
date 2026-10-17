@@ -62,7 +62,7 @@ export function HomeMoleculesView({
         </button>
       </div>
       {mode === "cards" ? (
-        <ul className="grid gap-4 md:grid-cols-3">
+        <ul className="grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-3">
           {molecules.map((m) => (
             <li
               key={m.id}
