@@ -20,69 +20,73 @@ export async function GET(request: Request): Promise<NextResponse> {
       return jsonError("DOI is required.", 400);
     }
 
-    const publication = await db.publications.findUnique({
-      where: { doi: query.doi },
-      select: {
-        id: true,
-        doi: true,
-        title: true,
-        journal: true,
-        year: true,
-      },
-    });
-
-    if (!publication) {
-      return jsonError("DOI not found.", 404);
-    }
-
     const where = buildExperimentWhere({
       moleculeId: query.moleculeId,
       edgeId: query.edgeId,
       doi: query.doi,
     });
 
-    const datasets = await db.experiments.findMany({
-      where,
-      include: {
-        edges: {
-          select: {
-            id: true,
-            targetatom: true,
-            corestate: true,
-          },
+    const [publication, datasets] = await Promise.all([
+      db.publications.findUnique({
+        where: { doi: query.doi },
+        select: {
+          id: true,
+          doi: true,
+          title: true,
+          journal: true,
+          year: true,
         },
-        samples: {
-          select: {
-            id: true,
-            identifier: true,
-            molecules: {
-              select: {
-                id: true,
-                iupacname: true,
+      }),
+      db.experiments.findMany({
+        where,
+        select: {
+          id: true,
+          experimenttype: true,
+          createdat: true,
+          edges: {
+            select: {
+              id: true,
+              targetatom: true,
+              corestate: true,
+            },
+          },
+          samples: {
+            select: {
+              id: true,
+              identifier: true,
+              molecules: {
+                select: {
+                  id: true,
+                  iupacname: true,
+                },
               },
             },
           },
-        },
-        instruments: {
-          select: {
-            id: true,
-            name: true,
-            facilities: {
-              select: {
-                id: true,
-                name: true,
+          instruments: {
+            select: {
+              id: true,
+              name: true,
+              facilities: {
+                select: {
+                  id: true,
+                  name: true,
+                },
               },
             },
           },
-        },
-        _count: {
-          select: {
-            spectrumpoints: true,
+          _count: {
+            select: {
+              spectrumpoints: true,
+            },
           },
         },
-      },
-      orderBy: [{ createdat: "desc" }, { id: "desc" }],
-    });
+        orderBy: [{ createdat: "desc" }, { id: "desc" }],
+      }),
+    ]);
+
+    if (!publication) {
+      return jsonError("DOI not found.", 404);
+    }
 
     return NextResponse.json({
       publication,

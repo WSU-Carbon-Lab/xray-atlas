@@ -91,14 +91,24 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
         href: "/wiki/api",
       },
       {
-        id: "openapi",
-        label: "OpenAPI",
-        href: "/wiki/api/openapi",
-      },
-      {
         id: "v1",
         label: "v1",
         href: "/wiki/api/v1",
+      },
+      {
+        id: "v1-molecules",
+        label: "v1 molecules",
+        href: "/wiki/api/v1/molecules",
+      },
+      {
+        id: "v1-datasets",
+        label: "v1 datasets",
+        href: "/wiki/api/v1/datasets",
+      },
+      {
+        id: "v1-physics",
+        label: "v1 physics",
+        href: "/wiki/api/v1/physics",
       },
     ],
   },
@@ -201,6 +211,20 @@ export const wikiPageSections: Record<string, readonly WikiDocNavSection[]> = {
     },
     { id: "next-step", label: "Next step" },
   ],
+  "/wiki/api": [
+    { id: "overview", label: "Overview" },
+    { id: "api-keys", label: "API keys" },
+  ],
+  "/wiki/api/v1": [
+    { id: "overview", label: "Overview" },
+    { id: "authentication", label: "Authentication" },
+  ],
+  "/wiki/api/v1/molecules": [
+    { id: "molecules", label: "Molecules" },
+    { id: "compatibility", label: "Search" },
+  ],
+  "/wiki/api/v1/datasets": [{ id: "datasets", label: "Datasets" }],
+  "/wiki/api/v1/physics": [{ id: "physics", label: "Physics" }],
 };
 
 /**

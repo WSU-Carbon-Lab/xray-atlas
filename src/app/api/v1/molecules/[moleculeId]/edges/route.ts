@@ -31,28 +31,29 @@ export async function GET(
     );
     const doi = normalizeDoi(query.doi);
 
-    const molecule = await db.molecules.findUnique({
-      where: { id: params.moleculeId },
-      select: {
-        id: true,
-        iupacname: true,
-      },
-    });
+    const [molecule, edgeCounts] = await Promise.all([
+      db.molecules.findUnique({
+        where: { id: params.moleculeId },
+        select: {
+          id: true,
+          iupacname: true,
+        },
+      }),
+      db.experiments.groupBy({
+        by: ["edgeid"],
+        where: buildExperimentWhere({
+          moleculeId: params.moleculeId,
+          doi,
+        }),
+        _count: {
+          edgeid: true,
+        },
+      }),
+    ]);
 
     if (!molecule) {
       return jsonError("Molecule not found.", 404);
     }
-
-    const edgeCounts = await db.experiments.groupBy({
-      by: ["edgeid"],
-      where: buildExperimentWhere({
-        moleculeId: params.moleculeId,
-        doi,
-      }),
-      _count: {
-        edgeid: true,
-      },
-    });
 
     const edgeIds = edgeCounts.map((entry) => entry.edgeid);
     const edges = edgeIds.length

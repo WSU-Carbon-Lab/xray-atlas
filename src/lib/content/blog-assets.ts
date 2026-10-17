@@ -86,7 +86,9 @@ export async function readBlogAsset(
   }
 
   try {
-    const body = await readFile(filePath);
+    const body = await readFile(
+      path.join(process.cwd(), "content", "blog", "blog-assets", ...segments),
+    );
     const contentType = blogAssetContentType(path.extname(filePath));
     return { body, contentType };
   } catch (error) {
@@ -104,15 +106,22 @@ export async function readBlogAsset(
  * `beta-uploading-data/data.png`), so this walks one level of nesting in
  * addition to the historical flat layout.
  *
- * @param directory - Absolute directory to walk; defaults to the assets root.
+ * @param relativeDirectory - Directory under `content/blog/blog-assets`. Empty walks the root.
  * @returns Path segment arrays relative to {@link BLOG_ASSETS_ROOT}, sorted.
  */
-async function walkBlogAssetFiles(
-  directory: string = BLOG_ASSETS_ROOT,
-): Promise<string[][]> {
+async function walkBlogAssetFiles(relativeDirectory = ""): Promise<string[][]> {
   let entries: Dirent[];
   try {
-    entries = await readdir(directory, { withFileTypes: true });
+    entries = await readdir(
+      path.join(
+        process.cwd(),
+        "content",
+        "blog",
+        "blog-assets",
+        relativeDirectory,
+      ),
+      { withFileTypes: true },
+    );
   } catch (error) {
     if (error instanceof Error && "code" in error && error.code === "ENOENT") {
       return [];
@@ -121,22 +130,22 @@ async function walkBlogAssetFiles(
   }
 
   const files: string[][] = [];
-  const childDirs: Dirent[] = [];
+  const childDirs: string[] = [];
 
   for (const entry of entries) {
+    const relative =
+      relativeDirectory.length > 0
+        ? path.join(relativeDirectory, entry.name)
+        : entry.name;
     if (entry.isFile()) {
-      const relative = path.relative(
-        BLOG_ASSETS_ROOT,
-        path.join(directory, entry.name),
-      );
       files.push(relative.split(path.sep));
     } else if (entry.isDirectory()) {
-      childDirs.push(entry);
+      childDirs.push(relative);
     }
   }
 
   const nested = await Promise.all(
-    childDirs.map((dir) => walkBlogAssetFiles(path.join(directory, dir.name))),
+    childDirs.map((relative) => walkBlogAssetFiles(relative)),
   );
 
   return [...files, ...nested.flat()].sort((left, right) =>
