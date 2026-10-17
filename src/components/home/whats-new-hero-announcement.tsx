@@ -13,7 +13,7 @@ async function WhatsNewHeroAnnouncementContent(): Promise<ReactElement | null> {
   }
 
   return (
-    <div className="flex max-w-full min-w-0 justify-center">
+    <div className="flex max-w-full min-w-0 justify-start">
       <WhatsNewHeroBadge summary={summary} />
     </div>
   );
