@@ -53,7 +53,9 @@ export function useHomePillar(): readonly [
       typeof document.startViewTransition === "function" &&
       !prefersReducedMotion()
     ) {
-      document.startViewTransition(apply);
+      const transition = document.startViewTransition(apply);
+      // Skipped or interrupted transitions reject `.ready`; the DOM update still applies.
+      transition.ready.catch(() => undefined);
     } else {
       apply();
     }

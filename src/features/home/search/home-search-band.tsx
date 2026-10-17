@@ -11,6 +11,7 @@ import { HOME_SNAPSHOT } from "../snapshot/home-snapshot.generated";
 import type { HomeEdgeOption } from "../snapshot/types";
 import { buildBrowseHref } from "./build-browse-href";
 import { PeriodicStrip } from "./periodic-strip";
+import { SearchIcon } from "~/components/icons";
 
 const PeriodicEdgeModal = dynamic(
   () =>
@@ -39,6 +40,8 @@ const MODES: ReadonlyArray<{
   { token: "TRANS", value: "TRANSMISSION", label: "Transmission" },
 ];
 
+const MAX_SUGGESTIONS = 6;
+
 const MODAL_EDGES: EdgeOption[] = HOME_SNAPSHOT.edges.map((e) => ({
   id: e.edgeId,
   targetatom: e.symbol,
@@ -56,10 +59,13 @@ export function HomeSearchBand(): ReactElement {
   const suggestions = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (q.length < 2) return [];
-    return HOME_SNAPSHOT.molecules.filter(
-      (m) =>
-        m.name.toLowerCase().includes(q) || m.formula.toLowerCase().includes(q),
-    );
+    return HOME_SNAPSHOT.molecules
+      .filter(
+        (m) =>
+          m.name.toLowerCase().includes(q) ||
+          m.formula.toLowerCase().includes(q),
+      )
+      .slice(0, MAX_SUGGESTIONS);
   }, [query]);
 
   const toggleEdge = (e: HomeEdgeOption): void =>
@@ -86,14 +92,16 @@ export function HomeSearchBand(): ReactElement {
   return (
     <form role="search" onSubmit={submit} className="home-search">
       <div className="flex flex-col gap-3 sm:flex-row">
-        <Input
-          aria-label="Search molecules, formulas, and spectra"
-          placeholder="Search molecules, formulas, instruments…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          className="flex-1"
-        />
-        <Button type="submit" variant="primary">
+        <label className="home-search__field">
+          <SearchIcon className="text-muted size-5 shrink-0" aria-hidden />
+          <Input
+            aria-label="Search molecules, formulas, and spectra"
+            placeholder="Search molecules, formulas, instruments…"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+        </label>
+        <Button type="submit" variant="primary" size="lg" className="h-12">
           Search the Atlas
         </Button>
       </div>
@@ -108,56 +116,62 @@ export function HomeSearchBand(): ReactElement {
           ))}
         </ul>
       )}
-      <PeriodicStrip
-        edges={HOME_SNAPSHOT.edges}
-        selected={edges.map((e) => e.edgeId)}
-        onToggle={toggleEdge}
-      />
-      <div
-        role="group"
-        aria-label="Detection mode"
-        className="flex flex-wrap items-center gap-2"
-      >
-        {MODES.map((m) => (
-          <button
-            key={m.token}
-            type="button"
-            title={m.label}
-            aria-label={m.label}
-            aria-pressed={mode === m.value}
-            onClick={() =>
-              setMode((cur) => (cur === m.value ? undefined : m.value))
-            }
-            className={
-              mode === m.value
-                ? "home-chip border-accent text-accent"
-                : "home-chip"
-            }
-          >
-            {m.token}
-          </button>
-        ))}
-        <button
-          type="button"
-          className="home-chip"
-          onClick={() => {
-            setTableMounted(true);
-            setTableOpen(true);
-          }}
+      <div className="space-y-2">
+        <p className="home-label">Absorption edge</p>
+        <PeriodicStrip
+          edges={HOME_SNAPSHOT.edges}
+          selected={edges.map((e) => e.edgeId)}
+          onToggle={toggleEdge}
+        />
+      </div>
+      <div className="space-y-2">
+        <p className="home-label">Detection</p>
+        <div
+          role="group"
+          aria-label="Detection mode"
+          className="flex flex-wrap items-center gap-2"
         >
-          Full table
-        </button>
-        {edges.map((e) => (
+          {MODES.map((m) => (
+            <button
+              key={m.token}
+              type="button"
+              title={m.label}
+              aria-label={m.label}
+              aria-pressed={mode === m.value}
+              onClick={() =>
+                setMode((cur) => (cur === m.value ? undefined : m.value))
+              }
+              className={
+                mode === m.value
+                  ? "home-chip border-accent text-accent"
+                  : "home-chip"
+              }
+            >
+              {m.token}
+            </button>
+          ))}
           <button
-            key={e.edgeId}
             type="button"
-            className="home-chip border-accent text-accent"
-            onClick={() => toggleEdge(e)}
-            aria-label={`Remove ${e.label} edge`}
+            className="home-chip"
+            onClick={() => {
+              setTableMounted(true);
+              setTableOpen(true);
+            }}
           >
-            {e.label} ×
+            Full table
           </button>
-        ))}
+          {edges.map((e) => (
+            <button
+              key={e.edgeId}
+              type="button"
+              className="home-chip border-accent text-accent"
+              onClick={() => toggleEdge(e)}
+              aria-label={`Remove ${e.label} edge`}
+            >
+              {e.label} ×
+            </button>
+          ))}
+        </div>
       </div>
       {tableMounted && (
         <PeriodicEdgeModal

@@ -795,11 +795,20 @@
   .home-kicker {
     @apply text-accent text-[0.6875rem] font-semibold tracking-[0.16em] uppercase;
   }
+  .home-label {
+    @apply text-muted text-[0.6875rem] font-semibold tracking-[0.12em] uppercase;
+  }
+  .home-mol-glyph {
+    @apply h-full w-full;
+  }
+  .home-mol-glyph svg {
+    @apply h-full w-full;
+  }
   .home-chip {
     @apply border-border bg-surface text-foreground hover:border-accent/60 focus-visible:ring-accent/50 inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm transition-colors focus-visible:ring-2 focus-visible:outline-none;
   }
   .home-stage {
-    @apply mt-10 space-y-6 lg:mt-14;
+    @apply mt-6 space-y-6 lg:mt-8;
   }
   .home-stage__grid {
     @apply grid grid-cols-[minmax(0,1fr)] gap-4 md:grid-cols-3;
@@ -814,7 +823,7 @@
     @apply min-h-0 gap-1 p-4;
   }
   .home-tile__preview {
-    @apply mt-auto w-full;
+    @apply mt-auto block h-20 w-full;
   }
   .home-tile--compact .home-tile__preview {
     @apply h-10 opacity-70;
@@ -826,7 +835,10 @@
     @apply border-border bg-surface min-h-[28rem] space-y-6 rounded-3xl border p-6 sm:p-8;
   }
   .home-element {
-    @apply border-border bg-background text-foreground hover:border-accent/60 focus-visible:ring-accent/50 flex size-11 flex-col items-center justify-center gap-0.5 rounded-xl border transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-35;
+    @apply border-border bg-background text-foreground hover:border-accent/60 focus-visible:ring-accent/50 disabled:text-muted flex size-11 flex-col items-center justify-center gap-0.5 rounded-xl border transition-colors focus-visible:ring-2 focus-visible:outline-none disabled:cursor-not-allowed disabled:border-dashed disabled:bg-transparent disabled:opacity-50;
+  }
+  .home-element:not(:disabled) {
+    @apply border-foreground/30 shadow-xs;
   }
   .home-element--on {
     @apply border-accent bg-accent/10 text-accent;
@@ -837,6 +849,12 @@
   .home-trace {
     animation: home-trace-in 420ms cubic-bezier(0.2, 0.8, 0.2, 1) both;
   }
+  .home-search__field {
+    @apply border-border bg-background focus-within:border-accent focus-within:ring-accent/40 flex h-12 flex-1 items-center gap-2 rounded-xl border px-3 transition-colors focus-within:ring-2;
+  }
+  .home-search__field input {
+    @apply h-full flex-1 border-0 bg-transparent text-base shadow-none outline-none focus:ring-0;
+  }
   .home-search {
     @apply border-border bg-surface/80 space-y-4 rounded-3xl border p-4 shadow-sm backdrop-blur sm:p-6;
   }
@@ -844,7 +862,7 @@
     @apply grid grid-cols-3 gap-x-2 gap-y-2 p-2 sm:grid-cols-7;
   }
   .home-facility__dim {
-    @apply pointer-events-none opacity-60 blur-[3px] grayscale select-none;
+    @apply pointer-events-none opacity-80 blur-[2.5px] grayscale select-none;
   }
   .home-facility__focus {
     @apply col-start-3 flex flex-col items-center gap-1 sm:col-start-7;
@@ -853,7 +871,7 @@
     @apply relative col-span-full;
   }
   .home-facility__path {
-    @apply absolute -top-2 -bottom-2 w-2;
+    @apply absolute -top-2 -bottom-2 z-0 w-2;
     right: calc((100% - 1rem) / 6 - 0.25rem);
   }
   @media (min-width: 40rem) {
@@ -862,7 +880,7 @@
     }
   }
   .home-facility__atlas {
-    @apply border-accent/60 bg-accent/10 text-foreground col-start-3 justify-self-center rounded-full border px-2 py-1 text-xs font-semibold whitespace-nowrap sm:col-start-7 sm:px-3 sm:text-sm;
+    @apply border-accent bg-surface text-foreground relative z-10 col-start-3 justify-self-center rounded-full border px-2 py-1 text-xs font-semibold whitespace-nowrap sm:col-start-7 sm:px-3 sm:text-sm;
   }
   .home-dataflow {
     animation: home-dataflow 1.6s linear infinite;

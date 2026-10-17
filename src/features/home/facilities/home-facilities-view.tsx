@@ -43,7 +43,7 @@ export function HomeFacilitiesView(): ReactElement {
         {BLURRED_NODES.map((n) => (
           <span
             key={n}
-            className="home-facility__dim border-border text-muted rounded-lg border px-1 py-3 text-center text-xs"
+            className="home-facility__dim border-foreground/40 bg-foreground/5 text-foreground rounded-lg border px-1 py-3 text-center text-xs"
           >
             {n}
           </span>
@@ -57,7 +57,7 @@ export function HomeFacilitiesView(): ReactElement {
           </span>
         </div>
         <div className="home-facility__storage">
-          <div className="home-facility__dim border-border text-muted rounded-2xl border border-dashed p-4 text-center text-sm">
+          <div className="home-facility__dim border-foreground/40 bg-foreground/5 text-foreground rounded-2xl border border-dashed p-4 text-center text-sm">
             ALS facility-wide data storage
           </div>
           <svg

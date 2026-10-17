@@ -10,14 +10,13 @@ export function HomeContributeStrip(): ReactElement {
           Have spectra?
         </p>
         <p className="text-muted text-sm">
-          Upload a CSV and the Atlas normalizes, attributes, and publishes it
-          with a DOI.
+          Upload a CSV and the Atlas normalizes, attributes, and can mint a DOI.
         </p>
       </div>
       <div className="flex flex-wrap gap-2">
         <Link
           href="/contribute/nexafs"
-          className="home-chip border-accent text-accent"
+          className="home-chip border-accent bg-accent text-accent-foreground hover:bg-accent/90"
         >
           Contribute data
         </Link>

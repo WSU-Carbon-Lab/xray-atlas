@@ -38,9 +38,9 @@ export function HomePage({
 }): ReactElement {
   const s = HOME_SNAPSHOT;
   return (
-    <div className="mx-auto w-full space-y-20 py-12 sm:py-16">
+    <div className="mx-auto w-full space-y-20 py-8 sm:py-10">
       <div>
-        <section className="max-w-3xl space-y-4" aria-labelledby="home-heading">
+        <section className="max-w-3xl space-y-3" aria-labelledby="home-heading">
           <p className="home-kicker">{attribution.lab}</p>
           <h1
             id="home-heading"
@@ -53,7 +53,7 @@ export function HomePage({
           </p>
           <HeroUpdatesRow
             blogAnnouncement={announcement}
-            className="max-w-3xl items-start pt-2"
+            className="max-w-3xl items-start pt-1"
           />
         </section>
         <HomeAtlasStage

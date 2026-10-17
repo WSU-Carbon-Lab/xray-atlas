@@ -45,7 +45,8 @@ export function PeriodicStrip({
         const el = PERIODIC_ELEMENTS.find((e) => e.symbol === symbol);
         const options = edges.filter((e) => e.symbol === symbol);
         const edge = options.find((e) => /\bK$/.test(e.label)) ?? options[0];
-        const on = options.some((o) => selected.includes(o.edgeId));
+        const picked = options.find((o) => selected.includes(o.edgeId));
+        const on = picked !== undefined;
         const name = el?.name ?? symbol;
         return (
           <button
@@ -61,7 +62,10 @@ export function PeriodicStrip({
                 ? `${name} · ${options.map((o) => o.label).join(", ")}`
                 : `${name} · no data yet`
             }
-            onClick={() => edge && onToggle(edge)}
+            onClick={() => {
+              const target = picked ?? edge;
+              if (target) onToggle(target);
+            }}
             className={cn("home-element", on && "home-element--on")}
           >
             <span className="text-[0.625rem] leading-none opacity-60">

@@ -28,8 +28,7 @@ export function PillarTile({
     <button
       type="button"
       onClick={() => onSelect(id)}
-      aria-expanded={false}
-      aria-controls={`home-view-${id}`}
+      data-home-pillar={id}
       style={{ viewTransitionName: `home-tile-${id}` }}
       className={cn("home-tile group", compact && "home-tile--compact")}
     >

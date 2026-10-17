@@ -52,6 +52,10 @@ export function HomeAtlasStage({
   useEffect(() => {
     if (active && prev.current !== active)
       headingRef.current?.focus({ preventScroll: true });
+    else if (!active && prev.current)
+      document
+        .querySelector<HTMLElement>(`[data-home-pillar="${prev.current}"]`)
+        ?.focus({ preventScroll: true });
     prev.current = active;
   }, [active]);
 
