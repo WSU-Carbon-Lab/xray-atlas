@@ -1,6 +1,12 @@
 "use client";
 
-import { useMemo, useState, type FormEvent, type ReactElement } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+  type FormEvent,
+  type ReactElement,
+} from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button, Input } from "@heroui/react";
@@ -12,6 +18,7 @@ import type { HomeEdgeOption } from "../snapshot/types";
 import { buildBrowseHref } from "./build-browse-href";
 import { PeriodicStrip } from "./periodic-strip";
 import { SearchIcon } from "~/components/icons";
+import { trpc } from "~/trpc/client";
 
 const PeriodicEdgeModal = dynamic(
   () =>
@@ -41,6 +48,14 @@ const MODES: ReadonlyArray<{
 ];
 
 const MAX_SUGGESTIONS = 6;
+const MIN_QUERY_CHARS = 2;
+const SUGGEST_DEBOUNCE_MS = 200;
+
+interface Suggestion {
+  id: string;
+  name: string;
+  href: string;
+}
 
 const MODAL_EDGES: EdgeOption[] = HOME_SNAPSHOT.edges.map((e) => ({
   id: e.edgeId,
@@ -56,17 +71,48 @@ export function HomeSearchBand(): ReactElement {
   const [mode, setMode] = useState<ExperimentType | undefined>(undefined);
   const [tableOpen, setTableOpen] = useState(false);
   const [tableMounted, setTableMounted] = useState(false);
-  const suggestions = useMemo(() => {
+  const [focused, setFocused] = useState(false);
+  const [debouncedQuery, setDebouncedQuery] = useState("");
+  useEffect(() => {
+    const id = window.setTimeout(
+      () => setDebouncedQuery(query.trim()),
+      SUGGEST_DEBOUNCE_MS,
+    );
+    return () => window.clearTimeout(id);
+  }, [query]);
+  // Live lookups start only after the user focuses the field and types; never on mount.
+  const live = trpc.molecules.autosuggest.useQuery(
+    { query: debouncedQuery, limit: MAX_SUGGESTIONS },
+    {
+      enabled: focused && debouncedQuery.length >= MIN_QUERY_CHARS,
+      staleTime: 30_000,
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+      retry: false,
+    },
+  );
+  const suggestions = useMemo((): Suggestion[] => {
     const q = query.trim().toLowerCase();
-    if (q.length < 2) return [];
-    return HOME_SNAPSHOT.molecules
+    if (q.length < MIN_QUERY_CHARS) return [];
+    const featured: Suggestion[] = HOME_SNAPSHOT.molecules
       .filter(
         (m) =>
           m.name.toLowerCase().includes(q) ||
           m.formula.toLowerCase().includes(q),
       )
-      .slice(0, MAX_SUGGESTIONS);
-  }, [query]);
+      .map((m) => ({ id: m.id, name: m.name, href: `/molecules/${m.slug}` }));
+    const seen = new Set(featured.map((m) => m.id));
+    const fresh =
+      debouncedQuery.toLowerCase() === q ? (live.data?.results ?? []) : [];
+    const liveMatches: Suggestion[] = fresh
+      .filter((r) => !seen.has(r.id))
+      .map((r) => ({
+        id: r.id,
+        name: r.commonName,
+        href: `/molecules/${r.id}`,
+      }));
+    return [...featured, ...liveMatches].slice(0, MAX_SUGGESTIONS);
+  }, [query, debouncedQuery, live.data]);
 
   const toggleEdge = (e: HomeEdgeOption): void =>
     setEdges((cur) =>
@@ -99,6 +145,7 @@ export function HomeSearchBand(): ReactElement {
             placeholder="Search molecules, formulas, instruments…"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onFocus={() => setFocused(true)}
           />
         </label>
         <Button type="submit" variant="primary" size="lg" className="h-12">
@@ -106,10 +153,10 @@ export function HomeSearchBand(): ReactElement {
         </Button>
       </div>
       {suggestions.length > 0 && (
-        <ul className="flex flex-wrap gap-2" aria-label="Featured matches">
+        <ul className="flex flex-wrap gap-2" aria-label="Matching molecules">
           {suggestions.map((m) => (
             <li key={m.id}>
-              <Link className="home-chip" href={`/molecules/${m.slug}`}>
+              <Link className="home-chip" href={m.href}>
                 {m.name}
               </Link>
             </li>
