@@ -33,7 +33,8 @@ export async function getCachedHomeMoleculeCounts(
   );
   try {
     return await load();
-  } catch {
+  } catch (error) {
+    console.warn("home molecule counts unavailable; using snapshot", error);
     return {};
   }
 }
