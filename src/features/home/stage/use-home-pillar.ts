@@ -1,17 +1,22 @@
 "use client";
 
 import { useCallback, useSyncExternalStore } from "react";
-import { flushSync } from "react-dom";
 import type { HomePillarId } from "../snapshot/types";
 
-const PILLARS: readonly HomePillarId[] = ["molecules", "spectra", "facilities"];
 const EVENT = "home-pillar-change";
 
+const HASH_TO_PILLAR: Record<string, HomePillarId> = {
+  hierarchies: "hierarchies",
+  molecules: "hierarchies",
+  nexafs: "nexafs",
+  spectra: "nexafs",
+  provenance: "provenance",
+  collaboration: "collaboration",
+  fair: "collaboration",
+};
+
 function read(): HomePillarId | null {
-  const h = window.location.hash.slice(1);
-  return (PILLARS as readonly string[]).includes(h)
-    ? (h as HomePillarId)
-    : null;
+  return HASH_TO_PILLAR[window.location.hash.slice(1)] ?? null;
 }
 
 function subscribe(cb: () => void): () => void {
@@ -25,15 +30,13 @@ function subscribe(cb: () => void): () => void {
   };
 }
 
-function prefersReducedMotion(): boolean {
-  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-}
-
 /**
- * Active home pillar from `location.hash`. The server snapshot is `null`
- * (overview) so hydration always matches; the client value applies right
- * after hydration. The setter pushes history (Back returns to the prior view)
- * and animates with the View Transitions API when available and motion is allowed.
+ * Active home theme from `location.hash`. The server snapshot is `null`
+ * (Collaboration) so hydration always matches; the client value applies right
+ * after hydration. The setter pushes history (Back returns to the prior theme)
+ * without a document view transition, so the feature list does not resize.
+ * `#molecules` still selects the catalog. `#spectra` and `#nexafs` select
+ * Data. `#fair` selects collaboration.
  */
 export function useHomePillar(): readonly [
   HomePillarId | null,
@@ -45,20 +48,8 @@ export function useHomePillar(): readonly [
     const url = next
       ? `#${next}`
       : `${window.location.pathname}${window.location.search}`;
-    const apply = (): void => {
-      window.history.pushState(null, "", url);
-      flushSync(() => window.dispatchEvent(new Event(EVENT)));
-    };
-    if (
-      typeof document.startViewTransition === "function" &&
-      !prefersReducedMotion()
-    ) {
-      const transition = document.startViewTransition(apply);
-      // Skipped or interrupted transitions reject `.ready`; the DOM update still applies.
-      transition.ready.catch(() => undefined);
-    } else {
-      apply();
-    }
+    window.history.pushState(null, "", url);
+    window.dispatchEvent(new Event(EVENT));
   }, []);
   return [pillar, setPillar] as const;
 }

@@ -26,9 +26,12 @@ import type {
   HomeSpectrumBand,
   HomeSpectrumMarker,
   HomeSpectrumTab,
+  HomeSpectrumYTick,
 } from "../../src/features/home/snapshot/types";
+import { buildCollaboration } from "./build-collaboration";
+import { buildProcessingTab } from "./build-processing-tab";
 
-/** Curated molecules: P3HT plus a small-molecule dye and an N/S-edge acceptor. */
+/** Catalog trio: P3HT, then the two Y-series acceptors. */
 const CURATED: ReadonlyArray<{ slug: string; blurb: string }> = [
   {
     slug: "p3ht",
@@ -36,9 +39,9 @@ const CURATED: ReadonlyArray<{ slug: string; blurb: string }> = [
       "A benchmark conjugated polymer whose carbon edge reads out backbone orientation.",
   },
   {
-    slug: "cu-phthalocyanine",
+    slug: "y11",
     blurb:
-      "A planar metal-organic dye and a classic NEXAFS reference for how flat molecules stand or lie on a surface.",
+      "A Y-series non-fullerene acceptor measured at the carbon, nitrogen, and sulfur edges.",
   },
   {
     slug: "y6",
@@ -46,6 +49,16 @@ const CURATED: ReadonlyArray<{ slug: string; blurb: string }> = [
       "A high-performance non-fullerene acceptor whose nitrogen and sulfur edges separate its end groups from its fused core.",
   },
 ];
+/**
+ * Molecule that owns the showcase spectrum. It stays out of `CURATED` so the
+ * catalog can feature Y11 and Y6 while Data and Provenance keep this
+ * measurement.
+ */
+const SHOWCASE_MOLECULE: { slug: string; blurb: string } = {
+  slug: "cu-phthalocyanine",
+  blurb:
+    "A planar metal-organic dye and a classic NEXAFS reference for how flat molecules stand or lie on a surface.",
+};
 /**
  * Showcase experiment: Cu phthalocyanine, C K, TEY. Chosen over the P3HT
  * C K experiment (775e9e6a-...) because it has four geometries, finite beta
@@ -74,6 +87,27 @@ const W = 720;
 const H = 360;
 const PAD = SPECTRUM_PAD;
 const MAX_POINTS = 260;
+
+/** Compact axis label: fixed decimals inside the usual NEXAFS range, exponential outside it. */
+function formatAxisTick(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  const abs = Math.abs(value);
+  if (abs === 0) return "0";
+  if (abs >= 1000 || abs < 0.01) {
+    return value.toExponential(1).replace(/\.0e/, "e").replace("e+", "e");
+  }
+  const digits = abs >= 100 ? 0 : abs >= 10 ? 1 : abs >= 1 ? 2 : 3;
+  return value.toFixed(digits).replace(/\.?0+$/, "");
+}
+
+/** Y ticks for one tab, mapped into the snapshot viewBox with the same scale as its traces. */
+function yAxisTicks(domain: readonly [number, number]): HomeSpectrumYTick[] {
+  const sy = buildLinearScale(domain, [H - PAD.b, PAD.t]);
+  return niceTicks(domain, 4).map((v) => ({
+    y: Number(sy(v).toFixed(1)),
+    label: formatAxisTick(v),
+  }));
+}
 const BUDGET_BYTES = 25 * 1024;
 const OUT = path.resolve(
   "src/features/home/snapshot/home-snapshot.generated.ts",
@@ -96,6 +130,63 @@ interface PointRow {
   azimuthdeg: number | null;
 }
 
+/** Loads one curated molecule and its four newest experiments. */
+async function loadSnapshotMolecule(
+  client: pg.Client,
+  curated: { slug: string; blurb: string },
+): Promise<HomeSnapshotMolecule> {
+  const m = await client.query<{
+    id: string;
+    synonym: string;
+    chemicalformula: string;
+    imageurl: string | null;
+    favorite_count: number;
+  }>(
+    `select m.id, s.synonym, m.chemicalformula, m.imageurl, m.favorite_count
+       from moleculesynonyms s join molecules m on m.id = s.moleculeid
+      where s.slug = $1 order by s."order" limit 1`,
+    [curated.slug],
+  );
+  const row = m.rows[0];
+  if (!row) throw new Error(`curated molecule not found: ${curated.slug}`);
+  const links = await client.query<{
+    id: string;
+    targetatom: string;
+    corestate: string;
+    experimenttype: string | null;
+    instrument: string;
+    facility: string;
+  }>(
+    `select e.id, ed.targetatom, ed.corestate, e.experimenttype,
+            i.name as instrument, f.name as facility
+       from experiments e
+       join samples sa on sa.id = e.sampleid
+       join edges ed on ed.id = e.edgeid
+       join instruments i on i.id = e.instrumentid
+       join facilities f on f.id = i.facilityid
+      where sa.moleculeid = $1
+      order by e.createdat desc`,
+    [row.id],
+  );
+  return {
+    id: row.id,
+    slug: curated.slug,
+    name: row.synonym,
+    formula: row.chemicalformula,
+    imageUrl: row.imageurl,
+    blurb: curated.blurb,
+    datasetCount: links.rowCount ?? 0,
+    favoriteCount: row.favorite_count,
+    links: links.rows.slice(0, 4).map((link): HomeSnapshotLink => ({
+      experimentId: link.id,
+      edge: `${link.targetatom} ${link.corestate}`,
+      detection: DETECTION[link.experimenttype ?? ""] ?? "NEXAFS",
+      instrument: link.instrument,
+      facility: link.facility,
+    })),
+  };
+}
+
 async function main(): Promise<void> {
   const url = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
   if (!url) throw new Error("DIRECT_URL or DATABASE_URL required");
@@ -104,58 +195,13 @@ async function main(): Promise<void> {
   try {
     const molecules = [] as HomeSnapshotMolecule[];
     for (const c of CURATED) {
-      const m = await client.query<{
-        id: string;
-        synonym: string;
-        chemicalformula: string;
-        imageurl: string | null;
-        favorite_count: number;
-      }>(
-        `select m.id, s.synonym, m.chemicalformula, m.imageurl, m.favorite_count
-           from moleculesynonyms s join molecules m on m.id = s.moleculeid
-          where s.slug = $1 order by s."order" limit 1`,
-        [c.slug],
-      );
-      const row = m.rows[0];
-      if (!row) throw new Error(`curated molecule not found: ${c.slug}`);
-      const links = await client.query<{
-        id: string;
-        targetatom: string;
-        corestate: string;
-        experimenttype: string | null;
-        instrument: string;
-        facility: string;
-      }>(
-        `select e.id, ed.targetatom, ed.corestate, e.experimenttype,
-                i.name as instrument, f.name as facility
-           from experiments e
-           join samples sa on sa.id = e.sampleid
-           join edges ed on ed.id = e.edgeid
-           join instruments i on i.id = e.instrumentid
-           join facilities f on f.id = i.facilityid
-          where sa.moleculeid = $1
-          order by e.createdat desc`,
-        [row.id],
-      );
-      molecules.push({
-        id: row.id,
-        slug: c.slug,
-        name: row.synonym,
-        formula: row.chemicalformula,
-        imageUrl: row.imageurl,
-        blurb: c.blurb,
-        datasetCount: links.rowCount ?? 0,
-        favoriteCount: row.favorite_count,
-        links: links.rows.slice(0, 4).map((l): HomeSnapshotLink => ({
-          experimentId: l.id,
-          edge: `${l.targetatom} ${l.corestate}`,
-          detection: DETECTION[l.experimenttype ?? ""] ?? "NEXAFS",
-          instrument: l.instrument,
-          facility: l.facility,
-        })),
-      });
+      molecules.push(await loadSnapshotMolecule(client, c));
     }
     if (molecules.length !== 3) throw new Error("expected 3 molecules");
+    const showcaseMolecule = await loadSnapshotMolecule(
+      client,
+      SHOWCASE_MOLECULE,
+    );
 
     const edgeRows = await client.query<{
       id: string;
@@ -206,9 +252,17 @@ async function main(): Promise<void> {
       [SHOWCASE_EXPERIMENT_ID],
     );
 
+    if (showcaseMolecule.slug !== expRow.slug) {
+      throw new Error(
+        `showcase molecule ${showcaseMolecule.slug} does not own experiment ${SHOWCASE_EXPERIMENT_ID}`,
+      );
+    }
+    const collaboration = await buildCollaboration(client);
     const snapshot: HomeSnapshot = {
       generatedAt: new Date().toISOString(),
       molecules: [molecules[0]!, molecules[1]!, molecules[2]!],
+      showcaseMolecule,
+      collaboration,
       spectrum: buildSpectrum(
         expRow.slug,
         {
@@ -219,6 +273,7 @@ async function main(): Promise<void> {
         pts.rows,
         peaks.rows,
         expRow.normalization_ranges,
+        showcaseMolecule.formula,
       ),
       edges,
     };
@@ -242,6 +297,7 @@ function buildSpectrum(
   rows: readonly PointRow[],
   peaks: ReadonlyArray<{ energyev: number; transition: string | null }>,
   normalizationRaw: unknown,
+  formula: string,
 ): HomeSnapshot["spectrum"] {
   if (rows.length < 20) throw new Error("showcase spectrum has too few points");
   const eMin = rows[0]!.energyev;
@@ -361,6 +417,7 @@ function buildSpectrum(
       ],
       bands,
       markers: [],
+      yTicks: yAxisTicks(odExt),
     });
   }
   if (geoms.length >= 2) {
@@ -383,6 +440,7 @@ function buildSpectrum(
           tone: { ramp: i / (geoms.length - 1) },
         })),
         bands: [],
+        yTicks: yAxisTicks(ext),
         markers: isosbestic(
           geoms.map((g) => g.rows),
           sx,
@@ -444,6 +502,7 @@ function buildSpectrum(
         },
       ],
       markers: [],
+      yTicks: yAxisTicks(normDomain),
     });
   }
   const betaExt = extent([primary], (r) => r.beta);
@@ -476,19 +535,38 @@ function buildSpectrum(
       ],
       bands: [],
       markers: [],
+      yTicks: yAxisTicks(joint),
     });
   }
   if (tabs.length === 0) throw new Error("showcase spectrum produced no tabs");
+  const xTicks = niceTicks([eMin, eMax], 6).map((e) => ({
+    x: sx(e),
+    label: String(e),
+  }));
+  const optical = tabs.find((tab) => tab.id === "optical");
+  const normalization = tabs.find((tab) => tab.id === "normalization");
+  const beta = optical?.traces.find((trace) => trace.key === "beta");
+  if (optical?.yTicks && beta && normalization) {
+    const processing = buildProcessingTab({
+      width: W,
+      height: H,
+      xTicks,
+      betaPath: beta.d,
+      opticalYTicks: optical.yTicks,
+      windows: normalization.bands,
+      formula,
+    });
+    if (processing) tabs.push(processing);
+    else
+      console.warn("processing tab skipped: bare-atom overlay was not finite");
+  }
   return {
     moleculeSlug: slug,
     experimentId: SHOWCASE_EXPERIMENT_ID,
     title: edge.title,
     width: W,
     height: H,
-    xTicks: niceTicks([eMin, eMax], 6).map((e) => ({
-      x: sx(e),
-      label: String(e),
-    })),
+    xTicks,
     tabs,
   };
 }

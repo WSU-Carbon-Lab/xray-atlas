@@ -1,64 +1,73 @@
 "use client";
 
-import type { ReactElement, ReactNode } from "react";
+import type { ReactElement } from "react";
+import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { cn } from "@heroui/styles";
-import type { HomePillarId } from "../snapshot/types";
+import type { HomeStageId } from "../snapshot/types";
 
 export interface PillarTileProps {
-  id: HomePillarId;
-  kicker: string;
+  id: HomeStageId;
   title: string;
-  summary: string;
-  preview: ReactNode;
-  compact: boolean;
-  /** Whether this pillar's view is currently expanded. */
-  expanded: boolean;
-  /** Id of the view region this tile expands. */
+  /** Sentence under the feature name. */
+  description: string;
+  selected: boolean;
+  /** Id of the hero region this line describes. */
   controlsId: string;
-  /** Roving tabindex: 0 for the toolbar's single tab stop, -1 otherwise. */
+  /** Roving tabindex: 0 for the selected line, -1 otherwise. */
   tabIndex: 0 | -1;
-  onFocus: (id: HomePillarId) => void;
-  onSelect: (id: HomePillarId) => void;
+  onSelect: (id: HomeStageId) => void;
 }
 
-/** Overview or rail tile for one pillar; a button that expands that pillar. */
+/**
+ * One home feature: a display name, the arrow, then one sentence.
+ *
+ * The selected name is foreground and its arrow is visible. Other names stay
+ * quiet until hover or focus, when the arrow eases in.
+ */
 export function PillarTile({
   id,
-  kicker,
   title,
-  summary,
-  preview,
-  compact,
-  expanded,
+  description,
+  selected,
   controlsId,
   tabIndex,
-  onFocus,
   onSelect,
 }: PillarTileProps): ReactElement {
   return (
     <button
       type="button"
+      id={`home-theme-${id}`}
+      role="tab"
       onClick={() => onSelect(id)}
-      onFocus={() => onFocus(id)}
-      aria-expanded={expanded}
+      aria-selected={selected}
       aria-controls={controlsId}
       tabIndex={tabIndex}
       data-home-pillar={id}
-      style={{
-        viewTransitionName: `home-tile-${id}`,
-        viewTransitionClass: "home",
-      }}
-      className={cn("home-tile group", compact && "home-tile--compact")}
+      className="group w-full py-3 text-left"
     >
-      <span className="home-kicker">{kicker}</span>
-      <span className="font-display text-foreground text-xl font-semibold tracking-tight">
-        {title}
+      <span className="flex items-center justify-between gap-3">
+        <span
+          className={cn(
+            "font-display text-3xl leading-none font-normal tracking-tight sm:text-4xl lg:text-5xl",
+            selected
+              ? "text-foreground"
+              : "text-muted group-hover:text-foreground",
+          )}
+        >
+          {title}
+        </span>
+        <ArrowRightIcon
+          className={cn(
+            "size-6 shrink-0 transition-transform sm:size-7 lg:size-8",
+            selected
+              ? "translate-x-0 opacity-100"
+              : "opacity-0 group-hover:translate-x-1 group-hover:opacity-60 group-focus-visible:translate-x-1 group-focus-visible:opacity-60",
+          )}
+          aria-hidden
+        />
       </span>
-      {!compact && (
-        <span className="text-muted text-sm leading-6">{summary}</span>
-      )}
-      <span className="home-tile__preview" aria-hidden>
-        {preview}
+      <span className="text-muted mt-2 block max-w-sm text-sm leading-6">
+        {description}
       </span>
     </button>
   );

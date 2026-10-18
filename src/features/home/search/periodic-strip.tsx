@@ -27,6 +27,11 @@ export interface PeriodicStripProps {
   edges: readonly HomeEdgeOption[];
   selected: readonly string[];
   onToggle: (edge: HomeEdgeOption) => void;
+  /**
+   * When true, elements stay on one line at the search-field height.
+   * The strip scrolls horizontally instead of wrapping.
+   */
+  inline?: boolean;
 }
 
 /** Compact element strip; elements with no catalog edge render disabled. Picks the K edge when present. */
@@ -34,12 +39,17 @@ export function PeriodicStrip({
   edges,
   selected,
   onToggle,
+  inline = false,
 }: PeriodicStripProps): ReactElement {
   return (
     <div
       role="group"
-      aria-label="Pick an absorption edge"
-      className="flex flex-wrap gap-1.5"
+      aria-label="Absorption edge"
+      className={
+        inline
+          ? "flex flex-nowrap gap-1 overflow-x-auto"
+          : "flex flex-wrap gap-1.5"
+      }
     >
       {STRIP.map((symbol) => {
         const el = PERIODIC_ELEMENTS.find((e) => e.symbol === symbol);
@@ -66,7 +76,11 @@ export function PeriodicStrip({
               const target = picked ?? edge;
               if (target) onToggle(target);
             }}
-            className={cn("home-element", on && "home-element--on")}
+            className={cn(
+              "home-element",
+              inline && "home-element--inline",
+              on && "home-element--on",
+            )}
           >
             <span className="text-[0.625rem] leading-none opacity-60">
               {el?.z}
