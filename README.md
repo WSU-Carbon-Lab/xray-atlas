@@ -38,9 +38,9 @@ X-ray Atlas is open source and we welcome contributions from the community.
 
 ## AI usage
 
-We allow AI-assisted development, but contributors must follow the policy in `CONTRIBUTING.md`, including the required `AI Role` section in pull requests (3 levels) and the Cursor-first editing workflow.
+We allow AI-assisted development, but contributors must follow the policy in `CONTRIBUTING.md`, including the required `AI Role` section in pull requests (3 levels).
 
-Cursor is the intended tool for editing/vibe coding in this repo; do not edit maintainer-owned `.cursor/` configuration in your PR.
+All code is the human's responsibility, not the AI's, so all changes must be independently reviewed and approved by the human.
 
 ## License
 
