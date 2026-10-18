@@ -9,7 +9,7 @@ import {
   complexAsfToDeltaOptical,
   numberDensityFromMassDensity,
 } from "~/features/kk-calc/kkcalc-conversions";
-import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
+import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/default-kk-mass-density";
 import { interpolateMakimaSorted } from "~/features/kk-calc/makima-interpolate";
 import {
   parseChemicalFormula,

@@ -1,6 +1,9 @@
 import { z } from "zod";
-import { Prisma, type PrismaClient } from "~/prisma/client";
-import { matchFacilitiesBySlug } from "~/lib/facility-slug";
+import { Prisma } from "~/prisma/client";
+import {
+  lookupCachedFacilityBySlug,
+  revalidateFacilityPublicCache,
+} from "~/server/cache/facility-public-cache";
 import {
   facilityWebsiteHostname,
   facilityWebsiteUrlInputSchema,
@@ -38,27 +41,6 @@ const facilityDetailInclude = {
     },
   },
 } as const;
-
-async function findFacilityBySlug(db: PrismaClient, slug: string) {
-  const facilities = await db.facilities.findMany({
-    include: facilityDetailInclude,
-  });
-  const matches = matchFacilitiesBySlug(facilities, slug);
-
-  if (matches.length === 0) {
-    return null;
-  }
-
-  if (matches.length > 1) {
-    throw new TRPCError({
-      code: "NOT_FOUND",
-      message:
-        "Multiple facilities share this URL slug. Open the facility from browse or use its UUID.",
-    });
-  }
-
-  return matches[0] ?? null;
-}
 
 async function resolveFacilityFaviconForPersist(
   websiteUrl: string,
@@ -154,6 +136,7 @@ export const facilitiesRouter = createTRPCRouter({
         },
       });
 
+      revalidateFacilityPublicCache();
       return facilityWithInstruments ?? facility;
     }),
 
@@ -240,17 +223,25 @@ export const facilitiesRouter = createTRPCRouter({
 
   getBySlug: publicProcedure
     .input(z.object({ slug: z.string().min(1).max(200) }))
-    .query(async ({ ctx, input }) => {
-      const facility = await findFacilityBySlug(ctx.db, input.slug);
+    .query(async ({ input }) => {
+      const lookup = await lookupCachedFacilityBySlug(input.slug);
 
-      if (!facility) {
+      if (lookup.kind === "ambiguous") {
+        throw new TRPCError({
+          code: "NOT_FOUND",
+          message:
+            "Multiple facilities share this URL slug. Open the facility from browse or use its UUID.",
+        });
+      }
+
+      if (lookup.kind === "missing") {
         throw new TRPCError({
           code: "NOT_FOUND",
           message: "Facility not found",
         });
       }
 
-      return facility;
+      return lookup.facility;
     }),
 
   list: publicProcedure
@@ -348,7 +339,7 @@ export const facilitiesRouter = createTRPCRouter({
         faviconUrl = await resolveFacilityFaviconForPersist(websiteUrl);
       }
 
-      return ctx.db.facilities.update({
+      const updated = await ctx.db.facilities.update({
         where: { id: input.facilityId },
         data: {
           websiteurl: websiteUrl,
@@ -356,6 +347,8 @@ export const facilitiesRouter = createTRPCRouter({
         },
         include: facilityDetailInclude,
       });
+      revalidateFacilityPublicCache();
+      return updated;
     }),
 
   /**
@@ -390,10 +383,12 @@ export const facilitiesRouter = createTRPCRouter({
         facility.websiteurl,
       );
 
-      return ctx.db.facilities.update({
+      const updated = await ctx.db.facilities.update({
         where: { id: input.facilityId },
         data: { faviconurl: faviconUrl },
         include: facilityDetailInclude,
       });
+      revalidateFacilityPublicCache();
+      return updated;
     }),
 });

@@ -1,6 +1,7 @@
-import { WhatsNewHeroAnnouncement } from "~/components/home/whats-new-hero-announcement";
-import { HomePageContent } from "./home-page-content";
+import type { ReactElement } from "react";
+import { HomePage as HomePageView } from "~/features/home/home-page";
 
-export default function HomePage() {
-  return <HomePageContent heroAnnouncement={<WhatsNewHeroAnnouncement />} />;
+/** Home route: static Atlas Stage rendered from the committed snapshot; no database read at paint. */
+export default function HomePage(): ReactElement {
+  return <HomePageView />;
 }

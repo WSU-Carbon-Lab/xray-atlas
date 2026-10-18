@@ -31,7 +31,7 @@
  */
 
 /** Default mass density (g/cm³) used by kkcalc2 conversions until an explicit sample value exists. */
-export { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "./compute-delta-from-beta-kkcalc-style";
+export { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "./default-kk-mass-density";
 
 /** Applies KK-derived `delta` across in-memory spectrum points (per theta–phi geometry group). */
 export { applyKkDeltaToSpectrumPoints } from "./apply-kk-to-spectrum-points";

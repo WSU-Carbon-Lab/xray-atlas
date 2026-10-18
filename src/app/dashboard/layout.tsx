@@ -1,6 +1,7 @@
 import type { ReactNode } from "react";
 import { redirect } from "next/navigation";
-import { auth } from "~/server/auth";
+import { getSessionUserIdFromCookies } from "~/server/auth/session-token";
+import { db } from "~/server/db";
 
 export const metadata = {
   title: "Dashboard",
@@ -13,15 +14,17 @@ export const metadata = {
 /**
  * Restricts dashboard routes to signed-in Atlas users and applies a full-width shell.
  *
- * Uses the same horizontal breakout as `/wiki/*` so dashboard pages are not capped by
- * the root `main` `max-w-7xl` constraint. All nested dashboard routes inherit
- * edge-to-edge width with compact horizontal padding.
+ * A request with no session cookie redirects to `/sign-in` without a database session
+ * lookup. A presented cookie must resolve through `getSessionUserIdFromCookies` to a
+ * live, unexpired session row. Uses the same horizontal breakout as `/wiki/*` so
+ * dashboard pages are not capped by the root `main` `max-w-7xl` constraint. All nested
+ * dashboard routes inherit edge-to-edge width with compact horizontal padding.
  */
 export default async function DashboardLayout({
   children,
 }: Readonly<{ children: ReactNode }>) {
-  const session = await auth();
-  if (!session?.user?.id) {
+  const userId = await getSessionUserIdFromCookies(db);
+  if (!userId) {
     redirect("/sign-in");
   }
   return (

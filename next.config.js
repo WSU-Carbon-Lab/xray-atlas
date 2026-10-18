@@ -9,6 +9,10 @@ const config = {
   poweredByHeader: false,
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
   experimental: {
+    staleTimes: {
+      dynamic: 30,
+      static: 180,
+    },
     // lucide-react and @heroicons/react (the /24/outline, /24/solid, /20/solid
     // subpaths this app uses) are already optimized by Next.js by default.
     optimizePackageImports: [

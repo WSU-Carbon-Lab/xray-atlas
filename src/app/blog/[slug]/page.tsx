@@ -32,8 +32,9 @@ import {
   blogSeriesPartRows,
 } from "~/lib/content/blog-series";
 import {
-  getBlogEntries,
+  blogEntryWithoutBody,
   getBlogEntryBySlug,
+  getBlogFrontmatterIndex,
   isListableBlogEntry,
 } from "~/lib/content/blog-loader";
 import {
@@ -104,7 +105,7 @@ function BlogHeroImage({
  * Builds static params for every listable blog MDX entry.
  */
 export async function generateStaticParams(): Promise<{ slug: string }[]> {
-  const entries = await getBlogEntries();
+  const entries = await getBlogFrontmatterIndex();
   return entries
     .filter(isListableBlogEntry)
     .map((entry) => ({ slug: entry.slug }));
@@ -154,9 +155,9 @@ export default async function BlogPostPage({
   params,
 }: BlogPostPageProps): Promise<ReactElement> {
   const { slug } = await params;
-  const [entry, entries] = await Promise.all([
+  const [entry, catalog] = await Promise.all([
     getBlogEntryBySlug(slug),
-    getBlogEntries(),
+    getBlogFrontmatterIndex(),
   ]);
 
   if (!entry) {
@@ -171,6 +172,7 @@ export default async function BlogPostPage({
     notFound();
   }
 
+  const entries = catalog.map(blogEntryWithoutBody);
   const category = getBlogCategory(entry.frontmatter.category);
   const headings = extractHeadings(entry.body);
   const minutes = readingTimeMinutes(entry.body);

@@ -20,8 +20,10 @@ import {
   type BlogCategorySlug,
 } from "~/lib/content/blog-categories";
 import {
-  getBlogEntriesByCategory,
+  blogEntryWithoutBody,
+  getBlogFrontmatterIndex,
   getTeaserEntries,
+  isListableBlogEntry,
   topBlogTags,
 } from "~/lib/content/blog-loader";
 
@@ -79,10 +81,17 @@ export default async function BlogCategoryPage({
   }
 
   const category = getBlogCategory(categoryParam)!;
-  const [published, allTeasers] = await Promise.all([
-    getBlogEntriesByCategory(category.slug),
+  const [catalog, allTeasers] = await Promise.all([
+    getBlogFrontmatterIndex(),
     getTeaserEntries(),
   ]);
+  const published = catalog
+    .filter(
+      (entry) =>
+        isListableBlogEntry(entry) &&
+        entry.frontmatter.category === category.slug,
+    )
+    .map(blogEntryWithoutBody);
   const teasers = allTeasers.filter(
     (entry) => entry.category === category.slug,
   );

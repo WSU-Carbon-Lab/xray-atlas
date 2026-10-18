@@ -25,15 +25,20 @@ import { applyMoleculeSvgCpkTheme } from "~/lib/molecule-svg-cpk-theme";
  * - Br, I: Brown/Purple shades
  * - Bonds: Black (light) / White (dark)
  * - Default atoms (non-CPK): Black (light) / White (dark)
+ *
+ * The optional `fallback` node replaces the default "Failed to load image"
+ * text in the error state; callers that omit it keep the default message.
  */
 export const MoleculeImageSVG = ({
   imageUrl,
   name,
   className = "",
+  fallback,
 }: {
   imageUrl: string;
   name: string;
   className?: string;
+  fallback?: React.ReactNode;
 }) => {
   const { resolvedTheme } = useTheme();
   const [svgContent, setSvgContent] = useState<string | null>(null);
@@ -125,9 +130,11 @@ export const MoleculeImageSVG = ({
         className={`flex items-center justify-center ${className}`}
         aria-label={`Error loading ${name}`}
       >
-        <div className="text-xs text-gray-500 dark:text-gray-400">
-          Failed to load image
-        </div>
+        {fallback ?? (
+          <div className="text-xs text-gray-500 dark:text-gray-400">
+            Failed to load image
+          </div>
+        )}
       </div>
     );
   }

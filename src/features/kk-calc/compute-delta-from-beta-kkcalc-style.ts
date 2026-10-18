@@ -25,8 +25,6 @@ import {
   relativisticCorrectionFromComposition,
 } from "./kkcalc-stoichiometry";
 
-export const DEFAULT_KK_MASS_DENSITY_G_CM3 = 1;
-
 /**
  * Material inputs for kkcalc2-style `refractive_to_ASF` / `ASF_to_refractive` (mass density + formula).
  */

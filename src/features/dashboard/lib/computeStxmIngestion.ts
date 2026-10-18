@@ -4,7 +4,7 @@ import {
   readKkBrowserConsentGranted,
 } from "~/features/kk-calc/browser-consent";
 import { computeDeltaFromBetaKkcalcStyle } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
-import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/compute-delta-from-beta-kkcalc-style";
+import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/default-kk-mass-density";
 import type { StxmWeightingMode } from "~/lib/stxm/estimators";
 import { regionMeanAndSigma } from "~/lib/stxm/estimators";
 import { nexafsBeerLambert } from "~/lib/stxm/nexafs";

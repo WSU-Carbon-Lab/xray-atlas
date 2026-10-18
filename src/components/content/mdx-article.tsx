@@ -11,7 +11,6 @@ import remarkGfm from "remark-gfm";
 import remarkMath from "remark-math";
 import type { MDXComponents } from "mdx/types";
 import { CtaLink } from "~/components/content/embeds/cta-link";
-import { OpticalConstantsExample } from "~/components/content/embeds/optical-constants-example";
 import { SpectralSpacingDemo } from "~/components/content/embeds/spectral-spacing-demo";
 import { UploadColumnsReference } from "~/components/content/embeds/upload-columns-reference";
 import { WikiLandingHero } from "~/components/content/embeds/wiki-landing-hero";
@@ -118,7 +117,6 @@ function MdxTable({
 export const wikiMdxComponents: MDXComponents = {
   CtaLink,
   UploadColumnsReference,
-  OpticalConstantsExample,
   SpectralSpacingDemo,
   WikiLandingHero,
   h1: ({ children, className, ...props }) => (

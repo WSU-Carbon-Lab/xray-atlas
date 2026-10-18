@@ -42,10 +42,8 @@ import {
   spectrumEnergyExtent,
 } from "~/lib/nexafs/edge-energy-bands";
 import { plotPeakToPeaksetWrite } from "~/lib/nexafs/peakset-kind";
-import {
-  applyKkDeltaToSpectrumPoints,
-  DEFAULT_KK_MASS_DENSITY_G_CM3,
-} from "~/features/kk-calc";
+import { applyKkDeltaToSpectrumPoints } from "~/features/kk-calc";
+import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/default-kk-mass-density";
 import { PASSKEY_ENROLL_BEFORE_CONTRIBUTE_MESSAGE } from "~/lib/passkey-client-auth";
 
 export type SubmitStatus = { type: "error"; message: string } | undefined;

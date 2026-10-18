@@ -50,11 +50,11 @@ import { NexafsSpectrumRailCsvDropdown } from "~/components/nexafs/nexafs-spectr
 import { copySpectrumCsv } from "~/components/nexafs/nexafs-spectrum-csv-shared";
 import {
   applyKkDeltaToSpectrumPoints,
-  DEFAULT_KK_MASS_DENSITY_G_CM3,
   grantKkBrowserConsent,
   KkBrowserConsentDialog,
   readKkBrowserConsentGranted,
 } from "~/features/kk-calc";
+import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/default-kk-mass-density";
 import {
   buildAutoDetectedPeakList,
   buildSpectrumPointsWithDerivedForUpload,

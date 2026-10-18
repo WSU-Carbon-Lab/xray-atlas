@@ -34,7 +34,7 @@ export function WhatsNewHeroBadge({
       className={cn(
         "group focus-visible:ring-accent focus-visible:ring-offset-background inline-flex max-w-full min-w-0 items-center gap-1.5 rounded-sm text-sm transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2",
         mounted && isUnread
-          ? "text-accent hover:text-accent/90"
+          ? "text-foreground hover:text-accent"
           : "text-muted hover:text-foreground",
       )}
       aria-label={`What's New: ${summary.title}`}

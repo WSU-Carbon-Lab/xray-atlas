@@ -1,67 +1,61 @@
-import { MoleculeCardSkeleton } from "~/components/feedback/loading-state";
-import { MoleculeSearch } from "~/components/molecules/molecule-search";
-import { DefaultButton as Button } from "~/components/ui/button";
-import Link from "next/link";
-import { Search, Upload } from "lucide-react";
-import { mission, site } from "~/app/brand";
+import type { ReactElement } from "react";
 
-const CONTENT_MAX_WIDTH = "max-w-7xl";
+const THEMES = [
+  {
+    title: "Collaboration",
+    body: "Open data and open science. Compare published spectra, then open one and work with it.",
+  },
+  {
+    title: "Data",
+    body: "Absorption, polarization, and optical constants on one energy axis.",
+  },
+  {
+    title: "Catalog",
+    body: "Group the same measurements by molecule, edge, instrument, facility, or collection mode.",
+  },
+  {
+    title: "Provenance",
+    body: "Sample, collection, analysis, raw and calculated traces, and the papers they came from.",
+  },
+] as const;
 
-export default function HomeLoading() {
+/**
+ * Route-level placeholder for the three home stages: a first-screen search,
+ * then the feature names and preview.
+ */
+export default function HomeLoading(): ReactElement {
   return (
-    <div className="flex min-h-screen flex-col">
-      <section className="border-b border-gray-200 from-gray-50 to-white py-16 sm:py-24 dark:border-gray-700 dark:from-gray-900 dark:to-gray-800">
-        <div className={`mx-auto w-full ${CONTENT_MAX_WIDTH} px-4`}>
-          <div className="mx-auto max-w-4xl text-center">
-            <h1 className="mb-4 text-4xl font-bold text-gray-900 sm:text-5xl md:text-6xl dark:text-gray-100">
-              {site.name}
-            </h1>
-            <p className="mb-8 text-lg text-gray-600 sm:text-xl dark:text-gray-400">
-              {mission.heroShort}
-            </p>
-            <div className="mb-8 flex justify-center">
-              <MoleculeSearch
-                placeholder="Search molecules by name, formula, CAS number..."
-                className="w-full max-w-2xl"
-              />
-            </div>
-            <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">
-              <Link href="/contribute">
-                <Button variant="primary" className="w-full sm:w-auto">
-                  <Upload className="mr-2 h-4 w-4" />
-                  Contribute
-                </Button>
-              </Link>
-              <Link href="/browse">
-                <Button variant="outline" className="w-full sm:w-auto">
-                  <Search className="mr-2 h-4 w-4" />
-                  Browse Database
-                </Button>
-              </Link>
-            </div>
+    <div className="home-page">
+      <div className="home-open">
+        <div className="home-open__body">
+          <div className="bg-default mx-auto h-16 w-72 animate-pulse rounded" />
+          <div className="bg-default mx-auto h-6 w-full max-w-md animate-pulse rounded" />
+          <div className="bg-default h-14 animate-pulse rounded-xl" />
+        </div>
+      </div>
+      <div className="home-break" />
+      <div className="home-reveal grid grid-cols-1 items-stretch gap-10 lg:grid-cols-[minmax(22rem,32rem)_minmax(0,1fr)] lg:gap-x-16">
+        <div>
+          <div className="bg-default mb-3 h-3 w-16 animate-pulse rounded" />
+          <div className="divide-border divide-y">
+            {THEMES.map((theme) => (
+              <div key={theme.title} className="py-3">
+                <div className="font-display text-muted text-3xl leading-none sm:text-4xl lg:text-5xl">
+                  {theme.title}
+                </div>
+                <p className="text-muted mt-2 max-w-sm text-sm leading-6">
+                  {theme.body}
+                </p>
+              </div>
+            ))}
           </div>
         </div>
-      </section>
-      <section className={`mx-auto w-full ${CONTENT_MAX_WIDTH} px-4 py-12`}>
-        <div className="mb-8 text-center">
-          <h2 className="text-2xl font-bold text-gray-900 sm:text-3xl dark:text-gray-100">
-            Popular molecules
-          </h2>
-          <p className="mx-auto mt-2 max-w-lg text-gray-600 dark:text-gray-400">
-            Highly favorited entries—paginated carousel when loaded.
-          </p>
+        <div className="min-h-[28rem] space-y-4" aria-hidden>
+          <div className="bg-default h-3 w-40 animate-pulse rounded" />
+          <div className="bg-default h-10 max-w-xl animate-pulse rounded" />
+          <div className="bg-default h-64 animate-pulse rounded-xl" />
         </div>
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-          {[0, 1, 2, 3].map((i) => (
-            <MoleculeCardSkeleton key={i} />
-          ))}
-        </div>
-        <div className="border-border mt-6 flex justify-center gap-3 border-t border-gray-200 pt-6 dark:border-gray-700">
-          <div className="bg-muted h-9 w-9 animate-pulse rounded-lg dark:bg-gray-700" />
-          <div className="bg-muted h-4 w-14 animate-pulse self-center rounded dark:bg-gray-700" />
-          <div className="bg-muted h-9 w-9 animate-pulse rounded-lg dark:bg-gray-700" />
-        </div>
-      </section>
+      </div>
     </div>
   );
 }

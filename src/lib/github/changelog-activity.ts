@@ -1,9 +1,12 @@
 /**
- * Fetches recently merged pull requests for the roadmap changelog section.
- * Uses REST (same reliability path as open roadmap activity) and attributes
- * human GitHub contributors per PR; excludes bot accounts.
+ * Fetches recently merged pull requests for the developers changelog.
+ * Uses REST and attributes human GitHub contributors per PR; excludes bot accounts.
+ * Successful reads are reused across requests for `GITHUB_FETCH_REVALIDATE_SECONDS`.
+ * Unavailable reads are not stored, so the next request retries GitHub and the
+ * page still renders an empty changelog.
  */
 
+import { cachePublicCatalogRead } from "~/server/cache/public-catalog-cache";
 import { XRAY_ATLAS_GITHUB_REPO } from "~/lib/github-beamline-issues";
 import {
   GITHUB_FETCH_REVALIDATE_SECONDS,
@@ -156,10 +159,19 @@ function toChangelogEntry(pull: GitHubRestPull): GitHubChangelogEntry | null {
 }
 
 /**
- * Loads recently merged pull requests into `main` for `XRAY_ATLAS_GITHUB_REPO`.
- * Partial API failures yield `unavailable: true` and an empty entry list.
+ * Signals that a changelog payload must not be stored in the cross-request cache.
  */
-export async function fetchGitHubChangelogActivity(): Promise<GitHubChangelogActivity> {
+class GitHubChangelogNotCacheable extends Error {
+  readonly activity: GitHubChangelogActivity;
+
+  constructor(activity: GitHubChangelogActivity) {
+    super("GitHub changelog activity is not cacheable");
+    this.name = "GitHubChangelogNotCacheable";
+    this.activity = activity;
+  }
+}
+
+async function loadGitHubChangelogActivity(): Promise<GitHubChangelogActivity> {
   const { owner, name } = parseGithubRepoSlug(XRAY_ATLAS_GITHUB_REPO);
   const fetchedAt = new Date().toISOString();
 
@@ -196,6 +208,36 @@ export async function fetchGitHubChangelogActivity(): Promise<GitHubChangelogAct
     };
   } catch {
     return { entries: [], unavailable: true, fetchedAt };
+  }
+}
+
+const readCachedGitHubChangelogActivity = cachePublicCatalogRead(
+  "github-changelog-activity",
+  ["github-changelog-activity"],
+  async (): Promise<GitHubChangelogActivity> => {
+    const activity = await loadGitHubChangelogActivity();
+    if (activity.unavailable) {
+      throw new GitHubChangelogNotCacheable(activity);
+    }
+    return activity;
+  },
+  GITHUB_FETCH_REVALIDATE_SECONDS,
+);
+
+/**
+ * Loads recently merged pull requests into `main` for `XRAY_ATLAS_GITHUB_REPO`.
+ * Partial API failures yield `unavailable: true` and an empty entry list, and
+ * that payload is not cached. Successful payloads are reused for
+ * `GITHUB_FETCH_REVALIDATE_SECONDS` seconds across requests.
+ */
+export async function fetchGitHubChangelogActivity(): Promise<GitHubChangelogActivity> {
+  try {
+    return await readCachedGitHubChangelogActivity();
+  } catch (error) {
+    if (error instanceof GitHubChangelogNotCacheable) {
+      return error.activity;
+    }
+    throw error;
   }
 }
 

@@ -8,6 +8,7 @@
   },
   "scripts": {
     "build": "next build",
+    "home:snapshot": "infisical run --env=dev -- bun scripts/home/build-home-snapshot.ts",
     "check": "oxlint --type-aware && oxfmt --check && tsc --noEmit",
     "db:generate": "prisma migrate dev",
     "db:migrate": "bun scripts/db-migrate-run.ts",

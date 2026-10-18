@@ -6,7 +6,11 @@ import {
   type BlogCategorySlug,
 } from "~/lib/content/blog-categories";
 import { buildBlogRssXml } from "~/lib/content/blog-feed";
-import { getBlogEntriesByCategory } from "~/lib/content/blog-loader";
+import {
+  blogEntryWithoutBody,
+  getBlogFrontmatterIndex,
+  isListableBlogEntry,
+} from "~/lib/content/blog-loader";
 
 export const dynamic = "force-static";
 
@@ -31,7 +35,13 @@ export async function GET(
   }
 
   const category = getBlogCategory(categoryParam)!;
-  const published = await getBlogEntriesByCategory(category.slug);
+  const published = (await getBlogFrontmatterIndex())
+    .filter(
+      (entry) =>
+        isListableBlogEntry(entry) &&
+        entry.frontmatter.category === category.slug,
+    )
+    .map(blogEntryWithoutBody);
   const channelLink = `${site.url}/blog/category/${category.slug}`;
 
   const xml = buildBlogRssXml({

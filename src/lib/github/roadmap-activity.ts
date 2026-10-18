@@ -1,8 +1,12 @@
 /**
- * Fetches open GitHub issues, pull requests, and discussions for the roadmap page.
- * Results are cached per Next.js revalidation window; optional token raises rate limits.
+ * Fetches open GitHub issues, pull requests, and discussions for the developers page.
+ * Optional `GITHUB_API_TOKEN` raises rate limits.
+ * The combined payload is reused across requests for `GITHUB_FETCH_REVALIDATE_SECONDS`.
+ * A thrown read is not stored, so the page keeps its current error state and the next
+ * request retries GitHub.
  */
 
+import { cachePublicCatalogRead } from "~/server/cache/public-catalog-cache";
 import { XRAY_ATLAS_GITHUB_REPO } from "~/lib/github-beamline-issues";
 import {
   GITHUB_FETCH_REVALIDATE_SECONDS,
@@ -89,7 +93,7 @@ function toRoadmapItem(
 async function fetchOpenIssues(
   owner: string,
   name: string,
-): Promise<GitHubRoadmapItem[]> {
+): Promise<GitHubRoadmapItem[] | null> {
   const url = new URL(`https://api.github.com/repos/${owner}/${name}/issues`);
   url.searchParams.set("state", "open");
   url.searchParams.set("per_page", String(PAGE_SIZE));
@@ -102,7 +106,7 @@ async function fetchOpenIssues(
   });
 
   if (!response.ok) {
-    return [];
+    return null;
   }
 
   const payload = (await response.json()) as GitHubRestIssue[];
@@ -114,7 +118,7 @@ async function fetchOpenIssues(
 async function fetchOpenPullRequests(
   owner: string,
   name: string,
-): Promise<GitHubRoadmapItem[]> {
+): Promise<GitHubRoadmapItem[] | null> {
   const url = new URL(`https://api.github.com/repos/${owner}/${name}/pulls`);
   url.searchParams.set("state", "open");
   url.searchParams.set("per_page", String(PAGE_SIZE));
@@ -127,7 +131,7 @@ async function fetchOpenPullRequests(
   });
 
   if (!response.ok) {
-    return [];
+    return null;
   }
 
   const payload = (await response.json()) as GitHubRestPull[];
@@ -196,10 +200,19 @@ async function fetchDiscussions(
 }
 
 /**
- * Loads recent open GitHub activity for `XRAY_ATLAS_GITHUB_REPO`, tolerating partial
- * failures (for example when repository discussions are disabled).
+ * Signals that a roadmap payload must not be stored in the cross-request cache.
  */
-export async function fetchGitHubRoadmapActivity(): Promise<GitHubRoadmapActivity> {
+class GitHubRoadmapNotCacheable extends Error {
+  readonly activity: GitHubRoadmapActivity;
+
+  constructor(activity: GitHubRoadmapActivity) {
+    super("GitHub roadmap activity is not cacheable");
+    this.name = "GitHubRoadmapNotCacheable";
+    this.activity = activity;
+  }
+}
+
+async function loadGitHubRoadmapActivity(): Promise<GitHubRoadmapActivity> {
   const { owner, name } = parseGithubRepoSlug(XRAY_ATLAS_GITHUB_REPO);
 
   const [issues, pullRequests, discussionsResult] = await Promise.all([
@@ -208,13 +221,44 @@ export async function fetchGitHubRoadmapActivity(): Promise<GitHubRoadmapActivit
     fetchDiscussions(owner, name),
   ]);
 
-  return {
-    issues,
-    pullRequests,
+  const activity: GitHubRoadmapActivity = {
+    issues: issues ?? [],
+    pullRequests: pullRequests ?? [],
     discussions: discussionsResult.items,
     discussionsUnavailable: discussionsResult.unavailable,
     fetchedAt: new Date().toISOString(),
   };
+
+  if (issues === null || pullRequests === null) {
+    throw new GitHubRoadmapNotCacheable(activity);
+  }
+
+  return activity;
+}
+
+const readCachedGitHubRoadmapActivity = cachePublicCatalogRead(
+  "github-roadmap-activity",
+  ["github-roadmap-activity"],
+  loadGitHubRoadmapActivity,
+  GITHUB_FETCH_REVALIDATE_SECONDS,
+);
+
+/**
+ * Loads recent open GitHub activity for `XRAY_ATLAS_GITHUB_REPO`, tolerating partial
+ * failures (for example when repository discussions are disabled).
+ * Reuses a payload for `GITHUB_FETCH_REVALIDATE_SECONDS` seconds across requests.
+ * Non-OK issue or pull-request responses yield the same empty lists as before and
+ * are not cached. A thrown network failure is not stored and still rejects.
+ */
+export async function fetchGitHubRoadmapActivity(): Promise<GitHubRoadmapActivity> {
+  try {
+    return await readCachedGitHubRoadmapActivity();
+  } catch (error) {
+    if (error instanceof GitHubRoadmapNotCacheable) {
+      return error.activity;
+    }
+    throw error;
+  }
 }
 
 export function githubRepoIssuesUrl(): string {

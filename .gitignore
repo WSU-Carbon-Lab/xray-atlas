@@ -63,3 +63,4 @@ yarn-error.log*
 
 # Machine-local Cursor hook state (e.g. continual-learning counters/index); not shared across clones.
 .cursor/hooks/state
+.superpowers/sdd/

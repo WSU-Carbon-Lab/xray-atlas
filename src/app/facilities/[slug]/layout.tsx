@@ -4,11 +4,11 @@ import {
   canonicalFacilitySlugFromName,
   slugifyFacilityName,
 } from "~/lib/facility-slug";
+import { isFacilityUuidSegment } from "~/lib/facility-route";
 import {
-  isFacilityUuidSegment,
-  resolveFacilityByRouteSegment,
-} from "~/lib/facility-route";
-import { db } from "~/server/db";
+  getCachedFacilityPublicDetail,
+  resolveCachedFacilityRoute,
+} from "~/server/cache/facility-public-cache";
 import type { FacilityType } from "~/prisma/browser";
 
 function facilityTypeLabel(t: FacilityType): string {
@@ -26,10 +26,6 @@ function facilityTypeLabel(t: FacilityType): string {
   }
 }
 
-async function resolveFacilityForRoute(slug: string) {
-  return resolveFacilityByRouteSegment(db, slug);
-}
-
 export async function generateMetadata({
   params,
 }: {
@@ -37,7 +33,7 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug: routeSlug } = await params;
 
-  const facility = await resolveFacilityForRoute(routeSlug);
+  const facility = await resolveCachedFacilityRoute(routeSlug);
 
   if (!facility) {
     return {
@@ -51,16 +47,10 @@ export async function generateMetadata({
   const locationPhrase = location ? ` in ${location}` : "";
   const typeShort = facilityTypeLabel(facility.facilitytype);
 
-  const instrumentRows = await db.instruments.findMany({
-    where: { facilityid: facility.id },
-    select: { name: true },
-    orderBy: { name: "asc" },
-    take: 2,
-  });
-  const instrumentCount = await db.instruments.count({
-    where: { facilityid: facility.id },
-  });
-  const instrumentNames = instrumentRows
+  const detail = await getCachedFacilityPublicDetail(facility.id);
+  const instrumentCount = detail?._count.instruments ?? 0;
+  const instrumentNames = (detail?.instruments ?? [])
+    .slice(0, 2)
     .map((instrument) => instrument.name.trim())
     .filter(Boolean);
   const instrumentPhrase =
@@ -97,7 +87,7 @@ export default async function FacilityDetailLayout({
   params: Promise<{ slug: string }>;
 }>) {
   const { slug: routeSlug } = await params;
-  const facility = await resolveFacilityForRoute(routeSlug);
+  const facility = await resolveCachedFacilityRoute(routeSlug);
 
   if (!facility) {
     notFound();

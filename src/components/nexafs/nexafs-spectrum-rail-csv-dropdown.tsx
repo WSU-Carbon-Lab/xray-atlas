@@ -16,7 +16,7 @@ import { Copy, Download } from "lucide-react";
 import { BUTTON_GROUP_CHILD } from "@heroui/react";
 import { buttonVariants, cn } from "@heroui/styles";
 import type { SpectrumPoint } from "~/components/plots/types";
-import type { SpectrumPolarizationNode } from "~/features/process-nexafs/utils";
+import type { SpectrumPolarizationNode } from "~/features/process-nexafs/utils/groupSpectrumByPolarizationThetaPhi";
 import {
   plotToolbarIconToolClass,
   PlotToolbarRichHint,

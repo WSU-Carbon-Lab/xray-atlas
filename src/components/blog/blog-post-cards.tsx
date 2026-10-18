@@ -3,17 +3,27 @@ import type { ReactElement } from "react";
 import { BlogFeaturedAuthor } from "~/components/blog/blog-author-byline";
 import { BlogTile } from "~/components/blog/blog-tile";
 import { getBlogCategory } from "~/lib/content/blog-categories";
-import type { BlogEntry } from "~/lib/content/blog-loader";
+import type {
+  BlogEntry,
+  BlogFrontmatterIndexEntry,
+} from "~/lib/content/blog-loader";
 import {
   formatBlogDate,
   resolveBlogHeroImageUrl,
 } from "~/lib/content/blog-presentation";
 
-function BlogPostImage({
+/**
+ * Fills a blog card media frame with the post hero image, or the slug-colored
+ * abstract tile when the post has no `heroImage`.
+ *
+ * `entry` is a catalog row (`slug` plus frontmatter). A full {@link BlogEntry}
+ * is accepted; the MDX body is not read.
+ */
+export function BlogPostImage({
   entry,
   className,
 }: {
-  entry: BlogEntry;
+  entry: BlogFrontmatterIndexEntry;
   className?: string;
 }): ReactElement {
   if (entry.frontmatter.heroImage) {

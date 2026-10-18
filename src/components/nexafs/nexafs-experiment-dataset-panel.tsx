@@ -51,17 +51,21 @@ import {
   PlotToolbarRichHint,
 } from "~/components/plots/toolbars";
 import type { CursorMode } from "~/components/plots/spectrum/ModeBar";
+import { calculateDifferenceSpectra } from "~/features/process-nexafs/utils/differenceSpectra";
 import {
   calculateBareAtomAbsorption,
-  calculateDifferenceSpectra,
-  computeBetaIndex,
+  warmBareAtomCacheForFormula,
+} from "~/features/process-nexafs/utils/bareAtomCalculation";
+import { computeBetaIndex } from "~/features/process-nexafs/utils/betaIndex";
+import {
   computeNormalizationForExperiment,
   computeZeroOneNormalization,
-  groupSpectrumByPolarizationThetaPhi,
+} from "~/features/process-nexafs/utils/core";
+import { groupSpectrumByPolarizationThetaPhi } from "~/features/process-nexafs/utils/groupSpectrumByPolarizationThetaPhi";
+import {
   mapDbSpectrumRowsToAnnotated,
   mapDbSpectrumRowsToPoints,
-  warmBareAtomCacheForFormula,
-} from "~/features/process-nexafs/utils";
+} from "~/features/process-nexafs/utils/mapDbSpectrumRowsToPoints";
 import { defaultNormalizationRangesFromSpectrum } from "~/features/process-nexafs/utils/normalizationDefaults";
 import { applyNormalizationRegionEdgeChange } from "~/lib/nexafs/normalization-region-edge-clamp";
 import { SPECTRUMPOINTS_BROWSE_FETCH_CAP } from "~/lib/nexafs/spectrum-point-limits";
@@ -107,11 +111,11 @@ import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
 import {
   buildSpectrumpointDeltaUpdatesFromRows,
-  DEFAULT_KK_MASS_DENSITY_G_CM3,
   grantKkBrowserConsent,
   KkBrowserConsentDialog,
   readKkBrowserConsentGranted,
 } from "~/features/kk-calc";
+import { DEFAULT_KK_MASS_DENSITY_G_CM3 } from "~/features/kk-calc/default-kk-mass-density";
 import { parseChemicalFormula } from "~/features/kk-calc/kkcalc-stoichiometry";
 import { resolveHenkeKkMergeDomainFromPrePostWindows } from "~/features/kk-calc/resolve-henke-kk-merge-domain";
 import {

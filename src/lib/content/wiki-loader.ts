@@ -1,3 +1,10 @@
+/**
+ * Loads wiki MDX from `content/wiki`.
+ *
+ * Owns slug rules, frontmatter validation, and the hourly cached catalog.
+ * Does not render MDX or own the wiki navigation rail.
+ */
+
 import type { Dirent } from "node:fs";
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
@@ -125,22 +132,23 @@ const getWikiEntriesCrossRequest = unstable_cache(
  */
 export const getWikiEntries = cache(getWikiEntriesCrossRequest);
 
-/**
- * Resolves a wiki entry by its public slug (for example `contributions` or `foo/bar`).
- *
- * @param slug - Path segment after `/wiki/` without leading or trailing slashes.
- * @returns The matching entry, or `undefined` when no MDX file maps to `slug`.
- */
-export async function getWikiEntryBySlug(
+async function loadWikiEntryBySlug(
   slug: string,
 ): Promise<WikiEntry | undefined> {
   const normalizedSlug = slug.replace(/^\/+|\/+$/gu, "");
-  const filePaths = await listWikiMdxFiles();
-  const matchingPath = filePaths.find(
-    (filePath) => wikiSlugFromFilePath(filePath) === normalizedSlug,
-  );
-  if (!matchingPath) {
-    return undefined;
-  }
-  return parseWikiMdxFile(matchingPath);
+  const entries = await getWikiEntries();
+  return entries.find((entry) => entry.slug === normalizedSlug);
 }
+
+/**
+ * Resolves a wiki entry by its public slug (for example `contributions` or `foo/bar`).
+ *
+ * Looks the slug up in the cached {@link getWikiEntries} catalog. Does not
+ * rescan `content/wiki`. Repeated calls with the same `slug` in one request
+ * share one catalog read, including `generateMetadata` and the page.
+ *
+ * @param slug - Path segment after `/wiki/` without leading or trailing slashes.
+ * An empty string resolves `content/wiki/index.mdx`.
+ * @returns The matching entry, or `undefined` when no MDX file maps to `slug`.
+ */
+export const getWikiEntryBySlug = cache(loadWikiEntryBySlug);

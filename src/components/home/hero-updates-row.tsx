@@ -6,6 +6,8 @@ import { cn } from "@heroui/styles";
 /**
  * Hero onboarding rail: wiki quick-start as the primary accent chip, optional blog
  * announcement as a secondary typographic link stacked below with vertical spacing.
+ * The announcement slot supplies its own wrapper so a suspended empty fallback
+ * does not insert a gap under the chip.
  */
 export function HeroUpdatesRow({
   blogAnnouncement,
@@ -26,11 +28,7 @@ export function HeroUpdatesRow({
         label="Quick start: NEXAFS terminology & data guide"
         icon={BookOpenIcon}
       />
-      {blogAnnouncement ? (
-        <div className="flex max-w-full min-w-0 justify-center">
-          {blogAnnouncement}
-        </div>
-      ) : null}
+      {blogAnnouncement}
     </div>
   );
 }

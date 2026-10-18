@@ -22,7 +22,8 @@ import {
 import {
   phiLeafEnergySubtitle,
   type SpectrumPolarizationNode,
-} from "~/features/process-nexafs/utils";
+} from "~/features/process-nexafs/utils/groupSpectrumByPolarizationThetaPhi";
+
 const PAGE_SIZE = 10;
 
 type SpectrumTableColumnId = "energy" | "mu" | "theta" | "phi";

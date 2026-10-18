@@ -5,8 +5,9 @@
  *
  * Reads initial state from `URLSearchParams` via `readFacetParams` and
  * `readNexafsCatalogFilterParams`, mirrors every change back to the URL via
- * `router.replace` (no scroll), and debounces the free-text query (300 ms).
- * Resetting any filter or clearing all filters resets the page to 1.
+ * `router.replace` (no scroll) only when the next query string differs from
+ * the current `searchParams` string, and debounces the free-text query
+ * (300 ms). Resetting any filter or clearing all filters resets the page to 1.
  */
 
 import {
@@ -183,6 +184,7 @@ export function useFacetSelection({
       sp.set(NEXAFS_EXPERIMENT_SEARCH_PARAM, deepLinkExperimentId);
     }
     const qs = sp.toString();
+    if (qs === urlKey) return;
     router.replace(`${basePath}${qs ? `?${qs}` : ""}`, { scroll: false });
   }, [
     urlSynced,

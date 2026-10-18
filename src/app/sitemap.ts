@@ -2,7 +2,10 @@ import { type MetadataRoute } from "next";
 import { site } from "~/app/brand";
 import { canonicalFacilitySlugFromName } from "~/lib/facility-slug";
 import { BLOG_CATEGORIES } from "~/lib/content/blog-categories";
-import { getBlogEntries, isListableBlogEntry } from "~/lib/content/blog-loader";
+import {
+  getBlogFrontmatterIndex,
+  isListableBlogEntry,
+} from "~/lib/content/blog-loader";
 import { slugifyMoleculeSynonym } from "~/lib/molecule-slug";
 import { db } from "~/server/db";
 
@@ -10,7 +13,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const now = new Date();
   const baseUrl = site.url;
 
-  const [molecules, facilities] = await Promise.all([
+  const [molecules, facilities, blogEntries] = await Promise.all([
     db.molecules.findMany({
       select: {
         id: true,
@@ -27,6 +30,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       select: { id: true, name: true },
       take: 1000,
     }),
+    getBlogFrontmatterIndex(),
   ]);
 
   const moleculeEntries: MetadataRoute.Sitemap = molecules.map((molecule) => {
@@ -48,7 +52,6 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.65,
   }));
 
-  const blogEntries = await getBlogEntries();
   const blogSitemapEntries: MetadataRoute.Sitemap = [
     {
       url: `${baseUrl}/blog`,

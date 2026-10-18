@@ -1,15 +1,32 @@
-import type { ReactElement } from "react";
-import { getWhatsNewSummary } from "~/lib/whats-new-summary";
+import { Suspense, type ReactElement } from "react";
+import { getCachedWhatsNewSummary } from "~/lib/whats-new-summary";
 import { WhatsNewHeroBadge } from "./whats-new-hero-badge";
 
 /**
- * Server wrapper that loads the highlight post and renders the home hero blog link.
+ * Reads the shared What's New cache and renders the hero blog link.
+ * Returns `null` when no published post exists.
  */
-export async function WhatsNewHeroAnnouncement(): Promise<ReactElement | null> {
-  const summary = await getWhatsNewSummary();
+async function WhatsNewHeroAnnouncementContent(): Promise<ReactElement | null> {
+  const summary = await getCachedWhatsNewSummary();
   if (!summary) {
     return null;
   }
 
-  return <WhatsNewHeroBadge summary={summary} />;
+  return (
+    <div className="flex max-w-full min-w-0 justify-start">
+      <WhatsNewHeroBadge summary={summary} />
+    </div>
+  );
+}
+
+/**
+ * Renders the home hero blog link from the cached What's New highlight.
+ * Suspends so the rest of the home page does not wait on that read.
+ */
+export function WhatsNewHeroAnnouncement(): ReactElement {
+  return (
+    <Suspense fallback={null}>
+      <WhatsNewHeroAnnouncementContent />
+    </Suspense>
+  );
 }

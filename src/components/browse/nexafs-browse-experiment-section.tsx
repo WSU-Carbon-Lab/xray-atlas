@@ -43,6 +43,11 @@ import {
 } from "~/lib/nexafs-experiment-deep-link";
 import { scheduleScrollNexafsExperimentCardIntoView } from "~/lib/scroll-nexafs-experiment-card";
 import { useSearchParams } from "next/navigation";
+import type { inferRouterOutputs } from "@trpc/server";
+import type { AppRouter } from "~/server/api/root";
+
+type NexafsBrowseInitialList =
+  inferRouterOutputs<AppRouter>["experiments"]["browseList"];
 
 const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
   {
@@ -95,6 +100,7 @@ const NEXAFS_SORT_OPTIONS: Array<BrowseSortOption<NexafsBrowseSortKey>> = [
  * @param itemsPerPageLabelId - `id` of the external label element for the items-per-page select.
  * @param emptyListMessage - Copy shown when the catalog is empty and no search is active.
  * @param variant - `"fullPage"` wraps in page chrome; `"embedded"` renders controls only.
+ * @param initialBrowseList - Cached default `browseList` page (quality, limit 12, offset 0). Full-page catalog applies it with no molecule filter. Embedded mode applies it for the locked molecule. Ignored once the live query leaves that default.
  */
 export interface NexafsBrowseExperimentSectionProps {
   basePath: string;
@@ -105,6 +111,7 @@ export interface NexafsBrowseExperimentSectionProps {
   itemsPerPageLabelId?: string;
   emptyListMessage?: string;
   variant?: "fullPage" | "embedded";
+  initialBrowseList?: NexafsBrowseInitialList;
 }
 
 export function NexafsBrowseExperimentSection({
@@ -116,6 +123,7 @@ export function NexafsBrowseExperimentSection({
   itemsPerPageLabelId = "nexafs-items-per-page",
   emptyListMessage,
   variant = "embedded",
+  initialBrowseList,
 }: NexafsBrowseExperimentSectionProps) {
   const [sortBy, setSortBy] = useState<NexafsBrowseSortKey>("quality");
   const [itemsPerPage, setItemsPerPage] = useState(12);
@@ -248,6 +256,28 @@ export function NexafsBrowseExperimentSection({
     ...(deepLinkExperimentId ? { experimentIds: [deepLinkExperimentId] } : {}),
   };
 
+  const isDefaultBrowseQuery =
+    !hasSearchQuery &&
+    deepLinkExperimentId === null &&
+    sortBy === "quality" &&
+    itemsPerPage === 12 &&
+    currentPage === 1 &&
+    selection.edge.length === 0 &&
+    selection.instrument.length === 0 &&
+    selection.contributor.length === 0 &&
+    catalogFilters.experimentType === undefined &&
+    !catalogFilters.verifiedOnly &&
+    catalogFilters.verificationSource === "either";
+  const isDefaultCatalogPage =
+    isDefaultBrowseQuery &&
+    ((variant === "fullPage" &&
+      !lockedMoleculeId &&
+      effectiveMoleculeIds.length === 0) ||
+      (variant === "embedded" &&
+        lockedMoleculeId != null &&
+        effectiveMoleculeIds.length === 1 &&
+        effectiveMoleculeIds[0] === lockedMoleculeId));
+
   const searchData = trpc.experiments.browseSearch.useQuery(
     {
       query: debouncedQuery.trim(),
@@ -272,8 +302,18 @@ export function NexafsBrowseExperimentSection({
     },
     {
       enabled: listQueryReady && !hasSearchQuery,
-      staleTime: 30_000,
+      staleTime: variant === "embedded" ? 60_000 : 30_000,
       gcTime: 300_000,
+      refetchOnMount:
+        variant === "embedded" &&
+        isDefaultCatalogPage &&
+        initialBrowseList != null
+          ? false
+          : undefined,
+      initialData:
+        isDefaultCatalogPage && initialBrowseList
+          ? initialBrowseList
+          : undefined,
     },
   );
 
@@ -285,7 +325,7 @@ export function NexafsBrowseExperimentSection({
     : { groups: allData.data?.groups ?? [], total: allData.data?.total ?? 0 };
 
   const isLoading =
-    !listQueryReady ||
+    (!listQueryReady && !(isDefaultCatalogPage && allData.data)) ||
     (hasSearchQuery ? searchData.isLoading : allData.isLoading);
   const isError = hasSearchQuery ? searchData.isError : allData.isError;
   const error = hasSearchQuery ? searchData.error : allData.error;

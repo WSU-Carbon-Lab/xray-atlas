@@ -1,14 +1,16 @@
 import Link from "next/link";
 import type { ReactElement } from "react";
-import { loadWikiOpticalConstantsExample } from "~/lib/wiki-optical-constants-example-data";
 import { WIKI_OPTICAL_CONSTANTS_SHOWCASE_EXPERIMENT_ID } from "~/lib/wiki-optical-constants-showcase-id";
-import { OpticalConstantsPlotEmbed } from "./optical-constants-plot-embed";
+import { loadCachedWikiOpticalConstantsExample } from "./optical-constants-example-cache";
+import { OpticalConstantsPlotEmbedDynamic } from "./optical-constants-plot-embed-dynamic";
 
 /**
  * Loads the catalog showcase experiment and renders caption, plot embed, and usage copy for wiki MDX.
+ *
+ * Uses the in-process showcase cache so a warm document does not repeat the spectrum read.
  */
 export async function OpticalConstantsExample(): Promise<ReactElement> {
-  const exampleResult = await loadWikiOpticalConstantsExample();
+  const exampleResult = await loadCachedWikiOpticalConstantsExample();
 
   if (exampleResult.ok) {
     const { caption } = exampleResult.data;
@@ -28,7 +30,7 @@ export async function OpticalConstantsExample(): Promise<ReactElement> {
           enables derived f, epsilon, and chi channels ({caption.pointCount}{" "}
           samples).
         </p>
-        <OpticalConstantsPlotEmbed />
+        <OpticalConstantsPlotEmbedDynamic />
         <p className="text-muted mt-3 text-sm">
           <span className="text-foreground font-medium">How to use:</span> use
           the left{" "}
