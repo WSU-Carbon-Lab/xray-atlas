@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, type ReactElement } from "react";
+import { useLayoutEffect, useRef, useState, type ReactElement } from "react";
 import Link from "next/link";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
 import { cn } from "@heroui/styles";
@@ -112,11 +112,35 @@ export function HomeNewsBoard({
     latest[0] ??
     null;
   const strip = withLatestCentered(latest);
+  const stripRef = useRef<HTMLDivElement>(null);
+
+  useLayoutEffect(() => {
+    const root = stripRef.current;
+    if (!root) {
+      return;
+    }
+    const center = (): void => {
+      const current = root.querySelector("[aria-current='true']");
+      if (!(current instanceof HTMLElement)) {
+        return;
+      }
+      const nextLeft =
+        current.offsetLeft - (root.clientWidth - current.offsetWidth) / 2;
+      root.scrollLeft = Math.max(0, nextLeft);
+    };
+    center();
+    const observer = new ResizeObserver(center);
+    observer.observe(root);
+    return () => observer.disconnect();
+  }, []);
 
   return (
-    <div className="flex w-full flex-col gap-8">
+    <div className="flex w-full min-w-0 flex-col gap-6 sm:gap-8">
       {strip.length > 0 ? (
-        <div className="border-border divide-border grid snap-x snap-mandatory grid-cols-[repeat(3,minmax(12rem,1fr))] divide-x overflow-x-auto border-y">
+        <div
+          ref={stripRef}
+          className="border-border divide-border flex snap-x snap-mandatory divide-x overflow-x-auto border-y"
+        >
           {strip.map((post) => {
             const active = post.slug === selected?.slug;
             return (
@@ -127,7 +151,7 @@ export function HomeNewsBoard({
                 onFocus={() => setSelectedSlug(post.slug)}
                 aria-current={active ? "true" : undefined}
                 className={cn(
-                  "snap-center px-4 py-4 no-underline transition-colors sm:px-6 sm:py-5",
+                  "w-[min(18rem,80vw)] shrink-0 snap-center px-4 py-4 no-underline transition-colors sm:w-auto sm:min-w-0 sm:flex-1 sm:px-6 sm:py-5",
                   active ? "bg-surface" : "hover:bg-surface/60",
                 )}
               >
@@ -258,7 +282,7 @@ function HomeNewsPreview({ item }: { item: HomeNewsItem }): ReactElement {
   const kicker = getBlogCategory(item.category)?.kicker ?? item.category;
   const body = (
     <>
-      <div className="relative min-h-40 overflow-hidden sm:min-h-full">
+      <div className="relative min-h-40 overflow-hidden lg:min-h-full">
         {item.unpublished ? (
           <BlogTile
             slug={item.slug}
@@ -319,11 +343,11 @@ function HomeNewsPreview({ item }: { item: HomeNewsItem }): ReactElement {
   return (
     <article className="border-border bg-surface min-h-64 overflow-hidden rounded-2xl border">
       {item.unpublished ? (
-        <div className="grid h-full sm:grid-cols-2">{body}</div>
+        <div className="grid h-full lg:grid-cols-2">{body}</div>
       ) : (
         <Link
           href={`/blog/${item.slug}`}
-          className="grid h-full no-underline sm:grid-cols-2"
+          className="grid h-full no-underline lg:grid-cols-2"
         >
           {body}
         </Link>

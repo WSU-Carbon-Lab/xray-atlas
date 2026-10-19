@@ -19,12 +19,6 @@ import { HomeStageJumpList } from "./home-stage-nav";
 export function HomePage(): ReactElement {
   return (
     <div className="home-page">
-      <script
-        dangerouslySetInnerHTML={{
-          __html:
-            '(function(){var h=document.querySelector("[data-site-header]");if(!h)return;var n=h.getBoundingClientRect().height;if(n<=0)return;var r=document.documentElement;r.style.setProperty("--home-header",n+"px");r.style.setProperty("--home-viewport",window.innerHeight+"px");})();',
-        }}
-      />
       <HomeStageMetrics />
       <section id="home-search" className="home-open" aria-label="Search">
         <div className="home-open__body">
@@ -48,8 +42,8 @@ export function HomePage(): ReactElement {
       <div className="home-break" role="separator" />
       <section id="home-features" className="home-stage">
         <HomeStageJumpList currentId="home-features" edge="above" />
-        <div className="flex w-full flex-1 items-center">
-          <div className="w-full">
+        <div className="flex w-full min-w-0 flex-1 items-center">
+          <div className="w-full min-w-0">
             <HomeAtlasStage />
           </div>
         </div>
@@ -64,7 +58,7 @@ export function HomePage(): ReactElement {
         className="home-stage home-stage--last"
       >
         <HomeStageJumpList currentId="home-news" edge="above" />
-        <div className="flex w-full flex-1 items-center">
+        <div className="flex w-full min-w-0 flex-1 items-center">
           <HomeLatestPosts />
         </div>
       </section>

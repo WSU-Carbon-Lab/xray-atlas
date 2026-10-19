@@ -857,10 +857,10 @@
     @apply h-full flex-1 border-0 bg-transparent text-lg shadow-none outline-none focus:ring-0;
   }
   .home-search {
-    @apply flex flex-nowrap items-center gap-2;
+    @apply flex flex-wrap items-center gap-2;
   }
   .home-page {
-    @apply w-full;
+    @apply w-full min-w-0 overflow-x-clip;
   }
   html:has(.home-page) {
     scroll-snap-type: y mandatory;
@@ -878,14 +878,14 @@
     scroll-snap-stop: always;
   }
   .home-open__body {
-    @apply flex w-full flex-col gap-11;
+    @apply flex w-full min-w-0 flex-col gap-6 sm:gap-11;
     grid-row: 2;
   }
   .home-open__copy {
     @apply flex flex-col items-center gap-4;
   }
   .home-open__title {
-    @apply text-foreground text-center text-5xl leading-none font-semibold tracking-tight sm:text-6xl lg:text-7xl;
+    @apply text-foreground text-center text-4xl leading-none font-semibold tracking-tight sm:text-6xl lg:text-7xl;
   }
   .home-open__line {
     @apply text-muted mx-auto max-w-lg text-center text-lg leading-7 sm:text-xl;
@@ -949,6 +949,18 @@
   }
   html:has(.home-page) footer {
     scroll-snap-align: end;
+  }
+  @media (max-width: 1023px) {
+    html:has(.home-page) {
+      scroll-snap-type: none;
+      scroll-behavior: auto;
+    }
+    .home-open,
+    .home-stage,
+    html:has(.home-page) footer {
+      scroll-snap-align: none;
+      scroll-snap-stop: normal;
+    }
   }
   .home-reading {
     @apply flex flex-col gap-16;

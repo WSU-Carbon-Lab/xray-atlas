@@ -18,12 +18,14 @@ export function HomeStagePreview({
   children,
 }: HomeStagePreviewProps): ReactElement {
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4">
+    <div className="flex flex-col gap-4 lg:h-full lg:min-h-0">
       <p className="text-muted min-h-12 max-w-xl shrink-0 text-sm leading-6">
         {caption}
       </p>
-      <div className="relative min-h-0 flex-1">
-        <div className="absolute inset-0">{children}</div>
+      <div className="relative min-h-80 lg:min-h-0 lg:flex-1">
+        <div className="min-h-80 lg:absolute lg:inset-0 lg:min-h-0">
+          {children}
+        </div>
       </div>
     </div>
   );

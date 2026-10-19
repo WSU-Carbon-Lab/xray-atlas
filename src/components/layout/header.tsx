@@ -193,16 +193,17 @@ function HeaderContributeMenu(): ReactElement {
     >
       <button
         type="button"
-        className="bg-accent text-accent-foreground focus-visible:ring-accent inline-flex h-10 items-center gap-1.5 rounded-full px-3.5 text-sm font-medium shadow-[0_8px_20px_-12px_var(--accent)] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2"
+        className="bg-accent text-accent-foreground focus-visible:ring-accent inline-flex h-10 items-center gap-1.5 rounded-full px-2.5 text-sm font-medium shadow-[0_8px_20px_-12px_var(--accent)] transition-opacity hover:opacity-90 focus:outline-none focus-visible:ring-2 lg:px-3.5"
         aria-expanded={isOpen}
         aria-haspopup="menu"
+        aria-label="Contribute"
         {...triggerProps}
       >
         <Upload className="size-4" aria-hidden />
-        Contribute
+        <span className="hidden lg:inline">Contribute</span>
         <ChevronDown
           className={cn(
-            "size-3 opacity-80 transition-transform duration-200 ease-out",
+            "hidden size-3 opacity-80 transition-transform duration-200 ease-out lg:block",
             isOpen && "rotate-180",
           )}
           aria-hidden
@@ -254,22 +255,22 @@ export default function Header({
     <div data-site-header className="sticky top-0 z-[400] w-full">
       <header className="border-border bg-background/95 supports-backdrop-filter:bg-background/60 w-full border-b backdrop-blur">
         <nav
-          className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4"
+          className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-2 px-4 sm:gap-4"
           aria-label="Main"
         >
           <div className="flex shrink-0 items-center justify-start">
             <Link
               href="/"
-              className="text-foreground hover:text-foreground flex items-center justify-start space-x-2 no-underline"
+              className="text-foreground hover:text-foreground flex min-w-0 items-center justify-start space-x-2 no-underline"
             >
-              <WSULogoIcon className="block h-10 w-10 justify-start align-middle" />
-              <span className="align-middle font-sans text-3xl leading-none font-bold whitespace-nowrap">
+              <WSULogoIcon className="block h-10 w-10 shrink-0 justify-start align-middle" />
+              <span className="hidden align-middle font-sans text-3xl leading-none font-bold whitespace-nowrap sm:inline">
                 {site.name}
               </span>
             </Link>
           </div>
 
-          <ul className="m-0 ml-auto flex h-full list-none flex-wrap items-center gap-x-5 gap-y-2 p-0">
+          <ul className="m-0 ml-auto flex h-full min-w-0 list-none flex-nowrap items-center gap-x-2 p-0 md:gap-x-3 lg:gap-x-5">
             <li className="hidden h-full md:flex">
               <HeaderNavMenu
                 menuId="browse"

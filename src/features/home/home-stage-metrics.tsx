@@ -6,9 +6,9 @@ import { useLayoutEffect } from "react";
  * Publishes the sticky header height and the layout viewport height as
  * `--home-header` and `--home-viewport` on the document element.
  *
- * Home stages use those variables so a stage fills the visible area under
- * the header. `100svh` is shorter than the layout viewport in some browsers,
- * which leaves the next stage's back link on screen.
+ * Home stages use those variables so a stage fills the layout viewport
+ * under the header. The `100dvh` fallback is shorter than that viewport
+ * in some browsers and leaves the next stage on screen.
  */
 export function HomeStageMetrics(): null {
   useLayoutEffect(() => {
@@ -33,9 +33,11 @@ export function HomeStageMetrics(): null {
       observer.observe(header);
     }
     window.addEventListener("resize", apply);
+    window.visualViewport?.addEventListener("resize", apply);
     return () => {
       observer.disconnect();
       window.removeEventListener("resize", apply);
+      window.visualViewport?.removeEventListener("resize", apply);
     };
   }, []);
   return null;

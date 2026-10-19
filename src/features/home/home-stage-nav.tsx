@@ -41,7 +41,7 @@ export function HomeStageJumpList({
       aria-label={edge === "above" ? "Sections above" : "Sections below"}
       className={slot}
     >
-      <ol className="mx-auto flex w-max list-none items-center p-0">
+      <ol className="m-0 flex w-full list-none flex-wrap items-center justify-center gap-y-1 p-0">
         {sections.map((section, itemIndex) => (
           <li key={section.id} className="flex items-center">
             {itemIndex > 0 ? (

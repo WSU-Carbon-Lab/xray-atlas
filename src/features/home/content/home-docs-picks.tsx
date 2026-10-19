@@ -1,6 +1,9 @@
-import type { ReactElement } from "react";
+"use client";
+
+import { useState, type ReactElement } from "react";
 import Link from "next/link";
 import { ArrowRightIcon } from "@heroicons/react/24/outline";
+import { cn } from "@heroui/styles";
 import { HomeStageJumpList } from "../home-stage-nav";
 
 interface DocEntry {
@@ -54,28 +57,100 @@ const DEVELOPER_ENTRIES: readonly DocEntry[] = [
   },
 ];
 
+type DocColumnId = "wiki" | "developer";
+
 /**
  * Home documentation stage.
  *
- * The wiki and the developer clients use the same divided display list as
- * the feature stage. Stages above and below are listed in document order.
+ * Wide windows show the wiki and the developer clients side by side. Narrow
+ * windows show one column at a time, switched from the Wiki and Developer
+ * tabs, so the stage stays within the viewport. Stages above and below are
+ * listed in document order.
  */
 export function HomeDocsPicks(): ReactElement {
+  const [column, setColumn] = useState<DocColumnId>("wiki");
+
   return (
     <section id="home-docs" aria-label="Documentation" className="home-stage">
       <HomeStageJumpList currentId="home-docs" edge="above" />
-      <div className="flex w-full flex-1 items-center">
-        <div className="grid w-full items-start gap-12 lg:grid-cols-2 lg:grid-rows-[auto_repeat(4,minmax(0,auto))] lg:items-stretch lg:gap-x-16 lg:gap-y-0">
-          <DocColumn kicker="Wiki" href="/wiki" entries={WIKI_ENTRIES} />
+      <div className="flex w-full min-w-0 flex-1 items-center">
+        <div className="grid w-full min-w-0 items-start lg:grid-cols-2 lg:grid-rows-[auto_repeat(4,minmax(0,auto))] lg:items-stretch lg:gap-x-16 lg:gap-y-0">
+          <div
+            role="tablist"
+            aria-label="Documentation"
+            className="mb-4 hidden items-end gap-6 max-lg:flex"
+          >
+            <DocTab
+              id="home-docs-tab-wiki"
+              controls="home-docs-wiki"
+              label="Wiki"
+              selected={column === "wiki"}
+              onSelect={() => setColumn("wiki")}
+            />
+            <DocTab
+              id="home-docs-tab-developer"
+              controls="home-docs-developer"
+              label="Developer"
+              selected={column === "developer"}
+              onSelect={() => setColumn("developer")}
+            />
+          </div>
           <DocColumn
+            id="home-docs-wiki"
+            labelledBy="home-docs-tab-wiki"
+            kicker="Wiki"
+            href="/wiki"
+            entries={WIKI_ENTRIES}
+            visible={column === "wiki"}
+          />
+          <DocColumn
+            id="home-docs-developer"
+            labelledBy="home-docs-tab-developer"
             kicker="Developer"
             href="/docs"
             entries={DEVELOPER_ENTRIES}
+            visible={column === "developer"}
           />
         </div>
       </div>
       <HomeStageJumpList currentId="home-docs" edge="below" />
     </section>
+  );
+}
+
+/**
+ * Narrow-window control that shows one documentation column.
+ *
+ * @param props.id - DOM id referenced by the panel.
+ * @param props.controls - Panel id this tab shows.
+ * @param props.label - Visible tab name.
+ * @param props.selected - Whether this column is the one on screen.
+ * @param props.onSelect - Shows this column.
+ */
+function DocTab(props: {
+  id: string;
+  controls: string;
+  label: string;
+  selected: boolean;
+  onSelect: () => void;
+}): ReactElement {
+  return (
+    <button
+      type="button"
+      id={props.id}
+      role="tab"
+      aria-selected={props.selected}
+      aria-controls={props.controls}
+      onClick={props.onSelect}
+      className={cn(
+        "border-b-2 pb-1",
+        props.selected
+          ? "home-kicker border-accent"
+          : "home-label border-transparent",
+      )}
+    >
+      {props.label}
+    </button>
   );
 }
 
@@ -116,20 +191,34 @@ function DocEntryLabel(props: {
 /**
  * One documentation column: a kicker that opens the index, then display-sized links.
  *
- * @param props.kicker - Column name, linked to the index.
+ * @param props.id - DOM id of the panel.
+ * @param props.labelledBy - Tab id that names this panel.
+ * @param props.kicker - Column name, linked to the index on wide windows.
  * @param props.href - Index path for this column.
  * @param props.entries - Links in this column.
+ * @param props.visible - Whether the narrow-window tab has this column selected.
  */
 function DocColumn(props: {
+  id: string;
+  labelledBy: string;
   kicker: string;
   href: string;
   entries: readonly DocEntry[];
+  visible: boolean;
 }): ReactElement {
   return (
-    <div className="min-w-0 lg:row-span-5 lg:grid lg:grid-rows-subgrid">
+    <div
+      id={props.id}
+      role="tabpanel"
+      aria-labelledby={props.labelledBy}
+      className={cn(
+        "min-w-0 lg:row-span-5 lg:grid lg:grid-rows-subgrid",
+        props.visible ? "" : "max-lg:hidden",
+      )}
+    >
       <Link
         href={props.href}
-        className="home-kicker mb-3 inline-block lg:mb-0 lg:pb-3"
+        className="home-kicker mb-3 hidden lg:mb-0 lg:inline-block lg:pb-3"
       >
         {props.kicker}
       </Link>
