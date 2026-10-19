@@ -1,9 +1,9 @@
 import { z } from "zod";
 import {
+  contributeSessionProcedure,
   contributeWriteProcedure,
   createTRPCRouter,
   publicProcedure,
-  protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { ProcessMethod } from "~/prisma/client";
@@ -95,7 +95,7 @@ export const samplesRouter = createTRPCRouter({
       };
     }),
 
-  create: protectedProcedure
+  create: contributeSessionProcedure
     .input(
       z.object({
         moleculeid: z.string().uuid(),

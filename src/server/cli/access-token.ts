@@ -1,29 +1,44 @@
 /**
- * Read credentials for the `xatlas` CLI.
+ * Credentials for the `xatlas` CLI.
  *
- * Mints a single active `xra_` token per user after a passkey-confirmed
- * session, stores only the SHA-256 hex, and exchanges a one-time loopback
- * PKCE code so the browser redirect never carries the secret. Does not
- * authorize catalog writes.
+ * Mints named `xra_` tokens (several active per user) carrying the scopes the
+ * user approved on `/cli/login`, after a passkey-confirmed session. Stores only
+ * the SHA-256 hex and exchanges a one-time loopback PKCE code so the browser
+ * redirect never carries the secret. The approved scopes and token name travel
+ * inside the authorization code string, whose hash is the database key, so the
+ * values cannot be altered between authorize and exchange. Does not enforce
+ * scopes on procedures; see `cli-scopes.ts` and `~/server/api/trpc.ts`.
  */
 
-import { createHash, randomBytes, timingSafeEqual } from "node:crypto";
+import { randomBytes, timingSafeEqual, createHash } from "node:crypto";
 import { NextResponse } from "next/server";
 import type { PrismaClient } from "~/prisma/client";
 import { emitAuditEvent } from "~/server/audit/emit-audit-event";
 import { extractAuditRequestMeta } from "~/server/audit/request-meta";
 import { db } from "~/server/db";
 import { evaluateSessionWriteAssurance } from "~/server/auth/mfa-access";
+import {
+  CLI_TOKEN_PREFIX,
+  CLI_TOKEN_TTL_MS,
+  legacyScopeColumn,
+  parseCliScopes,
+  resolveBearerContext,
+  sha256Hex,
+  type CliScope,
+} from "~/server/cli/cli-scopes";
 
-/** Prefix on every CLI bearer token. */
-export const CLI_TOKEN_PREFIX = "xra_";
+export { CLI_TOKEN_PREFIX };
 
-/** Only scope issued by `xatlas login`. */
-export const CLI_READ_SCOPE = "read";
+/** Token name used when the CLI sends none. */
+export const CLI_DEFAULT_TOKEN_NAME = "xatlas";
 
-const CLI_TOKEN_NAME = "xatlas";
+/** Maximum token name length; matches `cli_access_token.name` VarChar(64). */
+export const CLI_TOKEN_NAME_MAX_LENGTH = 64;
+
+/** Maximum length of an authorization code string, payload included. */
+export const CLI_AUTH_CODE_MAX_LENGTH = 512;
+
 const AUTHORIZATION_TTL_MS = 2 * 60 * 1000;
-const LAST_USED_TOUCH_MS = 60 * 1000;
 const CODE_CHALLENGE_PATTERN = /^[A-Za-z0-9_-]{43}$/;
 const CODE_VERIFIER_PATTERN = /^[A-Za-z0-9\-._~]{43,128}$/;
 const STATE_PATTERN = /^[A-Za-z0-9_-]{16,128}$/;
@@ -31,18 +46,26 @@ const LOOPBACK_HOSTS = new Set(["127.0.0.1", "localhost", "::1"]);
 
 type CliDb = PrismaClient;
 
+/** Active credential resolved from a presented bearer. */
 export interface CliCredentialIdentity {
   tokenId: string;
   userId: string;
-  scope: string;
+  /** Approved scopes from `cli_access_token.scopes`. */
+  scopes: readonly CliScope[];
   tokenPrefix: string;
+  /** Display name of the account owner. */
   name: string | null;
 }
 
+/** Validated input to {@link createCliAuthorization}. */
 export interface CliAuthorizeInput {
   redirectUri: string;
   state: string;
   codeChallenge: string;
+  /** Scopes the signed-in user approved; non-empty. */
+  scopes: readonly CliScope[];
+  /** Token name the user confirmed; trimmed, 1 to 64 characters. */
+  tokenName: string;
 }
 
 export interface IssuedCliAuthorization {
@@ -55,9 +78,17 @@ export interface CliTokenExchangeInput {
   redirectUri: string;
 }
 
+/** Result of a successful code exchange; `token` is the only copy of the secret. */
 export interface IssuedCliToken {
   token: string;
-  scope: typeof CLI_READ_SCOPE;
+  /** Approved scopes stored on the token. */
+  scopes: readonly CliScope[];
+  /** Highest approved scope, kept for older CLI builds that read `scope`. */
+  scope: CliScope;
+  /** Name stored on the token. */
+  tokenName: string;
+  /** ISO 8601 expiry instant of the token. */
+  expiresAt: string;
   orcid: string;
   name: string | null;
 }
@@ -133,7 +164,7 @@ export function isCliLoginState(value: string): boolean {
  *
  * @param database - Prisma client.
  * @param userId - ORCID iD of the signed-in user.
- * @param input - Loopback redirect, state, and S256 challenge from the CLI.
+ * @param input - Loopback redirect, state, S256 challenge, and the approved scopes and token name.
  * @param request - Incoming authorize request, used for the passkey gate and audit metadata.
  * @returns The loopback URL the browser should open, including `code` and `state`.
  * @throws {CliAccessError} when the session is missing, the passkey gate fails,
@@ -156,6 +187,19 @@ export async function createCliAuthorization(
       400,
     );
   }
+  const scopes = parseCliScopes(input.scopes);
+  const tokenName = input.tokenName.trim();
+  if (
+    scopes.length === 0 ||
+    scopes.length !== new Set(input.scopes).size ||
+    tokenName.length === 0 ||
+    tokenName.length > CLI_TOKEN_NAME_MAX_LENGTH
+  ) {
+    throw new CliAccessError(
+      "Choose the access to grant and a token name of 1 to 64 characters.",
+      400,
+    );
+  }
 
   const assurance = await evaluateSessionWriteAssurance(
     database,
@@ -175,7 +219,10 @@ export async function createCliAuthorization(
     );
   }
 
-  const code = randomBytes(32).toString("base64url");
+  const code = encodeAuthorizationCode(randomBytes(32).toString("base64url"), {
+    scopes,
+    tokenName,
+  });
   const now = new Date();
   await database.cliAuthorizationCode.deleteMany({
     where: {
@@ -206,10 +253,10 @@ export async function createCliAuthorization(
 }
 
 /**
- * Exchanges a loopback authorization code for a read token.
+ * Exchanges a loopback authorization code for a named token with the approved scopes.
  *
- * Revokes any previous active CLI token for the user. The returned `token`
- * is the only copy of the secret.
+ * Existing tokens stay valid; each login adds one. The token expires after 30
+ * days. The returned `token` is the only copy of the secret.
  *
  * @param database - Prisma client.
  * @param input - Code, PKCE verifier, and the same loopback redirect URI.
@@ -222,7 +269,9 @@ export async function exchangeCliAuthorizationCode(
   input: CliTokenExchangeInput,
   request: Request,
 ): Promise<IssuedCliToken> {
+  const approval = decodeAuthorizationCode(input.code);
   if (
+    !approval ||
     !isCliCodeVerifier(input.codeVerifier) ||
     !parseLoopbackRedirectUri(input.redirectUri)
   ) {
@@ -262,18 +311,17 @@ export async function exchangeCliAuthorizationCode(
 
   const token = `${CLI_TOKEN_PREFIX}${randomBytes(32).toString("base64url")}`;
   const tokenPrefix = token.slice(0, 12);
+  const expiresAt = new Date(Date.now() + CLI_TOKEN_TTL_MS);
   const issued = await database.$transaction(async (tx) => {
-    const replaced = await tx.cliAccessToken.updateMany({
-      where: { userId: row.userId, revokedAt: null },
-      data: { revokedAt: new Date() },
-    });
     await tx.cliAccessToken.create({
       data: {
         userId: row.userId,
-        name: CLI_TOKEN_NAME,
+        name: approval.tokenName,
         tokenHash: sha256Hex(token),
         tokenPrefix,
-        scope: CLI_READ_SCOPE,
+        scope: legacyScopeColumn(approval.scopes),
+        scopes: [...approval.scopes],
+        expiresAt,
       },
     });
     const user = await tx.user.findUnique({
@@ -281,21 +329,22 @@ export async function exchangeCliAuthorizationCode(
       select: { id: true, name: true },
     });
     return {
-      replaced: replaced.count,
       orcid: user?.id ?? row.userId,
       name: user?.name ?? null,
     };
   });
 
   await emitAuditEvent({
-    eventType: "cli.token.issue",
+    eventType: "cli.token.create",
     eventScope: "cli.token",
     actorUserId: row.userId,
     subjectUserId: row.userId,
     payload: {
       tokenPrefix,
-      scope: CLI_READ_SCOPE,
-      replaced: issued.replaced,
+      tokenName: approval.tokenName,
+      scopes: [...approval.scopes],
+      expiresAt: expiresAt.toISOString(),
+      client: "cli",
     },
     requestMeta: extractAuditRequestMeta(request.headers),
     failSilent: true,
@@ -303,7 +352,10 @@ export async function exchangeCliAuthorizationCode(
 
   return {
     token,
-    scope: CLI_READ_SCOPE,
+    scopes: approval.scopes,
+    scope: legacyScopeColumn(approval.scopes),
+    tokenName: approval.tokenName,
+    expiresAt: expiresAt.toISOString(),
     orcid: issued.orcid,
     name: issued.name,
   };
@@ -314,7 +366,7 @@ export async function exchangeCliAuthorizationCode(
  *
  * @param authorization - Raw `Authorization` header value, or `null` when absent.
  * @returns The active credential, `null` when no header is present, or `"invalid"`
- * when the header is present but is not an active read token.
+ * when the header is present but is malformed, unknown, revoked, or expired.
  */
 export async function resolvePresentedCliBearer(
   authorization: string | null,
@@ -322,32 +374,16 @@ export async function resolvePresentedCliBearer(
   if (authorization === null || authorization.length === 0) {
     return null;
   }
-  const token = bearerToken(authorization);
-  if (!token) {
+  const context = await resolveBearerContext(authorization);
+  if (!context) {
     return "invalid";
   }
-  const row = await db.cliAccessToken.findUnique({
-    where: { tokenHash: sha256Hex(token) },
-    select: {
-      id: true,
-      userId: true,
-      scope: true,
-      tokenPrefix: true,
-      revokedAt: true,
-      lastUsedAt: true,
-      user: { select: { name: true } },
-    },
-  });
-  if (!row || row.revokedAt !== null || row.scope !== CLI_READ_SCOPE) {
-    return "invalid";
-  }
-  await touchLastUsed(row.id, row.lastUsedAt);
   return {
-    tokenId: row.id,
-    userId: row.userId,
-    scope: row.scope,
-    tokenPrefix: row.tokenPrefix,
-    name: row.user.name,
+    tokenId: context.tokenId,
+    userId: context.userId,
+    scopes: context.scopes,
+    tokenPrefix: context.tokenPrefix,
+    name: context.userName,
   };
 }
 
@@ -373,7 +409,7 @@ export async function rejectInvalidPresentedBearer(
 }
 
 /**
- * Revokes the CLI token presented as a bearer credential.
+ * Revokes only the CLI token presented as the bearer credential; the user's other tokens stay valid.
  *
  * @param authorization - Raw `Authorization` header value.
  * @param request - Revoke request, recorded on the audit row.
@@ -397,7 +433,7 @@ export async function revokePresentedCliToken(
     eventScope: "cli.token",
     actorUserId: identity.userId,
     subjectUserId: identity.userId,
-    payload: { tokenPrefix: identity.tokenPrefix },
+    payload: { tokenPrefix: identity.tokenPrefix, client: "cli" },
     requestMeta: extractAuditRequestMeta(request.headers),
     failSilent: true,
   });
@@ -437,21 +473,55 @@ export function cliError(message: string, status: number): NextResponse {
   return NextResponse.json({ error: message }, { status, headers });
 }
 
-function sha256Hex(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
-}
-
 function pkceS256(verifier: string): string {
   return createHash("sha256").update(verifier).digest("base64url");
 }
 
-function bearerToken(authorization: string): string | null {
-  const match = /^Bearer\s+(\S+)$/i.exec(authorization.trim());
-  const token = match?.[1];
-  if (!token || !token.startsWith(CLI_TOKEN_PREFIX) || token.length < 20) {
+interface AuthorizationApproval {
+  scopes: readonly CliScope[];
+  tokenName: string;
+}
+
+/** Appends the approval as `.<base64url(JSON)>`; the stored hash covers the whole string. */
+function encodeAuthorizationCode(
+  nonce: string,
+  approval: AuthorizationApproval,
+): string {
+  const payload = Buffer.from(
+    JSON.stringify({ s: approval.scopes, n: approval.tokenName }),
+  ).toString("base64url");
+  return `${nonce}.${payload}`;
+}
+
+function decodeAuthorizationCode(code: string): AuthorizationApproval | null {
+  const separator = code.indexOf(".");
+  if (separator < 1 || code.length > CLI_AUTH_CODE_MAX_LENGTH) {
     return null;
   }
-  return token;
+  try {
+    const parsed: { s?: unknown; n?: unknown } = JSON.parse(
+      Buffer.from(code.slice(separator + 1), "base64url").toString("utf8"),
+    );
+    if (
+      !Array.isArray(parsed.s) ||
+      !parsed.s.every((entry): entry is string => typeof entry === "string") ||
+      typeof parsed.n !== "string"
+    ) {
+      return null;
+    }
+    const scopes = parseCliScopes(parsed.s);
+    const tokenName = parsed.n.trim();
+    if (
+      scopes.length === 0 ||
+      tokenName.length === 0 ||
+      tokenName.length > CLI_TOKEN_NAME_MAX_LENGTH
+    ) {
+      return null;
+    }
+    return { scopes, tokenName };
+  } catch {
+    return null;
+  }
 }
 
 function safeEqual(left: string, right: string): boolean {
@@ -461,24 +531,4 @@ function safeEqual(left: string, right: string): boolean {
     return false;
   }
   return timingSafeEqual(leftBytes, rightBytes);
-}
-
-async function touchLastUsed(
-  tokenId: string,
-  lastUsedAt: Date | null,
-): Promise<void> {
-  if (
-    lastUsedAt !== null &&
-    Date.now() - lastUsedAt.getTime() < LAST_USED_TOUCH_MS
-  ) {
-    return;
-  }
-  try {
-    await db.cliAccessToken.updateMany({
-      where: { id: tokenId, revokedAt: null },
-      data: { lastUsedAt: new Date() },
-    });
-  } catch {
-    return;
-  }
 }

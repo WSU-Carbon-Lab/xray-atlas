@@ -1,8 +1,8 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button } from "@heroui/react";
+import { Button, Checkbox, Input, Label, TextField } from "@heroui/react";
 import { runPasskeyClientAuth } from "~/lib/passkey-client-auth";
 import { trpc } from "~/trpc/client";
 
@@ -12,17 +12,24 @@ interface CliLoginClientProps {
   redirectUri: string;
   state: string;
   codeChallenge: string;
+  requestsWrite: boolean;
+  defaultTokenName: string;
 }
 
+const TOKEN_NAME_MAX_LENGTH = 64;
+
 /**
- * Confirms a passkey on the current CLI login URL, then asks the server for
- * the loopback redirect that carries the one-time code.
+ * Consent step for `xatlas login`: the user approves read only or read plus
+ * write, edits the token name, confirms a passkey when needed, and then the
+ * server returns the loopback redirect that carries the one-time code.
  *
  * @param props.orcid - Signed-in ORCID iD.
  * @param props.name - Display name, when the account has one.
  * @param props.redirectUri - Validated loopback callback from `xatlas login`.
  * @param props.state - OAuth state the CLI expects unchanged.
  * @param props.codeChallenge - S256 PKCE challenge from the CLI.
+ * @param props.requestsWrite - Whether the CLI asked for the write scope; preselects the write option.
+ * @param props.defaultTokenName - Token name sent by the CLI, editable by the user.
  */
 export function CliLoginClient({
   orcid,
@@ -30,6 +37,8 @@ export function CliLoginClient({
   redirectUri,
   state,
   codeChallenge,
+  requestsWrite,
+  defaultTokenName,
 }: CliLoginClientProps) {
   const assurance = trpc.users.getSessionWriteAssurance.useQuery();
   const confirmPasskeySessionStepUp =
@@ -38,14 +47,15 @@ export function CliLoginClient({
   const [isConfirming, setIsConfirming] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const router = useRouter();
-  const [phase, setPhase] = useState<"gate" | "minting">("gate");
-  const [mintFailed, setMintFailed] = useState(false);
-  const [failureKind, setFailureKind] = useState<"passkey" | "retry" | null>(
-    null,
-  );
-  const mintStarted = useRef(false);
+  const [phase, setPhase] = useState<"consent" | "minting">("consent");
+  const [allowWrite, setAllowWrite] = useState(requestsWrite);
+  const [tokenName, setTokenName] = useState(defaultTokenName);
 
   const displayName = name && name.trim().length > 0 ? name.trim() : orcid;
+
+  const trimmedName = tokenName.trim();
+  const nameValid =
+    trimmedName.length > 0 && trimmedName.length <= TOKEN_NAME_MAX_LENGTH;
 
   const mint = useCallback(async () => {
     setPhase("minting");
@@ -53,30 +63,29 @@ export function CliLoginClient({
     const response = await fetch("/api/cli/authorize", {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ redirectUri, state, codeChallenge }),
+      body: JSON.stringify({
+        redirectUri,
+        state,
+        codeChallenge,
+        scopes: allowWrite ? ["read", "write"] : ["read"],
+        tokenName: trimmedName,
+      }),
     });
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok || !isRedirectPayload(payload)) {
-      mintStarted.current = false;
-      setMintFailed(true);
-      setFailureKind(response.status === 403 ? "passkey" : "retry");
-      setPhase("gate");
+      setPhase("consent");
       setErrorMessage(readError(payload, "Could not create a CLI credential."));
       return;
     }
     window.location.assign(payload.redirectTo);
-  }, [codeChallenge, redirectUri, state]);
+  }, [allowWrite, codeChallenge, redirectUri, state, trimmedName]);
 
-  useEffect(() => {
-    if (!assurance.data?.satisfied || mintStarted.current || mintFailed) {
+  const approve = useCallback(async () => {
+    if (isConfirming || !nameValid) {
       return;
     }
-    mintStarted.current = true;
-    void mint();
-  }, [assurance.data?.satisfied, mint, mintFailed]);
-
-  const confirmPasskey = useCallback(async () => {
-    if (isConfirming) {
+    if (assurance.data?.satisfied === true) {
+      await mint();
       return;
     }
     setIsConfirming(true);
@@ -103,9 +112,7 @@ export function CliLoginClient({
         );
         return;
       }
-      setMintFailed(false);
-      setFailureKind(null);
-      mintStarted.current = false;
+      await mint();
     } catch (error) {
       setErrorMessage(
         error instanceof Error && error.message.length > 0
@@ -116,8 +123,11 @@ export function CliLoginClient({
       setIsConfirming(false);
     }
   }, [
+    assurance.data?.satisfied,
     confirmPasskeySessionStepUp,
     isConfirming,
+    mint,
+    nameValid,
     utils.users.getSessionWriteAssurance,
   ]);
 
@@ -132,22 +142,19 @@ export function CliLoginClient({
         </h1>
         <p className="text-text-secondary mt-3 text-sm">
           Signed in as <span className="text-text-primary">{displayName}</span>.
-          A passkey confirmation creates a read credential and returns it to the
-          terminal. The token is not shown here.
+          Choose what this credential may do. It is returned to the terminal and
+          is not shown here. It expires after 30 days and you can revoke it from
+          the Security tab of your profile.
         </p>
         {errorMessage ? (
           <p className="text-error mt-4 text-sm" role="alert">
             {errorMessage}
           </p>
         ) : null}
-        <div className="mt-6">
-          {assurance.isPending ||
-          phase === "minting" ||
-          (satisfied && !mintFailed) ? (
+        <div className="mt-6 space-y-4">
+          {assurance.isPending ? (
             <p className="text-text-secondary text-sm">
-              {phase === "minting" || (satisfied && !mintFailed)
-                ? "Returning the credential to xatlas..."
-                : "Checking passkey status..."}
+              Checking passkey status...
             </p>
           ) : assurance.isError ? (
             <p className="text-error text-sm" role="alert">
@@ -172,22 +179,57 @@ export function CliLoginClient({
               </Button>
             </div>
           ) : (
-            <Button
-              variant="primary"
-              isPending={isConfirming}
-              onPress={() => {
-                if (failureKind === "retry") {
-                  setMintFailed(false);
-                  setFailureKind(null);
-                  mintStarted.current = true;
-                  void mint();
-                  return;
-                }
-                void confirmPasskey();
-              }}
-            >
-              {failureKind === "retry" ? "Try again" : "Confirm with passkey"}
-            </Button>
+            <>
+              <TextField
+                value={tokenName}
+                onChange={setTokenName}
+                isDisabled={phase === "minting"}
+                isInvalid={!nameValid}
+                maxLength={TOKEN_NAME_MAX_LENGTH}
+              >
+                <Label>Token name</Label>
+                <Input variant="secondary" placeholder="my-laptop" />
+              </TextField>
+              <div className="space-y-2">
+                <p className="text-text-primary text-sm font-medium">Access</p>
+                <Checkbox isSelected isDisabled>
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Checkbox.Content>
+                    <Label>
+                      Read: list and download public catalog data and list your
+                      own tokens
+                    </Label>
+                  </Checkbox.Content>
+                </Checkbox>
+                <Checkbox
+                  isSelected={allowWrite}
+                  onChange={setAllowWrite}
+                  isDisabled={phase === "minting"}
+                >
+                  <Checkbox.Control>
+                    <Checkbox.Indicator />
+                  </Checkbox.Control>
+                  <Checkbox.Content>
+                    <Label>
+                      Write: upload datasets and edit your own. Deleting data
+                      still requires the website.
+                    </Label>
+                  </Checkbox.Content>
+                </Checkbox>
+              </div>
+              <Button
+                variant="primary"
+                isPending={isConfirming || phase === "minting"}
+                isDisabled={!nameValid}
+                onPress={() => {
+                  void approve();
+                }}
+              >
+                {satisfied ? "Approve" : "Approve with passkey"}
+              </Button>
+            </>
           )}
         </div>
       </div>

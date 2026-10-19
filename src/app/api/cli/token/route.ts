@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  CLI_AUTH_CODE_MAX_LENGTH,
   CliAccessError,
   cliError,
   exchangeCliAuthorizationCode,
@@ -10,16 +11,17 @@ import { db } from "~/server/db";
 export const dynamic = "force-dynamic";
 
 const bodySchema = z.object({
-  code: z.string().trim().min(1).max(128),
+  code: z.string().trim().min(1).max(CLI_AUTH_CODE_MAX_LENGTH),
   codeVerifier: z.string().trim().min(1).max(128),
   redirectUri: z.string().trim().min(1).max(256),
 });
 
 /**
- * Exchanges the loopback PKCE code for a read token.
+ * Exchanges the loopback PKCE code for a named token with the approved scopes.
  *
- * The plaintext token is in this response only. A later login for the same
- * account revokes the previous token.
+ * The plaintext token is in this response only. Other tokens of the account
+ * stay valid. The response is `{ token, scopes, scope, tokenName, expiresAt,
+ * orcid, name }`.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   let json: unknown;

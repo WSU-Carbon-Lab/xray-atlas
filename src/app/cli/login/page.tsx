@@ -2,10 +2,13 @@ import type { Metadata } from "next";
 import { redirect } from "next/navigation";
 import { CliLoginClient } from "~/app/cli/login/cli-login-client";
 import {
+  CLI_DEFAULT_TOKEN_NAME,
+  CLI_TOKEN_NAME_MAX_LENGTH,
   isCliCodeChallenge,
   isCliLoginState,
   parseLoopbackRedirectUri,
 } from "~/server/cli/access-token";
+import { parseCliScopeString } from "~/server/cli/cli-scopes";
 import { getSessionUserIdFromCookies } from "~/server/auth/session-token";
 import { db } from "~/server/db";
 
@@ -23,8 +26,10 @@ interface CliLoginPageProps {
 /**
  * Browser half of `xatlas login`.
  *
- * Sends an unsigned visitor to ORCID sign-in, then the client confirms a
- * passkey and posts the loopback PKCE challenge. The token is delivered to
+ * Accepts the loopback PKCE parameters plus optional `scope` (`read` or
+ * `read write`, default `read`) and `token_name` (default `xatlas`). Sends an
+ * unsigned visitor to ORCID sign-in, then the client shows a consent step
+ * (scopes and token name), confirms a passkey, and posts the approval. The token is delivered to
  * the CLI callback, not shown on this page.
  */
 export default async function CliLoginPage({
@@ -35,6 +40,11 @@ export default async function CliLoginPage({
   const state = firstQueryValue(params.state);
   const codeChallenge = firstQueryValue(params.code_challenge);
   const redirectUrl = parseLoopbackRedirectUri(redirectUri);
+  const requestedScopes = parseCliScopeString(firstQueryValue(params.scope));
+  const tokenName =
+    firstQueryValue(params.token_name)
+      .trim()
+      .slice(0, CLI_TOKEN_NAME_MAX_LENGTH) || CLI_DEFAULT_TOKEN_NAME;
 
   if (
     !redirectUrl ||
@@ -62,6 +72,8 @@ export default async function CliLoginPage({
     redirect_uri: redirectUrl.toString(),
     state,
     code_challenge: codeChallenge,
+    scope: (requestedScopes.length > 0 ? requestedScopes : ["read"]).join(" "),
+    token_name: tokenName,
   }).toString()}`;
   const userId = await getSessionUserIdFromCookies(db);
   if (!userId) {
@@ -83,6 +95,8 @@ export default async function CliLoginPage({
       redirectUri={redirectUrl.toString()}
       state={state}
       codeChallenge={codeChallenge}
+      requestsWrite={requestedScopes.includes("write")}
+      defaultTokenName={tokenName}
     />
   );
 }

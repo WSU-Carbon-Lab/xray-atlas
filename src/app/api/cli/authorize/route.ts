@@ -1,10 +1,13 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import {
+  CLI_DEFAULT_TOKEN_NAME,
+  CLI_TOKEN_NAME_MAX_LENGTH,
   CliAccessError,
   cliError,
   createCliAuthorization,
 } from "~/server/cli/access-token";
+import { CLI_SCOPES } from "~/server/cli/cli-scopes";
 import { getSessionUserIdFromCookies } from "~/server/auth/session-token";
 import { db } from "~/server/db";
 
@@ -14,14 +17,23 @@ const bodySchema = z.object({
   redirectUri: z.string().trim().min(1).max(256),
   state: z.string().trim().min(1).max(128),
   codeChallenge: z.string().trim().min(1).max(128),
+  scopes: z.array(z.enum(CLI_SCOPES)).min(1).max(CLI_SCOPES.length),
+  tokenName: z
+    .string()
+    .trim()
+    .min(1)
+    .max(CLI_TOKEN_NAME_MAX_LENGTH)
+    .default(CLI_DEFAULT_TOKEN_NAME),
 });
 
 /**
  * Mints a one-time loopback code for `xatlas login`.
  *
  * Requires the website session and a passkey confirmation inside the step-up
- * window. The JSON body is `{ redirectTo }` for the browser. The token itself
- * is issued by `POST /api/cli/token`.
+ * window. The body carries the scopes the user approved on the consent step
+ * (`scopes`, non-empty subset of `read` and `write`) and the confirmed
+ * `tokenName`. The JSON response is `{ redirectTo }` for the browser. The
+ * token itself is issued by `POST /api/cli/token`.
  */
 export async function POST(request: Request): Promise<NextResponse> {
   const userId = await getSessionUserIdFromCookies(db);

@@ -1,8 +1,8 @@
 import { z } from "zod";
 import {
+  contributeSessionProcedure,
   createTRPCRouter,
   publicProcedure,
-  protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
@@ -91,7 +91,7 @@ export const vendorsRouter = createTRPCRouter({
       return vendor;
     }),
 
-  create: protectedProcedure
+  create: contributeSessionProcedure
     .input(
       z.object({
         name: z.string().min(1, "Vendor name is required"),
@@ -119,7 +119,7 @@ export const vendorsRouter = createTRPCRouter({
       return vendor;
     }),
 
-  createOrGet: protectedProcedure
+  createOrGet: contributeSessionProcedure
     .input(
       z.object({
         name: z.string().min(1, "Vendor name is required"),

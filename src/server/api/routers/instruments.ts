@@ -1,6 +1,7 @@
 import { z } from "zod";
 import { Prisma } from "~/prisma/client";
 import {
+  contributeSessionProcedure,
   createTRPCRouter,
   protectedProcedure,
   publicProcedure,
@@ -123,7 +124,7 @@ export const instrumentsRouter = createTRPCRouter({
       };
     }),
 
-  create: protectedProcedure
+  create: contributeSessionProcedure
     .input(
       z.object({
         facilityId: z.string().uuid(),
@@ -240,7 +241,7 @@ export const instrumentsRouter = createTRPCRouter({
       return { instruments };
     }),
 
-  update: protectedProcedure
+  update: contributeSessionProcedure
     .input(
       z.object({
         id: z.string(),
