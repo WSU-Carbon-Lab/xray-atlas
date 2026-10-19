@@ -88,6 +88,13 @@ export function HomeAtlasStage(): ReactElement {
     [setPillar],
   );
 
+  const preview = useCallback(
+    (next: HomeStageId) => {
+      setPillar(hashFor(next), "replace");
+    },
+    [setPillar],
+  );
+
   useEffect(() => {
     if (userInitiated.current && prev.current !== stageId) {
       headingRef.current?.focus({ preventScroll: true });
@@ -139,6 +146,7 @@ export function HomeAtlasStage(): ReactElement {
                 }
                 commit(next);
               }}
+              onPreview={preview}
             />
           ))}
         </div>
@@ -147,7 +155,7 @@ export function HomeAtlasStage(): ReactElement {
         id={HERO_ID}
         role="tabpanel"
         aria-labelledby="home-heading"
-        className="flex min-h-[28rem] min-w-0 flex-col gap-4 lg:h-full"
+        className="flex min-h-64 min-w-0 flex-col gap-4 sm:min-h-80 lg:h-full lg:min-h-[28rem]"
       >
         <h2
           ref={headingRef}

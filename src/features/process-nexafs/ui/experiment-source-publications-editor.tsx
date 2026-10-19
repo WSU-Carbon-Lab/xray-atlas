@@ -121,9 +121,7 @@ export function ExperimentSourcePublicationsEditor({
     <SourcePaperPublicationsEditor
       publications={publications}
       onChange={handleChange}
-      disabled={
-        !canEdit || addMutation.isPending || removeMutation.isPending
-      }
+      disabled={!canEdit || addMutation.isPending || removeMutation.isPending}
     />
   );
 }

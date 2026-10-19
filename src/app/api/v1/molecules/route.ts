@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { db } from "~/server/db";
+import { rejectInvalidPresentedBearer } from "~/server/cli/access-token";
 import { parseMoleculeCatalogQuery } from "~/app/api/v1/_lib/researcher-api";
 
 function jsonError(message: string, status: number): NextResponse {
@@ -8,6 +9,10 @@ function jsonError(message: string, status: number): NextResponse {
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
+  const bearerRejection = await rejectInvalidPresentedBearer(request);
+  if (bearerRejection) {
+    return bearerRejection;
+  }
   try {
     const requestUrl = new URL(request.url);
     const query = parseMoleculeCatalogQuery(requestUrl.searchParams);

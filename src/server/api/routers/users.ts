@@ -21,6 +21,7 @@ import { CONTRIBUTION_AGREEMENT_VERSION } from "~/lib/contribution-agreement";
 import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
 import { legacyProfileContributionSlug } from "~/lib/datacite-contributor-types";
 import { profileMoleculeContributionsFromRows } from "~/lib/molecule-contribution-types";
+import { parseCliScopes } from "~/server/cli/cli-scopes";
 import { orcidUserIdSchema } from "~/lib/orcid";
 import { resolveUserIdFromRouteSegment } from "~/lib/user-route";
 import { toMoleculeView } from "~/server/api/routers/molecules-view";
@@ -752,6 +753,84 @@ export const usersRouter = createTRPCRouter({
       });
 
       return { success: true };
+    }),
+
+  /**
+   * Lists the session user's CLI tokens, newest first, including revoked and
+   * expired rows so the account table can show their state. Never returns
+   * token hashes.
+   */
+  listCliTokens: protectedProcedure.query(async ({ ctx }) => {
+    if (!ctx.userId) {
+      throw new TRPCError({ code: "UNAUTHORIZED" });
+    }
+    const rows = await ctx.db.cliAccessToken.findMany({
+      where: { userId: ctx.userId },
+      orderBy: { createdAt: "desc" },
+      take: 100,
+      select: {
+        id: true,
+        name: true,
+        tokenPrefix: true,
+        scopes: true,
+        kind: true,
+        createdAt: true,
+        lastUsedAt: true,
+        expiresAt: true,
+        revokedAt: true,
+      },
+    });
+    return rows.map((row) => ({
+      id: row.id,
+      name: row.name,
+      tokenPrefix: row.tokenPrefix,
+      scopes: parseCliScopes(row.scopes),
+      kind: row.kind,
+      createdAt: row.createdAt,
+      lastUsedAt: row.lastUsedAt,
+      expiresAt: row.expiresAt,
+      revokedAt: row.revokedAt,
+    }));
+  }),
+
+  /**
+   * Revokes one of the session user's own CLI tokens. Idempotent for tokens
+   * that are already revoked; NOT_FOUND for ids the user does not own.
+   */
+  revokeCliToken: protectedProcedure
+    .input(z.object({ tokenId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      if (!ctx.userId) {
+        throw new TRPCError({ code: "UNAUTHORIZED" });
+      }
+      const token = await ctx.db.cliAccessToken.findFirst({
+        where: { id: input.tokenId, userId: ctx.userId },
+        select: { id: true, tokenPrefix: true, revokedAt: true },
+      });
+      if (!token) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "Token not found." });
+      }
+      if (token.revokedAt === null) {
+        const revoked = await ctx.db.cliAccessToken.updateMany({
+          where: { id: token.id, userId: ctx.userId, revokedAt: null },
+          data: { revokedAt: new Date() },
+        });
+        if (revoked.count === 1) {
+          await emitAuditEvent({
+            eventType: "cli.token.revoke",
+            eventScope: "users.revokeCliToken",
+            actorUserId: ctx.userId,
+            subjectUserId: ctx.userId,
+            payload: { tokenPrefix: token.tokenPrefix, client: "web" },
+            requestMeta: auditRequestMetaFromTrpcContext({
+              clientIp: ctx.clientIp,
+              userAgent: ctx.userAgent,
+            }),
+            failSilent: true,
+          });
+        }
+      }
+      return { revoked: true as const };
     }),
 
   getPasskeyEnrollmentStatus: protectedProcedure.query(async ({ ctx }) => {

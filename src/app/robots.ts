@@ -11,6 +11,7 @@ export default function robots(): MetadataRoute.Robots {
           "/dashboard/",
           "/sandbox/",
           "/sign-in/",
+          "/cli/",
           "/contribute/",
           "/users/",
         ],

@@ -99,11 +99,12 @@ export function IngestStep({
     { enabled: Boolean(experimentId) },
   );
 
-  const { uploadExperimentFiles } = usePersistedAuxUpload({
-    experimentId,
-    sampleId: null,
-    onValidationError: (message) => showToast(message, "error"),
-  });
+  const { uploadExperimentFiles, dialogs: versionDialogs } =
+    usePersistedAuxUpload({
+      experimentId,
+      sampleId: null,
+      onValidationError: (message) => showToast(message, "error"),
+    });
 
   const auxPairs = useMemo(
     () =>
@@ -173,6 +174,11 @@ export function IngestStep({
           "raw_data",
           "STXM line scan (dashboard ingest)",
         );
+        if (uploadResult?.cancelled) {
+          throw new Error(
+            "Upload cancelled: version change was not confirmed.",
+          );
+        }
         if (!uploadResult || uploadResult.failed.length > 0) {
           throw new Error(uploadResult?.failed[0]?.message ?? "Upload failed");
         }
@@ -540,6 +546,7 @@ export function IngestStep({
         previewScan.ximExperimentFileId ? (
         <IngestHeatmapPreview experimentId={experimentId} scan={previewScan} />
       ) : null}
+      {versionDialogs}
     </div>
   );
 }

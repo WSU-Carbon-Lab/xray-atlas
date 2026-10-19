@@ -117,6 +117,36 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.7,
     },
     {
+      url: `${baseUrl}/docs`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.7,
+    },
+    {
+      url: `${baseUrl}/docs/installing`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.65,
+    },
+    {
+      url: `${baseUrl}/docs/api`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.65,
+    },
+    {
+      url: `${baseUrl}/docs/api/v1`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.65,
+    },
+    {
+      url: `${baseUrl}/docs/cli`,
+      lastModified: now,
+      changeFrequency: "weekly",
+      priority: 0.65,
+    },
+    {
       url: `${baseUrl}/wiki`,
       lastModified: now,
       changeFrequency: "weekly",

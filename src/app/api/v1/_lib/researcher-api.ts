@@ -1,5 +1,6 @@
 import type { Prisma } from "~/prisma/client";
 import { z } from "zod";
+import { normalizeAtlasDatasetId } from "~/lib/atlas-dataset-id";
 import { normalizeDoi } from "~/lib/doi";
 
 export { normalizeDoi } from "~/lib/doi";
@@ -10,6 +11,26 @@ const truthyBoolean = z
 
 const optionalUuid = z.string().uuid().optional();
 const optionalNonEmpty = z.string().trim().min(1).max(512).optional();
+const optionalAtlasDatasetId = z
+  .string()
+  .trim()
+  .optional()
+  .transform((value, context) => {
+    if (value === undefined) {
+      return undefined;
+    }
+    const stripped = value.replace(/^\/?d\//i, "");
+    const id = normalizeAtlasDatasetId(stripped);
+    if (!id) {
+      context.addIssue({
+        code: "custom",
+        message:
+          "atlasDatasetId must be an 8-character Atlas dataset id, or d/{id}.",
+      });
+      return z.NEVER;
+    }
+    return id;
+  });
 
 const paginationSchema = z.object({
   limit: z.coerce.number().int().min(1).max(200).default(50),
@@ -47,6 +68,7 @@ export function parseDatasetSummaryQuery(params: URLSearchParams) {
     .object({
       moleculeId: optionalUuid,
       edgeId: optionalUuid,
+      atlasDatasetId: optionalAtlasDatasetId,
       doi: optionalNonEmpty,
     })
     .merge(paginationSchema)
@@ -94,11 +116,42 @@ export function parseDoiDiscoveryQuery(params: URLSearchParams) {
  * @returns Parsed export contract with optional filters and output format.
  * @throws `ZodError` when the request does not satisfy endpoint parameter constraints.
  */
+/**
+ * Parses `GET /api/v1/datasets/preview`.
+ *
+ * Requires `datasetId` or `atlasDatasetId`. `rows` is how many leading
+ * energy samples to keep for each polarization pair.
+ *
+ * @param params - URL search params from a request URL.
+ * @returns The dataset selector and the per-polarization sample count.
+ * @throws {ZodError} when neither id is present or `rows` is outside 5 to 10.
+ */
+export function parseDatasetPreviewQuery(params: URLSearchParams) {
+  return z
+    .object({
+      datasetId: optionalUuid,
+      atlasDatasetId: optionalAtlasDatasetId,
+      rows: z.coerce.number().int().min(5).max(10).default(8),
+    })
+    .superRefine((value, context) => {
+      if (!value.datasetId && !value.atlasDatasetId) {
+        context.addIssue({
+          code: "custom",
+          message: "Provide datasetId or atlasDatasetId.",
+          path: ["datasetId"],
+        });
+      }
+    })
+    .parse(Object.fromEntries(params));
+}
+
 export function parseDatasetExportQuery(params: URLSearchParams) {
   const parsed = z
     .object({
       moleculeId: optionalUuid,
       edgeId: optionalUuid,
+      datasetId: optionalUuid,
+      atlasDatasetId: optionalAtlasDatasetId,
       doi: optionalNonEmpty,
       format: z.enum(["json", "csv"]).default("json"),
       limit: z.coerce.number().int().min(1).max(100000).default(10000),
@@ -121,10 +174,20 @@ export function buildExperimentWhere(
   filters: Readonly<{
     moleculeId?: string;
     edgeId?: string;
+    datasetId?: string;
+    atlasDatasetId?: string;
     doi?: string | null;
   }>,
 ): Prisma.experimentsWhereInput {
   const where: Prisma.experimentsWhereInput = {};
+
+  if (filters.datasetId) {
+    where.id = filters.datasetId;
+  }
+
+  if (filters.atlasDatasetId) {
+    where.atlasdatasetid = filters.atlasDatasetId;
+  }
 
   if (filters.moleculeId) {
     where.samples = {

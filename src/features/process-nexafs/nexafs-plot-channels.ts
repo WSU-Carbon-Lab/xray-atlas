@@ -421,7 +421,8 @@ export function buildPlotPointsForChannel(
           if (typeof p.rawabs === "number" && Number.isFinite(p.rawabs)) {
             return p.rawabs;
           }
-          return typeof p.absorption === "number" && Number.isFinite(p.absorption)
+          return typeof p.absorption === "number" &&
+            Number.isFinite(p.absorption)
             ? p.absorption
             : undefined;
         }) ?? []

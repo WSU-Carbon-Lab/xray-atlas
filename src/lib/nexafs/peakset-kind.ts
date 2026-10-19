@@ -125,7 +125,9 @@ export function peaksetRowToPlotPeak(row: PeaksetReadRow): {
  *
  * @param peak - Peak energy, optional intensity, and kind fields.
  */
-export function plotPeakToPeaksetWrite(peak: PeaksetWritePeak): PeaksetWriteRow {
+export function plotPeakToPeaksetWrite(
+  peak: PeaksetWritePeak,
+): PeaksetWriteRow {
   const fromKind = peakKindToTransition(peak.peakKind);
   const fromTransition =
     peak.transition == null || peak.transition.trim() === ""

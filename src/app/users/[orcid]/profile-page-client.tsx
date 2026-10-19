@@ -328,7 +328,7 @@ export function ProfilePageClient({
             {effectiveTab === "security" ? (
               <ProfileSectionCard
                 title="Account security"
-                description="Passkeys for sign-in and contribution access. API keys for programmatic access are coming soon."
+                description="Passkeys for sign-in and contribution access. xatlas login uses a passkey to store a read credential in the CLI."
               >
                 <ProfilePasskeysSection
                   passkeys={passkeys}

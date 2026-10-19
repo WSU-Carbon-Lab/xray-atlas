@@ -7,6 +7,7 @@
  * Requires `DATABASE_URL` (same wiring as `~/server/db` via `~/env`).
  */
 
+import "./ensure-infisical-env";
 import { Prisma } from "~/prisma/client";
 import { db } from "~/server/db";
 import { parseStoredNormalizationRanges } from "~/lib/nexafs-normalization-ranges";

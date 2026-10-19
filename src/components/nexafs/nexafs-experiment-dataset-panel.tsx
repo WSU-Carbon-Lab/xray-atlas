@@ -109,6 +109,7 @@ import {
 import type { AuxFileKind } from "~/lib/aux-file-client";
 import { trpc } from "~/trpc/client";
 import { showToast } from "~/components/ui/toast";
+import { useVersionedEdit } from "./use-versioned-edit";
 import {
   buildSpectrumpointDeltaUpdatesFromRows,
   grantKkBrowserConsent,
@@ -151,6 +152,8 @@ interface ExperimentFormulaMeta {
   normalizationRanges?: unknown;
   uploadedChannels?: unknown;
   canEditNormalizationMetadata?: boolean;
+  datasetVersion?: string | null;
+  latestZenodoVersion?: { versionLabel: string; status: string } | null;
 }
 
 interface SpectrumRowForKk {
@@ -158,6 +161,7 @@ interface SpectrumRowForKk {
   polarizationid: string | null;
   energyev: number;
   beta: number | null;
+  delta?: number | null;
 }
 
 type UploadChan = "rawabs" | "od" | "massabsorption" | "beta";
@@ -372,6 +376,8 @@ export function NexafsExperimentDatasetPanel({
       },
     });
 
+  const { runVersionedEdit, dialogs: versionedEditDialogs } =
+    useVersionedEdit();
   const [kkPanelConsentOpen, setKkPanelConsentOpen] = useState(false);
   const [kkRecalcBusy, setKkRecalcBusy] = useState(false);
   const [datasetPlotEditorActive, setDatasetPlotEditorActive] = useState(false);
@@ -469,10 +475,19 @@ export function NexafsExperimentDatasetPanel({
         );
         return;
       }
-      await updateKkDeltaBatch.mutateAsync({
+      const hasExistingDelta = raw.some(
+        (r) => typeof r.delta === "number" && Number.isFinite(r.delta),
+      );
+      await runVersionedEdit(
         experimentId,
-        updates,
-      });
+        [hasExistingDelta ? "kk_recalculation" : "kk_first_calculation"],
+        (confirmVersionBump) =>
+          updateKkDeltaBatch.mutateAsync({
+            experimentId,
+            updates,
+            confirmVersionBump,
+          }),
+      );
     } catch (e) {
       showToast(
         e instanceof Error ? e.message : "Could not update KK delta",
@@ -487,6 +502,7 @@ export function NexafsExperimentDatasetPanel({
     experimentId,
     session?.user,
     updateKkDeltaBatch,
+    runVersionedEdit,
     chemicalFormula,
     henkeMergeDomainForKkBeta,
   ]);
@@ -1312,11 +1328,22 @@ export function NexafsExperimentDatasetPanel({
       };
     }
     try {
-      await updateNormalizationMetadata.mutateAsync({
+      const outcome = await runVersionedEdit(
         experimentId,
-        normalization: { scope: scopeOut, ranges: rangesOut },
-        uploadedChannels: uploadedChannelsForMutation(meta.uploadedChannels),
-      });
+        ["normalization"],
+        (confirmVersionBump) =>
+          updateNormalizationMetadata.mutateAsync({
+            experimentId,
+            normalization: { scope: scopeOut, ranges: rangesOut },
+            uploadedChannels: uploadedChannelsForMutation(
+              meta.uploadedChannels,
+            ),
+            confirmVersionBump,
+          }),
+      );
+      if (outcome.status === "cancelled") {
+        return false;
+      }
       initialNormDraftRef.current = {
         pre: draftNormRegions.pre,
         post: draftNormRegions.post,
@@ -1340,6 +1367,7 @@ export function NexafsExperimentDatasetPanel({
     editorNormBaselineRaw,
     experimentId,
     updateNormalizationMetadata,
+    runVersionedEdit,
     moleculeFormulaQuery.dataUpdatedAt,
   ]);
 
@@ -1917,11 +1945,26 @@ export function NexafsExperimentDatasetPanel({
       className="border-border bg-surface mt-2 flex w-full flex-col gap-3 rounded-xl border p-4 shadow-sm"
       data-testid="nexafs-experiment-dataset-panel"
     >
+      {versionedEditDialogs}
       <KkBrowserConsentDialog
         isOpen={kkPanelConsentOpen}
         onDismiss={() => setKkPanelConsentOpen(false)}
         onAccept={onPanelKkConsentAccept}
       />
+
+      {moleculeMeta?.datasetVersion ? (
+        <div
+          className="text-text-secondary flex items-center gap-2 text-xs"
+          data-testid="nexafs-dataset-version"
+        >
+          <span>Dataset version {moleculeMeta.datasetVersion}</span>
+          {moleculeMeta.latestZenodoVersion?.status === "pending" ? (
+            <span className="border-border bg-surface-secondary rounded-full border px-2 py-0.5">
+              DOI pending
+            </span>
+          ) : null}
+        </div>
+      ) : null}
 
       <VisualizationToggle
         mode={visualizationMode}

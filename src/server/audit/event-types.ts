@@ -18,6 +18,11 @@ export const AUDIT_EVENT_TYPES = [
   "account.link.complete",
   "account.unlink",
   "experiment.merge",
+  "dataset.create",
+  "dataset.version",
+  "cli.token.issue",
+  "cli.token.create",
+  "cli.token.revoke",
 ] as const;
 
 /** Identifies a row in `next_auth.audit_event`. */

@@ -15,6 +15,7 @@ import {
   Label,
   ListBox,
   Pagination,
+  Table,
   Tabs,
   TextField,
   Tooltip,
@@ -625,7 +626,32 @@ export function ProfileGitHubSecuritySection({
   );
 }
 
+/**
+ * Lists the signed-in user's `xatlas` CLI tokens with scopes, last use, expiry,
+ * and a revoke action, below the install hint.
+ */
 export function ProfileApiKeysSection() {
+  const utils = trpc.useUtils();
+  const tokens = trpc.users.listCliTokens.useQuery();
+  const revoke = trpc.users.revokeCliToken.useMutation();
+  const [revokingId, setRevokingId] = useState<string | null>(null);
+  const [revokeError, setRevokeError] = useState<string | null>(null);
+
+  const handleRevoke = (tokenId: string) => {
+    setRevokingId(tokenId);
+    setRevokeError(null);
+    revoke
+      .mutateAsync({ tokenId })
+      .then(() => utils.users.listCliTokens.invalidate())
+      .catch((error: unknown) => {
+        setRevokeError(getErrorMessage(error, "Could not revoke the token."));
+      })
+      .finally(() => {
+        setRevokingId(null);
+      });
+  };
+
+  const now = Date.now();
   return (
     <section aria-labelledby="api-keys-heading" className="space-y-3">
       <div>
@@ -636,26 +662,114 @@ export function ProfileApiKeysSection() {
           API keys
         </h2>
         <p className="text-muted mt-1 text-sm">
-          Programmatic access for scripts and integrations.
+          Named credentials for the xatlas CLI. Each login approves read, or
+          read and write, and expires after 30 days.
         </p>
       </div>
-      <Card className="border-border bg-surface pointer-events-none border border-dashed opacity-60">
-        <Card.Content className="space-y-4 p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip size="sm" variant="soft">
-              <Chip.Label>Coming soon</Chip.Label>
-            </Chip>
-            <p className="text-muted text-sm">
-              Mint API keys for programmatic access to X-ray Atlas.
+      <Card className="border-border bg-surface border">
+        <Card.Content className="space-y-3 p-5">
+          <p className="text-foreground text-sm">
+            Install the CLI and choose the command name xatlas, xa, or atlas.
+            The command reference is in the{" "}
+            <Link className="text-accent hover:underline" href="/docs/cli">
+              CLI docs
+            </Link>
+            .
+          </p>
+          <pre className="border-border bg-background overflow-x-auto rounded-lg border px-3 py-2">
+            <code className="text-foreground font-mono text-sm">
+              xatlas login
+            </code>
+          </pre>
+          <p className="text-muted text-sm">
+            Logging in on another machine adds a token and keeps the others.{" "}
+            <span className="font-mono">xatlas auth logout</span> revokes the
+            token on that machine.
+          </p>
+          {revokeError ? (
+            <p className="text-danger text-sm" role="alert">
+              {revokeError}
             </p>
-          </div>
-          <ul className="space-y-2" aria-hidden>
-            <li className="border-border bg-default/50 h-10 rounded-lg border" />
-            <li className="border-border bg-default/30 h-10 rounded-lg border" />
-          </ul>
-          <Button size="sm" variant="secondary" isDisabled>
-            Create API key
-          </Button>
+          ) : null}
+          {tokens.isPending ? (
+            <p className="text-muted text-sm">Loading tokens...</p>
+          ) : tokens.isError ? (
+            <p className="text-danger text-sm" role="alert">
+              Could not load tokens.
+            </p>
+          ) : tokens.data.length === 0 ? (
+            <p className="text-muted text-sm">No CLI tokens yet.</p>
+          ) : (
+            <Table>
+              <Table.ScrollContainer>
+                <Table.Content aria-label="CLI tokens">
+                  <Table.Header>
+                    <Table.Column id="name" isRowHeader>
+                      Name
+                    </Table.Column>
+                    <Table.Column id="scopes">Scopes</Table.Column>
+                    <Table.Column id="lastUsed">Last used</Table.Column>
+                    <Table.Column id="expires">Expires</Table.Column>
+                    <Table.Column id="actions">Action</Table.Column>
+                  </Table.Header>
+                  <Table.Body items={tokens.data}>
+                    {(token) => {
+                      const revoked = token.revokedAt !== null;
+                      const expired =
+                        !revoked && new Date(token.expiresAt).getTime() <= now;
+                      return (
+                        <Table.Row id={token.id}>
+                          <Table.Cell>
+                            <span className="text-foreground text-sm font-medium">
+                              {token.name}
+                            </span>
+                            <span className="text-muted block font-mono text-xs">
+                              {token.tokenPrefix}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <span className="text-sm">
+                              {token.scopes.join(", ")}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <span className="text-sm">
+                              {token.lastUsedAt
+                                ? new Date(token.lastUsedAt).toLocaleString()
+                                : "Never"}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <span className="text-sm">
+                              {revoked
+                                ? "Revoked"
+                                : expired
+                                  ? "Expired"
+                                  : new Date(
+                                      token.expiresAt,
+                                    ).toLocaleDateString()}
+                            </span>
+                          </Table.Cell>
+                          <Table.Cell>
+                            <Button
+                              size="sm"
+                              variant="secondary"
+                              isDisabled={revoked || expired}
+                              isPending={revokingId === token.id}
+                              aria-label={`Revoke token ${token.name}`}
+                              onPress={() => handleRevoke(token.id)}
+                            >
+                              Revoke
+                            </Button>
+                          </Table.Cell>
+                        </Table.Row>
+                      );
+                    }}
+                  </Table.Body>
+                </Table.Content>
+              </Table.ScrollContainer>
+            </Table>
+          )}
         </Card.Content>
       </Card>
     </section>

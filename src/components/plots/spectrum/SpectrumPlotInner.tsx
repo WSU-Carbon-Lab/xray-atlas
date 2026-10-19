@@ -922,11 +922,7 @@ export function SpectrumPlotInner({
     setPlotCsvContextMenu(null);
   }, []);
 
-  const {
-    showTooltip,
-    hideTooltip,
-    tooltipData,
-  } = useTooltip<{
+  const { showTooltip, hideTooltip, tooltipData } = useTooltip<{
     energy: number;
     rows: Array<{ label: string; value: number | null; color: string }>;
   }>();

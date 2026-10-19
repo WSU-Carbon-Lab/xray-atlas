@@ -11,6 +11,15 @@ type UploadQueuedAuxFilesArgs = {
   scope: AuxFileScope;
   subjectId: string;
   files: PendingAuxFile[];
+  /**
+   * Experiment the upload is made through. Required when `scope` is `"sample"`.
+   * For `scope: "experiment"` it must equal `subjectId` or be omitted.
+   */
+  experimentId?: string;
+  /** Open upload session that records the additions; commits then do not bump individually. */
+  sessionId?: string;
+  /** Marks first uploads right after the experiment was created (no version bump). */
+  initialUpload?: boolean;
   onProgress?: (progress: AuxUploadProgress) => void;
 };
 
@@ -26,7 +35,18 @@ export async function uploadQueuedAuxFiles(
   utils: ReturnType<typeof trpc.useUtils>,
   args: UploadQueuedAuxFilesArgs,
 ): Promise<UploadQueuedAuxFilesResult> {
-  const { scope, subjectId, files, onProgress } = args;
+  const {
+    scope,
+    subjectId,
+    files,
+    onProgress,
+    experimentId,
+    sessionId,
+    initialUpload,
+  } = args;
+  if (scope === "sample" && !experimentId) {
+    throw new Error("Sample file uploads require an experiment id.");
+  }
   const failed: UploadQueuedAuxFilesResult["failed"] = [];
   let uploaded = 0;
 
@@ -86,6 +106,9 @@ export async function uploadQueuedAuxFiles(
       if (scope === "sample") {
         await utils.client.sampleFile.commitUpload.mutate({
           sampleId: subjectId,
+          experimentId,
+          sessionId,
+          initialUpload,
           commit: {
             fileId: uploadRequest.fileId,
             checksumSha256,
@@ -94,6 +117,8 @@ export async function uploadQueuedAuxFiles(
       } else {
         await utils.client.experimentFile.commitUpload.mutate({
           experimentId: subjectId,
+          sessionId,
+          initialUpload,
           commit: {
             fileId: uploadRequest.fileId,
             checksumSha256,

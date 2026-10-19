@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  contributeSessionProcedure,
   contributeWriteProcedure,
   createTRPCRouter,
   destructiveWriteProcedure,
@@ -1136,7 +1137,7 @@ export const moleculesRouter = createTRPCRouter({
       });
     }),
 
-  addContributor: protectedProcedure
+  addContributor: contributeSessionProcedure
     .input(
       z.object({
         moleculeId: z.string().uuid(),
@@ -1329,7 +1330,7 @@ export const moleculesRouter = createTRPCRouter({
       return { id: input.tagId, color: normalized };
     }),
 
-  setTags: protectedProcedure
+  setTags: contributeSessionProcedure
     .input(
       z.object({
         moleculeId: z.string().uuid(),
@@ -1521,7 +1522,7 @@ export const moleculesRouter = createTRPCRouter({
       };
     }),
 
-  update: protectedProcedure
+  update: contributeSessionProcedure
     .input(
       z.object({
         moleculeId: z.string().uuid(),

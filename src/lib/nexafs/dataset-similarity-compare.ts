@@ -22,10 +22,7 @@ import { interpolateMakimaSorted } from "~/features/kk-calc/makima-interpolate";
 import { spectrumGeometryKeyFromPoint } from "~/lib/nexafs/spectrum-geometry-key";
 
 /** How one geometry key relates between upload and existing experiment. */
-export type GeometryPairingKind =
-  | "matched"
-  | "upload_only"
-  | "existing_only";
+export type GeometryPairingKind = "matched" | "upload_only" | "existing_only";
 
 /** One geometry row for the similarity compare UI. */
 export interface GeometryPairingRow {
@@ -355,10 +352,7 @@ export function buildSimilarityComparePlotModel(
   uploadPoints: readonly SpectrumPoint[],
   existingPoints: readonly SpectrumPoint[],
 ): SimilarityComparePlotModel {
-  const compareChannel = pickSharedCompareChannel(
-    uploadPoints,
-    existingPoints,
-  );
+  const compareChannel = pickSharedCompareChannel(uploadPoints, existingPoints);
   const alignedUpload = compareChannel
     ? projectPointsForCompare(uploadPoints, compareChannel)
     : [...uploadPoints];
@@ -494,7 +488,12 @@ export function endpointNormalizeOntoSharedEnergies(
   }
   const yLo = interpolateLinearSorted(samples.energies, samples.values, loEv);
   const yHi = interpolateLinearSorted(samples.energies, samples.values, hiEv);
-  if (yLo == null || yHi == null || !Number.isFinite(yLo) || !Number.isFinite(yHi)) {
+  if (
+    yLo == null ||
+    yHi == null ||
+    !Number.isFinite(yLo) ||
+    !Number.isFinite(yHi)
+  ) {
     return null;
   }
   const denom = yHi - yLo;
@@ -661,10 +660,7 @@ export function computeMatchedGeometryResiduals(
   uploadPoints: readonly SpectrumPoint[],
   existingPoints: readonly SpectrumPoint[],
 ): GeometryResidualSummary[] {
-  const compareChannel = pickSharedCompareChannel(
-    uploadPoints,
-    existingPoints,
-  );
+  const compareChannel = pickSharedCompareChannel(uploadPoints, existingPoints);
   if (compareChannel == null) {
     return [];
   }

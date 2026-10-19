@@ -6,9 +6,12 @@ import {
   formatEdgeLabel,
   parseDatasetExportQuery,
 } from "~/app/api/v1/_lib/researcher-api";
+import { resolveRequestedDatasetVersion } from "~/app/api/v1/_lib/dataset-version-query";
+import { V1HttpError, v1ErrorResponse } from "~/app/api/v1/_lib/write-api";
 
 type DatasetExportRow = {
   dataset_id: string;
+  atlas_dataset_id: string | null;
   experiment_type: string | null;
   sample_id: string;
   sample_identifier: string;
@@ -33,6 +36,7 @@ type DatasetExportRow = {
 
 const datasetExportColumns = [
   "dataset_id",
+  "atlas_dataset_id",
   "experiment_type",
   "sample_id",
   "sample_identifier",
@@ -86,9 +90,15 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     const requestUrl = new URL(request.url);
     const query = parseDatasetExportQuery(requestUrl.searchParams);
+    const servedVersion = await resolveRequestedDatasetVersion(
+      requestUrl.searchParams,
+      { datasetId: query.datasetId, atlasDatasetId: query.atlasDatasetId },
+    );
     const where = buildExperimentWhere({
       moleculeId: query.moleculeId,
       edgeId: query.edgeId,
+      datasetId: query.datasetId,
+      atlasDatasetId: query.atlasDatasetId,
       doi: query.doi,
     });
 
@@ -107,6 +117,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         experiments: {
           select: {
             id: true,
+            atlasdatasetid: true,
             createdat: true,
             experimenttype: true,
             samples: {
@@ -172,6 +183,8 @@ export async function GET(request: Request): Promise<NextResponse> {
 
       return {
         dataset_id: point.experiments.id,
+        atlas_dataset_id:
+          point.experiments.atlasdatasetid?.trim().toLowerCase() || null,
         experiment_type: point.experiments.experimenttype,
         sample_id: sample.id,
         sample_identifier: sample.identifier,
@@ -202,21 +215,30 @@ export async function GET(request: Request): Promise<NextResponse> {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition":
             'attachment; filename="xray-atlas-datasets-v1.csv"',
+          ...(servedVersion
+            ? { "X-Dataset-Version": servedVersion.served }
+            : {}),
         },
       });
     }
 
     return NextResponse.json({
+      ...(servedVersion ? { version: servedVersion } : {}),
       columns: datasetExportColumns,
       rowCount: rows.length,
       filters: {
         moleculeId: query.moleculeId ?? null,
         edgeId: query.edgeId ?? null,
+        datasetId: query.datasetId ?? null,
+        atlasDatasetId: query.atlasDatasetId ?? null,
         doi: query.doi ?? null,
       },
       rows,
     });
   } catch (error) {
+    if (error instanceof V1HttpError) {
+      return v1ErrorResponse(error.status, error.code, error.message);
+    }
     if (error instanceof ZodError) {
       return jsonError(
         error.issues[0]?.message ?? "Invalid query parameters.",

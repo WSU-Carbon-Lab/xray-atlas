@@ -33,23 +33,31 @@ function subscribe(cb: () => void): () => void {
 /**
  * Active home theme from `location.hash`. The server snapshot is `null`
  * (Collaboration) so hydration always matches; the client value applies right
- * after hydration. The setter pushes history (Back returns to the prior theme)
- * without a document view transition, so the feature list does not resize.
- * `#molecules` still selects the catalog. `#spectra` and `#nexafs` select
- * Data. `#fair` selects collaboration.
+ * after hydration. `history: "push"` records a Back step. `history: "replace"`
+ * updates the current entry, which is what hover selection uses so moving
+ * across the feature list does not stack one history entry per row. Neither
+ * mode starts a document view transition. `#molecules` still selects the
+ * catalog. `#spectra` and `#nexafs` select Data. `#fair` selects collaboration.
  */
 export function useHomePillar(): readonly [
   HomePillarId | null,
-  (next: HomePillarId | null) => void,
+  (next: HomePillarId | null, history?: "push" | "replace") => void,
 ] {
   const pillar = useSyncExternalStore(subscribe, read, () => null);
-  const setPillar = useCallback((next: HomePillarId | null) => {
-    if (next === read()) return;
-    const url = next
-      ? `#${next}`
-      : `${window.location.pathname}${window.location.search}`;
-    window.history.pushState(null, "", url);
-    window.dispatchEvent(new Event(EVENT));
-  }, []);
+  const setPillar = useCallback(
+    (next: HomePillarId | null, history: "push" | "replace" = "push") => {
+      if (next === read()) return;
+      const url = next
+        ? `#${next}`
+        : `${window.location.pathname}${window.location.search}`;
+      if (history === "replace") {
+        window.history.replaceState(null, "", url);
+      } else {
+        window.history.pushState(null, "", url);
+      }
+      window.dispatchEvent(new Event(EVENT));
+    },
+    [],
+  );
   return [pillar, setPillar] as const;
 }

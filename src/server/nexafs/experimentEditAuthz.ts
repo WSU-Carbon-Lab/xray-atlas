@@ -1,8 +1,5 @@
 import { TRPCError } from "@trpc/server";
-import {
-  isCollectorContributorRole,
-  isUploaderContributorRole,
-} from "~/lib/datacite-contributor-types";
+import { isUploaderContributorRole } from "~/lib/datacite-contributor-types";
 import type { PrismaClient } from "~/prisma/client";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 
@@ -10,13 +7,21 @@ type ContributorEditRow = {
   orcidid: string;
   role: string;
   detachedat: Date | null;
-  isclaimed: boolean;
-  userid: string | null;
+  claimstatus: string;
 };
 
 /**
- * Returns whether `userId` may edit experiment-scoped contributed data (aux files, DOI, sample aux
- * on linked samples) via DataCurator/DataCollector contributor rows, privileged roles, or legacy `createdby`.
+ * Single edit gate for experiment-scoped data (spectrum points, normalization, KK delta, aux files,
+ * DOI, sample aux on linked samples). Admits `userId` when any of the following holds:
+ * a non-detached `experiment_contributors` row for that ORCID has `claim_status` `accepted`
+ * (any role); the user holds a privileged role; or the experiment has no uploader (`owner`) row
+ * and `createdby` equals `userId` (legacy fallback). Pending, declined, and unclaimed rows grant
+ * no edit rights. Molecule contributors carry no dataset edit rights.
+ *
+ * @param db Shared Prisma client.
+ * @param userId Authenticated user id (bare ORCID iD), or null when unauthenticated.
+ * @param experimentId Target experiment primary key.
+ * @returns True when the user may edit the experiment; false for unknown experiments.
  */
 export async function userMayEditExperiment(
   db: PrismaClient,
@@ -44,8 +49,7 @@ export async function userMayEditExperiment(
       orcidid: true,
       role: true,
       detachedat: true,
-      isclaimed: true,
-      userid: true,
+      claimstatus: true,
     },
   });
 
@@ -134,10 +138,7 @@ function contributorMayEdit(
   return contributors.some(
     (row) =>
       row.orcidid === userId &&
-      (isUploaderContributorRole(row.role) ||
-        isCollectorContributorRole(row.role)) &&
-      row.detachedat == null &&
-      row.isclaimed &&
-      row.userid != null,
+      row.claimstatus === "accepted" &&
+      row.detachedat == null,
   );
 }

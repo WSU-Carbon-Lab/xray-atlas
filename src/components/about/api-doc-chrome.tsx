@@ -5,78 +5,47 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactElement, ReactNode } from "react";
 import { ApiTryConsole } from "~/components/about/api-try-console";
-
-interface ApiDocVersion {
-  readonly id: string;
-  readonly href: string;
-  readonly label: string;
-}
+import {
+  canonicalDocsPath,
+  docsVersionFromPath,
+  hrefForDocsVersion,
+} from "~/lib/docs-versions";
 
 interface ApiDocPage {
   readonly href: string;
   readonly label: string;
 }
 
-const API_DOC_VERSIONS: readonly ApiDocVersion[] = [
-  { id: "v1", href: "/wiki/api/v1", label: "v1" },
-];
-
 const API_DOC_PAGES: readonly ApiDocPage[] = [
-  { href: "/wiki/api/v1", label: "Overview" },
-  { href: "/wiki/api/v1/molecules", label: "Molecules" },
-  { href: "/wiki/api/v1/datasets", label: "Datasets" },
-  { href: "/wiki/api/v1/physics", label: "Physics" },
+  { href: "/docs/api/v1", label: "Overview" },
+  { href: "/docs/api/v1/molecules", label: "Molecules" },
+  { href: "/docs/api/v1/datasets", label: "Datasets" },
+  { href: "/docs/api/v1/account", label: "Account" },
+  { href: "/docs/api/v1/physics", label: "Physics" },
 ];
 
 /**
- * Shared column for versioned API docs.
+ * Shared column for the HTTP API reference.
  *
- * `children` is the page body. The version control, resource links, and try
- * console use the same full width as that body. Published versions are the
- * entries in `API_DOC_VERSIONS`.
+ * `children` is the page body. Resource links and the try console use the
+ * same full width as that body. The docs release is the selector in the
+ * left rail.
  *
- * @returns The version bar, resource nav, try console, and page body.
+ * @returns The resource nav, try console, and page body.
  */
 export function ApiDocChrome({
   children,
 }: {
   children: ReactNode;
 }): ReactElement {
-  const pathname = usePathname();
+  const browserPath = usePathname();
+  const pathname = canonicalDocsPath(browserPath);
+  const pinned = docsVersionFromPath(browserPath);
 
   return (
     <div className="w-full min-w-0 space-y-8">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div
-          className="border-border bg-surface inline-flex rounded-lg border p-0.5"
-          role="navigation"
-          aria-label="API version"
-        >
-          {API_DOC_VERSIONS.map((version) => {
-            const selected =
-              pathname === version.href ||
-              pathname.startsWith(`${version.href}/`);
-            return (
-              <Link
-                key={version.id}
-                href={version.href}
-                aria-current={selected ? "page" : undefined}
-                className={cn(
-                  "rounded-md px-3 py-1 text-sm font-medium",
-                  selected
-                    ? "bg-foreground text-background"
-                    : "text-muted hover:text-foreground",
-                )}
-              >
-                {version.label}
-              </Link>
-            );
-          })}
-        </div>
-        <p className="text-muted text-sm">Published version</p>
-      </div>
       <nav
-        aria-label="v1 resources"
+        aria-label="HTTP API resources"
         className="border-border flex gap-4 border-b"
       >
         {API_DOC_PAGES.map((page) => {
@@ -84,7 +53,7 @@ export function ApiDocChrome({
           return (
             <Link
               key={page.href}
-              href={page.href}
+              href={hrefForDocsVersion(page.href, pinned)}
               aria-current={selected ? "page" : undefined}
               className={cn(
                 "-mb-px border-b-2 px-0.5 pb-2 text-sm font-medium",

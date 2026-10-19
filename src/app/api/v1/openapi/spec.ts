@@ -2,19 +2,67 @@
  * OpenAPI 3.1 contract for the public `GET /api/v1` catalog routes.
  *
  * Describes the query parameters, status codes, and JSON or CSV bodies
- * implemented by the handlers under `src/app/api/v1`. Each operation sets
- * `security` to an empty array. `bearerAuth` stays declared for catalog
- * writes; this document does not include a mutating `/api/v1` operation.
+ * implemented by the handlers under `src/app/api/v1`. Catalog GET operations
+ * set `security` to an empty array. `GET /me` and `DELETE /me` require the
+ * `xatlas` read credential.
  */
+function envelopeError(description: string) {
+  return {
+    description,
+    content: {
+      "application/json": {
+        schema: { $ref: "#/components/schemas/ErrorEnvelope" },
+      },
+    },
+  };
+}
+
+const writeErrorResponses = {
+  "400": envelopeError("Request body is not valid JSON."),
+  "401": envelopeError(
+    "Missing, malformed, expired, or revoked bearer token. WWW-Authenticate is Bearer. Cookie sessions are not accepted.",
+  ),
+  "403": envelopeError(
+    "The token lacks the write scope (message starts CLI_TOKEN_SCOPE_FORBIDDEN), the caller may not edit the dataset, or the contribution agreement is not accepted (message is exactly CONTRIBUTION_AGREEMENT_REQUIRED and error.appCode is set).",
+  ),
+  "404": envelopeError("The dataset or other target does not exist."),
+  "409": envelopeError(
+    "The confirmed fromVersion no longer matches the stored dataset version. Fetch the current version and confirm again.",
+  ),
+  "422": envelopeError(
+    "Validation failed: the message lists path and reason pairs, or is VERSION_BUMP_CONFIRMATION_REQUIRED when confirmVersionBump is absent.",
+  ),
+} as const;
+
+const experimentIdPathParameter = {
+  name: "experimentId",
+  in: "path",
+  required: true,
+  description: "Experiment UUID.",
+  schema: { type: "string", format: "uuid" },
+} as const;
+
+const versionQueryParameter = {
+  name: "version",
+  in: "query",
+  required: false,
+  description:
+    'Dataset version M.m.p. Requires datasetId or atlasDatasetId. The current version is served and echoed in response metadata (JSON field version, or the X-Dataset-Version header for CSV). Any other version answers 422 with message "historical version replay is not available yet".',
+  schema: {
+    type: "string",
+    pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+  },
+} as const;
+
 export const openApiV1Spec = {
   openapi: "3.1.0",
   info: {
     title: "X-ray Atlas Public Research API",
-    version: "1.0.0",
+    version: "1.2.0",
     summary:
-      "Public catalog, citation, physics, and download contract for X-ray Atlas.",
+      "Public catalog, citation, physics, and download contract for X-ray Atlas, plus token-authenticated dataset writes and versions.",
     description:
-      'Public read contract under /api/v1 for molecules, datasets, BibTeX, dataset archives, and Henke atomic form factors. Every operation in this document is a public GET. Catalog reads do not require an API key. An account API key sent as Authorization: Bearer is required only on routes that change catalog data. No such mutating /api/v1 route exists today. A missing, malformed, unknown, or revoked key on those routes returns 401 { error: "Unauthorized" } with WWW-Authenticate: Bearer. The website writes through the signed-in session, not these keys.',
+      'Contract under /api/v1 for molecules, datasets, BibTeX, dataset archives, Henke atomic form factors, and token-authenticated dataset writes. Catalog GET routes do not require an API key. GET /me and DELETE /me require Authorization: Bearer with a credential minted by xatlas login after a passkey confirmation. The token starts with xra_ and is stored by the CLI. A malformed, unknown, or revoked key on /me returns 401 { error: "Unauthorized" } with WWW-Authenticate: Bearer. Molecule and dataset list routes stay public when no Authorization header is sent; a presented key that is malformed, unknown, or revoked returns the same 401. The website writes through the signed-in session. Write routes (POST /datasets, /datasets/{experimentId}/normalization, /datasets/{experimentId}/preview-bump, attribution accept and decline, dataset file routes, DELETE /me/tokens/{tokenId}) require a bearer token with the write scope, authenticate by token only, and report failures as { error: { code, message } } with 401, 403, 404, 409, 422 (400 for malformed JSON).',
   },
   servers: [{ url: "/api/v1", description: "Versioned API base path" }],
   tags: [
@@ -33,6 +81,18 @@ export const openApiV1Spec = {
       description: "Molecule search redirects used by browser search engines.",
     },
     { name: "Contract", description: "OpenAPI contract discovery endpoint." },
+    {
+      name: "Account",
+      description: "Identity and tokens for a xatlas credential.",
+    },
+    {
+      name: "Attributions",
+      description: "Pending dataset attribution claims for the token owner.",
+    },
+    {
+      name: "Lookup",
+      description: "Name to id resolution for the CLI.",
+    },
   ],
   components: {
     securitySchemes: {
@@ -40,10 +100,601 @@ export const openApiV1Spec = {
         type: "http",
         scheme: "bearer",
         description:
-          "Account API key from the signed-in user's own profile Security tab. Token is shown once, starts with xra_, sent as Authorization: Bearer. Required only on routes that change catalog data. No such mutating /api/v1 route exists today. The website writes through the signed-in session, not these keys.",
+          "Credential minted by xatlas login after a passkey confirmation, with the read scope or the read and write scopes. Starts with xra_, sent as Authorization: Bearer, and stored by the CLI. Required on /me routes, write routes, and the token-authenticated GET routes. Expires after 30 days.",
       },
     },
     schemas: {
+      ErrorEnvelope: {
+        type: "object",
+        additionalProperties: false,
+        required: ["error"],
+        properties: {
+          error: {
+            type: "object",
+            additionalProperties: false,
+            required: ["code", "message"],
+            properties: {
+              code: {
+                type: "string",
+                enum: [
+                  "UNAUTHORIZED",
+                  "FORBIDDEN",
+                  "NOT_FOUND",
+                  "CONFLICT",
+                  "BAD_REQUEST",
+                  "UNPROCESSABLE_ENTITY",
+                  "INTERNAL_SERVER_ERROR",
+                ],
+              },
+              message: { type: "string" },
+              appCode: {
+                description:
+                  "Application code, present for example as CONTRIBUTION_AGREEMENT_REQUIRED.",
+                type: "string",
+              },
+            },
+          },
+        },
+      },
+      DatasetVersionLabel: {
+        description: "Dataset version M.m.p.",
+        type: "string",
+        pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+        examples: ["1.0.0"],
+      },
+      ConfirmVersionBump: {
+        type: "object",
+        additionalProperties: false,
+        required: ["fromVersion"],
+        properties: {
+          fromVersion: { $ref: "#/components/schemas/DatasetVersionLabel" },
+        },
+      },
+      NormalizationRange: {
+        type: "object",
+        additionalProperties: false,
+        required: ["pre", "post"],
+        properties: {
+          pre: {
+            description: "Pre-edge window [low, high] in eV, or null.",
+            type: ["array", "null"],
+            items: { type: "number" },
+            minItems: 2,
+            maxItems: 2,
+          },
+          post: {
+            description: "Post-edge window [low, high] in eV, or null.",
+            type: ["array", "null"],
+            items: { type: "number" },
+            minItems: 2,
+            maxItems: 2,
+          },
+          bandMode: { type: "string", enum: ["both", "pre", "post"] },
+        },
+      },
+      NormalizationInput: {
+        type: "object",
+        additionalProperties: false,
+        required: ["scope", "ranges"],
+        properties: {
+          scope: { type: "string", enum: ["none", "unified", "per_channel"] },
+          ranges: {
+            description:
+              "A NormalizationRange for scope unified, an object keyed od, massabsorption, beta of NormalizationRange for per_channel, or null.",
+            oneOf: [
+              { $ref: "#/components/schemas/NormalizationRange" },
+              {
+                type: "object",
+                additionalProperties: false,
+                required: ["od", "massabsorption", "beta"],
+                properties: {
+                  od: { $ref: "#/components/schemas/NormalizationRange" },
+                  massabsorption: {
+                    $ref: "#/components/schemas/NormalizationRange",
+                  },
+                  beta: { $ref: "#/components/schemas/NormalizationRange" },
+                },
+              },
+              { type: "null" },
+            ],
+          },
+        },
+      },
+      CreateDatasetRequest: {
+        description:
+          "The experiments.createWithSpectrum input. sample.moleculeId and experiment.instrumentId and edgeId come from GET /lookup. geometry.mode fixed needs geometry.fixed; csv needs geometry.csvGeometries and theta and phi on every point.",
+        type: "object",
+        required: ["sample", "experiment", "geometry", "spectrum"],
+        properties: {
+          sample: {
+            type: "object",
+            required: ["moleculeId", "vendor"],
+            properties: {
+              moleculeId: { type: "string", format: "uuid" },
+              identifier: { type: "string" },
+              processMethod: { type: "string" },
+              substrate: { type: "string" },
+              patterningLayer: { type: "string" },
+              solvent: { type: "string" },
+              thickness: { type: "number" },
+              molecularWeight: { type: "number" },
+              vendor: {
+                type: "object",
+                properties: {
+                  existingVendorId: { type: "string", format: "uuid" },
+                  name: { type: "string" },
+                  url: { type: "string", format: "uri" },
+                },
+              },
+            },
+          },
+          experiment: {
+            type: "object",
+            required: ["instrumentId", "edgeId", "experimentType"],
+            properties: {
+              instrumentId: { type: "string" },
+              edgeId: { type: "string", format: "uuid" },
+              experimentType: { type: "string" },
+              calibrationId: { type: "string", format: "uuid" },
+              referenceStandard: { type: "string" },
+              isStandard: { type: "boolean" },
+              normalization: {
+                $ref: "#/components/schemas/NormalizationInput",
+              },
+              uploadedChannels: {
+                type: "array",
+                items: {
+                  type: "string",
+                  enum: ["rawabs", "od", "massabsorption", "beta"],
+                },
+              },
+              computeKkDeltaOnSubmit: { type: "boolean" },
+              validationOverride: {
+                type: "object",
+                required: ["bypass"],
+                properties: {
+                  bypass: { type: "boolean" },
+                  reason: { type: "string" },
+                },
+              },
+            },
+          },
+          geometry: {
+            type: "object",
+            required: ["mode"],
+            properties: {
+              mode: { type: "string", enum: ["fixed", "csv"] },
+              fixed: {
+                type: "object",
+                required: ["theta", "phi"],
+                properties: {
+                  theta: { type: "number" },
+                  phi: { type: "number" },
+                },
+              },
+              csvGeometries: {
+                type: "array",
+                items: {
+                  type: "object",
+                  required: ["theta", "phi"],
+                  properties: {
+                    theta: { type: "number" },
+                    phi: { type: "number" },
+                  },
+                },
+              },
+            },
+          },
+          spectrum: {
+            type: "object",
+            required: ["points"],
+            properties: {
+              points: {
+                type: "array",
+                minItems: 1,
+                items: {
+                  type: "object",
+                  required: ["energy", "absorption"],
+                  properties: {
+                    energy: { type: "number" },
+                    absorption: { type: "number" },
+                    theta: { type: "number" },
+                    phi: { type: "number" },
+                    i0: { type: "number" },
+                    od: { type: "number" },
+                    rawabsError: { type: "number" },
+                    odError: { type: "number" },
+                    massabsorption: { type: "number" },
+                    massabsorptionError: { type: "number" },
+                    beta: { type: "number" },
+                    betaError: { type: "number" },
+                    delta: { type: "number" },
+                    deltaError: { type: "number" },
+                  },
+                },
+              },
+            },
+          },
+          peaksets: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["energy"],
+              properties: {
+                energy: { type: "number" },
+                intensity: { type: "number" },
+                bond: { type: "string" },
+                transition: { type: "string" },
+                peakKind: { type: ["string", "null"] },
+              },
+            },
+          },
+          collectedByUserIds: {
+            type: "array",
+            items: { type: "string", description: "ORCID iD." },
+          },
+          collectedByOrcidIds: {
+            type: "array",
+            items: { type: "string", description: "ORCID iD." },
+          },
+          attributions: {
+            type: "array",
+            items: {
+              type: "object",
+              required: ["orcid", "role"],
+              properties: {
+                orcid: { type: "string" },
+                role: { type: "string" },
+              },
+            },
+          },
+          sourcePaperDoi: { type: "string" },
+          sourcePaperDois: { type: "array", items: { type: "string" } },
+        },
+      },
+      CreateDatasetResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "experimentId",
+          "version",
+          "sampleId",
+          "spectrumPointsCreated",
+        ],
+        properties: {
+          experimentId: { type: "string", format: "uuid" },
+          version: { type: "string", const: "1.0.0" },
+          sampleId: { type: "string", format: "uuid" },
+          spectrumPointsCreated: { type: "integer", minimum: 0 },
+        },
+      },
+      DatasetRevision: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "version",
+          "changeKind",
+          "level",
+          "actorOrcid",
+          "createdAt",
+          "zenodo",
+        ],
+        properties: {
+          version: { $ref: "#/components/schemas/DatasetVersionLabel" },
+          changeKind: {
+            type: "string",
+            enum: [
+              "baseline",
+              "normalization",
+              "kk_first_calculation",
+              "kk_recalculation",
+              "aux_added",
+              "aux_removed",
+            ],
+          },
+          level: {
+            type: ["string", "null"],
+            enum: ["major", "minor", "patch", null],
+          },
+          actorOrcid: { type: ["string", "null"] },
+          createdAt: { type: "string", format: "date-time" },
+          zenodo: {
+            type: ["object", "null"],
+            additionalProperties: false,
+            required: ["label", "doi", "status"],
+            properties: {
+              label: { type: "string" },
+              doi: { type: ["string", "null"] },
+              status: {
+                type: "string",
+                enum: ["pending", "published", "failed", "unrecoverable"],
+              },
+            },
+          },
+        },
+      },
+      DatasetVersionsResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["experimentId", "currentVersion", "revisions"],
+        properties: {
+          experimentId: { type: "string", format: "uuid" },
+          currentVersion: { $ref: "#/components/schemas/DatasetVersionLabel" },
+          revisions: {
+            type: "array",
+            description: "Newest first.",
+            items: { $ref: "#/components/schemas/DatasetRevision" },
+          },
+        },
+      },
+      UpdateNormalizationRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["normalization", "confirmVersionBump"],
+        properties: {
+          normalization: { $ref: "#/components/schemas/NormalizationInput" },
+          uploadedChannels: {
+            type: "array",
+            items: {
+              type: "string",
+              enum: ["rawabs", "od", "massabsorption", "beta"],
+            },
+          },
+          reason: { type: "string", minLength: 1 },
+          confirmVersionBump: {
+            $ref: "#/components/schemas/ConfirmVersionBump",
+          },
+        },
+      },
+      UpdateNormalizationResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "experimentId",
+          "version",
+          "normalizationScope",
+          "normalizationRanges",
+        ],
+        properties: {
+          experimentId: { type: "string", format: "uuid" },
+          version: {
+            description: "Stored version after the edit.",
+            $ref: "#/components/schemas/DatasetVersionLabel",
+          },
+          normalizationScope: { type: ["string", "null"] },
+          normalizationRanges: {},
+        },
+      },
+      PreviewBumpRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["changes"],
+        properties: {
+          changes: {
+            type: "array",
+            minItems: 1,
+            maxItems: 5,
+            items: {
+              type: "string",
+              enum: [
+                "normalization",
+                "kk_first_calculation",
+                "kk_recalculation",
+                "aux_added",
+                "aux_removed",
+              ],
+            },
+          },
+        },
+      },
+      PreviewBumpResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "currentVersion",
+          "nextVersion",
+          "level",
+          "hasDeposit",
+          "willMintDoi",
+        ],
+        properties: {
+          currentVersion: { $ref: "#/components/schemas/DatasetVersionLabel" },
+          nextVersion: { $ref: "#/components/schemas/DatasetVersionLabel" },
+          level: { type: "string", enum: ["major", "minor", "patch"] },
+          hasDeposit: { type: "boolean" },
+          willMintDoi: { type: "boolean" },
+        },
+      },
+      PendingAttribution: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "id",
+          "experimentId",
+          "role",
+          "claimStatus",
+          "createdAt",
+          "experiment",
+        ],
+        properties: {
+          id: {
+            description: "Contributor row id for accept and decline.",
+            type: "string",
+            format: "uuid",
+          },
+          experimentId: { type: "string", format: "uuid" },
+          role: { type: "string" },
+          claimStatus: { type: "string", const: "pending" },
+          createdAt: { type: "string", format: "date-time" },
+          experiment: {
+            type: "object",
+            additionalProperties: false,
+            required: [
+              "id",
+              "createdAt",
+              "moleculeName",
+              "edgeLabel",
+              "instrumentName",
+              "facilityName",
+            ],
+            properties: {
+              id: { type: "string", format: "uuid" },
+              createdAt: { type: "string", format: "date-time" },
+              moleculeName: { type: ["string", "null"] },
+              edgeLabel: { type: "string" },
+              instrumentName: { type: "string" },
+              facilityName: { type: ["string", "null"] },
+            },
+          },
+        },
+      },
+      CliTokenSummary: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "id",
+          "name",
+          "tokenPrefix",
+          "scopes",
+          "kind",
+          "createdAt",
+          "lastUsedAt",
+          "expiresAt",
+          "revokedAt",
+          "current",
+        ],
+        properties: {
+          id: { type: "string", format: "uuid" },
+          name: { type: "string" },
+          tokenPrefix: { type: "string" },
+          scopes: {
+            type: "array",
+            items: { type: "string", enum: ["read", "write"] },
+          },
+          kind: { type: "string" },
+          createdAt: { type: "string", format: "date-time" },
+          lastUsedAt: { type: ["string", "null"], format: "date-time" },
+          expiresAt: { type: "string", format: "date-time" },
+          revokedAt: { type: ["string", "null"], format: "date-time" },
+          current: {
+            description: "True for the token that made this request.",
+            type: "boolean",
+          },
+        },
+      },
+      LookupCandidate: {
+        description:
+          "One candidate. molecule: id, iupacName, chemicalFormula, casNumber, synonyms, slug. instrument: id, name, status, facilityId, facilityName. edge: id, targetAtom, coreState, label. exact marks an exact match; several candidates mean the client must disambiguate.",
+        type: "object",
+        required: ["id", "exact"],
+        properties: {
+          id: { type: "string" },
+          exact: { type: "boolean" },
+          iupacName: { type: "string" },
+          chemicalFormula: { type: "string" },
+          casNumber: { type: ["string", "null"] },
+          synonyms: { type: "array", items: { type: "string" } },
+          slug: { type: ["string", "null"] },
+          name: { type: "string" },
+          status: { type: "string" },
+          facilityId: { type: "string" },
+          facilityName: { type: "string" },
+          targetAtom: { type: "string" },
+          coreState: { type: "string" },
+          label: { type: "string" },
+        },
+      },
+      AuxUploadRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["upload"],
+        properties: {
+          upload: {
+            type: "object",
+            required: ["originalFilename", "mimeType", "sizeBytes", "kind"],
+            properties: {
+              originalFilename: { type: "string" },
+              mimeType: { type: "string" },
+              sizeBytes: { type: "integer", minimum: 0 },
+              kind: { type: "string" },
+              description: { type: "string" },
+            },
+          },
+        },
+      },
+      AuxUploadUrlResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: ["fileId", "signedUrl", "token", "storagePath"],
+        properties: {
+          fileId: { type: "string", format: "uuid" },
+          signedUrl: { type: "string" },
+          token: { type: "string" },
+          storagePath: { type: "string" },
+        },
+      },
+      AuxCommitRequest: {
+        type: "object",
+        additionalProperties: false,
+        required: ["commit"],
+        properties: {
+          commit: {
+            type: "object",
+            required: ["fileId", "checksumSha256"],
+            properties: {
+              fileId: { type: "string", format: "uuid" },
+              checksumSha256: { type: "string" },
+            },
+          },
+          sessionId: { type: "string", format: "uuid" },
+          confirmVersionBump: {
+            $ref: "#/components/schemas/ConfirmVersionBump",
+          },
+          initialUpload: { type: "boolean" },
+        },
+      },
+      AuxCloseRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          confirmVersionBump: {
+            $ref: "#/components/schemas/ConfirmVersionBump",
+          },
+        },
+      },
+      AuxDeleteRequest: {
+        type: "object",
+        additionalProperties: false,
+        properties: {
+          sessionId: { type: "string", format: "uuid" },
+          confirmVersionBump: {
+            $ref: "#/components/schemas/ConfirmVersionBump",
+          },
+        },
+      },
+      AuxSessionPreviewResponse: {
+        type: "object",
+        additionalProperties: false,
+        required: [
+          "currentVersion",
+          "nextVersion",
+          "level",
+          "hasChanges",
+          "hasDeposit",
+          "willMintDoi",
+        ],
+        properties: {
+          currentVersion: { $ref: "#/components/schemas/DatasetVersionLabel" },
+          nextVersion: { $ref: "#/components/schemas/DatasetVersionLabel" },
+          level: {
+            type: ["string", "null"],
+            enum: ["major", "minor", "patch", null],
+          },
+          hasChanges: { type: "boolean" },
+          hasDeposit: { type: "boolean" },
+          willMintDoi: { type: "boolean" },
+        },
+      },
       ErrorResponse: {
         type: "object",
         additionalProperties: false,
@@ -201,10 +852,14 @@ export const openApiV1Spec = {
       DatasetFilters: {
         type: "object",
         additionalProperties: false,
-        required: ["moleculeId", "edgeId", "doi"],
+        required: ["moleculeId", "edgeId", "atlasDatasetId", "doi"],
         properties: {
           moleculeId: { $ref: "#/components/schemas/UuidOrNull" },
           edgeId: { $ref: "#/components/schemas/UuidOrNull" },
+          atlasDatasetId: {
+            description: "Normalized Atlas dataset id, or null when omitted.",
+            type: ["string", "null"],
+          },
           doi: {
             description:
               "Normalized DOI (resolver prefix removed and lowercased), or null when omitted.",
@@ -295,6 +950,11 @@ export const openApiV1Spec = {
         ],
         properties: {
           datasetId: { type: "string", format: "uuid" },
+          atlasDatasetId: {
+            description:
+              "Opaque Atlas dataset id used by /d/{atlasDatasetId}. Null until that id is assigned.",
+            type: ["string", "null"],
+          },
           experimentType: { $ref: "#/components/schemas/ExperimentType" },
           edge: { $ref: "#/components/schemas/EdgeSummary" },
           molecule: { $ref: "#/components/schemas/MoleculeRef" },
@@ -309,6 +969,11 @@ export const openApiV1Spec = {
             ],
           },
           spectrumPointCount: { type: "integer" },
+          qualityAggregateScore: {
+            description:
+              "experimentmetrics.quality_aggregate_score. Null when that row has no score.",
+            type: ["number", "null"],
+          },
           createdAt: { type: "string", format: "date-time" },
         },
       },
@@ -410,10 +1075,21 @@ export const openApiV1Spec = {
       DatasetExportFilters: {
         type: "object",
         additionalProperties: false,
-        required: ["moleculeId", "edgeId", "doi"],
+        required: [
+          "moleculeId",
+          "edgeId",
+          "datasetId",
+          "atlasDatasetId",
+          "doi",
+        ],
         properties: {
           moleculeId: { $ref: "#/components/schemas/UuidOrNull" },
           edgeId: { $ref: "#/components/schemas/UuidOrNull" },
+          datasetId: { $ref: "#/components/schemas/UuidOrNull" },
+          atlasDatasetId: {
+            description: "Normalized Atlas dataset id, or null when omitted.",
+            type: ["string", "null"],
+          },
           doi: { type: ["string", "null"] },
         },
       },
@@ -422,6 +1098,7 @@ export const openApiV1Spec = {
         additionalProperties: false,
         required: [
           "dataset_id",
+          "atlas_dataset_id",
           "experiment_type",
           "sample_id",
           "sample_identifier",
@@ -445,6 +1122,11 @@ export const openApiV1Spec = {
         ],
         properties: {
           dataset_id: { type: "string", format: "uuid" },
+          atlas_dataset_id: {
+            description:
+              "Atlas dataset id for /d/{atlas_dataset_id}, or null when unassigned.",
+            type: ["string", "null"],
+          },
           experiment_type: { $ref: "#/components/schemas/ExperimentType" },
           sample_id: { type: "string", format: "uuid" },
           sample_identifier: { type: "string" },
@@ -481,10 +1163,11 @@ export const openApiV1Spec = {
         properties: {
           columns: {
             type: "array",
-            minItems: 21,
-            maxItems: 21,
+            minItems: 22,
+            maxItems: 22,
             prefixItems: [
               { const: "dataset_id" },
+              { const: "atlas_dataset_id" },
               { const: "experiment_type" },
               { const: "sample_id" },
               { const: "sample_identifier" },
@@ -524,6 +1207,626 @@ export const openApiV1Spec = {
     },
   },
   paths: {
+    "/me": {
+      get: {
+        tags: ["Account"],
+        operationId: "getCliAccount",
+        summary: "Get the xatlas account",
+        description:
+          "Requires Authorization: Bearer with a xatlas credential. Returns the ORCID iD, display name, and the approved scopes. Does not return the token.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Account bound to the presented credential.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["orcid", "name", "scopes", "scope"],
+                  properties: {
+                    orcid: { type: "string" },
+                    name: { type: ["string", "null"] },
+                    scopes: {
+                      type: "array",
+                      items: { type: "string", enum: ["read", "write"] },
+                    },
+                    scope: {
+                      description:
+                        "write when the write scope is approved, else read. Kept for older clients.",
+                      type: "string",
+                      enum: ["read", "write"],
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": {
+            description:
+              'Missing, malformed, unknown, or revoked credential. error is "Unauthorized". WWW-Authenticate is Bearer.',
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        tags: ["Account"],
+        operationId: "revokeCliAccount",
+        summary: "Revoke the xatlas credential",
+        description:
+          "Requires Authorization: Bearer. Revokes only the presented credential. xatlas auth logout calls this, then deletes the local credential file.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "The presented credential is revoked.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["revoked"],
+                  properties: {
+                    revoked: { type: "boolean", const: true },
+                  },
+                },
+              },
+            },
+          },
+          "401": {
+            description:
+              'Missing, malformed, unknown, or revoked credential. error is "Unauthorized".',
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/me/tokens": {
+      get: {
+        tags: ["Account"],
+        operationId: "listCliTokens",
+        summary: "List the account's CLI tokens",
+        description:
+          "Requires Authorization: Bearer with the read scope. Lists the token owner's tokens, newest first, at most 100, including expired and revoked rows. Never returns secrets.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Token summaries.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["tokens"],
+                  properties: {
+                    tokens: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/CliTokenSummary" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": writeErrorResponses["401"],
+          "403": writeErrorResponses["403"],
+        },
+      },
+    },
+    "/me/tokens/{tokenId}": {
+      delete: {
+        tags: ["Account"],
+        operationId: "revokeCliToken",
+        summary: "Revoke one of the account's CLI tokens",
+        description:
+          "Requires Authorization: Bearer with the write scope. Revokes an owned token, which may be the presented one. Idempotent for tokens already revoked. Ids that are unknown or belong to another account answer 404.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "tokenId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "The token is revoked.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["revoked"],
+                  properties: { revoked: { type: "boolean", const: true } },
+                },
+              },
+            },
+          },
+          "401": writeErrorResponses["401"],
+          "403": writeErrorResponses["403"],
+          "404": writeErrorResponses["404"],
+          "422": writeErrorResponses["422"],
+        },
+      },
+    },
+    "/lookup": {
+      get: {
+        tags: ["Lookup"],
+        operationId: "lookupCatalogName",
+        summary: "Resolve a molecule, instrument, or edge name to ids",
+        description:
+          "Requires Authorization: Bearer with the read scope. Exact matches come first. Several candidates mean the match is ambiguous; choosing one is the client's job. Edge queries accept C(K), C K, or an atom symbol.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "kind",
+            in: "query",
+            required: true,
+            schema: {
+              type: "string",
+              enum: ["molecule", "instrument", "edge"],
+            },
+          },
+          {
+            name: "q",
+            in: "query",
+            required: true,
+            schema: { type: "string", minLength: 1, maxLength: 256 },
+          },
+          {
+            name: "limit",
+            in: "query",
+            required: false,
+            schema: { type: "integer", minimum: 1, maximum: 50, default: 20 },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Candidates for the query.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["kind", "q", "candidates"],
+                  properties: {
+                    kind: { type: "string" },
+                    q: { type: "string" },
+                    candidates: {
+                      type: "array",
+                      items: { $ref: "#/components/schemas/LookupCandidate" },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": writeErrorResponses["401"],
+          "403": writeErrorResponses["403"],
+          "422": writeErrorResponses["422"],
+        },
+      },
+    },
+    "/attributions": {
+      get: {
+        tags: ["Attributions"],
+        operationId: "listPendingAttributions",
+        summary: "List pending attribution claims",
+        description:
+          "Requires Authorization: Bearer with the read scope. Lists pending claims addressed to the token owner's ORCID iD, newest first.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Pending claims.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["attributions"],
+                  properties: {
+                    attributions: {
+                      type: "array",
+                      items: {
+                        $ref: "#/components/schemas/PendingAttribution",
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "401": writeErrorResponses["401"],
+          "403": writeErrorResponses["403"],
+        },
+      },
+    },
+    "/attributions/{contributorId}/accept": {
+      post: {
+        tags: ["Attributions"],
+        operationId: "acceptAttribution",
+        summary: "Accept a pending attribution claim",
+        description:
+          "Requires Authorization: Bearer with the write scope. Rows addressed to another ORCID iD answer 403.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "contributorId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "The claim is accepted.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["updated", "experimentId"],
+                  properties: {
+                    updated: { type: "boolean", const: true },
+                    experimentId: { type: "string", format: "uuid" },
+                  },
+                },
+              },
+            },
+          },
+          "401": writeErrorResponses["401"],
+          "403": writeErrorResponses["403"],
+          "422": writeErrorResponses["422"],
+        },
+      },
+    },
+    "/attributions/{contributorId}/decline": {
+      post: {
+        tags: ["Attributions"],
+        operationId: "declineAttribution",
+        summary: "Decline a pending attribution claim",
+        description:
+          "Requires Authorization: Bearer with the write scope. The contributor stays ORCID-only on the dataset. Rows addressed to another ORCID iD answer 403.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          {
+            name: "contributorId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "The claim is declined.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["updated", "experimentId"],
+                  properties: {
+                    updated: { type: "boolean", const: true },
+                    experimentId: { type: "string", format: "uuid" },
+                  },
+                },
+              },
+            },
+          },
+          "401": writeErrorResponses["401"],
+          "403": writeErrorResponses["403"],
+          "422": writeErrorResponses["422"],
+        },
+      },
+    },
+    "/datasets/{experimentId}/versions": {
+      get: {
+        tags: ["Datasets"],
+        operationId: "listDatasetVersions",
+        summary: "List the revision history of a dataset",
+        description:
+          "Requires Authorization: Bearer with the read scope. Newest revision first, with the linked Zenodo version DOI and status when one exists.",
+        security: [{ bearerAuth: [] }],
+        parameters: [experimentIdPathParameter],
+        responses: {
+          "200": {
+            description: "Revision history.",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/DatasetVersionsResponse",
+                },
+              },
+            },
+          },
+          "401": writeErrorResponses["401"],
+          "403": writeErrorResponses["403"],
+          "404": writeErrorResponses["404"],
+          "422": writeErrorResponses["422"],
+        },
+      },
+    },
+    "/datasets/{experimentId}/normalization": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "updateDatasetNormalization",
+        summary: "Edit normalization windows and bump the patch version",
+        description:
+          "Requires Authorization: Bearer with the write scope. confirmVersionBump.fromVersion is the version the caller reviewed, from POST preview-bump. Call preview-bump first to learn the next version and whether a Zenodo version will be minted. A stale fromVersion answers 409; an absent confirmVersionBump answers 422 VERSION_BUMP_CONFIRMATION_REQUIRED.",
+        security: [{ bearerAuth: [] }],
+        parameters: [experimentIdPathParameter],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/UpdateNormalizationRequest",
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Normalization saved and version advanced.",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/UpdateNormalizationResponse",
+                },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
+    "/datasets/{experimentId}/preview-bump": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "previewDatasetVersionBump",
+        summary: "Preview the version a change would produce",
+        description:
+          "Requires Authorization: Bearer with the write scope. Writes nothing. Pass currentVersion as confirmVersionBump.fromVersion on the mutating route.",
+        security: [{ bearerAuth: [] }],
+        parameters: [experimentIdPathParameter],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/PreviewBumpRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Version preview.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/PreviewBumpResponse" },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
+    "/datasets/{experimentId}/files/sessions": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "openDatasetFileSession",
+        summary: "Open a file upload session",
+        description:
+          "Requires Authorization: Bearer with the write scope and edit rights. Files committed into the session do not bump the version; closing it applies one minor bump.",
+        security: [{ bearerAuth: [] }],
+        parameters: [experimentIdPathParameter],
+        responses: {
+          "201": {
+            description: "Session opened.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["sessionId"],
+                  properties: { sessionId: { type: "string", format: "uuid" } },
+                },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
+    "/datasets/{experimentId}/files/sessions/{sessionId}/preview-bump": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "previewDatasetFileSessionBump",
+        summary: "Preview the bump a session close would apply",
+        description:
+          "Requires Authorization: Bearer with the write scope. Session opener only. Writes nothing. level is null for an empty session.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          experimentIdPathParameter,
+          {
+            name: "sessionId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Version preview.",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/AuxSessionPreviewResponse",
+                },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
+    "/datasets/{experimentId}/files/sessions/{sessionId}/close": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "closeDatasetFileSession",
+        summary: "Close a file upload session",
+        description:
+          "Requires Authorization: Bearer with the write scope. confirmVersionBump.fromVersion is required unless the session is empty. A stale fromVersion answers 409 and leaves the session open. A closed session answers 422.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          experimentIdPathParameter,
+          {
+            name: "sessionId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/AuxCloseRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Session closed; from equals to for an empty session.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["from", "to"],
+                  properties: {
+                    from: { $ref: "#/components/schemas/DatasetVersionLabel" },
+                    to: { $ref: "#/components/schemas/DatasetVersionLabel" },
+                  },
+                },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
+    "/datasets/{experimentId}/files/upload-url": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "requestDatasetFileUploadUrl",
+        summary: "Register a file and get a signed upload URL",
+        description:
+          "Requires Authorization: Bearer with the write scope and edit rights. PUT the bytes to signedUrl, then call commit. A sessionId is not used at this step.",
+        security: [{ bearerAuth: [] }],
+        parameters: [experimentIdPathParameter],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/AuxUploadRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "Signed upload URL.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/AuxUploadUrlResponse" },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
+    "/datasets/{experimentId}/files/commit": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "commitDatasetFile",
+        summary: "Commit an uploaded file",
+        description:
+          "Requires Authorization: Bearer with the write scope. With sessionId the addition joins the session and the version is unchanged. Without it confirmVersionBump is required (422 otherwise) and the commit bumps the minor version.",
+        security: [{ bearerAuth: [] }],
+        parameters: [experimentIdPathParameter],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/AuxCommitRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "The committed file row.",
+            content: {
+              "application/json": {
+                schema: { type: "object" },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
+    "/datasets/{experimentId}/files/{fileId}": {
+      delete: {
+        tags: ["Datasets"],
+        operationId: "deleteDatasetFile",
+        summary: "Soft-delete a dataset file",
+        description:
+          "Requires Authorization: Bearer with the write scope. Optional JSON body or sessionId query parameter. With a session the removal joins it without a bump; otherwise confirmVersionBump is required and the deletion bumps the minor version.",
+        security: [{ bearerAuth: [] }],
+        parameters: [
+          experimentIdPathParameter,
+          {
+            name: "fileId",
+            in: "path",
+            required: true,
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "sessionId",
+            in: "query",
+            required: false,
+            schema: { type: "string", format: "uuid" },
+          },
+        ],
+        requestBody: {
+          required: false,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/AuxDeleteRequest" },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description: "The deleted file.",
+            content: {
+              "application/json": {
+                schema: { type: "object" },
+              },
+            },
+          },
+          ...writeErrorResponses,
+        },
+      },
+    },
     "/openapi": {
       get: {
         tags: ["Contract"],
@@ -840,6 +2143,14 @@ export const openApiV1Spec = {
             schema: { type: "string", format: "uuid" },
           },
           {
+            name: "atlasDatasetId",
+            in: "query",
+            required: false,
+            description:
+              "Atlas dataset id, 8 characters, or a d/{id} path. Filters to that dataset.",
+            schema: { type: "string" },
+          },
+          {
             name: "doi",
             in: "query",
             required: false,
@@ -898,6 +2209,35 @@ export const openApiV1Spec = {
               },
             },
           },
+        },
+      },
+      post: {
+        tags: ["Datasets"],
+        operationId: "createDataset",
+        summary: "Create a NEXAFS dataset",
+        description:
+          "Requires Authorization: Bearer with the write scope; cookie sessions are not accepted. The body is the web upload payload. The dataset starts at version 1.0.0 with a baseline revision. Authorization, contribution agreement enforcement, and validation are those of the web upload.",
+        security: [{ bearerAuth: [] }],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: { $ref: "#/components/schemas/CreateDatasetRequest" },
+            },
+          },
+        },
+        responses: {
+          "201": {
+            description: "Dataset created.",
+            content: {
+              "application/json": {
+                schema: {
+                  $ref: "#/components/schemas/CreateDatasetResponse",
+                },
+              },
+            },
+          },
+          ...writeErrorResponses,
         },
       },
     },
@@ -986,15 +2326,135 @@ export const openApiV1Spec = {
         },
       },
     },
+    "/datasets/preview": {
+      get: {
+        tags: ["Datasets"],
+        operationId: "previewDataset",
+        summary: "Preview spectrum samples by polarization",
+        description:
+          "Public GET. No API key. Returns the first rows energy samples of one dataset, partitioned by polarization pair (polarDeg, azimuthDeg) and ordered by energy_ev. rows is 5 to 10 and defaults to 8. Provide datasetId or atlasDatasetId.",
+        security: [],
+        parameters: [
+          versionQueryParameter,
+          {
+            name: "datasetId",
+            in: "query",
+            required: false,
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "atlasDatasetId",
+            in: "query",
+            required: false,
+            description: "Atlas dataset id, 8 characters, or a d/{id} path.",
+            schema: { type: "string" },
+          },
+          {
+            name: "rows",
+            in: "query",
+            required: false,
+            schema: { type: "integer", minimum: 5, maximum: 10, default: 8 },
+          },
+        ],
+        responses: {
+          "422": envelopeError(
+            "version is malformed, lacks a dataset selector, or names a historical version. Message for a historical version: historical version replay is not available yet.",
+          ),
+          "200": {
+            description: "Leading samples for each polarization pair.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: [
+                    "datasetId",
+                    "atlasDatasetId",
+                    "rowsPerGroup",
+                    "groups",
+                  ],
+                  properties: {
+                    datasetId: { type: "string", format: "uuid" },
+                    atlasDatasetId: { type: "string", nullable: true },
+                    rowsPerGroup: { type: "integer" },
+                    groups: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: [
+                          "polarDeg",
+                          "azimuthDeg",
+                          "pointCount",
+                          "rows",
+                        ],
+                        properties: {
+                          polarDeg: { type: "number", nullable: true },
+                          azimuthDeg: { type: "number", nullable: true },
+                          pointCount: { type: "integer" },
+                          rows: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              additionalProperties: false,
+                              required: [
+                                "energyEv",
+                                "rawAbs",
+                                "od",
+                                "massAbsorption",
+                                "beta",
+                                "delta",
+                              ],
+                              properties: {
+                                energyEv: { type: "number" },
+                                rawAbs: { type: "number" },
+                                od: { type: "number", nullable: true },
+                                massAbsorption: {
+                                  type: "number",
+                                  nullable: true,
+                                },
+                                beta: { type: "number", nullable: true },
+                                delta: { type: "number", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Missing dataset id or rows outside 5 to 10.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "404": {
+            description: "Dataset was not found.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
     "/datasets/export": {
       get: {
         tags: ["Datasets"],
         operationId: "exportDatasets",
         summary: "Export dataset table",
         description:
-          "Public GET. No API key. Returns spectrum-point rows ordered by experiment createdAt descending, experiment id ascending, then energy_ev ascending, truncated to limit. format=json (default) returns application/json. format=csv returns text/csv.",
+          "Public GET. No API key. Returns spectrum-point rows ordered by experiment createdAt descending, experiment id ascending, then energy_ev ascending, truncated to limit. format=json (default) returns application/json. format=csv returns text/csv. datasetId limits the rows to one experiment.",
         security: [],
         parameters: [
+          versionQueryParameter,
           {
             name: "moleculeId",
             in: "query",
@@ -1006,6 +2466,22 @@ export const openApiV1Spec = {
             in: "query",
             required: false,
             schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "datasetId",
+            in: "query",
+            required: false,
+            description:
+              "One experiment UUID. Narrows the export to that dataset.",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "atlasDatasetId",
+            in: "query",
+            required: false,
+            description:
+              "Atlas dataset id, 8 characters, or a d/{id} path. Narrows the export to that dataset.",
+            schema: { type: "string" },
           },
           {
             name: "doi",
@@ -1035,6 +2511,9 @@ export const openApiV1Spec = {
           },
         ],
         responses: {
+          "422": envelopeError(
+            "version is malformed, lacks a dataset selector, or names a historical version. Message for a historical version: historical version replay is not available yet.",
+          ),
           "200": {
             description:
               'JSON export when format is omitted or json. CSV export when format=csv. CSV Content-Type is text/csv; charset=utf-8 and Content-Disposition is attachment; filename="xray-atlas-datasets-v1.csv". Null CSV cells are empty. Fields that contain a comma, double quote, or newline are quoted.',
@@ -1048,7 +2527,7 @@ export const openApiV1Spec = {
                 schema: {
                   type: "string",
                   description:
-                    "Header row then one spectrum row. Columns, in order: dataset_id, experiment_type, sample_id, sample_identifier, molecule_id, molecule_iupac_name, edge_id, edge_label, instrument_id, instrument_name, facility_id, facility_name, publication_dois, energy_ev, raw_abs, i0, od, mass_absorption, beta, delta, created_at.",
+                    "Header row then one spectrum row. Columns, in order: dataset_id, atlas_dataset_id, experiment_type, sample_id, sample_identifier, molecule_id, molecule_iupac_name, edge_id, edge_label, instrument_id, instrument_name, facility_id, facility_name, publication_dois, energy_ev, raw_abs, i0, od, mass_absorption, beta, delta, created_at.",
                 },
               },
             },
@@ -1082,6 +2561,93 @@ export const openApiV1Spec = {
                 examples: {
                   failed: { value: { error: "Failed to export datasets." } },
                 },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/datasets/query": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "queryDatasets",
+        summary: "Query the spectrum export",
+        description:
+          "Public POST. No API key. Runs one SELECT or WITH against spectrum_points, the same columns as the dataset export. Other relations, writes, comments, and multiple statements are rejected. limit defaults to 100 and cannot exceed 10000. truncated is true when more rows matched.",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["sql"],
+                properties: {
+                  sql: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 8000,
+                    description:
+                      "One SELECT or WITH that reads spectrum_points.",
+                  },
+                  limit: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 10000,
+                    default: 100,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description:
+              "Capped rows. columns follows the statement's output names. rowCount is the number of returned rows.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["columns", "rowCount", "truncated", "rows"],
+                  properties: {
+                    columns: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                    rowCount: { type: "integer" },
+                    truncated: { type: "boolean" },
+                    rows: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        additionalProperties: {
+                          type: ["string", "number", "null"],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": {
+            description:
+              "Invalid JSON, rejected SQL, or a limit outside 1 to 10000.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "500": {
+            description:
+              'The statement failed. error is "The query could not run." or a short database diagnostic that does not name internal tables.',
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
               },
             },
           },

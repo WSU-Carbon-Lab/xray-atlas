@@ -238,12 +238,15 @@ export function HomeSearchBand(): ReactElement {
 
   return (
     <form
-      id="home-search"
+      id="home-search-form"
       role="search"
       onSubmit={submit}
       className="home-search"
     >
-      <div ref={fieldRef} className="relative min-w-48 flex-1">
+      <div
+        ref={fieldRef}
+        className="relative w-full min-w-0 sm:min-w-48 sm:flex-1"
+      >
         <label className="home-search__field">
           <SearchIcon className="text-muted size-5 shrink-0" aria-hidden />
           <Input
@@ -285,7 +288,10 @@ export function HomeSearchBand(): ReactElement {
           </button>
         )}
         renderContent={({ contentProps }) => (
-          <PopoverMenuContent {...contentProps} className="w-[22rem] p-3">
+          <PopoverMenuContent
+            {...contentProps}
+            className="w-[min(22rem,calc(100vw-2rem))] p-3"
+          >
             <PeriodicStrip
               edges={HOME_SNAPSHOT.edges}
               selected={edges.map((e) => e.edgeId)}
@@ -310,7 +316,10 @@ export function HomeSearchBand(): ReactElement {
           </button>
         )}
         renderContent={({ close, contentProps }) => (
-          <PopoverMenuContent {...contentProps} className="w-72 p-1">
+          <PopoverMenuContent
+            {...contentProps}
+            className="w-[min(18rem,calc(100vw-2rem))] p-1"
+          >
             <ul className="flex flex-col">
               {MODES.map((m) => (
                 <li key={m.token}>

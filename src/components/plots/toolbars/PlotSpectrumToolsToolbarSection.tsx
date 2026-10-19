@@ -179,9 +179,7 @@ export function PlotSpectrumToolsToolbarSection({
           {previewControls ? (
             <PlotToolbarRichHint
               title={
-                showBandPreview
-                  ? "Hide edge previews"
-                  : "Show edge previews"
+                showBandPreview ? "Hide edge previews" : "Show edge previews"
               }
               description="Toggle hatched pre-edge and post-edge preview bands on the plot. Does not change which windows are used for the fit."
               whenDisabledDescription="Upload or select a spectrum with measured points first."

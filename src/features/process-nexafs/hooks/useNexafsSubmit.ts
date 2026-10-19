@@ -616,6 +616,7 @@ export function useNexafsSubmit(
               scope: "experiment",
               subjectId: experimentId,
               files: dataset.pendingExperimentAuxFiles,
+              initialUpload: true,
             });
             if (experimentUpload.failed.length > 0) {
               const failedKeys = new Set(
@@ -637,7 +638,9 @@ export function useNexafsSubmit(
             const sampleUpload = await uploadQueuedAuxFiles(utils, {
               scope: "sample",
               subjectId: sampleId,
+              experimentId,
               files: dataset.pendingSampleAuxFiles,
+              initialUpload: true,
             });
             if (sampleUpload.failed.length > 0) {
               const failedKeys = new Set(

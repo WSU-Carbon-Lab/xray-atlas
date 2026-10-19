@@ -1,8 +1,8 @@
 import { z } from "zod";
 import {
+  contributeSessionProcedure,
   createTRPCRouter,
   publicProcedure,
-  protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 
@@ -108,7 +108,7 @@ export const publicationsRouter = createTRPCRouter({
       };
     }),
 
-  create: protectedProcedure
+  create: contributeSessionProcedure
     .input(
       z.object({
         doi: z.string().url(),

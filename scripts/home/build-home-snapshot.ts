@@ -4,6 +4,7 @@
  * Throws (non-zero exit) if any curated record is missing or the output
  * breaks the 25 KB gzip budget, so a bad snapshot is never written.
  */
+import "../ensure-infisical-env";
 import "dotenv/config";
 import { spawnSync } from "node:child_process";
 import { writeFile } from "node:fs/promises";

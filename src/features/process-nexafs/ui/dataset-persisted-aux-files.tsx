@@ -119,25 +119,17 @@ export function DatasetAuxFilesPanel({
     { enabled: isPersisted && Boolean(sampleId) },
   );
 
-  const experimentSoftDelete = trpc.experimentFile.softDelete.useMutation({
-    onSettled: () => {
-      setDeletingFileId(null);
-      void experimentListQuery.refetch();
-    },
+  const {
+    uploadProgress,
+    uploadExperimentFiles,
+    uploadSampleFiles,
+    removeFile,
+    dialogs: versionDialogs,
+  } = usePersistedAuxUpload({
+    experimentId: isPersisted ? experimentId : null,
+    sampleId: isPersisted ? sampleId : null,
+    onValidationError,
   });
-  const sampleSoftDelete = trpc.sampleFile.softDelete.useMutation({
-    onSettled: () => {
-      setDeletingFileId(null);
-      void sampleListQuery.refetch();
-    },
-  });
-
-  const { uploadProgress, uploadExperimentFiles, uploadSampleFiles } =
-    usePersistedAuxUpload({
-      experimentId: isPersisted ? experimentId : null,
-      sampleId: isPersisted ? sampleId : null,
-      onValidationError,
-    });
 
   useEffect(() => {
     if (!auxTabActive) {
@@ -162,7 +154,7 @@ export function DatasetAuxFilesPanel({
           pendingKind,
           pendingDescription,
         );
-        if (!result) {
+        if (!result || result.cancelled) {
           return;
         }
         if (result.uploaded > 0) {
@@ -206,7 +198,7 @@ export function DatasetAuxFilesPanel({
           pendingKind,
           pendingDescription,
         );
-        if (!result) {
+        if (!result || result.cancelled) {
           return;
         }
         if (result.uploaded > 0) {
@@ -369,7 +361,10 @@ export function DatasetAuxFilesPanel({
             isPersisted && canMutateFiles
               ? (fileId) => {
                   setDeletingFileId(fileId);
-                  experimentSoftDelete.mutate({ experimentId, fileId });
+                  void removeFile("experiment", fileId).finally(() => {
+                    setDeletingFileId(null);
+                    void experimentListQuery.refetch();
+                  });
                 }
               : undefined
           }
@@ -399,7 +394,10 @@ export function DatasetAuxFilesPanel({
             isPersisted && canMutateFiles && sampleId
               ? (fileId) => {
                   setDeletingFileId(fileId);
-                  sampleSoftDelete.mutate({ sampleId, fileId });
+                  void removeFile("sample", fileId).finally(() => {
+                    setDeletingFileId(null);
+                    void sampleListQuery.refetch();
+                  });
                 }
               : undefined
           }
@@ -417,6 +415,7 @@ export function DatasetAuxFilesPanel({
           Uploading auxiliary files…
         </p>
       ) : null}
+      {versionDialogs}
     </section>
   );
 }

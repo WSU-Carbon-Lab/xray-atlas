@@ -137,7 +137,7 @@ export function HomeCollaborationView({
 
   return (
     <HomeStagePreview caption={CAPTIONS[tab]}>
-      <div className="flex h-full min-h-0 flex-col gap-3">
+      <div className="flex min-h-0 flex-col gap-3 lg:h-full">
         <HomeDisplayTabs
           label="Collaboration"
           tabs={TABS}
@@ -146,14 +146,17 @@ export function HomeCollaborationView({
           idPrefix="home-collaboration"
           controls="home-spectrum-figure"
         />
-        <div className="flex min-h-0 flex-1 gap-3">
-          <ul className="flex w-40 shrink-0 flex-col gap-2">
+        <div className="flex min-h-0 flex-1 flex-col gap-3 sm:flex-row">
+          <ul className="flex h-28 shrink-0 gap-2 overflow-x-auto sm:h-auto sm:w-40 sm:flex-col sm:overflow-y-auto">
             {collaboration.datasets.map((dataset) => {
               const shown = visible.has(dataset.slug);
               const inContrast = contrastOn.has(dataset.slug);
               const plotted = tab === "contrast" ? inContrast : shown;
               return (
-                <li key={dataset.experimentId} className="min-h-0 flex-1">
+                <li
+                  key={dataset.experimentId}
+                  className="h-full w-28 shrink-0 sm:h-auto sm:min-h-0 sm:w-auto sm:flex-1"
+                >
                   <button
                     type="button"
                     aria-pressed={tab === "contrast" ? inContrast : shown}
@@ -210,7 +213,7 @@ export function HomeCollaborationView({
             })}
           </ul>
           {spectrum && chart ? (
-            <div className="relative min-h-0 min-w-0 flex-1 overflow-hidden">
+            <div className="relative h-56 min-w-0 overflow-hidden sm:h-auto sm:min-h-0 sm:flex-1">
               <HomeSpectrumFigure
                 spectrum={spectrum}
                 tab={chart.tab}

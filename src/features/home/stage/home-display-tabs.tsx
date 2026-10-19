@@ -50,7 +50,7 @@ export function HomeDisplayTabs<T extends string>({
     <div
       role="tablist"
       aria-label={label}
-      className="border-border flex h-9 shrink-0 items-end gap-6 overflow-x-auto border-b"
+      className="border-border flex h-9 max-w-full min-w-0 shrink-0 items-end gap-6 overflow-x-auto border-b"
     >
       {clusters.map((cluster) => {
         const buttons = cluster.tabs.map((tab) => {
@@ -78,7 +78,7 @@ export function HomeDisplayTabs<T extends string>({
           return (
             <div
               key={cluster.tabs.map((tab) => tab.id).join("-")}
-              className="flex h-full items-end gap-6"
+              className="flex h-full shrink-0 items-end gap-6"
             >
               {buttons}
             </div>
@@ -89,7 +89,7 @@ export function HomeDisplayTabs<T extends string>({
             key={cluster.group}
             role="group"
             aria-label={cluster.group}
-            className="border-border flex h-full items-end gap-4 border-l pl-6"
+            className="border-border flex h-full shrink-0 items-end gap-4 border-l pl-6"
           >
             {buttons}
           </div>

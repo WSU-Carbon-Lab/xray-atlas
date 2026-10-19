@@ -9,9 +9,10 @@
  * 4. When renaming or dropping columns, update migration SQL and app raw SQL together; grep for dropped names before merge.
  * 5. Before merge: `bunx prisma migrate diff` (migrations vs schema) and `bunx prisma generate`; do not commit unreviewed `prisma db pull` output.
  *
- * Run: `bun scripts/db-migrate-run.ts`
+ * Run: `bun scripts/db-migrate-run.ts` (Infisical `dev` is loaded when `DIRECT_URL` is absent).
  */
 
+import "./ensure-infisical-env";
 import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

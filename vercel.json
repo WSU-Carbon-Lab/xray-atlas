@@ -1,3 +1,13 @@
 {
-  "regions": ["sfo1"]
+  "regions": ["sfo1"],
+  "crons": [
+    {
+      "path": "/api/cron/zenodo-sync",
+      "schedule": "0 15 * * *"
+    },
+    {
+      "path": "/api/cron/aux-sessions",
+      "schedule": "0 16 * * *"
+    }
+  ]
 }

@@ -31,6 +31,7 @@ import {
 } from "~/lib/molecule-slug";
 import { PROCESS_METHOD_OPTIONS } from "~/features/process-nexafs/constants";
 import { buildAtlasDatasetCitationUrl } from "~/server/zenodo/atlas-public-site-origin";
+import { formatDatasetVersion } from "~/server/nexafs/dataset-versioning";
 import { ensureAtlasDatasetId } from "~/server/nexafs/atlas-dataset-id";
 import { loadContributorUserContextByOrcid } from "~/server/nexafs/datasetAttributionClaiming";
 import { zenodoCommunityId } from "~/server/zenodo/zenodo-config";
@@ -60,6 +61,8 @@ export interface ZenodoMetadataExperimentSnapshot {
   relatedIdentifiers: ZenodoRelatedIdentifier[];
   /** Core sample preparation fields for description / notes (may be empty). */
   sample: DatasetCitationSampleInfo;
+  /** Atlas dataset version `major.minor.patch` sent as the Zenodo `version` field; omitted when unknown. */
+  datasetVersion?: string;
 }
 
 /**
@@ -228,6 +231,9 @@ export async function loadZenodoMetadataSnapshot(
       id: true,
       canonicalslug: true,
       experimenttype: true,
+      datasetVersionMajor: true,
+      datasetVersionMinor: true,
+      datasetVersionPatch: true,
       edges: { select: { targetatom: true, corestate: true } },
       instruments: {
         select: {
@@ -389,6 +395,11 @@ export async function loadZenodoMetadataSnapshot(
 
   return {
     experimentId: experiment.id,
+    datasetVersion: formatDatasetVersion({
+      major: experiment.datasetVersionMajor,
+      minor: experiment.datasetVersionMinor,
+      patch: experiment.datasetVersionPatch,
+    }),
     canonicalSlug: experiment.canonicalslug,
     moleculeDisplayName,
     moleculeIupacName: molecule.iupacname,
@@ -411,14 +422,18 @@ export async function loadZenodoMetadataSnapshot(
  * Builds the Zenodo `metadata` object for a NEXAFS dataset deposition.
  *
  * @param snapshot - Experiment graph snapshot from {@link loadZenodoMetadataSnapshot}.
- * @param options - Optional community id override (defaults to env / `xrayatlas`).
+ * @param options - Optional community id override (defaults to env / `xrayatlas`) and `versionLabel` override for the Zenodo `version` field (`undefined` uses the snapshot's dataset version, `null` omits the field).
  * @returns Zenodo deposit metadata with open CC-BY-4.0 license and community membership.
  */
 export function buildZenodoDepositMetadata(
   snapshot: ZenodoMetadataExperimentSnapshot,
-  options?: { communityId?: string },
+  options?: { communityId?: string; versionLabel?: string | null },
 ): ZenodoDepositMetadata {
   const communityId = options?.communityId ?? zenodoCommunityId();
+  const versionLabel =
+    options?.versionLabel === undefined
+      ? snapshot.datasetVersion
+      : options.versionLabel;
   const edgeLabel = `${snapshot.edgeTargetAtom}(${snapshot.edgeCoreState})`;
   const title = buildNexafsDatasetCitationTitle({
     moleculeDisplayName: snapshot.moleculeDisplayName,
@@ -485,6 +500,7 @@ export function buildZenodoDepositMetadata(
         : undefined,
     keywords,
     notes: noteParts.join(". "),
+    ...(versionLabel ? { version: versionLabel } : {}),
   };
 }
 

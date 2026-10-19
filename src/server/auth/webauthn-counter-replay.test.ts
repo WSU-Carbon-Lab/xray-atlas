@@ -1,4 +1,8 @@
-import { describe as bunDescribe, expect as bunExpect, it as bunIt } from "bun:test";
+import {
+  describe as bunDescribe,
+  expect as bunExpect,
+  it as bunIt,
+} from "bun:test";
 import { verifyAuthenticationResponse } from "@simplewebauthn/server";
 
 type ExpectAssertions = { toBe: (expected: unknown) => void };

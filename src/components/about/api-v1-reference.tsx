@@ -16,8 +16,8 @@ import { openApiV1Spec } from "~/app/api/v1/openapi/spec";
  * Wiki visualization of the X-ray Atlas HTTP API v1 contract.
  *
  * Reads `openApiV1Spec` for paths, parameters, and response schemas. Does not
- * fetch the network. Public GETs stay anonymous. The bearer contract covers
- * catalog writes, which are not published on v1.
+ * fetch the network. Catalog GETs stay anonymous. Account, token, version, and
+ * write routes require the xatlas credential, and writes need the write scope.
  */
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
@@ -1067,10 +1067,11 @@ function AuthenticationSection(): ReactElement {
         Authentication
       </h2>
       <p className="text-muted leading-relaxed">
-        Every route on this page is a public read. Create a key when a script
-        must change catalog data. The steps are on the{" "}
-        <Link href="/wiki/api#api-keys" className="text-accent hover:underline">
-          API key guide
+        Catalog routes on this page are public reads. Account, version, and
+        write routes require the xatlas credential, which is minted by the CLI.
+        The steps are on the{" "}
+        <Link href="/docs/cli" className="text-accent hover:underline">
+          CLI docs
         </Link>
         .
       </p>
@@ -1079,21 +1080,70 @@ function AuthenticationSection(): ReactElement {
           <dt className="text-foreground font-medium">Public reads</dt>
           <dd className="text-muted">
             Molecules, datasets, BibTeX, archives, Henke tables, and the OpenAPI
-            document. Do not send a key.
+            document. A key is optional. A bad key on molecule and dataset lists
+            returns 401.
           </dd>
         </div>
         <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-          <dt className="text-foreground font-medium">API key</dt>
+          <dt className="text-foreground font-medium">xatlas credential</dt>
           <dd className="text-muted">
-            Required only on routes that change catalog data. None of those
-            routes are in v1 today. A missing, malformed, unknown, or revoked
-            key returns 401{" "}
-            <code className="text-foreground">
-              {'{ "error": "Unauthorized" }'}
-            </code>{" "}
-            and{" "}
+            Required on /me, /me/tokens, /lookup, /attributions, dataset version
+            routes, and every write route. Mint it with xatlas login, which
+            confirms a passkey and stores the token in the CLI. The token
+            expires after 30 days and cannot be refreshed. A missing, malformed,
+            unknown, expired, or revoked token returns 401 with{" "}
             <code className="text-foreground">WWW-Authenticate: Bearer</code>.
-            The website still writes through the signed-in session.
+            Write routes ignore the website session cookie.
+          </dd>
+        </div>
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Scopes</dt>
+          <dd className="text-muted">
+            <code className="text-foreground">read</code> opens GET routes that
+            need a token. <code className="text-foreground">write</code> opens
+            every POST and DELETE that changes data, and is approved by the user
+            at login. Write does not imply read, and login always grants read. A
+            token without write gets 403 with a message starting{" "}
+            <code className="text-foreground">CLI_TOKEN_SCOPE_FORBIDDEN</code>.
+            Writes also require an accepted contribution agreement: without it
+            the 403 message is exactly{" "}
+            <code className="text-foreground">
+              CONTRIBUTION_AGREEMENT_REQUIRED
+            </code>{" "}
+            and <code className="text-foreground">error.appCode</code> repeats
+            it. Dataset edits additionally require edit rights on that dataset.
+          </dd>
+        </div>
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Errors</dt>
+          <dd className="text-muted">
+            Write and token-authenticated routes return{" "}
+            <code className="text-foreground">
+              {'{ "error": { "code", "message", "appCode"? } }'}
+            </code>
+            : 401 UNAUTHORIZED, 403 FORBIDDEN, 404 NOT_FOUND, 409 CONFLICT, 422
+            UNPROCESSABLE_ENTITY for invalid input, 400 BAD_REQUEST for
+            malformed JSON only, and 500 with a generic message. Older catalog
+            routes keep their original error bodies.
+          </dd>
+        </div>
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Versions</dt>
+          <dd className="text-muted">
+            Every dataset has a{" "}
+            <code className="text-foreground">major.minor.patch</code> version
+            that starts at 1.0.0. Auxiliary data added or removed is minor. A
+            new normalization or Kramers-Kronig calculation is patch. Peak,
+            contributor, publication, and sample metadata edits do not bump.
+            Major, for a new upload, is coming soon and not available. A bump
+            mints a Zenodo version only when the dataset already has a deposit.
+            Call preview-bump, then send{" "}
+            <code className="text-foreground">
+              {'confirmVersionBump: { "fromVersion": "<currentVersion>" }'}
+            </code>{" "}
+            on the mutating route. A missing field is a 422 and a stale version
+            is a 409. Fetching an older version answers 422 because it is not
+            available yet.
           </dd>
         </div>
       </dl>

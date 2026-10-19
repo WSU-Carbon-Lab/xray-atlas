@@ -291,13 +291,7 @@ export function PlotToolbarRichHint({
         showUnavailableLabel={showUnavailableLabel}
       />,
     );
-  }, [
-    anchorBox,
-    hintBody,
-    open,
-    showUnavailableLabel,
-    title,
-  ]);
+  }, [anchorBox, hintBody, open, showUnavailableLabel, title]);
 
   useLayoutEffect(() => {
     if (open) {

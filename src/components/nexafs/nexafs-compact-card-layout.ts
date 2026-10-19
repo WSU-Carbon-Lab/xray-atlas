@@ -28,8 +28,7 @@ export const NEXAFS_COMPACT_CARD_META_CLASS =
   "flex min-w-0 items-center gap-2 border-r border-zinc-200 pr-2 @md/nexafscard:gap-4 @md/nexafscard:pr-4 dark:border-zinc-600";
 
 /** Right: Cite/doi, To molecule, metrics ring, avatars, engagement stats. */
-export const NEXAFS_COMPACT_CARD_ACTIONS_CLASS =
-  `relative z-30 flex ${NEXAFS_COMPACT_CARD_ACTIONS_WIDTH_CLASS} shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:flex-nowrap @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 dark:border-zinc-600`;
+export const NEXAFS_COMPACT_CARD_ACTIONS_CLASS = `relative z-30 flex ${NEXAFS_COMPACT_CARD_ACTIONS_WIDTH_CLASS} shrink-0 flex-wrap items-center justify-end gap-x-2 gap-y-3 border-t border-zinc-200 pt-3 @md/nexafscard:flex-nowrap @md/nexafscard:gap-y-0 @md/nexafscard:border-t-0 @md/nexafscard:pt-0 dark:border-zinc-600`;
 
 /**
  * Compact instrument chip: short name only (full instrument|facility stays in the tooltip).

@@ -1,11 +1,11 @@
 import type { PrismaClient } from "~/prisma/client";
-import { hasPrivilegedRole } from "~/server/auth/privileged-role";
-import { findMoleculeContributor } from "~/server/db/engagement-queries";
+import { userMayEditExperiment } from "~/server/nexafs/experimentEditAuthz";
 
 /**
- * Determines whether `userId` may trigger client-side Kramers–Kronig recomputation for an
- * experiment’s spectrum rows (upload author, collected-by attribution, molecule contributor,
- * or privileged administrator/maintainer-equivalent roles).
+ * Determines whether `userId` may trigger client-side Kramers-Kronig recomputation for an
+ * experiment's spectrum rows. Delegates to {@link userMayEditExperiment}, so the answer is
+ * identical to the general dataset edit gate (accepted contributors, privileged roles, legacy
+ * `createdby` fallback); molecule contributors carry no dataset edit rights.
  *
  * @param db Shared Prisma client.
  * @param userId Authenticated user id, or null when unauthenticated.
@@ -17,48 +17,5 @@ export async function userMayRecalculateKkDelta(
   userId: string | null,
   experimentId: string,
 ): Promise<boolean> {
-  if (!userId) {
-    return false;
-  }
-  if (await hasPrivilegedRole(db, userId)) {
-    return true;
-  }
-
-  const experiment = await db.experiments.findUnique({
-    where: { id: experimentId },
-    select: {
-      createdby: true,
-      collectedbyuserids: true,
-      sampleid: true,
-    },
-  });
-
-  if (!experiment) {
-    return false;
-  }
-
-  if (experiment.createdby === userId) {
-    return true;
-  }
-
-  if (experiment.collectedbyuserids.includes(userId)) {
-    return true;
-  }
-
-  const sample = await db.samples.findUnique({
-    where: { id: experiment.sampleid },
-    select: { moleculeid: true },
-  });
-
-  if (!sample) {
-    return false;
-  }
-
-  const contributor = await findMoleculeContributor(
-    db,
-    sample.moleculeid,
-    userId,
-  );
-
-  return contributor != null;
+  return userMayEditExperiment(db, userId, experimentId);
 }

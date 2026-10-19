@@ -20,6 +20,7 @@
  * Validate-only can run with DB alone (remote checks skipped when token unset).
  */
 
+import "./ensure-infisical-env";
 import { db } from "~/server/db";
 import { normalizeDoi } from "~/lib/doi";
 import { normalizeAtlasDatasetId } from "~/lib/atlas-dataset-id";

@@ -17,6 +17,7 @@ import {
 import { Button, Card, Input, ScrollShadow } from "@heroui/react";
 import { ContributorsOrEmpty } from "~/components/attribution/contributors-or-empty";
 import type { UserWithOrcid } from "~/components/ui/avatar";
+import { ContributionAgreementModal } from "~/components/contribute/contribution-agreement-modal";
 import { showToast } from "~/components/ui/toast";
 import { moleculeContributorAvatarUsers } from "~/lib/contributor-avatar-display";
 import { moleculeOverflowSynonyms } from "~/lib/molecule-synonym-overflow";
@@ -461,14 +462,37 @@ export const HeaderCard = memo(function HeaderCard({
   props: MoleculeCardProps;
 }) {
   const utils = trpc.useUtils();
+  const [agreementOpen, setAgreementOpen] = useState(false);
+  const acceptAgreement = trpc.users.acceptContributionAgreement.useMutation({
+    onSuccess: () => {
+      setAgreementOpen(false);
+      void utils.users.getContributionAgreementStatus.invalidate();
+    },
+    onError: (error) => {
+      showToast(
+        error.message || "Could not save your contribution agreement.",
+        "error",
+      );
+    },
+  });
+  const onContributionWriteError = (
+    error: { message: string },
+    fallback: string,
+  ) => {
+    if (error.message === "CONTRIBUTION_AGREEMENT_REQUIRED") {
+      setAgreementOpen(true);
+      return;
+    }
+    showToast(fallback, "error", 0);
+  };
   const updateMutation = trpc.molecules.update.useMutation({
     onSuccess: (_, variables) => {
       if (variables.moleculeId) {
         void utils.molecules.getById.invalidate({ id: variables.moleculeId });
       }
     },
-    onError: () => {
-      showToast("Failed to save molecule changes", "error", 0);
+    onError: (error) => {
+      onContributionWriteError(error, "Failed to save molecule changes");
     },
   });
   const setTagsMutation = trpc.molecules.setTags.useMutation({
@@ -477,8 +501,8 @@ export const HeaderCard = memo(function HeaderCard({
         void utils.molecules.getById.invalidate({ id: variables.moleculeId });
       }
     },
-    onError: () => {
-      showToast("Failed to save tags", "error", 0);
+    onError: (error) => {
+      onContributionWriteError(error, "Failed to save tags");
     },
   });
   const [isEditMode, setIsEditMode] = useState(false);
@@ -924,6 +948,12 @@ export const HeaderCard = memo(function HeaderCard({
           </footer>
         </Card.Content>
       </Card>
+      <ContributionAgreementModal
+        isOpen={agreementOpen}
+        onClose={() => setAgreementOpen(false)}
+        onAgree={() => acceptAgreement.mutate()}
+        isSubmitting={acceptAgreement.isPending}
+      />
     </>
   );
 });

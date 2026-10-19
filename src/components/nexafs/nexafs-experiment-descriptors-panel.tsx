@@ -261,7 +261,14 @@ export function NexafsExperimentDescriptorsPanel({
         error instanceof Error ? error.message : "Failed to save descriptors.";
       showToast(message, "error");
     }
-  }, [dirty, draft, experimentId, onDescriptorsSaved, persisted, updateDescriptors]);
+  }, [
+    dirty,
+    draft,
+    experimentId,
+    onDescriptorsSaved,
+    persisted,
+    updateDescriptors,
+  ]);
 
   if (descriptorsQuery.isLoading || canEditQuery.isLoading) {
     return <NexafsExperimentDescriptorsSkeleton />;
@@ -352,12 +359,8 @@ export function NexafsExperimentDescriptorsPanel({
             isOpen={openModal === "edge"}
             onClose={() => setOpenModal(null)}
             edges={edgeOptions}
-            spectrumEnergyMin={
-              descriptorsQuery.data?.spectrumEnergyMin ?? null
-            }
-            spectrumEnergyMax={
-              descriptorsQuery.data?.spectrumEnergyMax ?? null
-            }
+            spectrumEnergyMin={descriptorsQuery.data?.spectrumEnergyMin ?? null}
+            spectrumEnergyMax={descriptorsQuery.data?.spectrumEnergyMax ?? null}
             onSelect={(edgeId) =>
               setDraft((previous) =>
                 previous ? { ...previous, edgeId } : previous,

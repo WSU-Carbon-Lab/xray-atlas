@@ -162,8 +162,7 @@ function DescriptorTabContent({
         ? `Normalized string "${filenameExperiment.normalized}" is not a known technique`
         : "No experiment-type token in filename (expected after edge, e.g. TEY, FY)",
     `Selected: ${experimentTypeLabel}`,
-    filenameExperiment.mapped &&
-    filenameExperiment.mapped !== experimentType
+    filenameExperiment.mapped && filenameExperiment.mapped !== experimentType
       ? `Selection differs from filename mapping; click to align or override`
       : null,
   ].filter(Boolean) as string[];

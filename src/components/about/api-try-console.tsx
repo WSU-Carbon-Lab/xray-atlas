@@ -51,15 +51,19 @@ export function ApiTryConsole(): ReactElement {
     return <p className="text-muted text-sm">No operations are published.</p>;
   }
 
-  const requestPath = buildRequestPath(operation, values);
+  const needsCredential = operation.authentication.startsWith("Bearer");
+  const requestPath = needsCredential
+    ? null
+    : buildRequestPath(operation, values);
 
   return (
     <section className="border-border bg-surface w-full min-w-0 space-y-4 rounded-xl border p-4">
       <div className="space-y-1">
         <h2 className="text-foreground text-base font-medium">Try a request</h2>
         <p className="text-muted text-sm leading-relaxed">
-          Run sends a public GET on this site. Template shows the success body
-          shape without calling the server. Archives report size only.
+          Run sends a public GET on this site. Credential routes stay on the
+          CLI. Template shows the success body shape without calling the server.
+          Archives report size only.
         </p>
       </div>
       <Select
@@ -157,7 +161,11 @@ export function ApiTryConsole(): ReactElement {
           Template
         </Button>
       </div>
-      {requestPath === null ? (
+      {needsCredential ? (
+        <p className="text-muted text-sm">
+          This route needs a xatlas credential. Run it from the CLI.
+        </p>
+      ) : requestPath === null ? (
         <p className="text-muted text-sm">
           Fill every path parameter before running.
         </p>
@@ -179,9 +187,9 @@ function defaultOperationKey(
   pathname: string,
   operations: readonly ParsedOperation[],
 ): string {
-  const preferred = pathname.startsWith("/wiki/api/v1/datasets")
+  const preferred = pathname.startsWith("/docs/api/v1/datasets")
     ? "/datasets"
-    : pathname.startsWith("/wiki/api/v1/physics")
+    : pathname.startsWith("/docs/api/v1/physics")
       ? "/physics/atomic-form-factor"
       : "/molecules";
   return (
