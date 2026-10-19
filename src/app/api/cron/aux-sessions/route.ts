@@ -3,7 +3,8 @@
  *
  * Sessions still open 30 minutes after opening are closed on behalf of their opener, applying
  * the recorded minor bump once. Authenticated by `Authorization: Bearer ${CRON_SECRET}`;
- * refuses every request when `CRON_SECRET` is unset.
+ * refuses every request when `CRON_SECRET` is unset. Vercel Hobby allows one cron run per day,
+ * so `vercel.json` schedules this route at 16:00 UTC.
  */
 
 import { timingSafeEqual } from "node:crypto";

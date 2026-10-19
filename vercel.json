@@ -3,11 +3,11 @@
   "crons": [
     {
       "path": "/api/cron/zenodo-sync",
-      "schedule": "*/10 * * * *"
+      "schedule": "0 15 * * *"
     },
     {
       "path": "/api/cron/aux-sessions",
-      "schedule": "*/15 * * * *"
+      "schedule": "0 16 * * *"
     }
   ]
 }

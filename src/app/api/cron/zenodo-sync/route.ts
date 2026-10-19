@@ -3,7 +3,9 @@
  *
  * Authenticated by `Authorization: Bearer ${CRON_SECRET}`; refuses every
  * request when `CRON_SECRET` is unset. Does nothing when
- * `ZENODO_ACCESS_TOKEN` is unset.
+ * `ZENODO_ACCESS_TOKEN` is unset. Vercel Hobby allows one cron run per day,
+ * so `vercel.json` schedules this route at 15:00 UTC. One job runs per
+ * invocation.
  */
 
 import { timingSafeEqual } from "node:crypto";
