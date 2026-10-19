@@ -21,10 +21,13 @@ import {
 } from "~/server/api/trpc";
 import { hasPrivilegedRole } from "~/server/auth/privileged-role";
 import {
+  assertUserMayEditExperiment,
   assertUserMayEditSample,
   userMayEditSample,
 } from "~/server/nexafs/experimentEditAuthz";
-import { scheduleZenodoDepositSyncForSample } from "~/server/zenodo";
+import { confirmVersionBumpSchema } from "~/server/nexafs/apply-versioned-change";
+import { runAuxFileMutation } from "~/server/nexafs/aux-upload-session";
+import type { PrismaClient } from "~/prisma/client";
 
 async function userMaySoftDeleteSampleFile(
   db: Parameters<typeof userMayEditSample>[0],
@@ -41,6 +44,80 @@ async function userMaySoftDeleteSampleFile(
     return true;
   }
   return userMayEditSample(db, userId, file.sampleid);
+}
+
+/**
+ * Authorizes a sample file change made through `experimentId` and verifies the experiment uses
+ * `sampleId`. Throws NOT_FOUND for an unknown experiment, BAD_REQUEST when the experiment is
+ * linked to another sample, FORBIDDEN without edit rights on the experiment.
+ */
+async function assertExperimentOwnsSample(
+  db: PrismaClient,
+  userId: string,
+  experimentId: string,
+  sampleId: string,
+): Promise<void> {
+  const experiment = await db.experiments.findUnique({
+    where: { id: experimentId },
+    select: { sampleid: true },
+  });
+  if (!experiment) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "Experiment not found" });
+  }
+  if (experiment.sampleid !== sampleId) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Experiment is not linked to this sample",
+    });
+  }
+  await assertUserMayEditExperiment(db, userId, experimentId);
+}
+
+/**
+ * Input fields shared by sample file commit and delete. `experimentId` names the experiment the
+ * edit is made through: that experiment alone is bumped (minor), via `sessionId` or an immediate
+ * `confirmVersionBump`. Committed changes require `experimentId`.
+ */
+const throughExperimentSchema = {
+  experimentId: z.string().uuid().optional(),
+  sessionId: z.string().uuid().optional(),
+  confirmVersionBump: confirmVersionBumpSchema.optional(),
+};
+
+type SampleFileClient = Pick<PrismaClient, "samplefile">;
+
+/** Marks an uncommitted, undeleted sample file committed; BAD_REQUEST when already committed. */
+async function commitSampleFileRow(
+  client: SampleFileClient,
+  id: string,
+  data: { checksumsha256: string; committedat: Date },
+) {
+  const changed = await client.samplefile.updateMany({
+    where: { id, committedat: null, deletedat: null },
+    data,
+  });
+  if (changed.count === 0) {
+    throw new TRPCError({
+      code: "BAD_REQUEST",
+      message: "Upload already committed",
+    });
+  }
+  return client.samplefile.findUniqueOrThrow({ where: { id } });
+}
+
+/** Soft-deletes a committed, undeleted sample file; NOT_FOUND when its state changed. */
+async function deleteCommittedSampleFileRow(
+  client: SampleFileClient,
+  id: string,
+) {
+  const changed = await client.samplefile.updateMany({
+    where: { id, committedat: { not: null }, deletedat: null },
+    data: { deletedat: new Date() },
+  });
+  if (changed.count === 0) {
+    throw new TRPCError({ code: "NOT_FOUND", message: "File not found" });
+  }
+  return client.samplefile.findUniqueOrThrow({ where: { id } });
 }
 
 export const sampleFileRouter = createTRPCRouter({
@@ -166,6 +243,9 @@ export const sampleFileRouter = createTRPCRouter({
       z.object({
         sampleId: z.string().uuid(),
         commit: auxFileCommitSchema,
+        ...throughExperimentSchema,
+        /** Creator's first uploads right after creation; no bump while eligible. */
+        initialUpload: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -206,16 +286,31 @@ export const sampleFileRouter = createTRPCRouter({
         });
       }
 
-      const updated = await ctx.db.samplefile.update({
-        where: { id: row.id },
-        data: {
-          checksumsha256: input.commit.checksumSha256.toLowerCase(),
-          committedat: new Date(),
-        },
-      });
+      if (!input.experimentId) {
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "experimentId is required to commit a sample file",
+        });
+      }
 
-      await scheduleZenodoDepositSyncForSample(ctx.db, input.sampleId, {
-        mode: "files",
+      const commitData = {
+        checksumsha256: input.commit.checksumSha256.toLowerCase(),
+        committedat: new Date(),
+      };
+      await assertExperimentOwnsSample(
+        ctx.db,
+        ctx.userId,
+        input.experimentId,
+        input.sampleId,
+      );
+      const updated = await runAuxFileMutation(ctx.db, {
+        experimentId: input.experimentId,
+        actorUserId: ctx.userId,
+        kind: "aux_added",
+        sessionId: input.sessionId,
+        confirmFromVersion: input.confirmVersionBump?.fromVersion,
+        initialUpload: input.initialUpload,
+        mutate: (tx) => commitSampleFileRow(tx, row.id, commitData),
       });
 
       return serializeAuxFileRow(updated);
@@ -226,6 +321,7 @@ export const sampleFileRouter = createTRPCRouter({
       z.object({
         sampleId: z.string().uuid(),
         fileId: z.string().uuid(),
+        ...throughExperimentSchema,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -254,14 +350,39 @@ export const sampleFileRouter = createTRPCRouter({
         });
       }
 
-      const updated = await ctx.db.samplefile.update({
-        where: { id: row.id },
-        data: { deletedat: new Date() },
-      });
-
-      await scheduleZenodoDepositSyncForSample(ctx.db, input.sampleId, {
-        mode: "files",
-      });
+      let updated;
+      if (row.committedat === null) {
+        // An abandoned upload never joined the published file set: no bump, no marker.
+        await ctx.db.samplefile.updateMany({
+          where: { id: row.id, committedat: null, deletedat: null },
+          data: { deletedat: new Date() },
+        });
+        updated = await ctx.db.samplefile.findUniqueOrThrow({
+          where: { id: row.id },
+        });
+      } else {
+        if (!input.experimentId) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message:
+              "experimentId is required to delete a committed sample file",
+          });
+        }
+        await assertExperimentOwnsSample(
+          ctx.db,
+          ctx.userId,
+          input.experimentId,
+          input.sampleId,
+        );
+        updated = await runAuxFileMutation(ctx.db, {
+          experimentId: input.experimentId,
+          actorUserId: ctx.userId,
+          kind: "aux_removed",
+          sessionId: input.sessionId,
+          confirmFromVersion: input.confirmVersionBump?.fromVersion,
+          mutate: (tx) => deleteCommittedSampleFileRow(tx, row.id),
+        });
+      }
 
       return serializeAuxFileRow(updated);
     }),

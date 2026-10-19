@@ -1,13 +1,18 @@
 import { z } from "zod";
 import {
+  contributeWriteProcedure,
   createTRPCRouter,
   destructiveWriteProcedure,
   publicProcedure,
-  protectedProcedure,
 } from "~/server/api/trpc";
 import { TRPCError } from "@trpc/server";
 import { Prisma } from "~/prisma/client";
-import { hasPrivilegedRole } from "~/server/auth/privileged-role";
+import { assertUserMayEditExperiment } from "~/server/nexafs/experimentEditAuthz";
+import {
+  applyVersionedChange,
+  canonicalJsonChecksum,
+  confirmVersionBumpSchema,
+} from "~/server/nexafs/apply-versioned-change";
 import { userMayRecalculateKkDelta } from "~/server/nexafs/kkDeltaRecalculateAuthz";
 import {
   buildKkDeltaMetadata,
@@ -18,7 +23,7 @@ import {
   formatSpectrumPointsUniqueConstraintMessage,
   isSpectrumPointsEnergyUniqueViolation,
 } from "~/server/nexafs/spectrumPointEnergyUniqueness";
-import { scheduleZenodoDepositSync } from "~/server/zenodo";
+import { syncAfterEdit } from "~/server/zenodo/zenodo-sync-queue";
 import { SPECTRUMPOINTS_BROWSE_FETCH_CAP } from "~/lib/nexafs/spectrum-point-limits";
 
 const KK_DELTA_BATCH_CHUNK = 800;
@@ -169,7 +174,7 @@ export const spectrumpointsRouter = createTRPCRouter({
       return points;
     }),
 
-  createBatch: protectedProcedure
+  createBatch: destructiveWriteProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
@@ -201,17 +206,7 @@ export const spectrumpointsRouter = createTRPCRouter({
           message: "Experiment not found",
         });
       }
-      const canMutate =
-        experiment.createdby != null &&
-        ctx.userId != null &&
-        experiment.createdby === ctx.userId;
-      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
-      if (!canMutate && !isPrivilegedUser) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to modify this experiment",
-        });
-      }
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       const createdPoints = await ctx.db.$transaction(async (tx) => {
         await tx.spectrumpoints.deleteMany({
@@ -257,7 +252,7 @@ export const spectrumpointsRouter = createTRPCRouter({
    * Records {@link experiments.kkdeltametadata} with source `kk_browser_recalculate` and
    * `calculatedAt` so readers can tell delta was recomputed from beta in-browser.
    */
-  updateKkDeltaBatch: protectedProcedure
+  updateKkDeltaBatch: contributeWriteProcedure
     .input(
       z.object({
         experimentId: z.string().uuid(),
@@ -270,21 +265,11 @@ export const spectrumpointsRouter = createTRPCRouter({
           )
           .min(1)
           .max(20000),
+        confirmVersionBump: confirmVersionBumpSchema,
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const allowed = await userMayRecalculateKkDelta(
-        ctx.db,
-        ctx.userId,
-        input.experimentId,
-      );
-      if (!allowed) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message:
-            "You do not have permission to update KK delta for this experiment",
-        });
-      }
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
 
       const ids = input.updates.map((u) => u.id);
       const rows = await ctx.db.spectrumpoints.findMany({
@@ -303,6 +288,11 @@ export const spectrumpointsRouter = createTRPCRouter({
         });
       }
 
+      const priorDelta = await ctx.db.spectrumpoints.findFirst({
+        where: { experimentid: input.experimentId, delta: { not: null } },
+        select: { id: true },
+      });
+
       const calculatedAt = new Date();
       const kkDeltaMetadata = buildKkDeltaMetadata({
         source: "kk_browser_recalculate",
@@ -310,7 +300,7 @@ export const spectrumpointsRouter = createTRPCRouter({
         calculatedByUserId: ctx.userId,
       });
 
-      await ctx.db.$transaction(
+      const bump = await ctx.db.$transaction(
         async (tx) => {
           for (let i = 0; i < input.updates.length; i += KK_DELTA_BATCH_CHUNK) {
             const chunk = input.updates.slice(i, i + KK_DELTA_BATCH_CHUNK);
@@ -335,6 +325,32 @@ export const spectrumpointsRouter = createTRPCRouter({
               updatedat: calculatedAt,
             },
           });
+
+          const persisted = await tx.spectrumpoints.findMany({
+            where: { experimentid: input.experimentId, delta: { not: null } },
+            select: { polarizationid: true, energyev: true, delta: true },
+            orderBy: [{ polarizationid: "asc" }, { energyev: "asc" }],
+          });
+          const kkDeltaCopy = persisted.map((point) => ({
+            polarizationId: point.polarizationid,
+            energyEv: point.energyev,
+            delta: point.delta,
+          })) as Prisma.InputJsonValue;
+          const kkDeltaMetadataJson = JSON.parse(
+            JSON.stringify(kkDeltaMetadata),
+          ) as Prisma.InputJsonValue;
+          return applyVersionedChange(tx, {
+            experimentId: input.experimentId,
+            actorUserId: ctx.userId,
+            changes: [priorDelta ? "kk_recalculation" : "kk_first_calculation"],
+            parameters: {
+              kkDeltaMetadata: kkDeltaMetadataJson,
+              updatedPointCount: input.updates.length,
+            },
+            derivedChecksum: canonicalJsonChecksum(kkDeltaCopy),
+            kkDelta: kkDeltaCopy,
+            confirmFromVersion: input.confirmVersionBump.fromVersion,
+          });
         },
         {
           maxWait: 20_000,
@@ -342,7 +358,10 @@ export const spectrumpointsRouter = createTRPCRouter({
         },
       );
 
-      scheduleZenodoDepositSync(ctx.db, input.experimentId, { mode: "files" });
+      await syncAfterEdit({
+        experimentId: input.experimentId,
+        bump: { to: bump.to },
+      });
 
       return {
         updated: input.updates.length,
@@ -363,17 +382,7 @@ export const spectrumpointsRouter = createTRPCRouter({
           message: "Experiment not found",
         });
       }
-      const canMutate =
-        experiment.createdby != null &&
-        ctx.userId != null &&
-        experiment.createdby === ctx.userId;
-      const isPrivilegedUser = await hasPrivilegedRole(ctx.db, ctx.userId);
-      if (!canMutate && !isPrivilegedUser) {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "You do not have permission to modify this experiment",
-        });
-      }
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
       const result = await ctx.db.spectrumpoints.deleteMany({
         where: { experimentid: input.experimentId },
       });

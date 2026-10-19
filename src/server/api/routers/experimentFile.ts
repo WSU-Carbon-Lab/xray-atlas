@@ -25,7 +25,13 @@ import {
   assertUserMayEditExperiment,
   userMayEditExperiment,
 } from "~/server/nexafs/experimentEditAuthz";
-import { scheduleZenodoDepositSync } from "~/server/zenodo";
+import { confirmVersionBumpSchema } from "~/server/nexafs/apply-versioned-change";
+import {
+  closeAuxUploadSession,
+  openAuxUploadSession,
+  previewAuxSessionBump,
+  runAuxFileMutation,
+} from "~/server/nexafs/aux-upload-session";
 
 async function userMaySoftDeleteExperimentFile(
   db: Parameters<typeof userMayEditExperiment>[0],
@@ -227,9 +233,16 @@ export const experimentFileRouter = createTRPCRouter({
       z.object({
         experimentId: z.string().uuid(),
         commit: auxFileCommitSchema,
+        /** Upload session to register the addition in; omit to bump immediately. */
+        sessionId: z.string().uuid().optional(),
+        /** Required without `sessionId`: the version the user confirmed. */
+        confirmVersionBump: confirmVersionBumpSchema.optional(),
+        /** Creator's first uploads right after creation; no bump while eligible. */
+        initialUpload: z.boolean().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
       const row = await ctx.db.experimentfile.findFirst({
         where: {
           id: input.commit.fileId,
@@ -267,15 +280,31 @@ export const experimentFileRouter = createTRPCRouter({
         });
       }
 
-      const updated = await ctx.db.experimentfile.update({
-        where: { id: row.id },
-        data: {
-          checksumsha256: input.commit.checksumSha256.toLowerCase(),
-          committedat: new Date(),
+      const updated = await runAuxFileMutation(ctx.db, {
+        experimentId: input.experimentId,
+        actorUserId: ctx.userId,
+        kind: "aux_added",
+        sessionId: input.sessionId,
+        confirmFromVersion: input.confirmVersionBump?.fromVersion,
+        initialUpload: input.initialUpload,
+        mutate: async (tx) => {
+          // Conditional on row state so concurrent double commits count one marker.
+          const changed = await tx.experimentfile.updateMany({
+            where: { id: row.id, committedat: null, deletedat: null },
+            data: {
+              checksumsha256: input.commit.checksumSha256.toLowerCase(),
+              committedat: new Date(),
+            },
+          });
+          if (changed.count === 0) {
+            throw new TRPCError({
+              code: "BAD_REQUEST",
+              message: "Upload already committed",
+            });
+          }
+          return tx.experimentfile.findUniqueOrThrow({ where: { id: row.id } });
         },
       });
-
-      scheduleZenodoDepositSync(ctx.db, input.experimentId, { mode: "files" });
 
       return serializeAuxFileRow(updated);
     }),
@@ -285,6 +314,10 @@ export const experimentFileRouter = createTRPCRouter({
       z.object({
         experimentId: z.string().uuid(),
         fileId: z.string().uuid(),
+        /** Upload session to register the removal in; omit to bump immediately. */
+        sessionId: z.string().uuid().optional(),
+        /** Required without `sessionId`: the version the user confirmed. */
+        confirmVersionBump: confirmVersionBumpSchema.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -317,13 +350,89 @@ export const experimentFileRouter = createTRPCRouter({
         });
       }
 
-      const updated = await ctx.db.experimentfile.update({
-        where: { id: row.id },
-        data: { deletedat: new Date() },
+      // Removal bumps the version, so the caller must hold edit rights on the experiment
+      // (the uploader-only shortcut above is not sufficient on its own).
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+
+      if (row.committedat === null) {
+        // An abandoned upload never joined the published file set: no bump, no marker.
+        await ctx.db.experimentfile.updateMany({
+          where: { id: row.id, committedat: null, deletedat: null },
+          data: { deletedat: new Date() },
+        });
+        return serializeAuxFileRow(
+          await ctx.db.experimentfile.findUniqueOrThrow({
+            where: { id: row.id },
+          }),
+        );
+      }
+
+      const updated = await runAuxFileMutation(ctx.db, {
+        experimentId: input.experimentId,
+        actorUserId: ctx.userId,
+        kind: "aux_removed",
+        sessionId: input.sessionId,
+        confirmFromVersion: input.confirmVersionBump?.fromVersion,
+        mutate: async (tx) => {
+          const changed = await tx.experimentfile.updateMany({
+            where: { id: row.id, committedat: { not: null }, deletedat: null },
+            data: { deletedat: new Date() },
+          });
+          if (changed.count === 0) {
+            throw new TRPCError({
+              code: "NOT_FOUND",
+              message: "File not found",
+            });
+          }
+          return tx.experimentfile.findUniqueOrThrow({ where: { id: row.id } });
+        },
       });
 
-      scheduleZenodoDepositSync(ctx.db, input.experimentId, { mode: "files" });
-
       return serializeAuxFileRow(updated);
+    }),
+
+  openUploadSession: contributeWriteProcedure
+    .input(z.object({ experimentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertUserMayEditExperiment(ctx.db, ctx.userId, input.experimentId);
+      return openAuxUploadSession(ctx.db, {
+        experimentId: input.experimentId,
+        actorUserId: ctx.userId,
+      });
+    }),
+
+  previewUploadSessionBump: contributeWriteProcedure
+    .input(z.object({ sessionId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      return previewAuxSessionBump(ctx.db, {
+        sessionId: input.sessionId,
+        actorUserId: ctx.userId,
+      });
+    }),
+
+  closeUploadSession: contributeWriteProcedure
+    .input(
+      z.object({
+        sessionId: z.string().uuid(),
+        confirmVersionBump: confirmVersionBumpSchema.optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const session = await ctx.db.experimentAuxSession.findUnique({
+        where: { id: input.sessionId },
+        select: { experimentId: true },
+      });
+      if (session) {
+        await assertUserMayEditExperiment(
+          ctx.db,
+          ctx.userId,
+          session.experimentId,
+        );
+      }
+      return closeAuxUploadSession(ctx.db, {
+        sessionId: input.sessionId,
+        actorUserId: ctx.userId,
+        confirmFromVersion: input.confirmVersionBump?.fromVersion,
+      });
     }),
 });

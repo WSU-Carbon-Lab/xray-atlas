@@ -511,6 +511,7 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
           )}
         </Form>
       </div>
+      {persistedAuxUpload.dialogs}
     </GlobalFileDropZoneProvider>
   );
 }
