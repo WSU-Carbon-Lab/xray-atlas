@@ -12,6 +12,9 @@ import type { ComponentType, ReactNode } from "react";
 import { ApiDocChrome } from "~/components/about/api-doc-chrome";
 import { docsVersionById } from "~/lib/docs-versions";
 import ApiHomePage, { metadata as apiHomeMetadata } from "../../../api/page";
+import ApiV1AccountPage, {
+  metadata as apiAccountMetadata,
+} from "../../../api/v1/account/page";
 import ApiV1DatasetsPage, {
   metadata as apiDatasetsMetadata,
 } from "../../../api/v1/datasets/page";
@@ -86,6 +89,12 @@ function entryForSlug(slug: string): VersionedDocsEntry | undefined {
       return {
         Page: ApiV1DatasetsPage,
         metadata: apiDatasetsMetadata,
+        apiChrome: true,
+      };
+    case "api/v1/account":
+      return {
+        Page: ApiV1AccountPage,
+        metadata: apiAccountMetadata,
         apiChrome: true,
       };
     case "api/v1/physics":

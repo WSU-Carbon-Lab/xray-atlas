@@ -49,6 +49,7 @@ export const docsNavGroups: readonly DocsNavGroup[] = [
       { href: "/docs/api", label: "Overview" },
       { href: "/docs/api/v1/molecules", label: "Molecules" },
       { href: "/docs/api/v1/datasets", label: "Datasets" },
+      { href: "/docs/api/v1/account", label: "Account" },
       { href: "/docs/api/v1/physics", label: "Physics" },
     ],
   },
@@ -66,7 +67,7 @@ export const docsSectionCards: readonly DocsSectionCard[] = [
     href: "/docs/cli",
     title: "CLI",
     status: "Published",
-    body: "Log in, browse the catalog, query spectra, and save a local copy with its citation.",
+    body: "Log in, browse the catalog, query spectra, save a local copy with its citation, upload datasets, and edit normalization.",
   },
   {
     href: "/docs/editors",
@@ -90,7 +91,7 @@ export const docsSectionCards: readonly DocsSectionCard[] = [
     href: "/docs/api",
     title: "HTTP API",
     status: "Published",
-    body: "Raw catalog contract under /api/v1: molecules, datasets, physics tables, and OpenAPI.",
+    body: "Raw contract under /api/v1: catalog reads, token-authenticated dataset writes, versions, physics tables, and OpenAPI.",
   },
 ];
 

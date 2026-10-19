@@ -4,7 +4,7 @@ import { ApiV1Overview } from "~/components/about/api-v1-reference";
 export const metadata: Metadata = {
   title: "API v1",
   description:
-    "Version 1 overview: public catalog reads, the bearer contract for future catalog writes, and a console that runs those reads.",
+    "Version 1 overview: public catalog reads, the bearer contract for scoped writes and dataset versions, and a console that runs the public reads.",
   alternates: {
     canonical: "/docs/api/v1",
   },

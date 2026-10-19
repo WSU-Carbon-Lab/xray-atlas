@@ -20,6 +20,7 @@ const API_DOC_PAGES: readonly ApiDocPage[] = [
   { href: "/docs/api/v1", label: "Overview" },
   { href: "/docs/api/v1/molecules", label: "Molecules" },
   { href: "/docs/api/v1/datasets", label: "Datasets" },
+  { href: "/docs/api/v1/account", label: "Account" },
   { href: "/docs/api/v1/physics", label: "Physics" },
 ];
 

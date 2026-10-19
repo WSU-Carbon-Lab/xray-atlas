@@ -14,7 +14,7 @@ export interface DocsVersion {
 
 /** Releases a reader can open. The newest entry is `latest`. */
 export const docsVersions: readonly DocsVersion[] = [
-  { id: "1.0.0", label: "v1.0.0", latest: true },
+  { id: "1.1.0", label: "v1.1.0", latest: true },
 ];
 
 /**

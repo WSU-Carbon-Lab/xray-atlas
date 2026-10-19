@@ -23,16 +23,93 @@ export default function ApiWikiHomePage() {
       <p className="text-muted">
         Catalog routes are public GET requests under{" "}
         <code className="text-foreground">/api/v1</code>. Molecule search
-        returns a 307 to the molecule page or the browse list.{" "}
-        <code className="text-foreground">GET /api/v1/me</code> and{" "}
-        <code className="text-foreground">DELETE /api/v1/me</code> require{" "}
+        returns a 307 to the molecule page or the browse list. Account, token,
+        version, and write routes require{" "}
         <code className="text-foreground">Authorization: Bearer</code> with a
-        read credential. Mint that credential with the{" "}
+        credential from the{" "}
         <DocsPathLink className="text-accent hover:underline" href="/docs/cli">
           CLI
         </DocsPathLink>
-        . The website writes through the signed-in session.
+        . The website writes through the signed-in session and does not use
+        these routes. The API stays on v1. Changes to v1 are additive: new
+        routes and optional fields. A breaking change would ship as v2 together
+        with a v2 CLI.
       </p>
+      <h2 id="writes" className="text-foreground mb-2 text-xl font-semibold">
+        Writes, scopes, and versions
+      </h2>
+      <dl className="border-border divide-border divide-y rounded-lg border">
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Scopes</dt>
+          <dd className="text-muted">
+            A token carries <code className="text-foreground">read</code>, or{" "}
+            <code className="text-foreground">read</code> and{" "}
+            <code className="text-foreground">write</code>, as approved at
+            login. Reads need read. Every write route needs write and fails with
+            403 on a read-only token. A token lasts 30 days and has no refresh.
+            Write routes accept tokens only and ignore cookies.
+          </dd>
+        </div>
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Errors</dt>
+          <dd className="text-muted">
+            Write routes and the token-authenticated routes report failures as{" "}
+            <code className="text-foreground">
+              {'{ "error": { "code", "message", "appCode"? } }'}
+            </code>
+            . 401 is a missing, expired, or revoked token. 403 is a missing
+            scope, a dataset you may not edit, or an unaccepted contribution
+            agreement, which carries{" "}
+            <code className="text-foreground">
+              CONTRIBUTION_AGREEMENT_REQUIRED
+            </code>{" "}
+            as message and <code className="text-foreground">appCode</code>. 404
+            is an unknown id. 409 is a stale version. 422 is invalid input, with
+            Zod messages as{" "}
+            <code className="text-foreground">path: message</code> pairs. 400 is
+            malformed JSON. 500 carries a generic message.
+          </dd>
+        </div>
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Dataset versions</dt>
+          <dd className="text-muted">
+            A dataset version is{" "}
+            <code className="text-foreground">major.minor.patch</code> and
+            starts at 1.0.0. Adding or removing auxiliary data is a minor bump.
+            A new normalization or Kramers-Kronig calculation is a patch bump.
+            Peak, contributor, publication, and sample metadata edits do not
+            bump. A major bump, for a replacement upload, is coming soon and not
+            available. Each bump mints a new Zenodo version only where the
+            dataset already has a Zenodo deposit. An edit never creates a
+            deposit. A new Zenodo version can show a pending DOI while the
+            server retries.
+          </dd>
+        </div>
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Confirming a bump</dt>
+          <dd className="text-muted">
+            A route that bumps the version needs{" "}
+            <code className="text-foreground">
+              {'confirmVersionBump: { "fromVersion": "M.m.p" }'}
+            </code>
+            . Call a preview-bump route first to learn the next version and
+            whether a Zenodo version will be minted, then send the current
+            version back as <code className="text-foreground">fromVersion</code>
+            . A missing field is a 422. A version that changed since the preview
+            is a 409 and nothing is saved. Add files through an upload session
+            to coalesce them into one minor bump.
+          </dd>
+        </div>
+        <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
+          <dt className="text-foreground font-medium">Older versions</dt>
+          <dd className="text-muted">
+            Export and preview accept{" "}
+            <code className="text-foreground">version=M.m.p</code> for the
+            current version and echo it. Any older version answers 422:
+            retrieving a past version is not available yet.
+          </dd>
+        </div>
+      </dl>
       <h2 id="catalog" className="text-foreground mb-2 text-xl font-semibold">
         Catalog
       </h2>
