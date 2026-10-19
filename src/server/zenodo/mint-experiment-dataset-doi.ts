@@ -22,6 +22,12 @@ import {
   isZenodoMintingEnabled,
   zenodoCommunityId,
 } from "~/server/zenodo/zenodo-config";
+import {
+  assertVersionDoiUnique,
+  conceptDepositData,
+  readExperimentVersionLabel,
+  upsertPublishedVersionOperation,
+} from "~/server/zenodo/zenodo-version-records";
 
 export type MintZenodoDatasetDoiState =
   | "disabled"
@@ -56,6 +62,11 @@ export interface MintZenodoDatasetDoiOptions {
     db: PrismaClient,
     experimentId: string,
   ) => Promise<{ buffer: Buffer; downloadFilename: string }>;
+  /**
+   * Atlas dataset version label `M.m.p` the published Zenodo version carries.
+   * Defaults to the experiment's current version at publish time.
+   */
+  versionLabel?: string;
 }
 
 const DEFAULT_POLL_ATTEMPTS = 12;
@@ -151,6 +162,7 @@ async function persistPublishedDeposit(
   depositionId: number,
   publishedAt: Date,
   startedAt: Date,
+  versionLabelOverride: string | undefined,
 ): Promise<MintZenodoDatasetDoiResult> {
   const doi = normalizeDoi(deposition.doi ?? null);
   if (!doi) {
@@ -158,6 +170,12 @@ async function persistPublishedDeposit(
   }
   const recordUrl = resolveRecordUrl(deposition);
   const recordId = resolveRecordId(deposition);
+  const versionLabel =
+    versionLabelOverride ??
+    (await readExperimentVersionLabel(db, experimentId));
+  if (versionLabel) {
+    await assertVersionDoiUnique(db, experimentId, versionLabel, doi);
+  }
   await db.$transaction([
     db.experimentzenododeposits.update({
       where: { experimentid: experimentId },
@@ -169,8 +187,21 @@ async function persistPublishedDeposit(
         publishedat: publishedAt,
         errormessage: null,
         zenododepositionid: depositionId,
+        ...conceptDepositData(deposition),
       },
     }),
+    ...(versionLabel
+      ? [
+          upsertPublishedVersionOperation(db, {
+            experimentId,
+            versionLabel,
+            doi,
+            recordId,
+            depositionId,
+            publishedAt,
+          }),
+        ]
+      : []),
     db.experimentmetrics.upsert({
       where: { experimentid: experimentId },
       create: {
@@ -389,6 +420,7 @@ export async function mintExperimentDatasetDoi(
 
     const metadata = buildZenodoDepositMetadata(snapshot, {
       communityId: zenodoCommunityId(),
+      versionLabel: options.versionLabel,
     });
 
     let deposition: ZenodoDeposition;
@@ -411,6 +443,7 @@ export async function mintExperimentDatasetDoi(
             depositionId,
             publishedAt,
             startedAt,
+            options.versionLabel,
           );
         }
         for (let i = 0; i < pollAttempts; i += 1) {
@@ -424,6 +457,7 @@ export async function mintExperimentDatasetDoi(
               depositionId,
               now(),
               startedAt,
+              options.versionLabel,
             );
           }
           await sleep(pollDelayMs);
@@ -503,6 +537,7 @@ export async function mintExperimentDatasetDoi(
           depositionId,
           now(),
           startedAt,
+          options.versionLabel,
         );
       }
       console.info("[zenodo] waiting for DOI", {

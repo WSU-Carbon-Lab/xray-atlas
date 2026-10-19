@@ -50,6 +50,11 @@ export const env = createEnv({
      */
     ZENODO_COMMUNITY_ID: z.string().min(1).optional(),
     /**
+     * Shared secret Vercel Cron sends as `Authorization: Bearer <secret>` to
+     * `/api/cron/*` routes. When unset, those routes refuse every request.
+     */
+    CRON_SECRET: z.string().min(1).optional(),
+    /**
      * Optional public X-ray Atlas origin for Zenodo deposit descriptions.
      * Defaults to brand `site.url` (`https://xrayatlas.wsu.edu`). Must not be
      * localhost; never derived from `AUTH_URL` / `VERCEL_URL` / `getBaseUrl`.
@@ -99,6 +104,7 @@ export const env = createEnv({
     ZENODO_CLIENT_SECRET: process.env.ZENODO_CLIENT_SECRET,
     ZENODO_USE_SANDBOX: process.env.ZENODO_USE_SANDBOX,
     ZENODO_COMMUNITY_ID: process.env.ZENODO_COMMUNITY_ID,
+    CRON_SECRET: process.env.CRON_SECRET,
     ATLAS_PUBLIC_SITE_URL: process.env.ATLAS_PUBLIC_SITE_URL,
     NODE_ENV: process.env.NODE_ENV,
     NEXT_PUBLIC_GOOGLE_MAPS_API_KEY:

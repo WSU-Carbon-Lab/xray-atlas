@@ -34,6 +34,8 @@ export interface ZenodoDepositMetadata {
   related_identifiers?: ZenodoRelatedIdentifier[];
   keywords?: string[];
   notes?: string;
+  /** Atlas dataset version `major.minor.patch`. */
+  version?: string;
 }
 
 export interface ZenodoDepositionLinks {
@@ -59,6 +61,8 @@ export interface ZenodoDepositionFile {
 export interface ZenodoDeposition {
   id: number;
   conceptrecid?: string | number;
+  /** Concept DOI shared by all versions; present on record payloads, absent on some deposition payloads. */
+  conceptdoi?: string | null;
   doi?: string | null;
   doi_url?: string | null;
   record_id?: number | null;
