@@ -898,7 +898,7 @@
     opacity: 0.5;
   }
   .home-open__next {
-    @apply text-muted hover:text-foreground justify-self-center self-end pb-6 text-sm no-underline;
+    @apply text-muted hover:text-foreground self-end justify-self-center pb-6 text-sm no-underline;
     grid-row: 3;
   }
   .home-break {

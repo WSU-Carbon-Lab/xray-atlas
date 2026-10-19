@@ -87,7 +87,8 @@ export function usePasskeyEnrollmentGate(
 
       if (!result.ok) {
         const message =
-          result.errorMessage ?? "Passkey registration failed. Please try again.";
+          result.errorMessage ??
+          "Passkey registration failed. Please try again.";
         if (
           isPasskeyClientCancelled(new Error(message)) ||
           message.toLowerCase().includes("interrupted") ||

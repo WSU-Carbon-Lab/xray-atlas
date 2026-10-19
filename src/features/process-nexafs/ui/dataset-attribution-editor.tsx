@@ -363,7 +363,7 @@ export function DatasetAttributionEditor({
             "border-border bg-surface w-[min(20rem,calc(100vw-2rem))] rounded-lg border p-4 shadow-lg",
           )}
         >
-          <div className="mb-3 flex gap-1 rounded-lg bg-default/40 p-0.5">
+          <div className="bg-default/40 mb-3 flex gap-1 rounded-lg p-0.5">
             <button
               type="button"
               className={cn(

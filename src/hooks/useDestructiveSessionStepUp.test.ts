@@ -1,4 +1,8 @@
-import { describe as bunDescribe, expect as bunExpect, it as bunIt } from "bun:test";
+import {
+  describe as bunDescribe,
+  expect as bunExpect,
+  it as bunIt,
+} from "bun:test";
 import { TRPCClientError } from "@trpc/client";
 import type { TRPC_ERROR_CODE_KEY } from "@trpc/server/rpc";
 import type { AppRouter } from "~/server/api/root";

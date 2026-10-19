@@ -21,12 +21,16 @@ interface FileUploadZoneProps {
 
 export function FileUploadZone({
   onFilesSelected,
-  acceptedFileTypes: _acceptedFileTypes = SPECTRUM_UPLOAD_FILE_ACCEPT.split(","),
+  acceptedFileTypes: _acceptedFileTypes = SPECTRUM_UPLOAD_FILE_ACCEPT.split(
+    ",",
+  ),
   maxFileSize = 10 * 1024 * 1024,
   multiple = true,
 }: FileUploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
-  const [draggedFileType, setDraggedFileType] = useState<"csv" | "json" | "mixed" | null>(null);
+  const [draggedFileType, setDraggedFileType] = useState<
+    "csv" | "json" | "mixed" | null
+  >(null);
   const [error, setError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const folderInputRef = useRef<HTMLInputElement>(null);
@@ -89,7 +93,8 @@ export function FileUploadZone({
         .filter((item) => item.kind === "file")
         .map((item) => {
           const mimeType = item.type.toLowerCase();
-          if (mimeType === "application/json" || mimeType === "text/json") return "json";
+          if (mimeType === "application/json" || mimeType === "text/json")
+            return "json";
           if (
             mimeType === "text/csv" ||
             mimeType === "application/csv" ||
@@ -198,7 +203,7 @@ export function FileUploadZone({
               ? draggedFileType === "json"
                 ? "Drop JSON file here"
                 : "Drop spectra or a folder here"
-                : "Drag and drop CSV, JSON, or XLSX files or a folder"}
+              : "Drag and drop CSV, JSON, or XLSX files or a folder"}
           </span>
           <span className="text-muted text-sm">
             Max {(maxFileSize / (1024 * 1024)).toFixed(0)}MB per file
@@ -222,7 +227,7 @@ export function FileUploadZone({
             </button>
           </div>
         </div>
-        <div className="text-muted hidden shrink-0 transition-colors duration-200 group-hover:text-accent md:block">
+        <div className="text-muted group-hover:text-accent hidden shrink-0 transition-colors duration-200 md:block">
           <CloudArrowUpIcon
             className={`h-14 w-14 transition-colors ${
               isDragging ? "text-accent" : "group-hover:text-accent"
@@ -237,7 +242,7 @@ export function FileUploadZone({
           <XMarkIcon className="h-5 w-5 shrink-0" />
           <div className="min-w-0 flex-1">
             <p className="font-medium">File validation errors:</p>
-            <pre className="mt-1 whitespace-pre-wrap text-xs">{error}</pre>
+            <pre className="mt-1 text-xs whitespace-pre-wrap">{error}</pre>
           </div>
           <button
             type="button"

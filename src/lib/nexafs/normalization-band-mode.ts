@@ -7,7 +7,11 @@
 /** Which edge windows drive the affine normalization transform. */
 export type NormalizationBandMode = "both" | "pre" | "post";
 
-const BAND_MODES = ["both", "pre", "post"] as const satisfies readonly NormalizationBandMode[];
+const BAND_MODES = [
+  "both",
+  "pre",
+  "post",
+] as const satisfies readonly NormalizationBandMode[];
 
 /**
  * Parses a stored `bandMode` token from normalization JSON; unknown values fall back to `both`.
@@ -15,7 +19,9 @@ const BAND_MODES = ["both", "pre", "post"] as const satisfies readonly Normaliza
  * @param value - Raw JSON field (string or other).
  * @returns Canonical {@link NormalizationBandMode}.
  */
-export function parseNormalizationBandMode(value: unknown): NormalizationBandMode {
+export function parseNormalizationBandMode(
+  value: unknown,
+): NormalizationBandMode {
   if (typeof value === "string") {
     const trimmed = value.trim().toLowerCase();
     if ((BAND_MODES as readonly string[]).includes(trimmed)) {

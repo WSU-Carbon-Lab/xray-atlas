@@ -227,16 +227,19 @@ export function NexafsContributeFlow(props: NexafsContributeFlowProps) {
     startDescriptorEditing?: boolean;
   } | null>(null);
 
-  const requestPersistedDescriptorEdit = useCallback((datasetId: string) => {
-    if (datasetId !== activeDatasetId) {
-      handleDatasetSelect(datasetId);
-    }
-    setVisualizationModeRequest({
-      mode: "experiment",
-      nonce: Date.now(),
-      startDescriptorEditing: true,
-    });
-  }, [activeDatasetId, handleDatasetSelect]);
+  const requestPersistedDescriptorEdit = useCallback(
+    (datasetId: string) => {
+      if (datasetId !== activeDatasetId) {
+        handleDatasetSelect(datasetId);
+      }
+      setVisualizationModeRequest({
+        mode: "experiment",
+        nonce: Date.now(),
+        startDescriptorEditing: true,
+      });
+    },
+    [activeDatasetId, handleDatasetSelect],
+  );
 
   const activeDataset = datasets.find((d) => d.id === activeDatasetId);
   const persistedExperimentId = activeDataset?.persistedExperimentId ?? null;

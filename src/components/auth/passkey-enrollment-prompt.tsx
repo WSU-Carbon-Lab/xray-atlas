@@ -54,7 +54,9 @@ export function PasskeyEnrollmentPrompt({
             ) : null}
             <Link href={profileHref} className="w-fit">
               <Button variant={onRegister ? "secondary" : "primary"}>
-                {onRegister ? "Open profile" : "Open profile to register passkey"}
+                {onRegister
+                  ? "Open profile"
+                  : "Open profile to register passkey"}
               </Button>
             </Link>
           </div>

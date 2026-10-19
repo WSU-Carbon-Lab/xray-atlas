@@ -82,47 +82,47 @@ export default async function MoleculeDetailLayout({
   if (resolved.status === "collision") {
     const collision = resolved.collision;
     return (
-        <div className="py-8">
-          <div className="mx-auto max-w-3xl space-y-6">
-            <div className="rounded-xl border border-gray-200 bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
-              <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
-                Molecule name collision
-              </h1>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-                The molecule slug &quot;{collision.slug}&quot; matches multiple
-                molecules. Pick the correct molecule below.
-              </p>
-              <div className="mt-6 space-y-2">
-                {collision.candidates.map((c) => (
-                  <Link
-                    key={c.id}
-                    href={`/molecules/${c.slug}`}
-                    className="block rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-100 dark:hover:bg-gray-900/50"
-                  >
-                    <div className="font-semibold">{c.name}</div>
-                    <div className="mt-1 font-mono text-xs text-gray-600 dark:text-gray-400">
-                      {c.iupacName}
-                    </div>
-                  </Link>
-                ))}
-              </div>
-              <div className="mt-6 flex flex-wrap gap-4 text-sm">
+      <div className="py-8">
+        <div className="mx-auto max-w-3xl space-y-6">
+          <div className="rounded-xl border border-gray-200 bg-white p-8 dark:border-gray-700 dark:bg-gray-800">
+            <h1 className="text-xl font-semibold text-gray-900 dark:text-gray-100">
+              Molecule name collision
+            </h1>
+            <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+              The molecule slug &quot;{collision.slug}&quot; matches multiple
+              molecules. Pick the correct molecule below.
+            </p>
+            <div className="mt-6 space-y-2">
+              {collision.candidates.map((c) => (
                 <Link
-                  href="/browse/molecules"
-                  className="hover:text-accent dark:hover:text-accent-light font-medium text-gray-600 dark:text-gray-400"
+                  key={c.id}
+                  href={`/molecules/${c.slug}`}
+                  className="block rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-900/30 dark:text-gray-100 dark:hover:bg-gray-900/50"
                 >
-                  Browse molecules
+                  <div className="font-semibold">{c.name}</div>
+                  <div className="mt-1 font-mono text-xs text-gray-600 dark:text-gray-400">
+                    {c.iupacName}
+                  </div>
                 </Link>
-                <Link
-                  href="/"
-                  className="hover:text-accent dark:hover:text-accent-light font-medium text-gray-600 dark:text-gray-400"
-                >
-                  Back to home
-                </Link>
-              </div>
+              ))}
+            </div>
+            <div className="mt-6 flex flex-wrap gap-4 text-sm">
+              <Link
+                href="/browse/molecules"
+                className="hover:text-accent dark:hover:text-accent-light font-medium text-gray-600 dark:text-gray-400"
+              >
+                Browse molecules
+              </Link>
+              <Link
+                href="/"
+                className="hover:text-accent dark:hover:text-accent-light font-medium text-gray-600 dark:text-gray-400"
+              >
+                Back to home
+              </Link>
             </div>
           </div>
         </div>
+      </div>
     );
   }
 

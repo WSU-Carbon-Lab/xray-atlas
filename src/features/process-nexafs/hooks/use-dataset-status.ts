@@ -65,7 +65,9 @@ export function useDatasetStatus(
     }
 
     if (dataset.edgeId && dataset.spectrumPoints.length > 0) {
-      const selectedEdge = edgeOptions.find((edge) => edge.id === dataset.edgeId);
+      const selectedEdge = edgeOptions.find(
+        (edge) => edge.id === dataset.edgeId,
+      );
       if (selectedEdge) {
         const extent = spectrumEnergyExtent(dataset.spectrumPoints);
         if (extent) {

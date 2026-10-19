@@ -283,9 +283,7 @@ export function evaluateEdgeEnergyConsistency(args: {
   minEv: number | null | undefined;
   maxEv: number | null | undefined;
 }): EdgeEnergyConsistencyResult {
-  const band = args.edgeLabel
-    ? typicalBandForEdgeLabel(args.edgeLabel)
-    : null;
+  const band = args.edgeLabel ? typicalBandForEdgeLabel(args.edgeLabel) : null;
   if (!band) {
     return { ok: true, expectedBand: null, message: null };
   }
