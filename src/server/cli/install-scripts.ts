@@ -19,7 +19,9 @@ export type InstallCommandName = (typeof INSTALL_COMMAND_NAMES)[number];
  * @returns The allowed command name.
  * @throws {Error} when `value` is not `xatlas`, `xa`, or `atlas`.
  */
-export function parseInstallCommandName(value: string | null): InstallCommandName {
+export function parseInstallCommandName(
+  value: string | null,
+): InstallCommandName {
   if (value === null || value.length === 0 || value === "xatlas") {
     return "xatlas";
   }

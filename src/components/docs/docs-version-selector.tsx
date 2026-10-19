@@ -11,10 +11,7 @@ import { ChevronsUpDown, Tag } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import type { ReactElement } from "react";
-import {
-  PopoverMenu,
-  PopoverMenuContent,
-} from "~/components/ui/popover-menu";
+import { PopoverMenu, PopoverMenuContent } from "~/components/ui/popover-menu";
 import {
   canonicalDocsPath,
   docsVersionFromPath,

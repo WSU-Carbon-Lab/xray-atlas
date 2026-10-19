@@ -4,7 +4,10 @@
  * The install scripts download this route, extract it, and run `install-bin`.
  */
 
-import { buildCliPackageArchive, cliPackageIsPresent } from "~/server/cli/install-package";
+import {
+  buildCliPackageArchive,
+  cliPackageIsPresent,
+} from "~/server/cli/install-package";
 
 /**
  * Returns the CLI package archive, or 404 when this checkout has no CLI tree.

@@ -20,11 +20,7 @@ import { docsVersionFromPath, hrefForDocsVersion } from "~/lib/docs-versions";
  *
  * @param props.children - The active docs page.
  */
-export function DocsShell({
-  children,
-}: {
-  children: ReactNode;
-}): ReactElement {
+export function DocsShell({ children }: { children: ReactNode }): ReactElement {
   const pathname = usePathname();
   const current = activeDocsHref(pathname);
   const pinned = docsVersionFromPath(pathname);

@@ -20,7 +20,8 @@ export function GET(request: Request): Response {
   try {
     name = parseInstallCommandName(url.searchParams.get("name"));
   } catch (error) {
-    const message = error instanceof Error ? error.message : "Invalid command name.";
+    const message =
+      error instanceof Error ? error.message : "Invalid command name.";
     return new Response(`${message}\n`, {
       status: 400,
       headers: { "Content-Type": "text/plain; charset=utf-8" },

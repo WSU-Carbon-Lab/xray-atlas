@@ -40,7 +40,9 @@ export default function DocsHomePage() {
               <span className="text-foreground text-lg font-medium">
                 {section.title}
               </span>
-              <span className="text-muted text-sm leading-6">{section.body}</span>
+              <span className="text-muted text-sm leading-6">
+                {section.body}
+              </span>
             </DocsPathLink>
           </li>
         ))}

@@ -4,18 +4,18 @@ X-ray Atlas is a collaborative platform for sharing and exploring Near-Edge X-ra
 
 ## Guidelines and Rules for using agents
 
-Agents should generally not be used to write commit messages, and do not have permission to push changes into the repository. Because of this, if you commit to this repo, and push changes, you are responsible for every written line of code. 
-Agent representation and co signing should be done by the human contributor based on what the agent did, not by the agent itself. 
+Agents should generally not be used to write commit messages, and do not have permission to push changes into the repository. Because of this, if you commit to this repo, and push changes, you are responsible for every written line of code.
+Agent representation and co signing should be done by the human contributor based on what the agent did, not by the agent itself.
 
 General guidelines for commit signing.
+
 - Generally, the human should be the sole approver and signer on every commit, unless the individual edits are small and are correct.
 - Pull requests should be written soely by the human, but should be co-authored by the human and the agent.
-- If a commit is a single file change then the human should do it. 
-- If the commit is a larger more complex change, then the agent and human co-sign the commit. 
+- If a commit is a single file change then the human should do it.
+- If the commit is a larger more complex change, then the agent and human co-sign the commit.
 - Agents should not write commit messages, they can group like changes together and suggest messages. When they do, the agent co-signs the commit.
-- The specific model should be cited in the co-sign statement, e.g. `Co-authored-by: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. This means that general cursor-agent only sign's if it knows the model used, this tends to be an Anthropic model, but may be a different model if the human knows the model used. Only use cursor-agent if the model is specifically a cursor model such as Composer. 
-- All commit messages are approved by the human coder with the human coder approving each commit individually, and approving the co-sign statement. 
-
+- The specific model should be cited in the co-sign statement, e.g. `Co-authored-by: Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`. This means that general cursor-agent only sign's if it knows the model used, this tends to be an Anthropic model, but may be a different model if the human knows the model used. Only use cursor-agent if the model is specifically a cursor model such as Composer.
+- All commit messages are approved by the human coder with the human coder approving each commit individually, and approving the co-sign statement.
 
 ## Fundamental Concepts
 
