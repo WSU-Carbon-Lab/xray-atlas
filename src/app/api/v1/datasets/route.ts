@@ -2,6 +2,14 @@ import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { db } from "~/server/db";
 import { rejectInvalidPresentedBearer } from "~/server/cli/access-token";
+import type { CreateWithSpectrumInput } from "~/server/nexafs/create-experiment-with-spectrum";
+import {
+  createV1Caller,
+  handleV1,
+  readJsonBody,
+  requireBearerScope,
+  requireJsonObject,
+} from "~/app/api/v1/_lib/write-api";
 import {
   buildExperimentWhere,
   formatEdgeLabel,
@@ -181,4 +189,37 @@ export async function GET(request: Request): Promise<NextResponse> {
     }
     return jsonError("Failed to list dataset summaries.", 500);
   }
+}
+
+/**
+ * Creates a NEXAFS dataset at version 1.0.0.
+ *
+ * Requires `Authorization: Bearer` with the `write` scope; cookie sessions are not accepted.
+ * The JSON body is the `experiments.createWithSpectrum` input, validated and authorized by that
+ * procedure (contribution agreement included). Responds 201 with
+ * `{ experimentId, version, sampleId, spectrumPointsCreated }`; failures use the
+ * `{ error: { code, message } }` envelope.
+ */
+export async function POST(request: Request): Promise<NextResponse> {
+  return handleV1(async () => {
+    const bearer = await requireBearerScope(request, "write");
+    const body = requireJsonObject(await readJsonBody(request));
+    const caller = createV1Caller(bearer, request);
+    const result = await caller.experiments.createWithSpectrum(
+      body as unknown as CreateWithSpectrumInput,
+    );
+    const created = result.experiments[0];
+    if (!created) {
+      throw new Error("Dataset creation produced no experiment.");
+    }
+    return NextResponse.json(
+      {
+        experimentId: created.experiment.id,
+        version: "1.0.0",
+        sampleId: result.sample.id,
+        spectrumPointsCreated: created.spectrumPointsCreated,
+      },
+      { status: 201, headers: { "cache-control": "no-store" } },
+    );
+  });
 }

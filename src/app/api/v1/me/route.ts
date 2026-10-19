@@ -9,7 +9,7 @@ import {
 export const dynamic = "force-dynamic";
 
 /**
- * Returns the account bound to the `xatlas` read credential.
+ * Returns the account and approved scopes bound to the `xatlas` credential.
  *
  * Requires `Authorization: Bearer`. Catalog list routes stay public when that
  * header is absent.
@@ -25,14 +25,15 @@ export async function GET(request: Request): Promise<NextResponse> {
     {
       orcid: identity.userId,
       name: identity.name,
-      scope: identity.scope,
+      scopes: identity.scopes,
+      scope: identity.scopes.includes("write") ? "write" : "read",
     },
     { headers: { "cache-control": "no-store" } },
   );
 }
 
 /**
- * Revokes the presented `xatlas` read credential.
+ * Revokes only the presented `xatlas` credential; the account's other tokens stay valid.
  */
 export async function DELETE(request: Request): Promise<NextResponse> {
   try {

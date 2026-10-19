@@ -6,6 +6,8 @@ import {
   formatEdgeLabel,
   parseDatasetExportQuery,
 } from "~/app/api/v1/_lib/researcher-api";
+import { resolveRequestedDatasetVersion } from "~/app/api/v1/_lib/dataset-version-query";
+import { V1HttpError, v1ErrorResponse } from "~/app/api/v1/_lib/write-api";
 
 type DatasetExportRow = {
   dataset_id: string;
@@ -88,6 +90,10 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     const requestUrl = new URL(request.url);
     const query = parseDatasetExportQuery(requestUrl.searchParams);
+    const servedVersion = await resolveRequestedDatasetVersion(
+      requestUrl.searchParams,
+      { datasetId: query.datasetId, atlasDatasetId: query.atlasDatasetId },
+    );
     const where = buildExperimentWhere({
       moleculeId: query.moleculeId,
       edgeId: query.edgeId,
@@ -209,11 +215,15 @@ export async function GET(request: Request): Promise<NextResponse> {
           "Content-Type": "text/csv; charset=utf-8",
           "Content-Disposition":
             'attachment; filename="xray-atlas-datasets-v1.csv"',
+          ...(servedVersion
+            ? { "X-Dataset-Version": servedVersion.served }
+            : {}),
         },
       });
     }
 
     return NextResponse.json({
+      ...(servedVersion ? { version: servedVersion } : {}),
       columns: datasetExportColumns,
       rowCount: rows.length,
       filters: {
@@ -226,6 +236,9 @@ export async function GET(request: Request): Promise<NextResponse> {
       rows,
     });
   } catch (error) {
+    if (error instanceof V1HttpError) {
+      return v1ErrorResponse(error.status, error.code, error.message);
+    }
     if (error instanceof ZodError) {
       return jsonError(
         error.issues[0]?.message ?? "Invalid query parameters.",

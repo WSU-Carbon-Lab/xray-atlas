@@ -3,6 +3,8 @@ import { ZodError } from "zod";
 import { db } from "~/server/db";
 import { rejectInvalidPresentedBearer } from "~/server/cli/access-token";
 import { parseDatasetPreviewQuery } from "~/app/api/v1/_lib/researcher-api";
+import { resolveRequestedDatasetVersion } from "~/app/api/v1/_lib/dataset-version-query";
+import { V1HttpError, v1ErrorResponse } from "~/app/api/v1/_lib/write-api";
 
 interface PreviewSampleRow {
   polar_deg: number | null;
@@ -62,6 +64,10 @@ export async function GET(request: Request): Promise<NextResponse> {
   try {
     const requestUrl = new URL(request.url);
     const query = parseDatasetPreviewQuery(requestUrl.searchParams);
+    const servedVersion = await resolveRequestedDatasetVersion(
+      requestUrl.searchParams,
+      { datasetId: query.datasetId, atlasDatasetId: query.atlasDatasetId },
+    );
     const where = query.datasetId
       ? { id: query.datasetId }
       : query.atlasDatasetId
@@ -145,12 +151,16 @@ export async function GET(request: Request): Promise<NextResponse> {
       current.rows.push(point);
     }
     return NextResponse.json({
+      ...(servedVersion ? { version: servedVersion } : {}),
       datasetId: experiment.id,
       atlasDatasetId: experiment.atlasdatasetid?.trim().toLowerCase() || null,
       rowsPerGroup: query.rows,
       groups,
     });
   } catch (error) {
+    if (error instanceof V1HttpError) {
+      return v1ErrorResponse(error.status, error.code, error.message);
+    }
     if (error instanceof ZodError) {
       return jsonError(
         error.issues[0]?.message ?? "Invalid query parameters.",
