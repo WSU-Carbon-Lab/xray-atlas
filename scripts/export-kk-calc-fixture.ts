@@ -10,6 +10,7 @@
  *   DATABASE_URL=... bun scripts/export-kk-calc-fixture.ts --experiment <uuid> --out <path.json>
  */
 
+import "./ensure-infisical-env";
 import "dotenv/config";
 import { writeFile } from "node:fs/promises";
 import path from "node:path";

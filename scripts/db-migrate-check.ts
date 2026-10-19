@@ -2,9 +2,10 @@
  * Validates `DIRECT_URL` before Prisma CLI migrations (Prisma 7 uses `datasource.url`
  * from `prisma.config.ts`, which must not be the transaction pooler on port 6543).
  *
- * Run: `bun scripts/db-migrate-check.ts`
+ * Run: `bun scripts/db-migrate-check.ts` (Infisical `dev` is loaded when `DIRECT_URL` is absent).
  */
 
+import "./ensure-infisical-env";
 import { config as loadEnvFile } from "dotenv";
 import path from "node:path";
 import { fileURLToPath } from "node:url";

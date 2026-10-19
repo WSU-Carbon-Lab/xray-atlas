@@ -6,6 +6,7 @@
  * Dry run: `bun scripts/clean-invalid-experiment-contributor-orcids.ts --dry-run`
  */
 
+import "./ensure-infisical-env";
 import { Prisma } from "~/prisma/client";
 import { db } from "~/server/db";
 import { isValidOrcidUserId } from "~/lib/orcid";

@@ -10,6 +10,7 @@
  * for manual repair or environments where migrate deploy is blocked on the pooler.
  */
 
+import "./ensure-infisical-env";
 import { Prisma } from "~/prisma/client";
 import { db } from "~/server/db";
 import { ATLAS_LEGACY_UPLOADER_ORCID } from "~/server/nexafs/experimentContributorRoles";

@@ -11,6 +11,7 @@
  * Do not run against production unless operators intend to wipe engagement history.
  */
 
+import "./ensure-infisical-env";
 import { db } from "~/server/db";
 
 const dryRun = process.argv.includes("--dry-run");

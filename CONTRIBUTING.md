@@ -174,6 +174,8 @@ X-ray Atlas uses PostgreSQL via Supabase with Prisma ORM.
    bun run postinstall
    ```
 
+   `postinstall`, `bun db:client`, `bun db:generate`, `bun db:push`, `bun db:studio`, and `bun db:migrate:status` run through `infisical run --env=dev`. Bun scripts that open the database (`bun db:migrate`, `bun scripts/<name>.ts`) do the same when `DIRECT_URL` or `DATABASE_URL` is missing, so the `infisical run --env=dev --` prefix is not part of the command.
+
 2. **Run Migrations**
 
    ```bash
@@ -344,6 +346,8 @@ bun dev:tunnel
 | `bun db:migrate`          | Apply Prisma migrations                                       |
 | `bun db:migrate:run`      | Check DIRECT_URL, then apply migrations (Supabase-friendly)   |
 | `bun db:migrate:check`    | Validate DIRECT_URL only                                      |
+| `bun db:migrate:status`   | Show Prisma migration status (Infisical `dev`)                |
+| `bun db:client`           | Generate the Prisma client (Infisical `dev`)                  |
 | `bun db:bootstrap:admins` | Grant administrator role from ADMIN_BOOTSTRAP_EMAILS / ORCIDS |
 | `bun db:push`             | Push schema changes (dev only)                                |
 | `bun db:studio`           | Open Prisma Studio                                            |
