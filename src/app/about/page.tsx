@@ -75,7 +75,7 @@ const aboutResourceCards = [
     href: "/wiki/atlas",
     title: "Using X-ray Atlas",
     description:
-      "Platform overview: search, visualization, quality signals, contribution flows, and the API.",
+      "Platform overview: search, visualization, quality signals, and contribution flows.",
     icon: MagnifyingGlassIcon,
   },
   {
@@ -86,10 +86,10 @@ const aboutResourceCards = [
     icon: ArrowTopRightOnSquareIcon,
   },
   {
-    href: "/wiki/api",
-    title: "API",
+    href: "/docs",
+    title: "Dev Docs",
     description:
-      "Versioned REST API documentation for researcher workflows, DOI-driven discovery, and pandas-ready dataset export.",
+      "HTTP API reference, the xatlas CLI, and client guides for editors, Python, and Igor Pro.",
     icon: CodeBracketIcon,
   },
 ] as const;

@@ -103,6 +103,12 @@ export function Footer({
                 Wiki
               </Link>
               <Link
+                href="/docs"
+                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
+              >
+                Dev Docs
+              </Link>
+              <Link
                 href="/blog"
                 className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
@@ -119,12 +125,6 @@ export function Footer({
                 className="text-muted hover:text-accent text-sm transition-colors hover:underline"
               >
                 Developers
-              </Link>
-              <Link
-                href="/wiki/api"
-                className="text-muted hover:text-accent text-sm transition-colors hover:underline"
-              >
-                API
               </Link>
               <Link
                 href="mailto:brian.collins@wsu.edu"

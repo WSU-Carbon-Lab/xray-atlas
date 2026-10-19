@@ -7,6 +7,7 @@ import "./src/env.js";
 /** @type {import("next").NextConfig} */
 const config = {
   poweredByHeader: false,
+  allowedDevOrigins: ["127.0.0.1"],
   serverExternalPackages: ["pg", "@prisma/adapter-pg"],
   experimental: {
     staleTimes: {
@@ -119,17 +120,37 @@ const config = {
       },
       {
         source: "/wiki/api-reference",
-        destination: "/wiki/api",
+        destination: "/docs/api",
         permanent: true,
       },
       {
         source: "/wiki/api/openapi-contract",
-        destination: "/wiki/api/v1",
+        destination: "/docs/api/v1",
         permanent: true,
       },
       {
         source: "/wiki/api/openapi",
-        destination: "/wiki/api/v1",
+        destination: "/docs/api/v1",
+        permanent: true,
+      },
+      {
+        source: "/wiki/api",
+        destination: "/docs/api",
+        permanent: true,
+      },
+      {
+        source: "/wiki/api/:path*",
+        destination: "/docs/api/:path*",
+        permanent: true,
+      },
+      {
+        source: "/wiki/docs",
+        destination: "/docs",
+        permanent: true,
+      },
+      {
+        source: "/wiki/docs/:path*",
+        destination: "/docs/:path*",
         permanent: true,
       },
     ];

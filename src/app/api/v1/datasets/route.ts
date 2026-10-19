@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { ZodError } from "zod";
 import { db } from "~/server/db";
+import { rejectInvalidPresentedBearer } from "~/server/cli/access-token";
 import {
   buildExperimentWhere,
   formatEdgeLabel,
@@ -12,12 +13,17 @@ function jsonError(message: string, status: number): NextResponse {
 }
 
 export async function GET(request: Request): Promise<NextResponse> {
+  const bearerRejection = await rejectInvalidPresentedBearer(request);
+  if (bearerRejection) {
+    return bearerRejection;
+  }
   try {
     const requestUrl = new URL(request.url);
     const query = parseDatasetSummaryQuery(requestUrl.searchParams);
     const where = buildExperimentWhere({
       moleculeId: query.moleculeId,
       edgeId: query.edgeId,
+      atlasDatasetId: query.atlasDatasetId,
       doi: query.doi,
     });
 
@@ -25,6 +31,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       where,
       select: {
         id: true,
+        atlasdatasetid: true,
         experimenttype: true,
         createdat: true,
         edges: {
@@ -79,6 +86,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         experimentmetrics: {
           select: {
             datasetdoi: true,
+            qualityaggregatescore: true,
           },
         },
         experimentzenododeposit: {
@@ -105,6 +113,7 @@ export async function GET(request: Request): Promise<NextResponse> {
     return NextResponse.json({
       data: page.map((dataset) => ({
         datasetId: dataset.id,
+        atlasDatasetId: dataset.atlasdatasetid?.trim().toLowerCase() || null,
         experimentType: dataset.experimenttype,
         edge: {
           id: dataset.edges.id,
@@ -134,6 +143,8 @@ export async function GET(request: Request): Promise<NextResponse> {
             }
           : null,
         spectrumPointCount: dataset._count.spectrumpoints,
+        qualityAggregateScore:
+          dataset.experimentmetrics?.qualityaggregatescore ?? null,
         createdAt: dataset.createdat.toISOString(),
         datasetDoi:
           dataset.experimentmetrics?.datasetdoi ??
@@ -157,6 +168,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       filters: {
         moleculeId: query.moleculeId ?? null,
         edgeId: query.edgeId ?? null,
+        atlasDatasetId: query.atlasDatasetId ?? null,
         doi: query.doi ?? null,
       },
     });

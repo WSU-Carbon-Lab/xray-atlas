@@ -636,26 +636,30 @@ export function ProfileApiKeysSection() {
           API keys
         </h2>
         <p className="text-muted mt-1 text-sm">
-          Programmatic access for scripts and integrations.
+          Read access for the xatlas CLI. The token is created with a passkey
+          and stored by the CLI.
         </p>
       </div>
-      <Card className="border-border bg-surface pointer-events-none border border-dashed opacity-60">
-        <Card.Content className="space-y-4 p-5">
-          <div className="flex flex-wrap items-center gap-2">
-            <Chip size="sm" variant="soft">
-              <Chip.Label>Coming soon</Chip.Label>
-            </Chip>
-            <p className="text-muted text-sm">
-              Mint API keys for programmatic access to X-ray Atlas.
-            </p>
-          </div>
-          <ul className="space-y-2" aria-hidden>
-            <li className="border-border bg-default/50 h-10 rounded-lg border" />
-            <li className="border-border bg-default/30 h-10 rounded-lg border" />
-          </ul>
-          <Button size="sm" variant="secondary" isDisabled>
-            Create API key
-          </Button>
+      <Card className="border-border bg-surface border">
+        <Card.Content className="space-y-3 p-5">
+          <p className="text-foreground text-sm">
+            Install the CLI and choose the command name xatlas, xa, or atlas.
+            The command reference is in the{" "}
+            <Link className="text-accent hover:underline" href="/docs/cli">
+              CLI docs
+            </Link>
+            .
+          </p>
+          <pre className="border-border bg-background overflow-x-auto rounded-lg border px-3 py-2">
+            <code className="text-foreground font-mono text-sm">
+              xatlas login
+            </code>
+          </pre>
+          <p className="text-muted text-sm">
+            The command opens this site, asks for a passkey, and saves a read
+            credential. A later login replaces the previous one.{" "}
+            <span className="font-mono">xatlas auth logout</span> revokes it.
+          </p>
         </Card.Content>
       </Card>
     </section>

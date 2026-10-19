@@ -129,7 +129,7 @@ export const prePublicationStages: RoadmapStage[] = [
     detail:
       "A native Python client wrapping the existing v1 REST API would let researchers query and pull datasets directly into analysis code. Shipping this before the manuscript goes to reviewers makes the catalog testable inside notebooks and beamline pipelines, and pairs naturally with adoption work and QANT-oriented integration experiments.",
     relatedLinks: [
-      { href: "/wiki/api/v1", label: "API v1 reference" },
+      { href: "/docs/api/v1", label: "API v1 reference" },
       { href: "/api/v1/openapi", label: "OpenAPI contract" },
     ],
   },
@@ -145,7 +145,7 @@ export const prePublicationStages: RoadmapStage[] = [
       "Before publication we want Atlas records to interoperate with complementary spectroscopy repositories rather than stand alone. That means mapping molecule, sample, spectrum, and provenance fields onto shared community formats, enabling import/export paths where practical, and documenting which identifiers and file layouts transfer cleanly between systems. The aim is reuse across databases, not duplicate curation in incompatible shapes.",
     relatedLinks: [
       { href: "/wiki/atlas/data-model", label: "Atlas data model" },
-      { href: "/wiki/api/v1", label: "API v1 reference" },
+      { href: "/docs/api/v1", label: "API v1 reference" },
     ],
   },
   {

@@ -98,8 +98,8 @@ const BROWSE_ITEMS = [
 
 const LEARN_ITEMS = [
   { href: "/wiki", label: "Wiki" },
+  { href: "/docs", label: "Dev Docs" },
   { href: "/wiki/atlas", label: "Using X-ray Atlas" },
-  { href: "/wiki/api", label: "API Docs" },
 ] as const;
 
 const NEWS_ITEMS = [

@@ -16,8 +16,8 @@ import { openApiV1Spec } from "~/app/api/v1/openapi/spec";
  * Wiki visualization of the X-ray Atlas HTTP API v1 contract.
  *
  * Reads `openApiV1Spec` for paths, parameters, and response schemas. Does not
- * fetch the network. Public GETs stay anonymous. The bearer contract covers
- * catalog writes, which are not published on v1.
+ * fetch the network. Catalog GETs stay anonymous. GET and DELETE /me require
+ * the xatlas read credential.
  */
 
 const HTTP_METHODS = ["get", "post", "put", "patch", "delete"] as const;
@@ -1067,10 +1067,10 @@ function AuthenticationSection(): ReactElement {
         Authentication
       </h2>
       <p className="text-muted leading-relaxed">
-        Every route on this page is a public read. Create a key when a script
-        must change catalog data. The steps are on the{" "}
-        <Link href="/wiki/api#api-keys" className="text-accent hover:underline">
-          API key guide
+        Catalog routes on this page are public reads. GET /me identifies the
+        xatlas credential. The steps are on the{" "}
+        <Link href="/docs/cli" className="text-accent hover:underline">
+          CLI docs
         </Link>
         .
       </p>
@@ -1079,15 +1079,16 @@ function AuthenticationSection(): ReactElement {
           <dt className="text-foreground font-medium">Public reads</dt>
           <dd className="text-muted">
             Molecules, datasets, BibTeX, archives, Henke tables, and the OpenAPI
-            document. Do not send a key.
+            document. A key is optional. A bad key on molecule and dataset lists
+            returns 401.
           </dd>
         </div>
         <div className="grid gap-1 px-4 py-3 sm:grid-cols-[9rem_minmax(0,1fr)] sm:gap-4">
-          <dt className="text-foreground font-medium">API key</dt>
+          <dt className="text-foreground font-medium">xatlas credential</dt>
           <dd className="text-muted">
-            Required only on routes that change catalog data. None of those
-            routes are in v1 today. A missing, malformed, unknown, or revoked
-            key returns 401{" "}
+            Required on GET /me and DELETE /me. Mint it with xatlas login, which
+            confirms a passkey and stores the token in the CLI. A missing,
+            malformed, unknown, or revoked key returns 401{" "}
             <code className="text-foreground">
               {'{ "error": "Unauthorized" }'}
             </code>{" "}

@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Version 1 dataset summaries, DOI lookup, CSV export, BibTeX, and the tar.gz archive.",
   alternates: {
-    canonical: "/wiki/api/v1/datasets",
+    canonical: "/docs/api/v1/datasets",
   },
 };
 

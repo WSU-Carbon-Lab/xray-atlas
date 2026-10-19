@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Version 1 overview: public catalog reads, the bearer contract for future catalog writes, and a console that runs those reads.",
   alternates: {
-    canonical: "/wiki/api/v1",
+    canonical: "/docs/api/v1",
   },
 };
 

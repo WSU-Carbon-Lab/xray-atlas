@@ -9,6 +9,7 @@ import {
 
 type DatasetExportRow = {
   dataset_id: string;
+  atlas_dataset_id: string | null;
   experiment_type: string | null;
   sample_id: string;
   sample_identifier: string;
@@ -33,6 +34,7 @@ type DatasetExportRow = {
 
 const datasetExportColumns = [
   "dataset_id",
+  "atlas_dataset_id",
   "experiment_type",
   "sample_id",
   "sample_identifier",
@@ -89,6 +91,8 @@ export async function GET(request: Request): Promise<NextResponse> {
     const where = buildExperimentWhere({
       moleculeId: query.moleculeId,
       edgeId: query.edgeId,
+      datasetId: query.datasetId,
+      atlasDatasetId: query.atlasDatasetId,
       doi: query.doi,
     });
 
@@ -107,6 +111,7 @@ export async function GET(request: Request): Promise<NextResponse> {
         experiments: {
           select: {
             id: true,
+            atlasdatasetid: true,
             createdat: true,
             experimenttype: true,
             samples: {
@@ -172,6 +177,8 @@ export async function GET(request: Request): Promise<NextResponse> {
 
       return {
         dataset_id: point.experiments.id,
+        atlas_dataset_id:
+          point.experiments.atlasdatasetid?.trim().toLowerCase() || null,
         experiment_type: point.experiments.experimenttype,
         sample_id: sample.id,
         sample_identifier: sample.identifier,
@@ -212,6 +219,8 @@ export async function GET(request: Request): Promise<NextResponse> {
       filters: {
         moleculeId: query.moleculeId ?? null,
         edgeId: query.edgeId ?? null,
+        datasetId: query.datasetId ?? null,
+        atlasDatasetId: query.atlasDatasetId ?? null,
         doi: query.doi ?? null,
       },
       rows,

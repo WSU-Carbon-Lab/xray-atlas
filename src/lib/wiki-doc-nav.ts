@@ -1,9 +1,9 @@
 /**
  * Canonical navigation entries for `/wiki/*` documentation routes.
  *
- * Owns the two-branch wiki tree (Start here, NEXAFS, Using X-ray Atlas) and per-page
+ * Owns the wiki tree (Start here, NEXAFS, Using X-ray Atlas) and per-page
  * section anchors for the right-rail outline. Section `id`s must match `rehype-slug`
- * output on MDX headings.
+ * output on MDX headings. Developer documentation lives under `/docs`.
  */
 
 export type WikiOverviewNavIcon =
@@ -85,31 +85,6 @@ export const wikiDocTopics: readonly WikiDocTopic[] = [
         label: "Contributing datasets",
         href: "/wiki/atlas/contributing",
       },
-      {
-        id: "api",
-        label: "API overview",
-        href: "/wiki/api",
-      },
-      {
-        id: "v1",
-        label: "v1",
-        href: "/wiki/api/v1",
-      },
-      {
-        id: "v1-molecules",
-        label: "v1 molecules",
-        href: "/wiki/api/v1/molecules",
-      },
-      {
-        id: "v1-datasets",
-        label: "v1 datasets",
-        href: "/wiki/api/v1/datasets",
-      },
-      {
-        id: "v1-physics",
-        label: "v1 physics",
-        href: "/wiki/api/v1/physics",
-      },
     ],
   },
 ] satisfies readonly WikiDocTopic[];
@@ -121,6 +96,7 @@ export const wikiPageSections: Record<string, readonly WikiDocNavSection[]> = {
   "/wiki": [
     { id: "nexafs", label: "NEXAFS" },
     { id: "using-x-ray-atlas", label: "Using X-ray Atlas" },
+    { id: "dev-docs", label: "Dev Docs" },
     { id: "citing-and-contributing", label: "Citing and contributing" },
   ],
   "/wiki/nexafs": [
@@ -211,20 +187,6 @@ export const wikiPageSections: Record<string, readonly WikiDocNavSection[]> = {
     },
     { id: "next-step", label: "Next step" },
   ],
-  "/wiki/api": [
-    { id: "overview", label: "Overview" },
-    { id: "api-keys", label: "API keys" },
-  ],
-  "/wiki/api/v1": [
-    { id: "overview", label: "Overview" },
-    { id: "authentication", label: "Authentication" },
-  ],
-  "/wiki/api/v1/molecules": [
-    { id: "molecules", label: "Molecules" },
-    { id: "compatibility", label: "Search" },
-  ],
-  "/wiki/api/v1/datasets": [{ id: "datasets", label: "Datasets" }],
-  "/wiki/api/v1/physics": [{ id: "physics", label: "Physics" }],
 };
 
 /**

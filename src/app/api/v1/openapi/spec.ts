@@ -2,9 +2,9 @@
  * OpenAPI 3.1 contract for the public `GET /api/v1` catalog routes.
  *
  * Describes the query parameters, status codes, and JSON or CSV bodies
- * implemented by the handlers under `src/app/api/v1`. Each operation sets
- * `security` to an empty array. `bearerAuth` stays declared for catalog
- * writes; this document does not include a mutating `/api/v1` operation.
+ * implemented by the handlers under `src/app/api/v1`. Catalog GET operations
+ * set `security` to an empty array. `GET /me` and `DELETE /me` require the
+ * `xatlas` read credential.
  */
 export const openApiV1Spec = {
   openapi: "3.1.0",
@@ -14,7 +14,7 @@ export const openApiV1Spec = {
     summary:
       "Public catalog, citation, physics, and download contract for X-ray Atlas.",
     description:
-      'Public read contract under /api/v1 for molecules, datasets, BibTeX, dataset archives, and Henke atomic form factors. Every operation in this document is a public GET. Catalog reads do not require an API key. An account API key sent as Authorization: Bearer is required only on routes that change catalog data. No such mutating /api/v1 route exists today. A missing, malformed, unknown, or revoked key on those routes returns 401 { error: "Unauthorized" } with WWW-Authenticate: Bearer. The website writes through the signed-in session, not these keys.',
+      'Public read contract under /api/v1 for molecules, datasets, BibTeX, dataset archives, and Henke atomic form factors. Catalog GET routes do not require an API key. GET /me and DELETE /me require Authorization: Bearer with a read credential minted by xatlas login after a passkey confirmation. The token starts with xra_ and is stored by the CLI. A malformed, unknown, or revoked key on /me returns 401 { error: "Unauthorized" } with WWW-Authenticate: Bearer. Molecule and dataset list routes stay public when no Authorization header is sent; a presented key that is malformed, unknown, or revoked returns the same 401. The website writes through the signed-in session, not these keys.',
   },
   servers: [{ url: "/api/v1", description: "Versioned API base path" }],
   tags: [
@@ -33,6 +33,10 @@ export const openApiV1Spec = {
       description: "Molecule search redirects used by browser search engines.",
     },
     { name: "Contract", description: "OpenAPI contract discovery endpoint." },
+    {
+      name: "Account",
+      description: "Identity for a xatlas read credential.",
+    },
   ],
   components: {
     securitySchemes: {
@@ -40,7 +44,7 @@ export const openApiV1Spec = {
         type: "http",
         scheme: "bearer",
         description:
-          "Account API key from the signed-in user's own profile Security tab. Token is shown once, starts with xra_, sent as Authorization: Bearer. Required only on routes that change catalog data. No such mutating /api/v1 route exists today. The website writes through the signed-in session, not these keys.",
+          "Read credential minted by xatlas login after a passkey confirmation. Starts with xra_, sent as Authorization: Bearer, and stored by the CLI. Required on GET /me and DELETE /me. The website writes through the signed-in session, not these keys.",
       },
     },
     schemas: {
@@ -201,10 +205,14 @@ export const openApiV1Spec = {
       DatasetFilters: {
         type: "object",
         additionalProperties: false,
-        required: ["moleculeId", "edgeId", "doi"],
+        required: ["moleculeId", "edgeId", "atlasDatasetId", "doi"],
         properties: {
           moleculeId: { $ref: "#/components/schemas/UuidOrNull" },
           edgeId: { $ref: "#/components/schemas/UuidOrNull" },
+          atlasDatasetId: {
+            description: "Normalized Atlas dataset id, or null when omitted.",
+            type: ["string", "null"],
+          },
           doi: {
             description:
               "Normalized DOI (resolver prefix removed and lowercased), or null when omitted.",
@@ -295,6 +303,11 @@ export const openApiV1Spec = {
         ],
         properties: {
           datasetId: { type: "string", format: "uuid" },
+          atlasDatasetId: {
+            description:
+              "Opaque Atlas dataset id used by /d/{atlasDatasetId}. Null until that id is assigned.",
+            type: ["string", "null"],
+          },
           experimentType: { $ref: "#/components/schemas/ExperimentType" },
           edge: { $ref: "#/components/schemas/EdgeSummary" },
           molecule: { $ref: "#/components/schemas/MoleculeRef" },
@@ -309,6 +322,11 @@ export const openApiV1Spec = {
             ],
           },
           spectrumPointCount: { type: "integer" },
+          qualityAggregateScore: {
+            description:
+              "experimentmetrics.quality_aggregate_score. Null when that row has no score.",
+            type: ["number", "null"],
+          },
           createdAt: { type: "string", format: "date-time" },
         },
       },
@@ -410,10 +428,21 @@ export const openApiV1Spec = {
       DatasetExportFilters: {
         type: "object",
         additionalProperties: false,
-        required: ["moleculeId", "edgeId", "doi"],
+        required: [
+          "moleculeId",
+          "edgeId",
+          "datasetId",
+          "atlasDatasetId",
+          "doi",
+        ],
         properties: {
           moleculeId: { $ref: "#/components/schemas/UuidOrNull" },
           edgeId: { $ref: "#/components/schemas/UuidOrNull" },
+          datasetId: { $ref: "#/components/schemas/UuidOrNull" },
+          atlasDatasetId: {
+            description: "Normalized Atlas dataset id, or null when omitted.",
+            type: ["string", "null"],
+          },
           doi: { type: ["string", "null"] },
         },
       },
@@ -422,6 +451,7 @@ export const openApiV1Spec = {
         additionalProperties: false,
         required: [
           "dataset_id",
+          "atlas_dataset_id",
           "experiment_type",
           "sample_id",
           "sample_identifier",
@@ -445,6 +475,11 @@ export const openApiV1Spec = {
         ],
         properties: {
           dataset_id: { type: "string", format: "uuid" },
+          atlas_dataset_id: {
+            description:
+              "Atlas dataset id for /d/{atlas_dataset_id}, or null when unassigned.",
+            type: ["string", "null"],
+          },
           experiment_type: { $ref: "#/components/schemas/ExperimentType" },
           sample_id: { type: "string", format: "uuid" },
           sample_identifier: { type: "string" },
@@ -481,10 +516,11 @@ export const openApiV1Spec = {
         properties: {
           columns: {
             type: "array",
-            minItems: 21,
-            maxItems: 21,
+            minItems: 22,
+            maxItems: 22,
             prefixItems: [
               { const: "dataset_id" },
+              { const: "atlas_dataset_id" },
               { const: "experiment_type" },
               { const: "sample_id" },
               { const: "sample_identifier" },
@@ -524,6 +560,78 @@ export const openApiV1Spec = {
     },
   },
   paths: {
+    "/me": {
+      get: {
+        tags: ["Account"],
+        operationId: "getCliAccount",
+        summary: "Get the xatlas account",
+        description:
+          "Requires Authorization: Bearer with a xatlas read credential. Returns the ORCID iD, display name, and scope. Does not return the token.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "Account bound to the presented credential.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["orcid", "name", "scope"],
+                  properties: {
+                    orcid: { type: "string" },
+                    name: { type: ["string", "null"] },
+                    scope: { type: "string", const: "read" },
+                  },
+                },
+              },
+            },
+          },
+          "401": {
+            description:
+              'Missing, malformed, unknown, or revoked credential. error is "Unauthorized". WWW-Authenticate is Bearer.',
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+      delete: {
+        tags: ["Account"],
+        operationId: "revokeCliAccount",
+        summary: "Revoke the xatlas credential",
+        description:
+          "Requires Authorization: Bearer. Revokes that read credential. xatlas auth logout calls this, then deletes the local credential file.",
+        security: [{ bearerAuth: [] }],
+        responses: {
+          "200": {
+            description: "The presented credential is revoked.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["revoked"],
+                  properties: {
+                    revoked: { type: "boolean", const: true },
+                  },
+                },
+              },
+            },
+          },
+          "401": {
+            description:
+              'Missing, malformed, unknown, or revoked credential. error is "Unauthorized".',
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
     "/openapi": {
       get: {
         tags: ["Contract"],
@@ -840,6 +948,14 @@ export const openApiV1Spec = {
             schema: { type: "string", format: "uuid" },
           },
           {
+            name: "atlasDatasetId",
+            in: "query",
+            required: false,
+            description:
+              "Atlas dataset id, 8 characters, or a d/{id} path. Filters to that dataset.",
+            schema: { type: "string" },
+          },
+          {
             name: "doi",
             in: "query",
             required: false,
@@ -986,13 +1102,128 @@ export const openApiV1Spec = {
         },
       },
     },
+    "/datasets/preview": {
+      get: {
+        tags: ["Datasets"],
+        operationId: "previewDataset",
+        summary: "Preview spectrum samples by polarization",
+        description:
+          "Public GET. No API key. Returns the first rows energy samples of one dataset, partitioned by polarization pair (polarDeg, azimuthDeg) and ordered by energy_ev. rows is 5 to 10 and defaults to 8. Provide datasetId or atlasDatasetId.",
+        security: [],
+        parameters: [
+          {
+            name: "datasetId",
+            in: "query",
+            required: false,
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "atlasDatasetId",
+            in: "query",
+            required: false,
+            description: "Atlas dataset id, 8 characters, or a d/{id} path.",
+            schema: { type: "string" },
+          },
+          {
+            name: "rows",
+            in: "query",
+            required: false,
+            schema: { type: "integer", minimum: 5, maximum: 10, default: 8 },
+          },
+        ],
+        responses: {
+          "200": {
+            description: "Leading samples for each polarization pair.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: [
+                    "datasetId",
+                    "atlasDatasetId",
+                    "rowsPerGroup",
+                    "groups",
+                  ],
+                  properties: {
+                    datasetId: { type: "string", format: "uuid" },
+                    atlasDatasetId: { type: "string", nullable: true },
+                    rowsPerGroup: { type: "integer" },
+                    groups: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        additionalProperties: false,
+                        required: [
+                          "polarDeg",
+                          "azimuthDeg",
+                          "pointCount",
+                          "rows",
+                        ],
+                        properties: {
+                          polarDeg: { type: "number", nullable: true },
+                          azimuthDeg: { type: "number", nullable: true },
+                          pointCount: { type: "integer" },
+                          rows: {
+                            type: "array",
+                            items: {
+                              type: "object",
+                              additionalProperties: false,
+                              required: [
+                                "energyEv",
+                                "rawAbs",
+                                "od",
+                                "massAbsorption",
+                                "beta",
+                                "delta",
+                              ],
+                              properties: {
+                                energyEv: { type: "number" },
+                                rawAbs: { type: "number" },
+                                od: { type: "number", nullable: true },
+                                massAbsorption: {
+                                  type: "number",
+                                  nullable: true,
+                                },
+                                beta: { type: "number", nullable: true },
+                                delta: { type: "number", nullable: true },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": {
+            description: "Missing dataset id or rows outside 5 to 10.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "404": {
+            description: "Dataset was not found.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+        },
+      },
+    },
     "/datasets/export": {
       get: {
         tags: ["Datasets"],
         operationId: "exportDatasets",
         summary: "Export dataset table",
         description:
-          "Public GET. No API key. Returns spectrum-point rows ordered by experiment createdAt descending, experiment id ascending, then energy_ev ascending, truncated to limit. format=json (default) returns application/json. format=csv returns text/csv.",
+          "Public GET. No API key. Returns spectrum-point rows ordered by experiment createdAt descending, experiment id ascending, then energy_ev ascending, truncated to limit. format=json (default) returns application/json. format=csv returns text/csv. datasetId limits the rows to one experiment.",
         security: [],
         parameters: [
           {
@@ -1006,6 +1237,22 @@ export const openApiV1Spec = {
             in: "query",
             required: false,
             schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "datasetId",
+            in: "query",
+            required: false,
+            description:
+              "One experiment UUID. Narrows the export to that dataset.",
+            schema: { type: "string", format: "uuid" },
+          },
+          {
+            name: "atlasDatasetId",
+            in: "query",
+            required: false,
+            description:
+              "Atlas dataset id, 8 characters, or a d/{id} path. Narrows the export to that dataset.",
+            schema: { type: "string" },
           },
           {
             name: "doi",
@@ -1048,7 +1295,7 @@ export const openApiV1Spec = {
                 schema: {
                   type: "string",
                   description:
-                    "Header row then one spectrum row. Columns, in order: dataset_id, experiment_type, sample_id, sample_identifier, molecule_id, molecule_iupac_name, edge_id, edge_label, instrument_id, instrument_name, facility_id, facility_name, publication_dois, energy_ev, raw_abs, i0, od, mass_absorption, beta, delta, created_at.",
+                    "Header row then one spectrum row. Columns, in order: dataset_id, atlas_dataset_id, experiment_type, sample_id, sample_identifier, molecule_id, molecule_iupac_name, edge_id, edge_label, instrument_id, instrument_name, facility_id, facility_name, publication_dois, energy_ev, raw_abs, i0, od, mass_absorption, beta, delta, created_at.",
                 },
               },
             },
@@ -1082,6 +1329,93 @@ export const openApiV1Spec = {
                 examples: {
                   failed: { value: { error: "Failed to export datasets." } },
                 },
+              },
+            },
+          },
+        },
+      },
+    },
+    "/datasets/query": {
+      post: {
+        tags: ["Datasets"],
+        operationId: "queryDatasets",
+        summary: "Query the spectrum export",
+        description:
+          "Public POST. No API key. Runs one SELECT or WITH against spectrum_points, the same columns as the dataset export. Other relations, writes, comments, and multiple statements are rejected. limit defaults to 100 and cannot exceed 10000. truncated is true when more rows matched.",
+        security: [],
+        requestBody: {
+          required: true,
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                additionalProperties: false,
+                required: ["sql"],
+                properties: {
+                  sql: {
+                    type: "string",
+                    minLength: 1,
+                    maxLength: 8000,
+                    description:
+                      "One SELECT or WITH that reads spectrum_points.",
+                  },
+                  limit: {
+                    type: "integer",
+                    minimum: 1,
+                    maximum: 10000,
+                    default: 100,
+                  },
+                },
+              },
+            },
+          },
+        },
+        responses: {
+          "200": {
+            description:
+              "Capped rows. columns follows the statement's output names. rowCount is the number of returned rows.",
+            content: {
+              "application/json": {
+                schema: {
+                  type: "object",
+                  additionalProperties: false,
+                  required: ["columns", "rowCount", "truncated", "rows"],
+                  properties: {
+                    columns: {
+                      type: "array",
+                      items: { type: "string" },
+                    },
+                    rowCount: { type: "integer" },
+                    truncated: { type: "boolean" },
+                    rows: {
+                      type: "array",
+                      items: {
+                        type: "object",
+                        additionalProperties: {
+                          type: ["string", "number", "null"],
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+          "400": {
+            description:
+              "Invalid JSON, rejected SQL, or a limit outside 1 to 10000.",
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
+              },
+            },
+          },
+          "500": {
+            description:
+              'The statement failed. error is "The query could not run." or a short database diagnostic that does not name internal tables.',
+            content: {
+              "application/json": {
+                schema: { $ref: "#/components/schemas/ErrorResponse" },
               },
             },
           },

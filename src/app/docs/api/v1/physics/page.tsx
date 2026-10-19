@@ -6,7 +6,7 @@ export const metadata: Metadata = {
   description:
     "Version 1 Henke atomic form factor table for one element symbol.",
   alternates: {
-    canonical: "/wiki/api/v1/physics",
+    canonical: "/docs/api/v1/physics",
   },
 };
 

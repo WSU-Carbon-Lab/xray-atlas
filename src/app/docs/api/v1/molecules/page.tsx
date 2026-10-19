@@ -5,7 +5,7 @@ export const metadata: Metadata = {
   title: "API v1 molecules",
   description: "Version 1 molecule catalog, edge summary, and search redirect.",
   alternates: {
-    canonical: "/wiki/api/v1/molecules",
+    canonical: "/docs/api/v1/molecules",
   },
 };
 
