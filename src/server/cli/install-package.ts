@@ -37,7 +37,9 @@ export async function cliPackageIsPresent(): Promise<boolean> {
  * @returns The raw `.tar.gz` bytes.
  * @throws {Error} when `tar` exits non-zero or the package directory is missing.
  */
-export async function buildCliPackageArchive(): Promise<Uint8Array> {
+export async function buildCliPackageArchive(): Promise<
+  Uint8Array<ArrayBuffer>
+> {
   const root = cliPackageRoot();
   if (!(await cliPackageIsPresent())) {
     throw new Error("xatlas package is not present in this checkout.");
@@ -45,11 +47,21 @@ export async function buildCliPackageArchive(): Promise<Uint8Array> {
   return runTar(root);
 }
 
-function runTar(root: string): Promise<Uint8Array> {
+function runTar(root: string): Promise<Uint8Array<ArrayBuffer>> {
   return new Promise((resolve, reject) => {
     const child = spawn(
       "tar",
-      ["-czf", "-", "--exclude", "node_modules", "--exclude", ".git", "-C", root, "."],
+      [
+        "-czf",
+        "-",
+        "--exclude",
+        "node_modules",
+        "--exclude",
+        ".git",
+        "-C",
+        root,
+        ".",
+      ],
       { stdio: ["ignore", "pipe", "pipe"] },
     );
     const chunks: Buffer[] = [];
@@ -64,7 +76,11 @@ function runTar(root: string): Promise<Uint8Array> {
     child.on("close", (code) => {
       if (code !== 0) {
         const detail = Buffer.concat(errors).toString("utf8").trim();
-        reject(new Error(detail.length > 0 ? detail : `tar exited ${code ?? "null"}.`));
+        reject(
+          new Error(
+            detail.length > 0 ? detail : `tar exited ${code ?? "null"}.`,
+          ),
+        );
         return;
       }
       resolve(new Uint8Array(Buffer.concat(chunks)));
