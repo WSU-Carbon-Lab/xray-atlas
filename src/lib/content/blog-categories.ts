@@ -34,7 +34,7 @@ export const BLOG_CATEGORIES: readonly BlogCategoryDefinition[] = [
     slug: "releases",
     label: "Releases",
     kicker: "RELEASE",
-    description: "Platform releases, milestones, and what shipped.",
+    description: "Platform releases, milestones, and new features.",
   },
   {
     slug: "technical",

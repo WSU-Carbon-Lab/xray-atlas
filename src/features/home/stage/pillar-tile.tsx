@@ -16,13 +16,16 @@ export interface PillarTileProps {
   /** Roving tabindex: 0 for the selected line, -1 otherwise. */
   tabIndex: 0 | -1;
   onSelect: (id: HomeStageId) => void;
+  /** Selects this feature while the pointer is over the row. */
+  onPreview: (id: HomeStageId) => void;
 }
 
 /**
  * One home feature: a display name, the arrow, then one sentence.
  *
  * The selected name is foreground and its arrow is visible. Other names stay
- * quiet until hover or focus, when the arrow eases in.
+ * quiet until hover or focus, when the arrow eases in. Pointer entry selects
+ * the feature so the preview follows the row under the cursor.
  */
 export function PillarTile({
   id,
@@ -32,6 +35,7 @@ export function PillarTile({
   controlsId,
   tabIndex,
   onSelect,
+  onPreview,
 }: PillarTileProps): ReactElement {
   return (
     <button
@@ -39,6 +43,9 @@ export function PillarTile({
       id={`home-theme-${id}`}
       role="tab"
       onClick={() => onSelect(id)}
+      onMouseEnter={() => {
+        if (!selected) onPreview(id);
+      }}
       aria-selected={selected}
       aria-controls={controlsId}
       tabIndex={tabIndex}

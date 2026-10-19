@@ -88,6 +88,13 @@ export function HomeAtlasStage(): ReactElement {
     [setPillar],
   );
 
+  const preview = useCallback(
+    (next: HomeStageId) => {
+      setPillar(hashFor(next), "replace");
+    },
+    [setPillar],
+  );
+
   useEffect(() => {
     if (userInitiated.current && prev.current !== stageId) {
       headingRef.current?.focus({ preventScroll: true });
@@ -139,6 +146,7 @@ export function HomeAtlasStage(): ReactElement {
                 }
                 commit(next);
               }}
+              onPreview={preview}
             />
           ))}
         </div>

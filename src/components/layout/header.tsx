@@ -251,7 +251,7 @@ export default function Header({
   const isLoaded = status !== "loading";
 
   return (
-    <div className="sticky top-0 z-[400] w-full">
+    <div data-site-header className="sticky top-0 z-[400] w-full">
       <header className="border-border bg-background/95 supports-backdrop-filter:bg-background/60 w-full border-b backdrop-blur">
         <nav
           className="mx-auto flex h-20 max-w-7xl items-center justify-between gap-4 px-4"
