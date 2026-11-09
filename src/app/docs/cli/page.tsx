@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactElement } from "react";
 import { site } from "~/app/brand";
 import { DocsCommandBlock } from "~/components/docs/docs-command-block";
+import { DocsFlagList } from "~/components/docs/docs-flag-list";
 import { DocsPathLink } from "~/components/docs/docs-path-link";
 import { latestDocsVersion } from "~/lib/docs-versions";
 
@@ -321,7 +322,7 @@ export default function CliDocsPage(): ReactElement {
           are coming later and do not exist yet. The Security tab on your
           profile lists the same tokens.
         </p>
-        <FlagList rows={tokenCommands} />
+        <DocsFlagList rows={tokenCommands} />
       </section>
 
       <section className="space-y-3">
@@ -333,7 +334,7 @@ export default function CliDocsPage(): ReactElement {
           <code className="text-foreground">-m</code> and{" "}
           <code className="text-foreground">-d</code> belong to browse only.
         </p>
-        <FlagList rows={globalOptions} />
+        <DocsFlagList rows={globalOptions} />
       </section>
 
       <section className="space-y-3">
@@ -352,7 +353,7 @@ export default function CliDocsPage(): ReactElement {
           </code>{" "}
           reorders the parents. The default order is molecule, edge, facility.
         </p>
-        <FlagList rows={moleculeCommands} />
+        <DocsFlagList rows={moleculeCommands} />
         <DocsCommandBlock command="xatlas molecules fetch <molecule-uuid> --edge <edge-uuid> --out ./data" />
       </section>
 
@@ -380,8 +381,8 @@ export default function CliDocsPage(): ReactElement {
           The id in <code className="text-foreground">d/&lt;id&gt;</code> is the
           code printed by the tree. An experiment UUID is also accepted.
         </p>
-        <FlagList rows={datasetCommands} />
-        <FlagList rows={pullFlags} />
+        <DocsFlagList rows={datasetCommands} />
+        <DocsFlagList rows={pullFlags} />
         <p className="text-muted text-sm">
           Molecule fetch and dataset fetch share the pull flags. A dataset tree
           starts at the edge. <code className="text-foreground">--json</code>{" "}
@@ -398,7 +399,7 @@ export default function CliDocsPage(): ReactElement {
           <code className="text-foreground">major.minor.patch</code>. A change
           resets the lower parts, so 1.0.2 becomes 1.1.0 on a minor bump.
         </p>
-        <FlagList rows={versionRules} />
+        <DocsFlagList rows={versionRules} />
         <p className="text-muted">
           A bump is always shown before it happens. The website opens a
           confirmation dialog and the CLI prints the same message, then asks for
@@ -454,7 +455,7 @@ export default function CliDocsPage(): ReactElement {
           sample metadata edits are made on the website and do not bump the
           version.
         </p>
-        <FlagList rows={pushFlags} />
+        <DocsFlagList rows={pushFlags} />
       </section>
 
       <section className="space-y-3">
@@ -488,7 +489,7 @@ export default function CliDocsPage(): ReactElement {
           from the website. Missing per-point uncertainty stays unset. Auxiliary
           files are not attached by upload yet. Add them on the website.
         </p>
-        <FlagList rows={uploadFlags} />
+        <DocsFlagList rows={uploadFlags} />
       </section>
 
       <section className="space-y-3">
@@ -526,7 +527,7 @@ export default function CliDocsPage(): ReactElement {
           from a dataset page, starting at the edge. A pipe or a non-terminal
           stdout prints the tree and returns.
         </p>
-        <FlagList rows={browseKeys} />
+        <DocsFlagList rows={browseKeys} />
         <p className="text-muted">
           Enter on a dataset loads its polarization pairs, ordered by theta then
           phi. Enter on a pair opens the first 8 energy rows of that pair. Tab
@@ -625,25 +626,5 @@ export default function CliDocsPage(): ReactElement {
         </p>
       </section>
     </article>
-  );
-}
-
-function FlagList({
-  rows,
-}: {
-  rows: readonly (readonly [string, string])[];
-}): ReactElement {
-  return (
-    <dl className="border-border divide-border divide-y rounded-xl border">
-      {rows.map(([name, detail]) => (
-        <div
-          key={name}
-          className="grid gap-1 px-4 py-3 sm:grid-cols-[16rem_minmax(0,1fr)] sm:gap-4"
-        >
-          <dt className="text-foreground font-mono text-sm">{name}</dt>
-          <dd className="text-muted text-sm leading-6">{detail}</dd>
-        </div>
-      ))}
-    </dl>
   );
 }

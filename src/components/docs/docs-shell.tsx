@@ -38,6 +38,43 @@ export function DocsShell({ children }: { children: ReactNode }): ReactElement {
               <ul className="space-y-0.5">
                 {group.items.map((item) => {
                   const selected = item.href === current;
+                  const childSelected = item.children?.some((c) => c.href === current) ?? false;
+                  if (item.children && item.children.length > 0) {
+                    return (
+                      <li key={item.href}>
+                        <details open={selected || childSelected} className="group">
+                          <summary className="text-muted hover:text-foreground flex cursor-pointer list-none items-baseline justify-between gap-2 rounded-md px-2 py-1.5 text-sm font-medium">
+                            <span>{item.label}</span>
+                            <span className="text-xs">▾</span>
+                          </summary>
+                          <div className="px-2 pb-1">
+                            <Link
+                              href={hrefForDocsVersion(item.href, pinned)}
+                              className={cn("block rounded-md px-2 py-1 text-xs", selected ? "bg-surface text-foreground font-medium" : "text-muted hover:text-foreground")}
+                            >
+                              Overview
+                            </Link>
+                          </div>
+                          <ul className="mt-0.5 ml-3 space-y-0.5 border-l border-border/40 pl-2">
+                            {item.children.map((child) => {
+                              const csel = child.href === current;
+                              return (
+                                <li key={child.href}>
+                                  <Link
+                                    href={hrefForDocsVersion(child.href, pinned)}
+                                    aria-current={csel ? "page" : undefined}
+                                    className={cn("block rounded-md px-2 py-1 text-sm", csel ? "bg-surface text-foreground font-medium" : "text-muted hover:text-foreground")}
+                                  >
+                                    {child.label}
+                                  </Link>
+                                </li>
+                              );
+                            })}
+                          </ul>
+                        </details>
+                      </li>
+                    );
+                  }
                   return (
                     <li key={item.href}>
                       <Link
@@ -45,16 +82,12 @@ export function DocsShell({ children }: { children: ReactNode }): ReactElement {
                         aria-current={selected ? "page" : undefined}
                         className={cn(
                           "flex items-baseline justify-between gap-2 rounded-md px-2 py-1.5 text-sm",
-                          selected
-                            ? "bg-surface text-foreground font-medium"
-                            : "text-muted hover:text-foreground",
+                          selected ? "bg-surface text-foreground font-medium" : "text-muted hover:text-foreground",
                         )}
                       >
                         <span>{item.label}</span>
                         {item.status === "soon" ? (
-                          <span className="text-muted text-xs tracking-wide uppercase">
-                            Soon
-                          </span>
+                          <span className="text-muted text-xs tracking-wide uppercase">Soon</span>
                         ) : null}
                       </Link>
                     </li>

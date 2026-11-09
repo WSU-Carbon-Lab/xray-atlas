@@ -1069,3 +1069,30 @@
     transform: translateY(-1.25rem);
   }
 }
+
+/*
+ * Dev Docs Python highlighting.
+ *
+ * Shiki writes the light theme to inline styles and the dark theme to
+ * `--shiki-dark` on every token. The block keeps the page surface as its
+ * background, so only token colours switch with the app theme.
+ */
+@layer components {
+  .docs-code pre.shiki {
+    margin: 0;
+    padding: 0;
+    overflow: visible;
+    background-color: transparent !important;
+    font-family: var(--font-mono, ui-monospace), ui-monospace, SFMono-Regular,
+      Menlo, monospace;
+    font-size: 0.875rem;
+    line-height: 1.5rem;
+  }
+
+  .dark .docs-code pre.shiki,
+  .dark .docs-code pre.shiki span,
+  [data-theme="dark"] .docs-code pre.shiki,
+  [data-theme="dark"] .docs-code pre.shiki span {
+    color: var(--shiki-dark) !important;
+  }
+}

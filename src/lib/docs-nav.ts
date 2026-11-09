@@ -11,6 +11,7 @@ export interface DocsNavItem {
   readonly href: string;
   readonly label: string;
   readonly status?: "soon";
+  readonly children?: readonly DocsNavItem[];
 }
 
 export interface DocsNavGroup {
@@ -39,18 +40,23 @@ export const docsNavGroups: readonly DocsNavGroup[] = [
     items: [
       { href: "/docs/cli", label: "CLI" },
       { href: "/docs/editors", label: "Editors", status: "soon" },
-      { href: "/docs/python", label: "Python", status: "soon" },
+      {
+        href: "/docs/python",
+        label: "Python",
+        children: [
+          { href: "/docs/python/datasets", label: "Datasets" },
+          { href: "/docs/python/models", label: "Models" },
+          { href: "/docs/python/build", label: "Build & publish" },
+          { href: "/docs/python/compare", label: "Compare" },
+          { href: "/docs/python/reproduce", label: "Reproduce" },
+          { href: "/docs/python/concepts", label: "Concepts" },
+          { href: "/docs/python/errors", label: "Errors" },
+          { href: "/docs/python/examples", label: "Examples" },
+          { href: "/docs/python/faq", label: "FAQ" },
+          { href: "/docs/python/reference", label: "Reference" },
+        ],
+      },
       { href: "/docs/igor", label: "Igor Pro", status: "soon" },
-    ],
-  },
-  {
-    label: "HTTP API",
-    items: [
-      { href: "/docs/api", label: "Overview" },
-      { href: "/docs/api/v1/molecules", label: "Molecules" },
-      { href: "/docs/api/v1/datasets", label: "Datasets" },
-      { href: "/docs/api/v1/account", label: "Account" },
-      { href: "/docs/api/v1/physics", label: "Physics" },
     ],
   },
 ];
@@ -78,8 +84,8 @@ export const docsSectionCards: readonly DocsSectionCard[] = [
   {
     href: "/docs/python",
     title: "Python",
-    status: "Coming soon",
-    body: "Python client for loading catalog records into analysis code.",
+    status: "Published",
+    body: "Read datasets, metadata, auxiliary files, and optical models into Python, then build, publish, compare, and pin models.",
   },
   {
     href: "/docs/igor",
