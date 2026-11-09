@@ -82,9 +82,9 @@ export default function InstallingDocsPage(): ReactElement {
           >
             Python
           </DocsPathLink>{" "}
-          client is a source install from the{" "}
-          <code className="text-foreground">extensions/python</code> submodule;
-          its install, login, and workflow guide is on the Python page.
+          client is published on PyPI as{" "}
+          <code className="text-foreground">xrayatlas</code>; its install,
+          login, and workflow guide is on the Python page.
         </p>
       </section>
     </article>
