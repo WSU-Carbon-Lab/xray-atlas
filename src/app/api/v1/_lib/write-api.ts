@@ -153,6 +153,42 @@ export function createV1Caller(
 }
 
 /**
+ * Creates a tRPC caller for a route that serves public data to anonymous callers and private data
+ * to token holders.
+ *
+ * No `Authorization` header gives an anonymous caller (public models only). A present header must
+ * be a valid token; it then acts as that token's owner. Cookie sessions are never consulted.
+ *
+ * @param request - Incoming request.
+ * @returns A caller bound to the token owner, or to nobody.
+ * @throws {V1HttpError} 401 when an `Authorization` header is present but malformed, expired, or revoked.
+ */
+export async function createOptionalBearerCaller(
+  request: Request,
+): Promise<V1Caller> {
+  const header = request.headers.get("authorization");
+  if (header === null || header.trim() === "") {
+    return createCaller({
+      userId: null,
+      tokenScopes: null,
+      clientIp: null,
+      userAgent: request.headers.get("user-agent")?.trim() ?? null,
+      req: request,
+      db,
+    });
+  }
+  const bearer = await resolveBearerContext(header);
+  if (!bearer) {
+    throw new V1HttpError(
+      401,
+      "UNAUTHORIZED",
+      "A valid Authorization: Bearer token is required.",
+    );
+  }
+  return createV1Caller(bearer, request);
+}
+
+/**
  * Parses the request body as JSON.
  *
  * @throws {MalformedJsonError} when the body is empty or not valid JSON.

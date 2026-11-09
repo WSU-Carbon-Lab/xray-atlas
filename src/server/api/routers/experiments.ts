@@ -160,6 +160,7 @@ import {
   assertUserMayEditExperiment,
   userMayEditExperiment,
 } from "~/server/nexafs/experimentEditAuthz";
+import { trySyncDefaultOpticalModel } from "~/server/optical-models/default-model";
 
 const experimentCommentInputSchema = z.object({
   text: z.string().trim().min(1).max(2000),
@@ -2464,6 +2465,10 @@ export const experimentsRouter = createTRPCRouter({
           error,
         });
       }
+
+      // The revision is committed; a default-model sync failure must not report the edit as
+      // failed. The next listing of the dataset's models retries.
+      await trySyncDefaultOpticalModel(ctx.db, input.experimentId);
 
       return updated.row;
     }),

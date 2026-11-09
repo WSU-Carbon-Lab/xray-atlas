@@ -8,6 +8,7 @@ import {
 } from "~/app/api/v1/_lib/researcher-api";
 import { resolveRequestedDatasetVersion } from "~/app/api/v1/_lib/dataset-version-query";
 import { V1HttpError, v1ErrorResponse } from "~/app/api/v1/_lib/write-api";
+import { formatDatasetVersion } from "~/server/nexafs/dataset-versioning";
 
 type DatasetExportRow = {
   dataset_id: string;
@@ -32,6 +33,9 @@ type DatasetExportRow = {
   beta: number | null;
   delta: number | null;
   created_at: string;
+  polarization_id: string | null;
+  theta_deg: number | null;
+  phi_deg: number | null;
 };
 
 const datasetExportColumns = [
@@ -57,6 +61,9 @@ const datasetExportColumns = [
   "beta",
   "delta",
   "created_at",
+  "polarization_id",
+  "theta_deg",
+  "phi_deg",
 ] as const;
 
 function jsonError(message: string, status: number): NextResponse {
@@ -114,12 +121,17 @@ export async function GET(request: Request): Promise<NextResponse> {
         massabsorption: true,
         beta: true,
         delta: true,
+        polarizationid: true,
+        polarizations: { select: { polardeg: true, azimuthdeg: true } },
         experiments: {
           select: {
             id: true,
             atlasdatasetid: true,
             createdat: true,
             experimenttype: true,
+            datasetVersionMajor: true,
+            datasetVersionMinor: true,
+            datasetVersionPatch: true,
             samples: {
               select: {
                 id: true,
@@ -166,6 +178,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       orderBy: [
         { experiments: { createdat: "desc" } },
         { experimentid: "asc" },
+        { polarizationid: "asc" },
         { energyev: "asc" },
       ],
       take: query.limit,
@@ -205,8 +218,24 @@ export async function GET(request: Request): Promise<NextResponse> {
         beta: point.beta,
         delta: point.delta,
         created_at: point.experiments.createdat.toISOString(),
+        polarization_id: point.polarizationid,
+        theta_deg: point.polarizations
+          ? Number(point.polarizations.polardeg)
+          : null,
+        phi_deg: point.polarizations
+          ? Number(point.polarizations.azimuthdeg)
+          : null,
       };
     });
+
+    const datasetVersions: Record<string, string> = {};
+    for (const point of spectrumRows) {
+      datasetVersions[point.experiments.id] ??= formatDatasetVersion({
+        major: point.experiments.datasetVersionMajor,
+        minor: point.experiments.datasetVersionMinor,
+        patch: point.experiments.datasetVersionPatch,
+      });
+    }
 
     if (query.format === "csv") {
       return new NextResponse(encodeRowsAsCsv(rows), {
@@ -226,6 +255,7 @@ export async function GET(request: Request): Promise<NextResponse> {
       ...(servedVersion ? { version: servedVersion } : {}),
       columns: datasetExportColumns,
       rowCount: rows.length,
+      datasetVersions,
       filters: {
         moleculeId: query.moleculeId ?? null,
         edgeId: query.edgeId ?? null,

@@ -49,6 +49,7 @@ import {
 import { canonicalJsonChecksum } from "~/server/nexafs/apply-versioned-change";
 import { formatDatasetVersion } from "~/server/nexafs/dataset-versioning";
 import { persistExperimentMetricsTables } from "~/server/nexafs/persistExperimentMetricsTables";
+import { trySyncDefaultOpticalModel } from "~/server/optical-models/default-model";
 import {
   buildKkDeltaMetadata,
   deriveKkDeltaSourceOnCreate,
@@ -965,6 +966,10 @@ export async function createExperimentWithSpectrumDetailed(
 
   for (const entry of transactionResult.experiments) {
     await persistExperimentMetricsTables(ctx.db, entry.experiment.id);
+  }
+
+  for (const entry of transactionResult.experiments) {
+    await trySyncDefaultOpticalModel(ctx.db, entry.experiment.id);
   }
 
   return transactionResult;

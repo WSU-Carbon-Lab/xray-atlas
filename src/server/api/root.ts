@@ -19,10 +19,12 @@ import { attributionTeamsRouter } from "~/server/api/routers/attributionTeams";
 import { datasetAttributionsRouter } from "~/server/api/routers/datasetAttributions";
 import { dashboardSessionsRouter } from "~/server/api/routers/dashboardSessions";
 import { moleculeStructureRouter } from "~/server/api/routers/molecule-structure";
+import { opticalModelsRouter } from "~/server/api/routers/opticalModels";
 
 export const appRouter = createTRPCRouter({
   molecules: moleculesRouter,
   moleculeStructure: moleculeStructureRouter,
+  opticalModels: opticalModelsRouter,
   admin: adminRouter,
   users: usersRouter,
   experiments: experimentsRouter,

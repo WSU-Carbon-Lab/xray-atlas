@@ -1,0 +1,212 @@
+/// Optical models: user-owned, versioned, forkable analysis objects (normalization, peaks, tensor)
+/// attached to one or more experiments. Published versions are immutable. Peak kind and tensor
+/// manifest values are constrained in the migration SQL, not here.
+enum OpticalModelVisibility {
+  private
+  shared
+  public
+
+  @@schema("public")
+}
+
+enum OpticalModelVersionStatus {
+  draft
+  published
+
+  @@schema("public")
+}
+
+enum OpticalModelParentKind {
+  fork
+  merge
+
+  @@schema("public")
+}
+
+enum OpticalModelAuthorRole {
+  owner
+  coauthor
+
+  @@schema("public")
+}
+
+enum OpticalModelSignature {
+  pending
+  signed
+
+  @@schema("public")
+}
+
+enum OpticalModelReviewState {
+  approved
+  rejected
+
+  @@schema("public")
+}
+
+model OpticalModel {
+  id                     String                 @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  tag                    String                 @unique @db.VarChar(16)
+  title                  String
+  description            String?
+  ownerOrcid             String                 @map("owner_orcid") @db.VarChar(19)
+  ownerUserId            String?                @map("owner_user_id") @db.VarChar(19)
+  visibility             OpticalModelVisibility @default(private)
+  defaultForExperimentId String?                @unique @map("default_for_experiment_id") @db.Uuid
+  forkedFromVersionId    String?                @map("forked_from_version_id") @db.Uuid
+  createdAt              DateTime               @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt              DateTime               @default(now()) @updatedAt @map("updated_at") @db.Timestamptz(6)
+  owner                  user?                  @relation("OpticalModelOwner", fields: [ownerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  defaultForExperiment   experiments?           @relation("OpticalModelDefault", fields: [defaultForExperimentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  forkedFromVersion      OpticalModelVersion?   @relation("OpticalModelForkedFrom", fields: [forkedFromVersionId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+  versions               OpticalModelVersion[]  @relation("OpticalModelVersions")
+  shares                 OpticalModelShare[]
+  authors                OpticalModelAuthor[]
+  reviews                OpticalModelReview[]
+
+  @@index([ownerOrcid], map: "idx_optical_model_owner_orcid")
+  @@map("optical_model")
+  @@schema("public")
+}
+
+model OpticalModelVersion {
+  id              String                      @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  modelId         String                      @map("model_id") @db.Uuid
+  versionNumber   Int?                        @map("version_number")
+  status          OpticalModelVersionStatus   @default(draft)
+  normalization   Json?
+  authorsSnapshot Json?                       @map("authors_snapshot")
+  checksum        String?                     @db.VarChar(64)
+  publishedAt     DateTime?                   @map("published_at") @db.Timestamptz(6)
+  createdAt       DateTime                    @default(now()) @map("created_at") @db.Timestamptz(6)
+  model           OpticalModel                @relation("OpticalModelVersions", fields: [modelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  datasets        OpticalModelDataset[]
+  peaks           OpticalModelPeak[]
+  tensor          OpticalModelTensor?
+  parents         OpticalModelVersionParent[] @relation("VersionParents")
+  children        OpticalModelVersionParent[] @relation("VersionParentOf")
+  forkedModels    OpticalModel[]              @relation("OpticalModelForkedFrom")
+
+  @@unique([modelId, versionNumber], map: "optical_model_version_model_number_key")
+  @@unique([modelId], map: "optical_model_version_one_draft_key", where: raw("(status = 'draft')"))
+  @@index([modelId, status], map: "idx_optical_model_version_model_status")
+  @@map("optical_model_version")
+  @@schema("public")
+}
+
+model OpticalModelVersionParent {
+  versionId       String                 @map("version_id") @db.Uuid
+  parentVersionId String                 @map("parent_version_id") @db.Uuid
+  kind            OpticalModelParentKind
+  version         OpticalModelVersion    @relation("VersionParents", fields: [versionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  parent          OpticalModelVersion    @relation("VersionParentOf", fields: [parentVersionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([versionId, parentVersionId])
+  @@index([parentVersionId], map: "idx_optical_model_version_parent_parent")
+  @@map("optical_model_version_parent")
+  @@schema("public")
+}
+
+model OpticalModelDataset {
+  versionId    String              @map("version_id") @db.Uuid
+  experimentId String              @map("experiment_id") @db.Uuid
+  pinnedMajor  Int                 @map("pinned_major")
+  pinnedMinor  Int                 @map("pinned_minor")
+  pinnedPatch  Int                 @map("pinned_patch")
+  role         String              @default("primary")
+  version      OpticalModelVersion @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experiment   experiments         @relation("OpticalModelDatasets", fields: [experimentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([versionId, experimentId])
+  @@index([experimentId], map: "idx_optical_model_dataset_experiment")
+  @@map("optical_model_dataset")
+  @@schema("public")
+}
+
+model OpticalModelPeak {
+  id             String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  versionId      String              @map("version_id") @db.Uuid
+  ordinal        Int
+  experimentId   String?             @map("experiment_id") @db.Uuid
+  polarizationId String?             @map("polarization_id") @db.Uuid
+  centerEv       Float               @map("center_ev")
+  kind           String
+  transition     String?
+  amplitude      Float?
+  width          Float?
+  shape          String?
+  centerErr      Float?              @map("center_err")
+  amplitudeErr   Float?              @map("amplitude_err")
+  widthErr       Float?              @map("width_err")
+  params         Json?
+  fitProvenance  Json?               @map("fit_provenance")
+  version        OpticalModelVersion @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experiment     experiments?        @relation("OpticalModelPeakExperiment", fields: [experimentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  polarization   polarizations?      @relation("OpticalModelPeakPolarization", fields: [polarizationId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+
+  @@unique([versionId, ordinal], map: "optical_model_peak_version_ordinal_key")
+  @@index([versionId, centerEv], map: "idx_optical_model_peak_version_center")
+  @@map("optical_model_peak")
+  @@schema("public")
+}
+
+model OpticalModelTensor {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  versionId   String              @unique @map("version_id") @db.Uuid
+  storagePath String              @map("storage_path")
+  byteSize    Int                 @map("byte_size")
+  sha256      String              @db.VarChar(64)
+  manifest    Json
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  version     OpticalModelVersion @relation(fields: [versionId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@map("optical_model_tensor")
+  @@schema("public")
+}
+
+model OpticalModelShare {
+  modelId        String       @map("model_id") @db.Uuid
+  granteeOrcid   String       @map("grantee_orcid") @db.VarChar(19)
+  grantedByOrcid String       @map("granted_by_orcid") @db.VarChar(19)
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  model          OpticalModel @relation(fields: [modelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@id([modelId, granteeOrcid])
+  @@index([granteeOrcid], map: "idx_optical_model_share_grantee")
+  @@map("optical_model_share")
+  @@schema("public")
+}
+
+model OpticalModelAuthor {
+  modelId   String                 @map("model_id") @db.Uuid
+  orcid     String                 @db.VarChar(19)
+  userId    String?                @map("user_id") @db.VarChar(19)
+  role      OpticalModelAuthorRole
+  signature OpticalModelSignature  @default(pending)
+  signedAt  DateTime?              @map("signed_at") @db.Timestamptz(6)
+  sessionId String?                @map("session_id") @db.Uuid
+  model     OpticalModel           @relation(fields: [modelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  user      user?                  @relation("OpticalModelAuthorUser", fields: [userId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@id([modelId, orcid])
+  @@index([orcid], map: "idx_optical_model_author_orcid")
+  @@map("optical_model_author")
+  @@schema("public")
+}
+
+model OpticalModelReview {
+  modelId        String                  @map("model_id") @db.Uuid
+  experimentId   String                  @map("experiment_id") @db.Uuid
+  state          OpticalModelReviewState
+  reviewerUserId String?                 @map("reviewer_user_id") @db.VarChar(19)
+  reviewedAt     DateTime                @default(now()) @map("reviewed_at") @db.Timestamptz(6)
+  note           String?
+  model          OpticalModel            @relation(fields: [modelId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  experiment     experiments             @relation("OpticalModelReviews", fields: [experimentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  reviewer       user?                   @relation("OpticalModelReviewer", fields: [reviewerUserId], references: [id], onDelete: SetNull, onUpdate: NoAction)
+
+  @@id([modelId, experimentId])
+  @@index([experimentId], map: "idx_optical_model_review_experiment")
+  @@map("optical_model_review")
+  @@schema("public")
+}

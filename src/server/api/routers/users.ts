@@ -17,6 +17,8 @@ import {
   auditRequestMetaFromTrpcContext,
   emitAuditEvent,
 } from "~/server/audit";
+import { detachOrDeleteModelsForUser } from "~/server/optical-models/account-deletion";
+import { removeUnreferencedTensorBlobs } from "~/server/optical-models/tensor-storage";
 import { CONTRIBUTION_AGREEMENT_VERSION } from "~/lib/contribution-agreement";
 import { userHasCurrentContributionAgreement } from "~/lib/nexafs-attribution";
 import { legacyProfileContributionSlug } from "~/lib/datacite-contributor-types";
@@ -1084,7 +1086,9 @@ export const usersRouter = createTRPCRouter({
       userAgent: ctx.userAgent,
     });
 
-    await ctx.db.$transaction(async (tx) => {
+    const { tensorPaths } = await ctx.db.$transaction(async (tx) => {
+      const models = await detachOrDeleteModelsForUser(tx, subjectUserId);
+
       await tx.experiments.deleteMany({
         where: { createdby: ctx.userId },
       });
@@ -1122,7 +1126,15 @@ export const usersRouter = createTRPCRouter({
         subjectUserId,
         requestMeta,
       });
+
+      return models;
     });
+
+    try {
+      await removeUnreferencedTensorBlobs(ctx.db, tensorPaths);
+    } catch (error) {
+      console.error("[users.deleteAccount] tensor blob cleanup failed", error);
+    }
 
     return { success: true };
   }),
