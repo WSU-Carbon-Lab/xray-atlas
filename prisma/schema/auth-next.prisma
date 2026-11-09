@@ -65,6 +65,9 @@ model user {
   cliAuthorizationCodes         CliAuthorizationCode[]
   experimentRevisions           ExperimentRevision[]         @relation("ExperimentRevisionActor")
   experimentAuxSessions         ExperimentAuxSession[]       @relation("ExperimentAuxSessionActor")
+  opticalModelsOwned            OpticalModel[]               @relation("OpticalModelOwner")
+  opticalModelAuthorships       OpticalModelAuthor[]         @relation("OpticalModelAuthorUser")
+  opticalModelReviews           OpticalModelReview[]         @relation("OpticalModelReviewer")
 
   @@schema("next_auth")
 }

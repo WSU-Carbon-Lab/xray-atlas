@@ -37,6 +37,18 @@ import DocsHomePage, { metadata as homeMetadata } from "../../../page";
 import PythonDocsPage, {
   metadata as pythonMetadata,
 } from "../../../python/page";
+import PythonReferencePage, {
+  metadata as pythonReferenceMetadata,
+} from "../../../python/reference/page";
+import PythonDatasetsPage, { metadata as pythonDatasetsMetadata } from "../../../python/datasets/page";
+import PythonModelsPage, { metadata as pythonModelsMetadata } from "../../../python/models/page";
+import PythonBuildPage, { metadata as pythonBuildMetadata } from "../../../python/build/page";
+import PythonComparePage, { metadata as pythonCompareMetadata } from "../../../python/compare/page";
+import PythonReproducePage, { metadata as pythonReproduceMetadata } from "../../../python/reproduce/page";
+import PythonConceptsPage, { metadata as pythonConceptsMetadata } from "../../../python/concepts/page";
+import PythonErrorsPage, { metadata as pythonErrorsMetadata } from "../../../python/errors/page";
+import PythonExamplesPage, { metadata as pythonExamplesMetadata } from "../../../python/examples/page";
+import PythonFaqPage, { metadata as pythonFaqMetadata } from "../../../python/faq/page";
 
 interface VersionedDocsParams {
   version: string;
@@ -73,6 +85,30 @@ function entryForSlug(slug: string): VersionedDocsEntry | undefined {
         metadata: pythonMetadata,
         apiChrome: false,
       };
+    case "python/reference":
+      return {
+        Page: PythonReferencePage,
+        metadata: pythonReferenceMetadata,
+        apiChrome: false,
+      };
+    case "python/datasets":
+      return { Page: PythonDatasetsPage, metadata: pythonDatasetsMetadata, apiChrome: false };
+    case "python/models":
+      return { Page: PythonModelsPage, metadata: pythonModelsMetadata, apiChrome: false };
+    case "python/build":
+      return { Page: PythonBuildPage, metadata: pythonBuildMetadata, apiChrome: false };
+    case "python/compare":
+      return { Page: PythonComparePage, metadata: pythonCompareMetadata, apiChrome: false };
+    case "python/reproduce":
+      return { Page: PythonReproducePage, metadata: pythonReproduceMetadata, apiChrome: false };
+    case "python/concepts":
+      return { Page: PythonConceptsPage, metadata: pythonConceptsMetadata, apiChrome: false };
+    case "python/errors":
+      return { Page: PythonErrorsPage, metadata: pythonErrorsMetadata, apiChrome: false };
+    case "python/examples":
+      return { Page: PythonExamplesPage, metadata: pythonExamplesMetadata, apiChrome: false };
+    case "python/faq":
+      return { Page: PythonFaqPage, metadata: pythonFaqMetadata, apiChrome: false };
     case "igor":
       return { Page: IgorDocsPage, metadata: igorMetadata, apiChrome: false };
     case "api":

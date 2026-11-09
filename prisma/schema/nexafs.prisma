@@ -68,6 +68,10 @@ model experiments {
   zenodoVersions              ExperimentZenodoVersion[]
   zenodoSyncJobs              ZenodoSyncJob[]
   auxSessions                 ExperimentAuxSession[]
+  opticalModelDefault         OpticalModel?                @relation("OpticalModelDefault")
+  opticalModelDatasets        OpticalModelDataset[]        @relation("OpticalModelDatasets")
+  opticalModelPeaks           OpticalModelPeak[]           @relation("OpticalModelPeakExperiment")
+  opticalModelReviews         OpticalModelReview[]         @relation("OpticalModelReviews")
 
   @@index([sampleid, edgeid, instrumentid], map: "idx_experiment_lookup")
   @@index([calibrationid], map: "idx_experiments_calibrationid")
@@ -119,11 +123,12 @@ model nexafsexperimentkinds {
 /// This table contains check constraints and requires additional setup for migrations. Visit https://pris.ly/d/check-constraints for more info.
 /// This model contains row level security and requires additional setup for migrations. Visit https://pris.ly/d/row-level-security for more info.
 model polarizations {
-  id             String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  azimuthdeg     Decimal          @db.Decimal
-  polardeg       Decimal          @db.Decimal
-  experiments    experiments[]
-  spectrumpoints spectrumpoints[]
+  id                String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  azimuthdeg        Decimal            @db.Decimal
+  polardeg          Decimal            @db.Decimal
+  experiments       experiments[]
+  spectrumpoints    spectrumpoints[]
+  opticalModelPeaks OpticalModelPeak[] @relation("OpticalModelPeakPolarization")
 
   @@index([azimuthdeg, polardeg], map: "idx_polarization_geom")
   @@schema("public")

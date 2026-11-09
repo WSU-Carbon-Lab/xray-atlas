@@ -68,13 +68,6 @@ export default function InstallingDocsPage(): ReactElement {
           >
             Editors
           </DocsPathLink>
-          ,{" "}
-          <DocsPathLink
-            className="text-accent hover:underline"
-            href="/docs/python"
-          >
-            Python
-          </DocsPathLink>
           , and{" "}
           <DocsPathLink
             className="text-accent hover:underline"
@@ -82,7 +75,16 @@ export default function InstallingDocsPage(): ReactElement {
           >
             Igor Pro
           </DocsPathLink>{" "}
-          have repository slots and no published package.
+          have repository slots and no published package. The{" "}
+          <DocsPathLink
+            className="text-accent hover:underline"
+            href="/docs/python"
+          >
+            Python
+          </DocsPathLink>{" "}
+          client is published on PyPI as{" "}
+          <code className="text-foreground">xrayatlas</code>; its install,
+          login, and workflow guide is on the Python page.
         </p>
       </section>
     </article>

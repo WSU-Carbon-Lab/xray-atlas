@@ -45,6 +45,8 @@ import {
 import { roleHexColorSchema } from "~/lib/app-role-colors";
 import { primaryHexFromRgbaBuffer } from "~/lib/extract-image-primary-hex";
 import { fetchRemoteImageBytesForSampling } from "~/server/utils/safe-remote-image-url";
+import { detachOrDeleteModelsForUser } from "~/server/optical-models/account-deletion";
+import { removeUnreferencedTensorBlobs } from "~/server/optical-models/tensor-storage";
 import type { Prisma, PrismaClient } from "~/prisma/client";
 
 const optionalFaviconUrlSchema = z.union([
@@ -628,7 +630,8 @@ export const adminRouter = createTRPCRouter({
         clientIp: ctx.clientIp,
         userAgent: ctx.userAgent,
       });
-      await ctx.db.$transaction(async (tx) => {
+      const { tensorPaths } = await ctx.db.$transaction(async (tx) => {
+        const models = await detachOrDeleteModelsForUser(tx, input.userId);
         await tx.experiments.deleteMany({
           where: { createdby: input.userId },
         });
@@ -659,7 +662,13 @@ export const adminRouter = createTRPCRouter({
           subjectUserId: input.userId,
           requestMeta,
         });
+        return models;
       });
+      try {
+        await removeUnreferencedTensorBlobs(ctx.db, tensorPaths);
+      } catch (error) {
+        console.error("[admin.deleteUser] tensor blob cleanup failed", error);
+      }
       return { success: true as const };
     }),
 

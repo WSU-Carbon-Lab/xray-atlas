@@ -6,6 +6,12 @@
  * set `security` to an empty array. `GET /me` and `DELETE /me` require the
  * `xatlas` read credential.
  */
+import {
+  modelsPaths,
+  modelsSchemas,
+  modelsTag,
+} from "~/app/api/v1/openapi/models-spec";
+
 function envelopeError(description: string) {
   return {
     description,
@@ -62,7 +68,7 @@ export const openApiV1Spec = {
     summary:
       "Public catalog, citation, physics, and download contract for X-ray Atlas, plus token-authenticated dataset writes and versions.",
     description:
-      'Contract under /api/v1 for molecules, datasets, BibTeX, dataset archives, Henke atomic form factors, and token-authenticated dataset writes. Catalog GET routes do not require an API key. GET /me and DELETE /me require Authorization: Bearer with a credential minted by xatlas login after a passkey confirmation. The token starts with xra_ and is stored by the CLI. A malformed, unknown, or revoked key on /me returns 401 { error: "Unauthorized" } with WWW-Authenticate: Bearer. Molecule and dataset list routes stay public when no Authorization header is sent; a presented key that is malformed, unknown, or revoked returns the same 401. The website writes through the signed-in session. Write routes (POST /datasets, /datasets/{experimentId}/normalization, /datasets/{experimentId}/preview-bump, attribution accept and decline, dataset file routes, DELETE /me/tokens/{tokenId}) require a bearer token with the write scope, authenticate by token only, and report failures as { error: { code, message } } with 401, 403, 404, 409, 422 (400 for malformed JSON).',
+      'Contract under /api/v1 for molecules, datasets, BibTeX, dataset archives, Henke atomic form factors, and token-authenticated dataset writes. Catalog GET routes do not require an API key. GET /me and DELETE /me require Authorization: Bearer with a credential minted by xatlas login after a passkey confirmation. The token starts with xra_ and is stored by the CLI. A malformed, unknown, or revoked key on /me returns 401 { error: "Unauthorized" } with WWW-Authenticate: Bearer. Molecule and dataset list routes stay public when no Authorization header is sent; a presented key that is malformed, unknown, or revoked returns the same 401. The website writes through the signed-in session. Write routes (POST /datasets, /datasets/{experimentId}/normalization, /datasets/{experimentId}/preview-bump, attribution accept and decline, dataset file routes, DELETE /me/tokens/{tokenId}) require a bearer token with the write scope, authenticate by token only, and report failures as { error: { code, message } } with 401, 403, 404, 409, 422 (400 for malformed JSON). Optical model routes under /models serve public models to anonymous callers and private or shared models to token holders; their writes need the write scope.',
   },
   servers: [{ url: "/api/v1", description: "Versioned API base path" }],
   tags: [
@@ -93,6 +99,7 @@ export const openApiV1Spec = {
       name: "Lookup",
       description: "Name to id resolution for the CLI.",
     },
+    modelsTag,
   ],
   components: {
     securitySchemes: {
@@ -104,6 +111,7 @@ export const openApiV1Spec = {
       },
     },
     schemas: {
+      ...modelsSchemas,
       ErrorEnvelope: {
         type: "object",
         additionalProperties: false,
@@ -1119,6 +1127,9 @@ export const openApiV1Spec = {
           "beta",
           "delta",
           "created_at",
+          "polarization_id",
+          "theta_deg",
+          "phi_deg",
         ],
         properties: {
           dataset_id: { type: "string", format: "uuid" },
@@ -1154,17 +1165,32 @@ export const openApiV1Spec = {
           beta: { type: ["number", "null"] },
           delta: { type: ["number", "null"] },
           created_at: { type: "string", format: "date-time" },
+          polarization_id: {
+            description:
+              "Polarization id of the spectrum row's geometry, or null when unassigned.",
+            type: ["string", "null"],
+          },
+          theta_deg: {
+            description:
+              "Polar angle theta in degrees (polarizations.polardeg), or null.",
+            type: ["number", "null"],
+          },
+          phi_deg: {
+            description:
+              "Azimuth phi in degrees (polarizations.azimuthdeg), or null.",
+            type: ["number", "null"],
+          },
         },
       },
       DatasetExportJsonResponse: {
         type: "object",
         additionalProperties: false,
-        required: ["columns", "rowCount", "filters", "rows"],
+        required: ["columns", "rowCount", "filters", "rows", "datasetVersions"],
         properties: {
           columns: {
             type: "array",
-            minItems: 22,
-            maxItems: 22,
+            minItems: 25,
+            maxItems: 25,
             prefixItems: [
               { const: "dataset_id" },
               { const: "atlas_dataset_id" },
@@ -1188,6 +1214,9 @@ export const openApiV1Spec = {
               { const: "beta" },
               { const: "delta" },
               { const: "created_at" },
+              { const: "polarization_id" },
+              { const: "theta_deg" },
+              { const: "phi_deg" },
             ],
             items: { type: "string" },
           },
@@ -1202,11 +1231,21 @@ export const openApiV1Spec = {
             type: "array",
             items: { $ref: "#/components/schemas/DatasetExportRow" },
           },
+          datasetVersions: {
+            type: "object",
+            description:
+              "Current version of each dataset in rows, keyed by dataset id.",
+            additionalProperties: {
+              type: "string",
+              pattern: "^(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)\\.(0|[1-9][0-9]*)$",
+            },
+          },
         },
       },
     },
   },
   paths: {
+    ...modelsPaths,
     "/me": {
       get: {
         tags: ["Account"],
@@ -2451,7 +2490,7 @@ export const openApiV1Spec = {
         operationId: "exportDatasets",
         summary: "Export dataset table",
         description:
-          "Public GET. No API key. Returns spectrum-point rows ordered by experiment createdAt descending, experiment id ascending, then energy_ev ascending, truncated to limit. format=json (default) returns application/json. format=csv returns text/csv. datasetId limits the rows to one experiment.",
+          "Public GET. No API key. Returns spectrum-point rows ordered by experiment createdAt descending, experiment id ascending, polarization id ascending, then energy_ev ascending, truncated to limit. format=json (default) returns application/json. format=csv returns text/csv. datasetId limits the rows to one experiment.",
         security: [],
         parameters: [
           versionQueryParameter,
@@ -2527,7 +2566,7 @@ export const openApiV1Spec = {
                 schema: {
                   type: "string",
                   description:
-                    "Header row then one spectrum row. Columns, in order: dataset_id, atlas_dataset_id, experiment_type, sample_id, sample_identifier, molecule_id, molecule_iupac_name, edge_id, edge_label, instrument_id, instrument_name, facility_id, facility_name, publication_dois, energy_ev, raw_abs, i0, od, mass_absorption, beta, delta, created_at.",
+                    "Header row then one spectrum row. Columns, in order: dataset_id, atlas_dataset_id, experiment_type, sample_id, sample_identifier, molecule_id, molecule_iupac_name, edge_id, edge_label, instrument_id, instrument_name, facility_id, facility_name, publication_dois, energy_ev, raw_abs, i0, od, mass_absorption, beta, delta, created_at, polarization_id, theta_deg, phi_deg.",
                 },
               },
             },
